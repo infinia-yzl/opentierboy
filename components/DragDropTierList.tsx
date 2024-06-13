@@ -75,14 +75,14 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="space-y-4">
         {tiers.map(tier => (
-          <div key={tier.id} className="bg-gray-200 p-4 rounded-md">
-            <h3 className="text-center text-xl font-bold mb-2">{tier.name}</h3>
+          <div key={tier.id} className="bg-gray-800 p-4 rounded-md">
+            <h3 className="text-center text-xl font-bold mb-2 text-white">{tier.name}</h3>
             <Droppable droppableId={tier.id} direction="horizontal">
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`flex space-x-2 p-2 rounded-md ${snapshot.isDraggingOver ? 'bg-gray-300' : 'bg-gray-100'}`}
+                  className={`flex space-x-2 p-2 rounded-md ${snapshot.isDraggingOver ? 'bg-gray-700' : 'bg-gray-600'}`}
                 >
                   {tier.items.map((item, index) => (
                     <Draggable key={item.id} draggableId={item.id} index={index}>
@@ -91,7 +91,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
-                          className={`p-4 rounded-md bg-gray-400 text-white ${snapshot.isDragging ? 'bg-gray-500' : ''}`}
+                          className={`p-4 rounded-md bg-gray-500 text-white ${snapshot.isDragging ? 'bg-gray-400' : ''}`}
                         >
                           {item.content}
                         </div>
