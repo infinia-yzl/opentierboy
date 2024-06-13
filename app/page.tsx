@@ -1,5 +1,3 @@
-// app/page.tsx
-
 import DragDropTierList from '../components/DragDropTierList';
 
 interface Item {
@@ -11,6 +9,7 @@ interface Tier {
   id: string;
   name: string;
   items: Item[];
+  labelPosition?: 'top' | 'left' | 'right';
 }
 
 const getItems = (count: number): Item[] =>
@@ -20,11 +19,11 @@ const getItems = (count: number): Item[] =>
   }));
 
 const getInitialTiers = (): Tier[] => [
-  { id: 'tier-ss', name: 'SS', items: [] },
-  { id: 'tier-s', name: 'S', items: [] },
-  { id: 'tier-a', name: 'A', items: [] },
+  { id: 'tier-ss', name: 'SS', items: [], labelPosition: 'top' },
+  { id: 'tier-s', name: 'S', items: [], labelPosition: 'left' },
+  { id: 'tier-a', name: 'A', items: [], labelPosition: 'right' },
   { id: 'tier-b', name: 'B', items: [] },
-  { id: 'tier-c', name: '', items: getItems(6) }, // Example to start with some items
+  { id: 'tier-c', name: 'C', items: getItems(6) },
 ];
 
 const Home = async () => {
