@@ -91,7 +91,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className={`flex-1 flex p-2 rounded-md ${snapshot.isDraggingOver ? 'bg-gray-700' : 'bg-gray-600'}`}
+                      className={`w-full flex p-2 rounded-md ${snapshot.isDraggingOver ? 'bg-gray-700' : 'bg-gray-600'}`}
                     >
                       {tier.items.map((item, index) => (
                         <Draggable key={item.id} draggableId={item.id} index={index}>
