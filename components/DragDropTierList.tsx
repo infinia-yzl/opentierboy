@@ -27,6 +27,10 @@ const reorder = (list: any[], startIndex: number, endIndex: number): any[] => {
   return result;
 };
 
+const getTierLabel = (tiers: Tier[], index: number): string => {
+  return tiers[index]?.name || `Tier ${index + 1}`;
+};
+
 const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => {
   const [tiers, setTiers] = useState(initialTiers);
 
@@ -78,6 +82,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
           <div className="space-y-4" {...provided.droppableProps} ref={provided.innerRef}>
             {tiers.map((tier, index) => {
               const labelPosition = tier.labelPosition || 'left';
+              const tierName = getTierLabel(initialTiers, index);
               return (
                 <Draggable draggableId={tier.id} index={index} key={tier.id}>
                   {(provided) => (
@@ -88,11 +93,11 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
                     >
                       <div className="flex-1">
                         {labelPosition === 'top' && (
-                          <h3 className="text-center text-xl font-bold mb-2">{tier.name}</h3>
+                          <h3 className="text-center text-xl font-bold mb-2">{tierName}</h3>
                         )}
                         <div className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
                           {(labelPosition === 'left' || labelPosition === 'right') && (
-                            <h3 className="text-xl font-bold m-4">{tier.name}</h3>
+                            <h3 className="text-xl font-bold m-4">{tierName}</h3>
                           )}
                           <Droppable droppableId={tier.id} direction="horizontal">
                             {(provided, snapshot) => (
