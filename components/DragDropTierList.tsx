@@ -75,7 +75,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="space-y-4">
         {tiers.map(tier => (
-          <div key={tier.id} className="bg-gray-800 p-4 rounded-md">
+          <div key={tier.id} className="bg-gray-800 p-4 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px]">
             <h3 className="text-center text-xl font-bold mb-2 text-white">{tier.name}</h3>
             <Droppable droppableId={tier.id} direction="horizontal">
               {(provided, snapshot) => (
