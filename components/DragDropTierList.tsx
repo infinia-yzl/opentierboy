@@ -28,14 +28,8 @@ const reorder = <T,>(list: T[], startIndex: number, endIndex: number): T[] => {
   return result;
 };
 
-const getTierLabel = (labelsMap: Map<string, string>, tiers: Tier[], index: number): string => {
-  const originalName = tiers[index]?.name || `Tier ${index + 1}`;
-  return labelsMap.get(originalName) || originalName;
-};
-
 const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => {
   const [tiers, setTiers] = useState(initialTiers);
-  const [labelsMap, setLabelsMap] = useState<Map<string, string>>(new Map());
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination, type } = result;
@@ -45,7 +39,17 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
     }
 
     if (type === 'TIER') {
-      const newTiers = reorder(tiers, source.index, destination.index);
+      const sourceItems = tiers[source.index].items;
+      const destinationItems = tiers[destination.index].items;
+      const newTiers = tiers.map((tier, index) => {
+        if (index === source.index) {
+          return { ...tier, items: destinationItems };
+        }
+        if (index === destination.index) {
+          return { ...tier, items: sourceItems };
+        }
+        return tier;
+      });
       setTiers(newTiers);
       return;
     }
@@ -79,10 +83,8 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
   };
 
   const handleSaveLabel = (index: number, newText: string) => {
-    const originalName = initialTiers[index]?.name || `Tier ${index + 1}`;
-    const newLabelsMap = new Map(labelsMap);
-    newLabelsMap.set(originalName, newText);
-    setLabelsMap(newLabelsMap);
+    const newTiers = tiers.map((tier, i) => (i === index ? { ...tier, name: newText } : tier));
+    setTiers(newTiers);
   };
 
   return (
@@ -92,7 +94,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
           <div className="space-y-4" {...provided.droppableProps} ref={provided.innerRef}>
             {tiers.map((tier, index) => {
               const labelPosition = tier.labelPosition || 'left';
-              const tierName = getTierLabel(labelsMap, initialTiers, index);
               return (
                 <Draggable draggableId={tier.id} index={index} key={tier.id}>
                   {(provided) => (
@@ -103,11 +104,11 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({ initialTiers }) => 
                     >
                       <div className="flex-1">
                         {labelPosition === 'top' && (
-                          <EditableLabel text={tierName} onSave={(newText) => handleSaveLabel(index, newText)} />
+                          <EditableLabel text={tier.name} onSave={(newText) => handleSaveLabel(index, newText)} />
                         )}
                         <div className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
                           {(labelPosition === 'left' || labelPosition === 'right') && (
-                            <EditableLabel text={tierName} onSave={(newText) => handleSaveLabel(index, newText)} className="m-4" />
+                            <EditableLabel text={tier.name} onSave={(newText) => handleSaveLabel(index, newText)} className="m-4" />
                           )}
                           <Droppable droppableId={tier.id} direction="horizontal">
                             {(provided, snapshot) => (
