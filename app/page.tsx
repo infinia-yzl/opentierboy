@@ -12,12 +12,14 @@ interface Tier {
   labelPosition?: 'top' | 'left' | 'right';
 }
 
+// TODO: Items should have their own sets and can be appended / merged, or added on the fly
 const getItems = (count: number): Item[] =>
   Array.from({ length: count }, (v, k) => k).map((k) => ({
     id: `item-${k}`,
     content: `item ${k}`,
   }));
 
+// TODO: Tiers should have their own templates and can be loaded separate from the items
 const getInitialTiers = (): Tier[] => [
   { id: 'tier-ss', name: 'SS', items: [], labelPosition: 'top' },
   { id: 'tier-s', name: 'S', items: [], labelPosition: 'left' },
