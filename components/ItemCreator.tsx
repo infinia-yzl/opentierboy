@@ -3,6 +3,8 @@ import React, {useState, useCallback} from 'react';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
+import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
+import {Label} from "@/components/ui/label";
 
 interface ItemCreatorProps {
   onItemCreate: (item: { content: string; imageUrl?: string }) => Promise<void>;
@@ -37,33 +39,51 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemCreate}) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Input
-          type="text"
-          value={content}
-          onChange={handleContentChange}
-          placeholder="Enter item name"
-          className="w-full p-2"
-        />
-      </div>
-      <div>
-        <Input
-          type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
-          className="w-full p-2"
-        />
-      </div>
-      {imageUrl && (
-        <div className="w-24 h-24">
-          <Image src={imageUrl} alt="Preview" width={96} height={96} objectFit="cover"/>
-        </div>
-      )}
-      <Button type="submit" className="px-4 py-2">
-        Create Item
-      </Button>
-    </form>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          Add a New Item
+        </CardTitle>
+        <CardDescription>
+          Enter the name and upload an image for the new item.
+        </CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent>
+          <div className="grid w-full items-center gap-4">
+            <div className="flex flex-col space-y-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                value={content}
+                onChange={handleContentChange}
+                placeholder="Enter item name"
+              />
+            </div>
+            <div className="flex flex-col space-y-1.5">
+              <Label htmlFor="image">Image</Label>
+              <Input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+              />
+              {imageUrl && (
+                <div className="w-24 h-24">
+                  <Image src={imageUrl} alt="Preview" width={96} height={96} objectFit="cover"/>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit">
+            Add Item
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
   );
 };
 

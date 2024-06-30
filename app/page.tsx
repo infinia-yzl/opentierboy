@@ -23,7 +23,8 @@ const getInitialTiers = (): Tier[] => [
   {id: 'tier-s', name: 'S', items: [], labelPosition: 'left'},
   {id: 'tier-a', name: 'A', items: [], labelPosition: 'right'},
   {id: 'tier-b', name: 'B', items: []},
-  {id: 'tier-c', name: 'C', items: getItems(6)},
+  {id: 'tier-c', name: 'C', items: []},
+  {id: 'uncategorized', name: '', items: getItems(8)},
 ];
 
 export async function onItemCreate(item: { content: string; imageUrl?: string }) {
@@ -41,7 +42,7 @@ const Home = async () => {
       <div className="flex-auto">
         <DragDropTierList initialTiers={initialTiers}/>
       </div>
-      <div>
+      <div className="pt-4 pb-4">
         <ItemCreator onItemCreate={onItemCreate}/>
       </div>
     </main>
