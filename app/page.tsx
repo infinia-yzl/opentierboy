@@ -36,7 +36,7 @@ const Home = async () => {
   const initialTiers = getInitialTiers(); // Simulating a data fetch
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <main className="flex flex-col items-center justify-between p-24">
       <h1 className="text-3xl p-12">Tier Author <ThemeToggle/></h1>
       <div className="flex-auto">
         <DragDropTierList initialTiers={initialTiers}/>
