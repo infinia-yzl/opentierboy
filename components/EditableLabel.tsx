@@ -53,7 +53,7 @@ const EditableLabel: React.FC<EditableLabelProps> = ({text, onSave, className = 
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="text-xl font-semibold p-1 border rounded"
+          className="text-xl font-semibold p-1"
         />
       ) : (
         <span className="text-xl font-semibold">{text}</span>

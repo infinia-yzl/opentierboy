@@ -9,7 +9,7 @@ export interface ItemProps {
 
 const Item: React.FC<ItemProps> = ({content, imageUrl}) => {
   return (
-    <div className="p-2 m-1 rounded-md flex flex-col items-center justify-center w-12 h-12 overflow-hidden">
+    <div className="p-2 m-1 flex flex-col items-center justify-center w-12 h-12 overflow-hidden">
       {imageUrl ? (
         <Image
           src={imageUrl}
@@ -17,7 +17,6 @@ const Item: React.FC<ItemProps> = ({content, imageUrl}) => {
           width={80}
           height={80}
           objectFit="cover"
-          className="rounded-md"
         />
       ) : (
         <span className="text-center">{content}</span>

@@ -44,7 +44,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemCreate}) => {
           value={content}
           onChange={handleContentChange}
           placeholder="Enter item name"
-          className="w-full p-2 border rounded"
+          className="w-full p-2"
         />
       </div>
       <div>
@@ -52,7 +52,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemCreate}) => {
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
-          className="w-full p-2 border rounded"
+          className="w-full p-2"
         />
       </div>
       {imageUrl && (

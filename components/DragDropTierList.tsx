@@ -100,7 +100,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
-            className={`space-y-4 p-4 ${snapshot.isDraggingOver && 'ring-4 ring-accent-foreground rounded'}`}
+            className={`space-y-4 p-4 ${snapshot.isDraggingOver && 'ring-2 ring-accent-foreground rounded'}`}
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
