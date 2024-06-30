@@ -4,16 +4,12 @@ import React, {useState, useCallback} from 'react';
 import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
 import RowHandle from '../components/RowHandle';
 import EditableLabel from '../components/EditableLabel';
-
-interface Item {
-  id: string;
-  content: string;
-}
+import Item, {ItemProps} from "@/components/Item";
 
 interface Tier {
   id: string;
   name: string;
-  items: Item[];
+  items: ItemProps[];
   labelPosition?: 'top' | 'left' | 'right';
 }
 
@@ -104,7 +100,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
-            className={`space-y-4 p-4 ${snapshot.isDraggingOver && 'bg-gray-700 rounded'}`}
+            className={`space-y-4 p-4 ${snapshot.isDraggingOver && 'ring-4 ring-accent-foreground rounded'}`}
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
@@ -118,9 +114,10 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       className={`
-                        bg-gray-800 p-4 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+                        border
+                        p-4 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
                         flex items-center
-                        ${snapshot.isDragging ? 'shadow-lg ring-2 ring-blue-500' : ''}
+                        ${snapshot.isDragging && 'shadow-lg ring-2'}
                       `}
                       style={{
                         ...provided.draggableProps.style,
@@ -136,7 +133,8 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                             onSave={(newText) => handleSaveLabel(index, newText)}
                           />
                         )}
-                        <div className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
+                        <div
+                          className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
                           {(labelPosition === 'left' || labelPosition === 'right') && (
                             <EditableLabel
                               text={previewLabel}
@@ -149,7 +147,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`w-full flex p-2 rounded-md ${snapshot.isDraggingOver ? 'bg-gray-700' : 'bg-gray-600'}`}
+                                className={`w-full flex p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
                               >
                                 {tier.items.map((item, itemIndex) => (
                                   <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
@@ -159,8 +157,8 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                         className={`
-                                          p-4 m-1 rounded-md bg-gray-500 
-                                          ${snapshot.isDragging ? 'shadow-md ring-2 ring-blue-400' : ''}
+                                          p-4 m-1 rounded-md bg-card
+                                          ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                                         `}
                                         style={{
                                           ...provided.draggableProps.style,
@@ -169,7 +167,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                                             : provided.draggableProps.style?.transition,
                                         }}
                                       >
-                                        {item.content}
+                                        <Item {...item} />
                                       </div>
                                     )}
                                   </Draggable>
@@ -180,7 +178,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                           </Droppable>
                         </div>
                       </div>
-                      <RowHandle dragHandleProps={provided.dragHandleProps} />
+                      <RowHandle dragHandleProps={provided.dragHandleProps}/>
                     </div>
                   )}
                 </Draggable>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
+import {Input} from "@/components/ui/input";
 
 interface EditableLabelProps {
   text: string;
@@ -6,7 +7,7 @@ interface EditableLabelProps {
   className?: string;
 }
 
-const EditableLabel: React.FC<EditableLabelProps> = ({ text, onSave, className = '' }) => {
+const EditableLabel: React.FC<EditableLabelProps> = ({text, onSave, className = ''}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(text);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -45,17 +46,17 @@ const EditableLabel: React.FC<EditableLabelProps> = ({ text, onSave, className =
   return (
     <div onClick={handleClick} className={`relative ${className}`}>
       {isEditing ? (
-        <input
+        <Input
           ref={inputRef}
           type="text"
           value={inputValue}
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="text-xl font-bold p-1 bg-gray-800 border border-gray-600 rounded"
+          className="text-xl font-semibold p-1 border rounded"
         />
       ) : (
-        <span className="text-xl font-bold">{text}</span>
+        <span className="text-xl font-semibold">{text}</span>
       )}
     </div>
   );
