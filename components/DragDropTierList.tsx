@@ -1,10 +1,13 @@
 "use client";
 
-import React, {useState, useCallback} from 'react';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
 import RowHandle from '../components/RowHandle';
 import EditableLabel from '../components/EditableLabel';
 import Item, {ItemProps} from "@/components/Item";
+import {toast} from "sonner";
+import {v4 as uuidv4} from 'uuid';
+import {useLabelVisibility} from "@/contexts/LabelVisibilityContext";
 
 interface Tier {
   id: string;
@@ -15,12 +18,35 @@ interface Tier {
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
+  onTiersUpdate: (updatedTiers: Tier[]) => void;
 }
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
+interface DeletedItemInfo {
+  item: ItemProps;
+  tierId: string;
+  id: string;
+}
+
+const DragDropTierList: React.FC<DragDropTierListProps> = ({
+  initialTiers, onTiersUpdate,
+}) => {
+  const {showLabels} = useLabelVisibility();
+
   const [tiers, setTiers] = useState(initialTiers);
+  const tiersRef = useRef(tiers); // to solve stale closure issue with undo buttons
+
   const [draggedTierIndex, setDraggedTierIndex] = useState<number | null>(null);
   const [dragOverTierIndex, setDragOverTierIndex] = useState<number | null>(null);
+  const deletedItemsRef = useRef<DeletedItemInfo[]>([]);
+
+  // Preserve tiers in ref for undo functionality
+  useEffect(() => {
+    tiersRef.current = tiers;
+  }, [tiers]);
+
+  useEffect(() => {
+    setTiers(initialTiers);
+  }, [initialTiers]);
 
   const onDragStart = useCallback((start: any) => {
     if (start.type === 'TIER') {
@@ -50,15 +76,16 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
       return;
     }
 
+    let newTiers: Tier[];
+
     if (type === 'TIER') {
-      const newTiers = reorder(tiers, source.index, destination.index);
-      const updatedTiers = newTiers.map((tier, index) => ({
+      newTiers = reorder(tiers, source.index, destination.index);
+      newTiers = newTiers.map((tier, index) => ({
         ...tier,
         name: tiers[index].name // Preserve original names in new positions
       }));
-      setTiers(updatedTiers);
     } else {
-      const newTiers = [...tiers];
+      newTiers = [...tiers];
       const sourceTier = newTiers[newTiers.findIndex(t => t.id === source.droppableId)];
       const destTier = newTiers[newTiers.findIndex(t => t.id === destination.droppableId)];
 
@@ -70,17 +97,74 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
         const [movedItem] = sourceTier.items.splice(source.index, 1);
         destTier.items.splice(destination.index, 0, movedItem);
       }
-
-      setTiers(newTiers);
     }
+
+    setTiers(newTiers);
+    onTiersUpdate(newTiers);
 
     setDraggedTierIndex(null);
     setDragOverTierIndex(null);
   };
 
+  const handleUndoDelete = useCallback((uniqueId: string) => {
+    const deletedItemIndex = deletedItemsRef.current.findIndex((item) => item.id === uniqueId);
+    if (deletedItemIndex === -1) return;
+
+    const [deletedItem] = deletedItemsRef.current.splice(deletedItemIndex, 1);
+
+    const newTiers = tiersRef.current.map((tier) => {
+      if (tier.id === deletedItem.tierId) {
+        const restoredItems = [...tier.items];
+        restoredItems.push(deletedItem.item);
+        return {...tier, items: restoredItems};
+      }
+      return tier;
+    });
+
+    setTiers(newTiers);
+    onTiersUpdate(newTiers);
+
+    toast('Item restored', {
+      description: `${deletedItem.item.content} has been restored.`,
+    });
+  }, [onTiersUpdate]);
+
+  const handleDeleteItem = useCallback((itemId: string) => {
+    let deletedItemInfo: DeletedItemInfo | undefined;
+
+    const newTiers = tiers.map(tier => {
+      const itemIndex = tier.items.findIndex(item => item.id === itemId);
+      if (itemIndex !== -1) {
+        const [deletedItem] = tier.items.splice(itemIndex, 1);
+        deletedItemInfo = {
+          item: deletedItem,
+          tierId: tier.id,
+          id: uuidv4()
+        };
+        return {...tier, items: [...tier.items]};
+      }
+      return tier;
+    });
+
+    if (deletedItemInfo) {
+      deletedItemsRef.current.push(deletedItemInfo);
+      setTiers(newTiers);
+      onTiersUpdate(newTiers);
+
+      toast('Item deleted', {
+        description: `${deletedItemInfo.item.content} was removed.`,
+        action: {
+          label: 'Undo',
+          onClick: () => handleUndoDelete(deletedItemInfo!.id),
+        },
+      });
+    }
+  }, [tiers, onTiersUpdate, handleUndoDelete]);
+
   const handleSaveLabel = (index: number, newText: string) => {
     const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
     setTiers(newTiers);
+    onTiersUpdate(newTiers);
   };
 
   const getPreviewLabel = (index: number) => {
@@ -95,6 +179,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
     }
     return tiers[index].name;
   };
+
   return (
     <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
@@ -147,7 +232,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`w-full flex p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
+                                className={`w-full flex flex-wrap p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
                               >
                                 {tier.items.map((item, itemIndex) => (
                                   <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
@@ -157,7 +242,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                         className={`
-                                          p-4 m-1 rounded-md bg-card
+                                          m-1 rounded-md bg-card
                                           ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                                         `}
                                         style={{
@@ -167,7 +252,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
                                             : provided.draggableProps.style?.transition,
                                         }}
                                       >
-                                        <Item {...item} />
+                                        <Item {...item} onDelete={handleDeleteItem} showLabel={showLabels}/>
                                       </div>
                                     )}
                                   </Draggable>

@@ -1,90 +1,161 @@
 "use client";
-import React, {useState, useCallback} from 'react';
-import Image from 'next/image';
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card";
-import {Label} from "@/components/ui/label";
+
+import React, {useState, useRef, useCallback} from 'react'
+import {zodResolver} from "@hookform/resolvers/zod"
+import {useForm} from "react-hook-form"
+import * as z from "zod"
+import {Button} from "@/components/ui/button"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {Input} from "@/components/ui/input"
+import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
+import Image from 'next/image'
+import {ItemProps} from "@/components/Item"
+import {toast} from "sonner"
+
+const formSchema = z.object({
+  files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
+})
 
 interface ItemCreatorProps {
-  onItemCreate: (item: { content: string; imageUrl?: string }) => Promise<void>;
+  onItemsCreate: (items: ItemProps[]) => void;
+  onUndoItemsCreate: (itemIds: string[]) => void;
 }
 
-const ItemCreator: React.FC<ItemCreatorProps> = ({onItemCreate}) => {
-  const [content, setContent] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+interface UploadedItem {
+  id: string;
+  content: string;
+  imageUrl: string;
+}
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setContent(e.target.value);
+const generateId = () => Math.random().toString(36).slice(2, 11);
+
+const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCreate}) => {
+  const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      files: undefined,
+    },
+  })
+
+  const onSubmit = useCallback((values: z.infer<typeof formSchema>) => {
+    if (values.files && values.files.length > 0) {
+      const filesToSubmit = Array.from(values.files as FileList).map(file => {
+        const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]) ?? {
+          id: generateId(),
+          content: file.name.split('.')[0],
+          imageUrl: URL.createObjectURL(file)
+        };
+        return existingItem as ItemProps;
+      });
+
+      onItemsCreate(filesToSubmit);
+
+      toast('Items added', {
+        description: `${filesToSubmit.length} item(s) have been added.`,
+        action: {
+          label: 'Undo',
+          onClick: () => onUndoItemsCreate(filesToSubmit.map(item => item.id)),
+        },
+      });
+
+      setUploadedItems([]);
+      form.reset();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  }, [uploadedItems, form, onItemsCreate, onUndoItemsCreate]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      form.setValue('files', files);
+      const newItems = Array.from(files).map(file => ({
+        id: generateId(),
+        content: file.name.split('.')[0],
+        imageUrl: URL.createObjectURL(file)
+      }));
+      setUploadedItems(newItems);
+    }
   };
 
-  const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (content) {
-      await onItemCreate({content, imageUrl: imageUrl || undefined});
-      setContent('');
-      setImageUrl(null);
-    }
+  const handleNameChange = (id: string, newName: string) => {
+    setUploadedItems((prev) =>
+      prev.map((item) => (item.id === id ? {...item, content: newName} : item))
+    );
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          Add a New Item
-        </CardTitle>
-        <CardDescription>
-          Enter the name and upload an image for the new item.
-        </CardDescription>
+        <CardTitle>Add New Items</CardTitle>
+        <CardDescription>Add your images to create new items. Edit names if needed.</CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent>
-          <div className="grid w-full items-center gap-4">
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={content}
-                onChange={handleContentChange}
-                placeholder="Enter item name"
-              />
-            </div>
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="image">Image</Label>
-              <Input
-                id="image"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-              />
-              {imageUrl && (
-                <div className="w-24 h-24">
-                  <Image src={imageUrl} alt="Preview" width={96} height={96} objectFit="cover"/>
-                </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="files"
+              render={({field}) => (
+                <FormItem>
+                  <FormLabel>Upload Images</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      ref={fileInputRef}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        handleFileChange(e);
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Choose multiple image files to create new items.
+                  </FormDescription>
+                  <FormMessage/>
+                </FormItem>
               )}
+            />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+              {uploadedItems.map((item) => (
+                <div key={item.id} className="space-y-2">
+                  <div className="w-full h-40 relative">
+                    <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill
+                    />
+                  </div>
+                  <Input
+                    type="text"
+                    value={item.content}
+                    onChange={(e) => handleNameChange(item.id, e.target.value)}
+                    placeholder="Item name"
+                  />
+                </div>
+              ))}
             </div>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit">
-            Add Item
-          </Button>
-        </CardFooter>
-      </form>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={uploadedItems.length === 0}>
+              Add {uploadedItems.length} Item{uploadedItems.length !== 1 ? 's' : ''}
+            </Button>
+          </CardFooter>
+        </form>
+      </Form>
     </Card>
-  );
-};
+  )
+}
 
 export default ItemCreator;

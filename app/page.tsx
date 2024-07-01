@@ -1,9 +1,10 @@
-import DragDropTierList from '../components/DragDropTierList';
 import {ItemProps} from "@/components/Item";
-import ItemCreator from "@/components/ItemCreator";
 import {ThemeToggle} from "@/components/ThemeToggle";
+import TierListManager from "@/components/TierListManager";
+import {ItemLabelToggle} from "@/components/ItemLabelToggle";
+import {ZenToggle} from "@/components/ZenToggle";
 
-interface Tier {
+export interface Tier {
   id: string;
   name: string;
   items: ItemProps[];
@@ -27,24 +28,18 @@ const getInitialTiers = (): Tier[] => [
   {id: 'uncategorized', name: '', items: getItems(8)},
 ];
 
-export async function onItemCreate(item: { content: string; imageUrl?: string }) {
-  "use server";
-  // this doesn't log to the client console. see the server logs (terminal)
-  console.debug('Item created:', item);
-}
-
 const Home = async () => {
   const initialTiers = getInitialTiers(); // Simulating a data fetch
 
   return (
     <main className="flex flex-col items-center justify-between p-24">
       <h1 className="text-3xl p-12">Tier Author <ThemeToggle/></h1>
-      <div className="flex-auto">
-        <DragDropTierList initialTiers={initialTiers}/>
-      </div>
-      <div className="pt-4 pb-4">
-        <ItemCreator onItemCreate={onItemCreate}/>
-      </div>
+      <TierListManager initialTiers={initialTiers}>
+        <div className="flex flex-auto space-x-2">
+          <ZenToggle/>
+          <ItemLabelToggle/>
+        </div>
+      </TierListManager>
     </main>
   );
 };
