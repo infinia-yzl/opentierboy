@@ -1,23 +1,20 @@
-"use client";
+'use client';
 
 import React, {useState, useCallback} from 'react';
 import DragDropTierList from './DragDropTierList';
-import ItemCreator from './ItemCreator';
+import {Tier} from "@/app/page";
+import {LabelVisibilityContext} from '@/contexts/LabelVisibilityContext';
+import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
-
-interface Tier {
-  id: string;
-  name: string;
-  items: ItemProps[];
-  labelPosition?: 'top' | 'left' | 'right';
-}
 
 interface TierListManagerProps {
   initialTiers: Tier[];
+  children: React.ReactNode;
 }
 
-const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
+const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children}) => {
   const [tiers, setTiers] = useState(initialTiers);
+  const [showLabels, setShowLabels] = useState(true);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     setTiers(updatedTiers);
@@ -40,11 +37,19 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
     });
   }, []);
 
+  const toggleLabels = useCallback(() => {
+    setShowLabels(prev => !prev);
+  }, []);
+
   return (
-    <div>
-      <DragDropTierList initialTiers={tiers} onTiersUpdate={handleTiersUpdate}/>
+    <LabelVisibilityContext.Provider value={{showLabels, toggleLabels}}>
+      {children}
+      <DragDropTierList
+        initialTiers={tiers}
+        onTiersUpdate={handleTiersUpdate}
+      />
       <ItemCreator onItemsCreate={handleItemsCreate}/>
-    </div>
+    </LabelVisibilityContext.Provider>
   );
 };
 

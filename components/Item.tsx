@@ -34,11 +34,13 @@ const Item: React.FC<ItemProps> = ({
                   objectFit: 'cover',
                 }}
               />
-              {showLabel && (
-                <div className="absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm">
-                  <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
-                </div>
-              )}
+              <div
+                className={`absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm
+                            transition-opacity duration-180 ease-in-out
+                            ${showLabel ? 'opacity-100' : 'opacity-0'}`}
+              >
+                <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
+              </div>
             </>
           ) : (
             <div className="m-4 p-4">{content}</div>

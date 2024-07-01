@@ -1,8 +1,10 @@
 import {ItemProps} from "@/components/Item";
 import {ThemeToggle} from "@/components/ThemeToggle";
 import TierListManager from "@/components/TierListManager";
+import {ItemLabelToggle} from "@/components/ItemLabelToggle";
+import {ZenToggle} from "@/components/ZenToggle";
 
-interface Tier {
+export interface Tier {
   id: string;
   name: string;
   items: ItemProps[];
@@ -32,7 +34,12 @@ const Home = async () => {
   return (
     <main className="flex flex-col items-center justify-between p-24">
       <h1 className="text-3xl p-12">Tier Author <ThemeToggle/></h1>
-      <TierListManager initialTiers={initialTiers}/>
+      <TierListManager initialTiers={initialTiers}>
+        <div className="flex flex-auto space-x-0.5">
+          <ZenToggle/>
+          <ItemLabelToggle/>
+        </div>
+      </TierListManager>
     </main>
   );
 };
