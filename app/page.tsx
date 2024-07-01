@@ -26,12 +26,6 @@ const getInitialTiers = (): Tier[] => [
   {id: 'uncategorized', name: '', items: getItems(8)},
 ];
 
-export async function onItemsCreate(items: { content: string; imageUrl?: string }[]) {
-  "use server";
-  // this doesn't log to the client console. see the server logs (terminal)
-  console.debug('Items created:', items);
-}
-
 const Home = async () => {
   const initialTiers = getInitialTiers(); // Simulating a data fetch
 
