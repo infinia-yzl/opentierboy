@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, useRef} from 'react'
+import React, {useState, useRef, useCallback} from 'react'
 import {zodResolver} from "@hookform/resolvers/zod"
 import {useForm} from "react-hook-form"
 import * as z from "zod"
@@ -17,7 +17,8 @@ import {
 import {Input} from "@/components/ui/input"
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
 import Image from 'next/image'
-import {ItemProps} from "@/components/Item";
+import {ItemProps} from "@/components/Item"
+import {toast} from "sonner"
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -25,6 +26,7 @@ const formSchema = z.object({
 
 interface ItemCreatorProps {
   onItemsCreate: (items: ItemProps[]) => void;
+  onUndoItemsCreate: (itemIds: string[]) => void;
 }
 
 interface UploadedItem {
@@ -35,7 +37,7 @@ interface UploadedItem {
 
 const generateId = () => Math.random().toString(36).slice(2, 11);
 
-const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
+const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCreate}) => {
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,10 +48,8 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
     },
   })
 
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = useCallback((values: z.infer<typeof formSchema>) => {
     if (values.files && values.files.length > 0) {
-      // Ensure that uploadedItems correspond to the files in the form
       const filesToSubmit = Array.from(values.files as FileList).map(file => {
         const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]) ?? {
           id: generateId(),
@@ -60,13 +60,22 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
       });
 
       onItemsCreate(filesToSubmit);
+
+      toast('Items added', {
+        description: `${filesToSubmit.length} item(s) have been added.`,
+        action: {
+          label: 'Undo',
+          onClick: () => onUndoItemsCreate(filesToSubmit.map(item => item.id)),
+        },
+      });
+
       setUploadedItems([]);
       form.reset();
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
-  }
+  }, [uploadedItems, form, onItemsCreate, onUndoItemsCreate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

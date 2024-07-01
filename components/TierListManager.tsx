@@ -37,6 +37,15 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     });
   }, []);
 
+  const handleUndoItemsCreate = useCallback((itemIds: string[]) => {
+    setTiers((prevTiers) => {
+      return prevTiers.map(tier => ({
+        ...tier,
+        items: tier.items.filter(item => !itemIds.includes(item.id))
+      }));
+    });
+  }, []);
+
   const toggleLabels = useCallback(() => {
     setShowLabels(prev => !prev);
   }, []);
@@ -48,7 +57,10 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
         initialTiers={tiers}
         onTiersUpdate={handleTiersUpdate}
       />
-      <ItemCreator onItemsCreate={handleItemsCreate}/>
+      <ItemCreator
+        onItemsCreate={handleItemsCreate}
+        onUndoItemsCreate={handleUndoItemsCreate}
+      />
     </LabelVisibilityContext.Provider>
   );
 };
