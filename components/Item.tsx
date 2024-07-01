@@ -37,7 +37,7 @@ const Item: React.FC<ItemProps> = ({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onDelete(id)}>
+        <ContextMenuItem onClick={() => onDelete(id)} className="focus:bg-destructive">
           <TrashIcon className="mr-2 h-4 w-4"/>
           <span>Delete</span>
         </ContextMenuItem>
