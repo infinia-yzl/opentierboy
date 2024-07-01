@@ -20,17 +20,22 @@ const Item: React.FC<ItemProps> = ({
   return (
     <ContextMenu>
       <ContextMenuTrigger>
-        <div className="flex flex-col items-center justify-center text-center w-16 h-16 overflow-hidden">
+        <div className="relative flex flex-col items-center justify-center text-center w-16 h-16 overflow-hidden">
           {imageUrl ? (
-            <Image
-              src={imageUrl}
-              alt={content}
-              width={128}
-              height={128}
-              style={{
-                objectFit: 'cover',
-              }}
-            />
+            <>
+              <Image
+                src={imageUrl}
+                alt={content}
+                width={128}
+                height={128}
+                style={{
+                  objectFit: 'cover',
+                }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm">
+                <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
+              </div>
+            </>
           ) : (
             <div className="m-4 p-4">{content}</div>
           )}
