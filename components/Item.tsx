@@ -7,10 +7,16 @@ export interface ItemProps {
   id: string;
   content: string;
   imageUrl?: string;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-const Item: React.FC<ItemProps> = ({id, content, imageUrl, onDelete}) => {
+const Item: React.FC<ItemProps> = ({
+  id,
+  content,
+  imageUrl,
+  onDelete = () => {
+  },
+}) => {
   return (
     <ContextMenu>
       <ContextMenuTrigger>
