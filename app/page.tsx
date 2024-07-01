@@ -27,10 +27,10 @@ const getInitialTiers = (): Tier[] => [
   {id: 'uncategorized', name: '', items: getItems(8)},
 ];
 
-export async function onItemCreate(item: { content: string; imageUrl?: string }) {
+export async function onItemsCreate(items: { content: string; imageUrl?: string }[]) {
   "use server";
   // this doesn't log to the client console. see the server logs (terminal)
-  console.debug('Item created:', item);
+  console.debug('Items created:', items);
 }
 
 const Home = async () => {
@@ -43,7 +43,7 @@ const Home = async () => {
         <DragDropTierList initialTiers={initialTiers}/>
       </div>
       <div className="pt-4 pb-4">
-        <ItemCreator onItemCreate={onItemCreate}/>
+        <ItemCreator onItemsCreate={onItemsCreate}/>
       </div>
     </main>
   );
