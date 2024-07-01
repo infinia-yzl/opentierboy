@@ -91,7 +91,7 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
     <Card>
       <CardHeader>
         <CardTitle>Add New Items</CardTitle>
-        <CardDescription>Upload multiple images to create new items. Edit names if needed.</CardDescription>
+        <CardDescription>Add your images to create new items. Edit names if needed.</CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
