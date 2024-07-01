@@ -35,7 +35,7 @@ const Home = async () => {
     <main className="flex flex-col items-center justify-between p-24">
       <h1 className="text-3xl p-12">Tier Author <ThemeToggle/></h1>
       <TierListManager initialTiers={initialTiers}>
-        <div className="flex flex-auto space-x-0.5">
+        <div className="flex flex-auto space-x-2">
           <ZenToggle/>
           <ItemLabelToggle/>
         </div>
