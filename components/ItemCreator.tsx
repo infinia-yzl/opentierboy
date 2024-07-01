@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState} from 'react'
+import React, {useState, useRef} from 'react'
 import {zodResolver} from "@hookform/resolvers/zod"
 import {useForm} from "react-hook-form"
 import * as z from "zod"
@@ -17,13 +17,14 @@ import {
 import {Input} from "@/components/ui/input"
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
 import Image from 'next/image'
+import {ItemProps} from "@/components/Item";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
 })
 
 interface ItemCreatorProps {
-  onItemsCreate: (items: { content: string; imageUrl: string }[]) => Promise<void>;
+  onItemsCreate: (items: ItemProps[]) => void;
 }
 
 interface UploadedItem {
@@ -32,8 +33,11 @@ interface UploadedItem {
   imageUrl: string;
 }
 
+const generateId = () => Math.random().toString(36).slice(2, 11);
+
 const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,11 +46,25 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
     },
   })
 
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (uploadedItems.length > 0) {
-      onItemsCreate(uploadedItems);
+    if (values.files && values.files.length > 0) {
+      // Ensure that uploadedItems correspond to the files in the form
+      const filesToSubmit = Array.from(values.files as FileList).map(file => {
+        const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]);
+        return existingItem || {
+          id: generateId(),
+          content: file.name.split('.')[0],
+          imageUrl: URL.createObjectURL(file)
+        };
+      });
+
+      onItemsCreate(filesToSubmit);
       setUploadedItems([]);
       form.reset();
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   }
 
@@ -54,18 +72,12 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
     const files = e.target.files;
     if (files) {
       form.setValue('files', files);
-      Array.from(files).forEach((file) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const newItem: UploadedItem = {
-            id: Math.random().toString(36).substr(2, 9),
-            content: file.name.split('.')[0], // Default name is file name without extension
-            imageUrl: reader.result as string,
-          };
-          setUploadedItems((prev) => [...prev, newItem]);
-        };
-        reader.readAsDataURL(file);
-      });
+      const newItems = Array.from(files).map(file => ({
+        id: generateId(),
+        content: file.name.split('.')[0],
+        imageUrl: URL.createObjectURL(file)
+      }));
+      setUploadedItems(newItems);
     }
   };
 
@@ -95,6 +107,7 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
                       type="file"
                       accept="image/*"
                       multiple
+                      ref={fileInputRef}
                       onChange={(e) => {
                         field.onChange(e);
                         handleFileChange(e);

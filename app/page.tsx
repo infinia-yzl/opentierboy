@@ -1,7 +1,6 @@
-import DragDropTierList from '../components/DragDropTierList';
 import {ItemProps} from "@/components/Item";
-import ItemCreator from "@/components/ItemCreator";
 import {ThemeToggle} from "@/components/ThemeToggle";
+import TierListManager from "@/components/TierListManager";
 
 interface Tier {
   id: string;
@@ -39,12 +38,7 @@ const Home = async () => {
   return (
     <main className="flex flex-col items-center justify-between p-24">
       <h1 className="text-3xl p-12">Tier Author <ThemeToggle/></h1>
-      <div className="flex-auto">
-        <DragDropTierList initialTiers={initialTiers}/>
-      </div>
-      <div className="pt-4 pb-4">
-        <ItemCreator onItemsCreate={onItemsCreate}/>
-      </div>
+      <TierListManager initialTiers={initialTiers}/>
     </main>
   );
 };

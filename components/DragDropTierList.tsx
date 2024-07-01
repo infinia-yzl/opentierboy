@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
 import RowHandle from '../components/RowHandle';
 import EditableLabel from '../components/EditableLabel';
@@ -15,12 +15,17 @@ interface Tier {
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
+  onTiersUpdate?: (updatedTiers: Tier[]) => void;
 }
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
+const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTiersUpdate}) => {
   const [tiers, setTiers] = useState(initialTiers);
   const [draggedTierIndex, setDraggedTierIndex] = useState<number | null>(null);
   const [dragOverTierIndex, setDragOverTierIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setTiers(initialTiers);
+  }, [initialTiers]);
 
   const onDragStart = useCallback((start: any) => {
     if (start.type === 'TIER') {
@@ -50,15 +55,16 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
       return;
     }
 
+    let newTiers: Tier[];
+
     if (type === 'TIER') {
-      const newTiers = reorder(tiers, source.index, destination.index);
-      const updatedTiers = newTiers.map((tier, index) => ({
+      newTiers = reorder(tiers, source.index, destination.index);
+      newTiers = newTiers.map((tier, index) => ({
         ...tier,
         name: tiers[index].name // Preserve original names in new positions
       }));
-      setTiers(updatedTiers);
     } else {
-      const newTiers = [...tiers];
+      newTiers = [...tiers];
       const sourceTier = newTiers[newTiers.findIndex(t => t.id === source.droppableId)];
       const destTier = newTiers[newTiers.findIndex(t => t.id === destination.droppableId)];
 
@@ -70,8 +76,11 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
         const [movedItem] = sourceTier.items.splice(source.index, 1);
         destTier.items.splice(destination.index, 0, movedItem);
       }
+    }
 
-      setTiers(newTiers);
+    setTiers(newTiers);
+    if (onTiersUpdate) {
+      onTiersUpdate(newTiers);
     }
 
     setDraggedTierIndex(null);
@@ -81,6 +90,9 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
   const handleSaveLabel = (index: number, newText: string) => {
     const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
     setTiers(newTiers);
+    if (onTiersUpdate) {
+      onTiersUpdate(newTiers);
+    }
   };
 
   const getPreviewLabel = (index: number) => {
@@ -95,6 +107,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers}) => {
     }
     return tiers[index].name;
   };
+
   return (
     <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
