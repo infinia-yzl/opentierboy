@@ -51,12 +51,12 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
     if (values.files && values.files.length > 0) {
       // Ensure that uploadedItems correspond to the files in the form
       const filesToSubmit = Array.from(values.files as FileList).map(file => {
-        const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]);
-        return existingItem || {
+        const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]) ?? {
           id: generateId(),
           content: file.name.split('.')[0],
           imageUrl: URL.createObjectURL(file)
         };
+        return existingItem as ItemProps;
       });
 
       onItemsCreate(filesToSubmit);

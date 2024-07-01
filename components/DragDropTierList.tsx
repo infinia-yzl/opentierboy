@@ -15,7 +15,7 @@ interface Tier {
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
-  onTiersUpdate?: (updatedTiers: Tier[]) => void;
+  onTiersUpdate: (updatedTiers: Tier[]) => void;
 }
 
 const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTiersUpdate}) => {
@@ -79,20 +79,24 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTier
     }
 
     setTiers(newTiers);
-    if (onTiersUpdate) {
-      onTiersUpdate(newTiers);
-    }
+    onTiersUpdate(newTiers);
 
     setDraggedTierIndex(null);
     setDragOverTierIndex(null);
   };
 
+  const handleDeleteItem = useCallback((itemId: string) => {
+    const newTiers = tiers.map(tier => {
+      return {...tier, items: tier.items.filter(item => item.id !== itemId)};
+    });
+    setTiers(newTiers);
+    onTiersUpdate(newTiers);
+  }, [tiers, onTiersUpdate]);
+
   const handleSaveLabel = (index: number, newText: string) => {
     const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
     setTiers(newTiers);
-    if (onTiersUpdate) {
-      onTiersUpdate(newTiers);
-    }
+    onTiersUpdate(newTiers);
   };
 
   const getPreviewLabel = (index: number) => {
@@ -180,7 +184,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTier
                                             : provided.draggableProps.style?.transition,
                                         }}
                                       >
-                                        <Item {...item} />
+                                        <Item {...item} onDelete={handleDeleteItem}/>
                                       </div>
                                     )}
                                   </Draggable>
