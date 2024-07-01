@@ -170,7 +170,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTier
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
                                         className={`
-                                          p-4 m-1 rounded-md bg-card
+                                          m-1 rounded-md bg-card
                                           ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                                         `}
                                         style={{
