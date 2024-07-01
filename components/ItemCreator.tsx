@@ -125,7 +125,8 @@ const ItemCreator = ({onItemsCreate}: ItemCreatorProps) => {
               {uploadedItems.map((item) => (
                 <div key={item.id} className="space-y-2">
                   <div className="w-full h-40 relative">
-                    <Image src={item.imageUrl} alt={item.content} layout="fill" objectFit="cover"/>
+                    <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill
+                    />
                   </div>
                   <Input
                     type="text"

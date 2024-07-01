@@ -27,7 +27,9 @@ const Item: React.FC<ItemProps> = ({
               alt={content}
               width={128}
               height={128}
-              objectFit="cover"
+              style={{
+                objectFit: 'cover',
+              }}
             />
           ) : (
             <div className="m-4 p-4">{content}</div>
