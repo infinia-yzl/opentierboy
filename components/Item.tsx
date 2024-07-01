@@ -8,6 +8,7 @@ export interface ItemProps {
   content: string;
   imageUrl?: string;
   onDelete?: (id: string) => void;
+  showLabel?: boolean;
 }
 
 const Item: React.FC<ItemProps> = ({
@@ -16,6 +17,7 @@ const Item: React.FC<ItemProps> = ({
   imageUrl,
   onDelete = () => {
   },
+  showLabel = true,
 }) => {
   return (
     <ContextMenu>
@@ -32,9 +34,11 @@ const Item: React.FC<ItemProps> = ({
                   objectFit: 'cover',
                 }}
               />
-              <div className="absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm">
-                <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
-              </div>
+              {showLabel && (
+                <div className="absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm">
+                  <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
+                </div>
+              )}
             </>
           ) : (
             <div className="m-4 p-4">{content}</div>
