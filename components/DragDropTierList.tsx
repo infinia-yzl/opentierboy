@@ -227,7 +227,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({initialTiers, onTier
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`w-full flex p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
+                                className={`w-full flex flex-wrap p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
                               >
                                 {tier.items.map((item, itemIndex) => (
                                   <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
