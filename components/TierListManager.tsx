@@ -3,10 +3,10 @@
 import React, {useState, useCallback} from 'react';
 import DragDropTierList from './DragDropTierList';
 import {Tier} from "@/app/page";
-import {LabelVisibilityContext} from '@/contexts/LabelVisibilityContext';
+import {TierContext} from '@/contexts/TierContext';
 import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
-import TierTemplateSelector from "@/components/TierTemplateSelector";
+import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -16,6 +16,7 @@ interface TierListManagerProps {
 const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children}) => {
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
+  const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition || 'left');
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     setTiers(updatedTiers);
@@ -26,7 +27,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
       const updatedTiers = [...prevTiers];
       const lastTier = updatedTiers[updatedTiers.length - 1];
 
-      // Filter out any new items that already exist in any tier
       const uniqueNewItems = newItems.filter(newItem =>
         !updatedTiers.some(tier =>
           tier.items.some(item => item.id === newItem.id || item.content === newItem.content)
@@ -51,32 +51,43 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     setShowLabels(prev => !prev);
   }, []);
 
-  const handleTemplateChange = (newTemplate: Tier[]) => {
+  const handleLabelPositionChange = useCallback((newPosition: LabelPosition) => {
+    setLabelPosition(newPosition);
+    setTiers(prevTiers => prevTiers.map(tier => ({...tier, labelPosition: newPosition})));
+  }, []);
+
+  const handleTemplateChange = useCallback((newTemplate: Tier[]) => {
     setTiers(prevTiers => {
       const allItems = prevTiers.flatMap(tier => tier.items);
-      const newTiers = newTemplate.map(tier => ({...tier, items: [] as ItemProps[]}));
+      const updatedTiers = newTemplate.map(tier => ({...tier, items: [] as ItemProps[], labelPosition}));
 
-      prevTiers.forEach(oldTier => {
-        oldTier.items.forEach(item => {
-          const newTierIndex = newTiers.findIndex(t => t.id === oldTier.id);
-          if (newTierIndex !== -1) {
-            newTiers[newTierIndex].items.push(item);
-          }
-        });
+      // Distribute existing items among new tiers
+      allItems.forEach(item => {
+        const matchingTier = updatedTiers.find(t => t.id === item.id);
+        if (matchingTier) {
+          matchingTier.items.push(item);
+        } else {
+          updatedTiers[updatedTiers.length - 1].items.push(item);
+        }
       });
 
-      const categorizedItemIds = newTiers.flatMap(tier => tier.items.map(item => item.id));
-      const uncategorizedItems = allItems.filter(item => !categorizedItemIds.includes(item.id));
-
-      newTiers.push({id: 'uncategorized', name: '', items: uncategorizedItems});
-      return newTiers;
+      return updatedTiers;
     });
+  }, [labelPosition]);
+
+  const contextValue = {
+    tiers,
+    labelPosition,
+    showLabels,
+    setLabelPosition: handleLabelPositionChange,
+    toggleLabels,
+    onTemplateChange: handleTemplateChange
   };
 
   return (
-    <LabelVisibilityContext.Provider value={{showLabels, toggleLabels}}>
+    <TierContext.Provider value={contextValue}>
       <div className="flex flex-auto space-x-2">
-        <TierTemplateSelector onTemplateChange={handleTemplateChange}/>
+        <TierTemplateSelector/>
         {children}
       </div>
       <DragDropTierList
@@ -87,7 +98,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
         onItemsCreate={handleItemsCreate}
         onUndoItemsCreate={handleUndoItemsCreate}
       />
-    </LabelVisibilityContext.Provider>
+    </TierContext.Provider>
   );
 };
 

@@ -1,7 +1,6 @@
 import {ItemProps} from "@/components/Item";
 import {ThemeToggle} from "@/components/ThemeToggle";
 import TierListManager from "@/components/TierListManager";
-import {ItemLabelToggle} from "@/components/ItemLabelToggle";
 import {ZenToggle} from "@/components/ZenToggle";
 
 export interface Tier {
@@ -37,7 +36,6 @@ const Home = async () => {
       <TierListManager initialTiers={initialTiers}>
         <div className="flex flex-auto space-x-2">
           <ZenToggle/>
-          <ItemLabelToggle/>
         </div>
       </TierListManager>
     </main>
