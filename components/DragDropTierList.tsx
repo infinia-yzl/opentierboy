@@ -209,7 +209,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                         {labelPosition === 'top' && (
                           <EditableLabel
                             text={previewLabel}
-                            placeholder={tier.placeholder}
                             onSave={(newText) => handleSaveLabel(index, newText)}
                           />
                         )}
@@ -218,7 +217,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                           {(labelPosition === 'left' || labelPosition === 'right') && (
                             <EditableLabel
                               text={previewLabel}
-                              placeholder={tier.placeholder}
                               onSave={(newText) => handleSaveLabel(index, newText)}
                               className="m-4"
                             />
