@@ -1,13 +1,24 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {Input} from "@/components/ui/input";
+import {cn} from "@/lib/utils";
 
 interface EditableLabelProps {
   text: string;
   onSave: (newText: string) => void;
   className?: string;
+  as?: keyof JSX.IntrinsicElements;
+  contentClassName?: string;
+  placeholder?: string;
 }
 
-const EditableLabel: React.FC<EditableLabelProps> = ({text, onSave, className = ''}) => {
+const EditableLabel: React.FC<EditableLabelProps> = ({
+  text,
+  onSave,
+  className = '',
+  as: Component = 'span',
+  contentClassName = 'text-xl font-semibold',
+  placeholder = ''
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState(text);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -43,9 +54,9 @@ const EditableLabel: React.FC<EditableLabelProps> = ({text, onSave, className = 
     }
   };
 
-  return (
-    <div onClick={handleClick} className={`relative ${className}`}>
-      {isEditing ? (
+  const renderContent = () => {
+    if (isEditing || (!text && placeholder)) {
+      return (
         <Input
           ref={inputRef}
           type="text"
@@ -53,11 +64,20 @@ const EditableLabel: React.FC<EditableLabelProps> = ({text, onSave, className = 
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="text-xl font-semibold p-1"
+          className={cn(contentClassName, 'py-6')}
+          placeholder={placeholder}
         />
-      ) : (
-        <span className="text-xl font-semibold">{text}</span>
-      )}
+      );
+    } else if (text) {
+      return <Component className={contentClassName}>{text}</Component>;
+    } else {
+      return <Component className={contentClassName}></Component>;
+    }
+  };
+
+  return (
+    <div onClick={handleClick} className={`relative ${className}`}>
+      {renderContent()}
     </div>
   );
 };

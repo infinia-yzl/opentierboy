@@ -8,13 +8,7 @@ import Item, {ItemProps} from "@/components/Item";
 import {toast} from "sonner";
 import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
-
-interface Tier {
-  id: string;
-  name: string;
-  items: ItemProps[];
-  labelPosition?: 'top' | 'left' | 'right';
-}
+import {Tier} from "@/app/page";
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
@@ -215,6 +209,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                         {labelPosition === 'top' && (
                           <EditableLabel
                             text={previewLabel}
+                            placeholder={tier.placeholder}
                             onSave={(newText) => handleSaveLabel(index, newText)}
                           />
                         )}
@@ -223,6 +218,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                           {(labelPosition === 'left' || labelPosition === 'right') && (
                             <EditableLabel
                               text={previewLabel}
+                              placeholder={tier.placeholder}
                               onSave={(newText) => handleSaveLabel(index, newText)}
                               className="m-4"
                             />

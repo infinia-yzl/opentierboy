@@ -7,6 +7,8 @@ import {TierContext} from '@/contexts/TierContext';
 import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
 import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
+import EditableLabel from "@/components/EditableLabel";
+import {Separator} from "@/components/ui/separator";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -14,6 +16,7 @@ interface TierListManagerProps {
 }
 
 const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children}) => {
+  const [name, setName] = useState('');
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition || 'left');
@@ -86,9 +89,15 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
 
   return (
     <TierContext.Provider value={contextValue}>
+      <div className="mb-4">
+        <EditableLabel as="h2" text={name} onSave={setName} placeholder="Enter title"
+                       contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
+      </div>
       <div className="flex flex-auto space-x-2">
-        <TierTemplateSelector/>
-        {children}
+        <div className="flex space-x-2">
+          <TierTemplateSelector/>
+          {children}
+        </div>
       </div>
       <DragDropTierList
         initialTiers={tiers}

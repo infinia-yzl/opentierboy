@@ -8,6 +8,7 @@ export interface Tier {
   name: string;
   items: ItemProps[];
   labelPosition?: 'top' | 'left' | 'right';
+  placeholder?: string;
 }
 
 // TODO: Items should have their own sets and can be appended / merged, or added on the fly
