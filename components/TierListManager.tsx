@@ -85,7 +85,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
           // If no matching tier and no uncategorized tier, create one
           const uncategorizedTier: Tier = {
             id: 'uncategorized',
-            name: 'Uncategorized',
+            name: '',
             items: [item],
             labelPosition: labelPosition
           };
