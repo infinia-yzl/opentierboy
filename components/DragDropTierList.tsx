@@ -7,14 +7,8 @@ import EditableLabel from '../components/EditableLabel';
 import Item, {ItemProps} from "@/components/Item";
 import {toast} from "sonner";
 import {v4 as uuidv4} from 'uuid';
-import {useLabelVisibility} from "@/contexts/LabelVisibilityContext";
-
-interface Tier {
-  id: string;
-  name: string;
-  items: ItemProps[];
-  labelPosition?: 'top' | 'left' | 'right';
-}
+import {useTierContext} from "@/contexts/TierContext";
+import {Tier} from "@/app/page";
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
@@ -30,7 +24,7 @@ interface DeletedItemInfo {
 const DragDropTierList: React.FC<DragDropTierListProps> = ({
   initialTiers, onTiersUpdate,
 }) => {
-  const {showLabels} = useLabelVisibility();
+  const {showLabels} = useTierContext();
 
   const [tiers, setTiers] = useState(initialTiers);
   const tiersRef = useRef(tiers); // to solve stale closure issue with undo buttons
