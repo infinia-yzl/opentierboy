@@ -6,6 +6,7 @@ import {Tier} from "@/app/page";
 import {LabelVisibilityContext} from '@/contexts/LabelVisibilityContext';
 import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
+import TierTemplateSelector from "@/components/TierTemplateSelector";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -50,9 +51,34 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     setShowLabels(prev => !prev);
   }, []);
 
+  const handleTemplateChange = (newTemplate: Tier[]) => {
+    setTiers(prevTiers => {
+      const allItems = prevTiers.flatMap(tier => tier.items);
+      const newTiers = newTemplate.map(tier => ({...tier, items: [] as ItemProps[]}));
+
+      prevTiers.forEach(oldTier => {
+        oldTier.items.forEach(item => {
+          const newTierIndex = newTiers.findIndex(t => t.id === oldTier.id);
+          if (newTierIndex !== -1) {
+            newTiers[newTierIndex].items.push(item);
+          }
+        });
+      });
+
+      const categorizedItemIds = newTiers.flatMap(tier => tier.items.map(item => item.id));
+      const uncategorizedItems = allItems.filter(item => !categorizedItemIds.includes(item.id));
+
+      newTiers.push({id: 'uncategorized', name: '', items: uncategorizedItems});
+      return newTiers;
+    });
+  };
+
   return (
     <LabelVisibilityContext.Provider value={{showLabels, toggleLabels}}>
-      {children}
+      <div className="flex flex-auto space-x-2">
+        <TierTemplateSelector onTemplateChange={handleTemplateChange}/>
+        {children}
+      </div>
       <DragDropTierList
         initialTiers={tiers}
         onTiersUpdate={handleTiersUpdate}
