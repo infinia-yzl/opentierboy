@@ -8,7 +8,6 @@ import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
 import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
-import {Separator} from "@/components/ui/separator";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -19,7 +18,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
   const [name, setName] = useState('');
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
-  const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition || 'left');
+  const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition ?? 'left');
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     setTiers(updatedTiers);
@@ -61,16 +60,36 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
 
   const handleTemplateChange = useCallback((newTemplate: Tier[]) => {
     setTiers(prevTiers => {
-      const allItems = prevTiers.flatMap(tier => tier.items);
-      const updatedTiers = newTemplate.map(tier => ({...tier, items: [] as ItemProps[], labelPosition}));
+      // Step 1: Create a map of all existing items with their tier IDs
+      const allItemsMap = new Map(
+        prevTiers.flatMap(tier =>
+          tier.items.map(item => [item.id, {item, tierId: tier.id}])
+        )
+      );
 
-      // Distribute existing items among new tiers
-      allItems.forEach(item => {
-        const matchingTier = updatedTiers.find(t => t.id === item.id);
-        if (matchingTier) {
-          matchingTier.items.push(item);
+      // Step 2: Create new tiers based on the template
+      const updatedTiers: Tier[] = newTemplate.map(templateTier => ({
+        ...templateTier,
+        items: [] as ItemProps[],
+        labelPosition
+      }));
+
+      // Step 3: Distribute existing items to new tiers
+      allItemsMap.forEach(({item, tierId}) => {
+        const targetTier = updatedTiers.find(tier => tier.id === tierId) ||
+          updatedTiers.find(tier => tier.id === 'uncategorized');
+
+        if (targetTier) {
+          targetTier.items.push(item);
         } else {
-          updatedTiers[updatedTiers.length - 1].items.push(item);
+          // If no matching tier and no uncategorized tier, create one
+          const uncategorizedTier: Tier = {
+            id: 'uncategorized',
+            name: 'Uncategorized',
+            items: [item],
+            labelPosition: labelPosition
+          };
+          updatedTiers.push(uncategorizedTier);
         }
       });
 
