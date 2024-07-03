@@ -1,13 +1,15 @@
 'use client';
 
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useRef} from 'react';
 import DragDropTierList from './DragDropTierList';
 import {Tier} from "@/app/page";
 import {TierContext} from '@/contexts/TierContext';
-import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
 import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
+import {Button} from "@/components/ui/button";
+import ItemManager from "@/components/ItemManager";
+import {Label} from "@/components/ui/label";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -19,10 +21,12 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition ?? 'left');
+  const previousTiersRef = useRef<Tier[]>(initialTiers);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
+    previousTiersRef.current = tiers;
     setTiers(updatedTiers);
-  }, []);
+  }, [tiers]);
 
   const handleItemsCreate = useCallback((newItems: ItemProps[]) => {
     setTiers((prevTiers) => {
@@ -97,6 +101,39 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     });
   }, [labelPosition]);
 
+  const resetItems = useCallback(() => {
+    previousTiersRef.current = tiers;
+    setTiers(prevTiers => {
+      const allItems = prevTiers.flatMap(tier => tier.items).sort((a, b) => a.content.localeCompare(b.content));
+      const resetTiers = prevTiers.map(tier => ({...tier, items: [] as ItemProps[]}));
+      let uncategorizedTier = resetTiers.find(tier => tier.id === 'uncategorized');
+      if (!uncategorizedTier) {
+        uncategorizedTier = {
+          id: 'uncategorized',
+          name: '',
+          items: [],
+          labelPosition: labelPosition
+        };
+        resetTiers.push(uncategorizedTier);
+      }
+      uncategorizedTier.items = allItems;
+      return resetTiers;
+    });
+  }, [labelPosition, tiers]);
+
+  const deleteAllItems = useCallback(() => {
+    previousTiersRef.current = tiers;
+    setTiers(prevTiers => prevTiers.map(tier => ({...tier, items: []})));
+  }, [tiers]);
+
+  const undoReset = useCallback(() => {
+    setTiers(previousTiersRef.current);
+  }, []);
+
+  const undoDelete = useCallback(() => {
+    setTiers(previousTiersRef.current);
+  }, []);
+
   const contextValue = {
     tiers,
     labelPosition,
@@ -113,18 +150,22 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
                        contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
       </div>
       <div className="flex flex-auto space-x-2">
-        <div className="flex space-x-2">
+        <div className="flex space-x-2" id="settings">
           <TierTemplateSelector/>
+          <ItemManager
+            onItemsCreate={handleItemsCreate}
+            onUndoItemsCreate={handleUndoItemsCreate}
+            resetItems={resetItems}
+            deleteAllItems={deleteAllItems}
+            undoReset={undoReset}
+            undoDelete={undoDelete}
+          />
           {children}
         </div>
       </div>
       <DragDropTierList
         initialTiers={tiers}
         onTiersUpdate={handleTiersUpdate}
-      />
-      <ItemCreator
-        onItemsCreate={handleItemsCreate}
-        onUndoItemsCreate={handleUndoItemsCreate}
       />
     </TierContext.Provider>
   );

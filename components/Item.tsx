@@ -48,7 +48,9 @@ const Item: React.FC<ItemProps> = ({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onDelete(id)} className="focus:bg-destructive">
+        <ContextMenuItem onClick={() => onDelete(id)}
+                         className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
+        >
           <TrashIcon className="mr-2 h-4 w-4"/>
           <span>Delete</span>
         </ContextMenuItem>

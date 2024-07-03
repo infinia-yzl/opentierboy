@@ -15,7 +15,6 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import {Input} from "@/components/ui/input"
-import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from "@/components/ui/card"
 import Image from 'next/image'
 import {ItemProps} from "@/components/Item"
 import {toast} from "sonner"
@@ -97,64 +96,56 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add New Items</CardTitle>
-        <CardDescription>Add your images to create new items. Edit names if needed.</CardDescription>
-      </CardHeader>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent>
-            <FormField
-              control={form.control}
-              name="files"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Upload Images</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      ref={fileInputRef}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        handleFileChange(e);
-                      }}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Choose multiple image files to create new items.
-                  </FormDescription>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-              {uploadedItems.map((item) => (
-                <div key={item.id} className="space-y-2">
-                  <div className="w-full h-40 relative">
-                    <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill
-                    />
-                  </div>
-                  <Input
-                    type="text"
-                    value={item.content}
-                    onChange={(e) => handleNameChange(item.id, e.target.value)}
-                    placeholder="Item name"
-                  />
-                </div>
-              ))}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <FormField
+          control={form.control}
+          name="files"
+          render={({field}) => (
+            <FormItem>
+              <FormLabel>Upload Images</FormLabel>
+              <FormControl>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    handleFileChange(e);
+                  }}
+                />
+              </FormControl>
+              <FormDescription>
+                Choose multiple image files to create new items.
+              </FormDescription>
+              <FormMessage/>
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+          {uploadedItems.map((item) => (
+            <div key={item.id} className="space-y-2">
+              <div className="w-28 h-28 relative">
+                <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill
+                />
+              </div>
+              <Input
+                type="text"
+                value={item.content}
+                onChange={(e) => handleNameChange(item.id, e.target.value)}
+                placeholder="Item name"
+              />
             </div>
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={uploadedItems.length === 0}>
-              Add {uploadedItems.length} Item{uploadedItems.length !== 1 ? 's' : ''}
-            </Button>
-          </CardFooter>
-        </form>
-      </Form>
-    </Card>
+          ))}
+        </div>
+        <div className="pt-4">
+          <Button type="submit" disabled={uploadedItems.length === 0}>
+            Add {uploadedItems.length} Item{uploadedItems.length !== 1 ? 's' : ''}
+          </Button>
+        </div>
+      </form>
+    </Form>
   )
 }
 
