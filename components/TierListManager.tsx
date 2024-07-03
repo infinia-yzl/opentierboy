@@ -8,6 +8,7 @@ import ItemCreator from "@/components/ItemCreator";
 import {ItemProps} from "@/components/Item";
 import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
+import {Button} from "@/components/ui/button";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -97,6 +98,33 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     });
   }, [labelPosition]);
 
+  const resetItems = useCallback(() => {
+    setTiers(prevTiers => {
+      // Collect all items
+      const allItems = prevTiers.flatMap(tier => tier.items).sort((a, b) => a.content.localeCompare(b.content));
+
+      // Create a new array of tiers
+      const resetTiers = prevTiers.map(tier => ({...tier, items: [] as ItemProps[]}));
+
+      // Find or create the uncategorized tier
+      let uncategorizedTier = resetTiers.find(tier => tier.id === 'uncategorized');
+      if (!uncategorizedTier) {
+        uncategorizedTier = {
+          id: 'uncategorized',
+          name: '',
+          items: [],
+          labelPosition: labelPosition
+        };
+        resetTiers.push(uncategorizedTier);
+      }
+
+      // Move all items to the uncategorized tier
+      uncategorizedTier.items = allItems;
+
+      return resetTiers;
+    });
+  }, [labelPosition]);
+
   const contextValue = {
     tiers,
     labelPosition,
@@ -116,6 +144,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
         <div className="flex space-x-2">
           <TierTemplateSelector/>
           {children}
+          <Button onClick={resetItems}>Reset</Button>
         </div>
       </div>
       <DragDropTierList
