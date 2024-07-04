@@ -38,3 +38,4 @@ next-env.d.ts
 # Ignore all symlinks in public/images
 public/images/*
 !public/images/.gitkeep
+.prepare-images-lock
