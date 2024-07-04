@@ -45,42 +45,14 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
-async function processPackage(packageName, shouldCopy) {
+async function copyFile(src, dest) {
   try {
-    const sourceDir = await findImageDirectory(packageName);
-    const targetDir = path.join(__dirname, '..', 'public', 'images', packageName);
-
-    console.log(`Processing package: ${packageName}`);
-    console.log(`Source directory: ${sourceDir}`);
-    console.log(`Target directory: ${targetDir}`);
-
-    // Remove existing symlink or directory
-    try {
-      await fs.rm(targetDir, {recursive: true, force: true});
-      console.log(`Removed existing item at ${targetDir}`);
-    } catch (error) {
-      if (error.code !== 'ENOENT') {
-        console.error(`Error removing existing item at ${targetDir}:`, error);
-      }
-    }
-
-    // Ensure the parent directory exists
-    await fs.mkdir(path.dirname(targetDir), {recursive: true});
-
-    if (shouldCopy) {
-      await copyImagesRecursively(sourceDir, targetDir);
-      console.log(`Copied ${packageName} images to ${targetDir}`);
-    } else {
-      await fs.symlink(sourceDir, targetDir, 'dir');
-      console.log(`Symlinked ${packageName} images to ${targetDir}`);
-    }
-
-    const images = await getImagesRecursively(sourceDir);
-    console.log(`Found ${images.length} images in ${packageName}`);
-    return {packageName, images};
+    await fs.mkdir(path.dirname(dest), {recursive: true});
+    const data = await fs.readFile(src);
+    await fs.writeFile(dest, data);
+    console.log(`Copied: ${src} -> ${dest}`);
   } catch (error) {
-    console.error(`Error processing ${packageName}:`, error);
-    return {packageName, images: []};
+    console.error(`Error copying file ${src}:`, error);
   }
 }
 
@@ -96,18 +68,40 @@ async function copyImagesRecursively(sourceDir, targetDir) {
         await fs.mkdir(targetPath, {recursive: true});
         await copyImagesRecursively(sourcePath, targetPath);
       } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
-        try {
-          await fs.copyFile(sourcePath, targetPath);
-          console.log(`Copied: ${sourcePath} -> ${targetPath}`);
-        } catch (error) {
-          console.error(`Error copying file ${sourcePath}:`, error);
-          // Don't throw the error, continue with other files
-        }
+        await copyFile(sourcePath, targetPath);
       }
     }
   } catch (error) {
     console.error(`Error processing directory ${sourceDir}:`, error);
-    // Don't throw the error, allow the script to continue
+  }
+}
+
+async function processPackage(packageName, shouldCopy) {
+  try {
+    const sourceDir = await findImageDirectory(packageName);
+    const targetDir = path.join(__dirname, '..', 'public', 'images', packageName);
+
+    console.log(`Processing package: ${packageName}`);
+    console.log(`Source directory: ${sourceDir}`);
+    console.log(`Target directory: ${targetDir}`);
+
+    // Ensure the target directory exists
+    await fs.mkdir(targetDir, {recursive: true});
+
+    if (shouldCopy) {
+      await copyImagesRecursively(sourceDir, targetDir);
+      console.log(`Copied ${packageName} images to ${targetDir}`);
+    } else {
+      await fs.symlink(sourceDir, targetDir, 'dir');
+      console.log(`Symlinked ${packageName} images to ${targetDir}`);
+    }
+
+    const images = await getImagesRecursively(sourceDir);
+    console.log(`Found ${images.length} images in ${packageName}`);
+    return {packageName, images};
+  } catch (error) {
+    console.error(`Error processing ${packageName}:`, error);
+    return {packageName, images: []};
   }
 }
 

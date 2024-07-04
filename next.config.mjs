@@ -25,23 +25,23 @@ const nextConfig = {
     return config;
   },
 
-  experimental: {
-    outputFileTracingRoot: path.join(__dirname, '../'),
-
-    turbo: {
-      resolveAlias: {
-        'image-set': path.resolve(__dirname, 'node_modules/image-set'),
-      },
-      rules: {
-        '*.png': ['file-loader'],
-        '*.jpg': ['file-loader'],
-        '*.jpeg': ['file-loader'],
-        '*.gif': ['file-loader'],
-        '*.svg': ['file-loader'],
-        '*.webp': ['file-loader'],
-      },
-    },
-  },
+  // experimental: {
+  //   outputFileTracingRoot: path.join(__dirname, '../'),
+  //
+  //   turbo: {
+  //     resolveAlias: {
+  //       'image-set': path.resolve(__dirname, 'node_modules/image-set'),
+  //     },
+  //     rules: {
+  //       '*.png': ['file-loader'],
+  //       '*.jpg': ['file-loader'],
+  //       '*.jpeg': ['file-loader'],
+  //       '*.gif': ['file-loader'],
+  //       '*.svg': ['file-loader'],
+  //       '*.webp': ['file-loader'],
+  //     },
+  //   },
+  // },
 };
 
 export default nextConfig;
