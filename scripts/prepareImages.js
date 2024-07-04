@@ -42,16 +42,28 @@ async function findImageDirectory(packageName) {
 
 async function copyFile(src, dest) {
   try {
+    // Ensure the destination directory exists
+    await fs.mkdir(path.dirname(dest), {recursive: true});
+
+    // Read the source file
     const content = await fs.readFile(src);
+
+    // Create the destination file (this will overwrite if it already exists)
+    await fs.writeFile(dest, '');
+
+    // Write the content to the destination file
     await fs.writeFile(dest, content);
+
     console.log(`Successfully copied: ${src} -> ${dest}`);
   } catch (error) {
     console.error(`Error copying file ${src}:`, error);
     try {
       const sourceStats = await fs.stat(src);
       console.log(`Source file stats:`, sourceStats);
+      const destDirStats = await fs.stat(path.dirname(dest));
+      console.log(`Destination directory stats:`, destDirStats);
     } catch (statError) {
-      console.error(`Error getting source file stats:`, statError);
+      console.error(`Error getting file stats:`, statError);
     }
   }
 }
