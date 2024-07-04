@@ -132,9 +132,32 @@ async function updateConfig(packagesData) {
   console.log('Config updated at', configPath);
 }
 
+async function logImageSetContents(dir, level = 0) {
+  const items = await fs.readdir(dir, {withFileTypes: true});
+  for (const item of items) {
+    const indent = '  '.repeat(level);
+    const fullPath = path.join(dir, item.name);
+    if (item.isDirectory()) {
+      console.log(`${indent}📁 ${item.name}`);
+      await logImageSetContents(fullPath, level + 1);
+    } else {
+      console.log(`${indent}📄 ${item.name}`);
+    }
+  }
+}
+
 async function main() {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
+
+  const imageSetPath = path.join(__dirname, '..', 'node_modules', 'image-set');
+  console.log('Logging contents of image-set package:');
+  try {
+    await logImageSetContents(imageSetPath);
+  } catch (error) {
+    console.error('Error logging image-set contents:', error);
+  }
+
   await removeExistingItems();
   const packages = await getPackages();
   const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, isProduction)));
