@@ -40,6 +40,22 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
+async function copyFile(src, dest) {
+  try {
+    const content = await fs.readFile(src);
+    await fs.writeFile(dest, content);
+    console.log(`Successfully copied: ${src} -> ${dest}`);
+  } catch (error) {
+    console.error(`Error copying file ${src}:`, error);
+    try {
+      const sourceStats = await fs.stat(src);
+      console.log(`Source file stats:`, sourceStats);
+    } catch (statError) {
+      console.error(`Error getting source file stats:`, statError);
+    }
+  }
+}
+
 async function copyImagesRecursively(sourceDir, targetDir) {
   console.log(`Copying images from ${sourceDir} to ${targetDir}`);
   try {
@@ -55,19 +71,7 @@ async function copyImagesRecursively(sourceDir, targetDir) {
         await copyImagesRecursively(sourcePath, targetPath);
       } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
         console.log(`Attempting to copy: ${sourcePath} -> ${targetPath}`);
-        try {
-          await fs.copyFile(sourcePath, targetPath);
-          console.log(`Successfully copied: ${sourcePath} -> ${targetPath}`);
-        } catch (error) {
-          console.error(`Error copying file ${sourcePath}:`, error);
-          // Additional checks
-          try {
-            const sourceStats = await fs.stat(sourcePath);
-            console.log(`Source file stats:`, sourceStats);
-          } catch (statError) {
-            console.error(`Error getting source file stats:`, statError);
-          }
-        }
+        await copyFile(sourcePath, targetPath);
       }
     }
   } catch (error) {
