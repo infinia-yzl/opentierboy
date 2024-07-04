@@ -7,20 +7,16 @@ async function getPackages() {
   return JSON.parse(config).packages;
 }
 
-async function removeExistingItems() {
-  const imagesDir = path.join(__dirname, '..', 'public', 'images');
-  try {
-    const entries = await fs.readdir(imagesDir, {withFileTypes: true});
-    for (const entry of entries) {
-      const fullPath = path.join(imagesDir, entry.name);
-      if (entry.isSymbolicLink() || entry.isDirectory()) {
-        await fs.rm(fullPath, {recursive: true, force: true});
-        console.log(`Removed ${entry.isSymbolicLink() ? 'symlink' : 'directory'}: ${entry.name}`);
-      }
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') {
-      console.error('Error removing existing items:', error);
+async function logImageSetContents(dir, level = 0) {
+  const items = await fs.readdir(dir, {withFileTypes: true});
+  for (const item of items) {
+    const indent = '  '.repeat(level);
+    const fullPath = path.join(dir, item.name);
+    if (item.isDirectory()) {
+      console.log(`${indent}📁 ${item.name}`);
+      await logImageSetContents(fullPath, level + 1);
+    } else {
+      console.log(`${indent}📄 ${item.name}`);
     }
   }
 }
@@ -35,44 +31,33 @@ async function findImageDirectory(packageName) {
   for (const dir of possiblePaths) {
     try {
       await fs.access(dir);
-      console.log(`Found image directory for ${packageName}: ${dir}`);
       return dir;
     } catch (error) {
-      console.log(`Directory not found: ${dir}`);
+      // Directory doesn't exist, try the next one
     }
   }
 
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
-async function copyFile(src, dest) {
-  try {
-    await fs.mkdir(path.dirname(dest), {recursive: true});
-    const data = await fs.readFile(src);
-    await fs.writeFile(dest, data);
-    console.log(`Copied: ${src} -> ${dest}`);
-  } catch (error) {
-    console.error(`Error copying file ${src}:`, error);
-  }
-}
-
 async function copyImagesRecursively(sourceDir, targetDir) {
-  try {
-    const entries = await fs.readdir(sourceDir, {withFileTypes: true});
+  const entries = await fs.readdir(sourceDir, {withFileTypes: true});
 
-    for (const entry of entries) {
-      const sourcePath = path.join(sourceDir, entry.name);
-      const targetPath = path.join(targetDir, entry.name);
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
 
-      if (entry.isDirectory()) {
-        await fs.mkdir(targetPath, {recursive: true});
-        await copyImagesRecursively(sourcePath, targetPath);
-      } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
-        await copyFile(sourcePath, targetPath);
+    if (entry.isDirectory()) {
+      await fs.mkdir(targetPath, {recursive: true});
+      await copyImagesRecursively(sourcePath, targetPath);
+    } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
+      try {
+        await fs.copyFile(sourcePath, targetPath);
+        console.log(`Copied: ${sourcePath} -> ${targetPath}`);
+      } catch (error) {
+        console.error(`Error copying file ${sourcePath}:`, error);
       }
     }
-  } catch (error) {
-    console.error(`Error processing directory ${sourceDir}:`, error);
   }
 }
 
@@ -85,8 +70,21 @@ async function processPackage(packageName, shouldCopy) {
     console.log(`Source directory: ${sourceDir}`);
     console.log(`Target directory: ${targetDir}`);
 
-    // Ensure the target directory exists
-    await fs.mkdir(targetDir, {recursive: true});
+    // Remove existing symlink or directory
+    try {
+      const stats = await fs.lstat(targetDir);
+      if (stats.isSymbolicLink() || stats.isDirectory()) {
+        await fs.rm(targetDir, {recursive: true, force: true});
+        console.log(`Removed existing ${stats.isSymbolicLink() ? 'symlink' : 'directory'}: ${targetDir}`);
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error(`Error removing existing item at ${targetDir}:`, error);
+      }
+    }
+
+    // Ensure the parent directory exists
+    await fs.mkdir(path.dirname(targetDir), {recursive: true});
 
     if (shouldCopy) {
       await copyImagesRecursively(sourceDir, targetDir);
@@ -101,6 +99,8 @@ async function processPackage(packageName, shouldCopy) {
     return {packageName, images};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
+    console.log(`Logging contents of ${packageName} package due to error:`);
+    await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName));
     return {packageName, images: []};
   }
 }
@@ -126,33 +126,10 @@ async function updateConfig(packagesData) {
   console.log('Config updated at', configPath);
 }
 
-async function logImageSetContents(dir, level = 0) {
-  const items = await fs.readdir(dir, {withFileTypes: true});
-  for (const item of items) {
-    const indent = '  '.repeat(level);
-    const fullPath = path.join(dir, item.name);
-    if (item.isDirectory()) {
-      console.log(`${indent}📁 ${item.name}`);
-      await logImageSetContents(fullPath, level + 1);
-    } else {
-      console.log(`${indent}📄 ${item.name}`);
-    }
-  }
-}
-
 async function main() {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
-  const imageSetPath = path.join(__dirname, '..', 'node_modules', 'image-set');
-  console.log('Logging contents of image-set package:');
-  try {
-    await logImageSetContents(imageSetPath);
-  } catch (error) {
-    console.error('Error logging image-set contents:', error);
-  }
-
-  await removeExistingItems();
   const packages = await getPackages();
   const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, isProduction)));
   await updateConfig(packagesData);
