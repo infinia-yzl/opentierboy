@@ -23,13 +23,13 @@ const nextConfig = {
       resolveAlias: {
         'image-set': path.resolve(__dirname, 'node_modules/image-set'),
       },
-      loaders: {
-        '.png': ['file-loader'],
-        '.jpg': ['file-loader'],
-        '.jpeg': ['file-loader'],
-        '.gif': ['file-loader'],
-        '.svg': ['file-loader'],
-        '.webp': ['file-loader'],
+      rules: {
+        '*.png': ['file-loader'],
+        '*.jpg': ['file-loader'],
+        '*.jpeg': ['file-loader'],
+        '*.gif': ['file-loader'],
+        '*.svg': ['file-loader'],
+        '*.webp': ['file-loader'],
       },
     },
   },
