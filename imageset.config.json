@@ -1,0 +1,17 @@
+{
+  "packages": [
+    "image-set"
+  ],
+  "packageImages": [
+    {
+      "packageName": "image-set",
+      "images": [
+        "hero1.webp",
+        "hero2.webp",
+        "hero3.webp",
+        "mecha/mecha1.webp",
+        "mecha/mecha2.webp"
+      ]
+    }
+  ]
+}

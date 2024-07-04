@@ -1,7 +1,8 @@
-import {ItemProps} from "@/components/Item";
 import {ThemeToggle} from "@/components/ThemeToggle";
 import TierListManager from "@/components/TierListManager";
 import {ZenToggle} from "@/components/ZenToggle";
+import imagesetConfig from '../imageset.config.json';
+import {ItemProps} from "@/components/Item";
 
 export interface Tier {
   id: string;
@@ -11,25 +12,28 @@ export interface Tier {
   placeholder?: string;
 }
 
-// TODO: Items should have their own sets and can be appended / merged, or added on the fly
-const getItems = (count: number): ItemProps[] =>
-  Array.from({length: count}, (v, k) => k).map((k) => ({
-    id: `item-${k}`,
-    content: `item ${k}`,
-  }));
+const getInitialItems = (): ItemProps[] => {
+  return imagesetConfig.packageImages.flatMap(({packageName, images}) =>
+    images.map((image: string, index: number) => ({
+      id: `${packageName}-item-${index}`,
+      content: `${image.split('.')[0]}`,
+      imageUrl: `/images/${packageName}/${image}`,
+    }))
+  );
+};
 
-// TODO: Tiers should have their own templates and can be loaded separate from the items
-const getInitialTiers = (): Tier[] => [
-  {id: 'tier-ss', name: 'SS', items: [], labelPosition: 'top'},
-  {id: 'tier-s', name: 'S', items: [], labelPosition: 'left'},
-  {id: 'tier-a', name: 'A', items: [], labelPosition: 'right'},
-  {id: 'tier-b', name: 'B', items: []},
-  {id: 'tier-c', name: 'C', items: []},
-  {id: 'uncategorized', name: '', items: getItems(8)},
+const getInitialTiers = (items: ItemProps[]): Tier[] => [
+  {id: 'tier-s', name: 'S', items: [], labelPosition: 'left', placeholder: 'S'},
+  {id: 'tier-a', name: 'A', items: [], labelPosition: 'left', placeholder: 'A'},
+  {id: 'tier-b', name: 'B', items: [], labelPosition: 'left', placeholder: 'B'},
+  {id: 'tier-c', name: 'C', items: [], labelPosition: 'left', placeholder: 'C'},
+  {id: 'tier-f', name: 'F', items: [], labelPosition: 'left', placeholder: 'F'},
+  {id: 'uncategorized', name: '', items: items, labelPosition: 'left'},
 ];
 
-const Home = async () => {
-  const initialTiers = getInitialTiers(); // Simulating a data fetch
+const Home = () => {
+  const initialItems = getInitialItems();
+  const initialTiers = getInitialTiers(initialItems);
 
   return (
     <main className="flex flex-col items-center justify-between">

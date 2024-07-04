@@ -7,9 +7,7 @@ import {TierContext} from '@/contexts/TierContext';
 import {ItemProps} from "@/components/Item";
 import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
-import {Button} from "@/components/ui/button";
 import ItemManager from "@/components/ItemManager";
-import {Label} from "@/components/ui/label";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
