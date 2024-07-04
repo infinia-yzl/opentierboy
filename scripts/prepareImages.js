@@ -85,23 +85,29 @@ async function processPackage(packageName, shouldCopy) {
 }
 
 async function copyImagesRecursively(sourceDir, targetDir) {
-  const entries = await fs.readdir(sourceDir, {withFileTypes: true});
+  try {
+    const entries = await fs.readdir(sourceDir, {withFileTypes: true});
 
-  for (const entry of entries) {
-    const sourcePath = path.join(sourceDir, entry.name);
-    const targetPath = path.join(targetDir, entry.name);
+    for (const entry of entries) {
+      const sourcePath = path.join(sourceDir, entry.name);
+      const targetPath = path.join(targetDir, entry.name);
 
-    if (entry.isDirectory()) {
-      await fs.mkdir(targetPath, {recursive: true});
-      await copyImagesRecursively(sourcePath, targetPath);
-    } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
-      try {
-        await fs.copyFile(sourcePath, targetPath);
-        console.log(`Copied: ${sourcePath} -> ${targetPath}`);
-      } catch (error) {
-        console.error(`Error copying file ${sourcePath}:`, error);
+      if (entry.isDirectory()) {
+        await fs.mkdir(targetPath, {recursive: true});
+        await copyImagesRecursively(sourcePath, targetPath);
+      } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
+        try {
+          await fs.copyFile(sourcePath, targetPath);
+          console.log(`Copied: ${sourcePath} -> ${targetPath}`);
+        } catch (error) {
+          console.error(`Error copying file ${sourcePath}:`, error);
+          // Don't throw the error, continue with other files
+        }
       }
     }
+  } catch (error) {
+    console.error(`Error processing directory ${sourceDir}:`, error);
+    // Don't throw the error, allow the script to continue
   }
 }
 
