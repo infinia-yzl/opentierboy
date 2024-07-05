@@ -1,14 +1,21 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
+  DropdownMenuContent, DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
+  DropdownMenuLabel, DropdownMenuPortal,
+  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,13 +25,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
-import {DashboardIcon} from "@radix-ui/react-icons";
+import ItemSetSelector from "@/components/ItemSetSelector";
+import {GridIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
+import imagesetConfig from "@/imageset.config.json";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -41,9 +50,32 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   resetItems,
   deleteAllItems,
   undoReset,
-  undoDelete
+  undoDelete,
 }) => {
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
+
+  const itemSets = useMemo(() => {
+    if (!imagesetConfig.packageImages) {
+      console.error("imagesetConfig.packageImages is undefined");
+      return [];
+    }
+    return imagesetConfig.packageImages.map(pkg => ({
+      packageName: pkg.packageName,
+      images: pkg.images
+    }));
+  }, []);
+
+  const handleCreateItems = (newItems: Item[]) => {
+    onItemsCreate(newItems);
+    setIsItemCreatorOpen(false);
+    toast('Items Added', {
+      description: `${newItems.length} item(s) have been added.`,
+      action: {
+        label: 'Undo',
+        onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
+      },
+    });
+  };
 
   const handleReset = () => {
     resetItems();
@@ -67,45 +99,59 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
+  const handleItemSetSelect = (packageName: string, images: string[]) => {
+    const newItems = images.map((image: string, index: number) => ({
+      id: `${packageName}-item-${index}`,
+      content: `${image.split('.')[0]}`,
+      imageUrl: `/images/${packageName}/${image}`,
+    }));
+    handleCreateItems(newItems);
+  };
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">
-            <DashboardIcon className="h-[1.2rem] w-[1.2rem]"/>
+            <GridIcon className="h-4 w-4"/>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>
-            Items
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Add Items</DropdownMenuLabel>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>From template</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <ItemSetSelector itemSets={itemSets} onSelectItemSet={handleItemSetSelect}/>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          </DropdownMenuGroup>
           <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
-            Add
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleReset}>
-            Reset
+            From your device
           </DropdownMenuItem>
           <DropdownMenuSeparator/>
+          <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}
                                 className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
               >
-                Delete All
+                Remove All
               </DropdownMenuItem>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all items
-                  from all tiers.
+                  This will remove all items from all tiers.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
-                  Delete All Items
+                  Remove All Items
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -122,17 +168,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
             </DialogDescription>
           </DialogHeader>
           <ItemCreator
-            onItemsCreate={(newItems) => {
-              onItemsCreate(newItems);
-              setIsItemCreatorOpen(false);
-              toast('Items Added', {
-                description: `${newItems.length} item(s) have been added.`,
-                action: {
-                  label: 'Undo',
-                  onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
-                },
-              });
-            }}
+            onItemsCreate={handleCreateItems}
             onUndoItemsCreate={onUndoItemsCreate}
           />
         </DialogContent>
