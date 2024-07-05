@@ -16,15 +16,15 @@ import {
 } from "@/components/ui/form"
 import {Input} from "@/components/ui/input"
 import Image from 'next/image'
-import {ItemProps} from "@/components/Item"
 import {toast} from "sonner"
+import Item from "@/models/Item";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
 })
 
 interface ItemCreatorProps {
-  onItemsCreate: (items: ItemProps[]) => void;
+  onItemsCreate: (items: Item[]) => void;
   onUndoItemsCreate: (itemIds: string[]) => void;
 }
 
@@ -55,7 +55,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
           content: file.name.split('.')[0],
           imageUrl: URL.createObjectURL(file)
         };
-        return existingItem as ItemProps;
+        return existingItem as Item;
       });
 
       onItemsCreate(filesToSubmit);

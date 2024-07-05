@@ -28,12 +28,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
-import {ItemProps} from "@/components/Item";
 import {DashboardIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
+import Item from "@/models/Item";
 
 interface ItemManagerProps {
-  onItemsCreate: (newItems: ItemProps[]) => void;
+  onItemsCreate: (newItems: Item[]) => void;
   onUndoItemsCreate: (itemIds: string[]) => void;
   resetItems: () => void;
   deleteAllItems: () => void;
