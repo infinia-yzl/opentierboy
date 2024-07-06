@@ -1,15 +1,13 @@
 'use client';
 
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import DragDropTierList from './DragDropTierList';
-import {Tier} from "@/app/page";
 import {TierContext} from '@/contexts/TierContext';
-import {ItemProps} from "@/components/Item";
-import TierTemplateSelector, {LabelPosition} from "@/components/TierTemplateSelector";
+import TierTemplateSelector from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
-import {Button} from "@/components/ui/button";
 import ItemManager from "@/components/ItemManager";
-import {Label} from "@/components/ui/label";
+import Tier, {LabelPosition} from "@/models/Tier";
+import Item from "@/models/Item";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -28,7 +26,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     setTiers(updatedTiers);
   }, [tiers]);
 
-  const handleItemsCreate = useCallback((newItems: ItemProps[]) => {
+  const handleItemsCreate = useCallback((newItems: Item[]) => {
     setTiers((prevTiers) => {
       const updatedTiers = [...prevTiers];
       const lastTier = updatedTiers[updatedTiers.length - 1];
@@ -74,7 +72,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
       // Step 2: Create new tiers based on the template
       const updatedTiers: Tier[] = newTemplate.map(templateTier => ({
         ...templateTier,
-        items: [] as ItemProps[],
+        items: [] as Item[],
         labelPosition
       }));
 
@@ -105,7 +103,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     previousTiersRef.current = tiers;
     setTiers(prevTiers => {
       const allItems = prevTiers.flatMap(tier => tier.items).sort((a, b) => a.content.localeCompare(b.content));
-      const resetTiers = prevTiers.map(tier => ({...tier, items: [] as ItemProps[]}));
+      const resetTiers = prevTiers.map(tier => ({...tier, items: [] as Item[]}));
       let uncategorizedTier = resetTiers.find(tier => tier.id === 'uncategorized');
       if (!uncategorizedTier) {
         uncategorizedTier = {

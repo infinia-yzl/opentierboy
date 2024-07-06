@@ -1,30 +1,22 @@
 "use client";
 
-import React, {useState, useRef, useCallback} from 'react'
+import React, {useCallback, useRef, useState} from 'react'
 import {zodResolver} from "@hookform/resolvers/zod"
 import {useForm} from "react-hook-form"
 import * as z from "zod"
 import {Button} from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
+import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from "@/components/ui/form"
 import {Input} from "@/components/ui/input"
 import Image from 'next/image'
-import {ItemProps} from "@/components/Item"
 import {toast} from "sonner"
+import Item from "@/models/Item";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
 })
 
 interface ItemCreatorProps {
-  onItemsCreate: (items: ItemProps[]) => void;
+  onItemsCreate: (items: Item[]) => void;
   onUndoItemsCreate: (itemIds: string[]) => void;
 }
 
@@ -55,7 +47,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
           content: file.name.split('.')[0],
           imageUrl: URL.createObjectURL(file)
         };
-        return existingItem as ItemProps;
+        return existingItem as Item;
       });
 
       onItemsCreate(filesToSubmit);

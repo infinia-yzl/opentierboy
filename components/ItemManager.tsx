@@ -1,11 +1,16 @@
-import React, {useState} from 'react';
+import React, {useState, useMemo} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -24,21 +29,30 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
-import {ItemProps} from "@/components/Item";
-import {DashboardIcon} from "@radix-ui/react-icons";
+import ItemSetSelector from "@/components/ItemSetSelector";
+import {GridIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
+import Item from "@/models/Item";
+import imagesetConfig from "@/imageset.config.json";
 
 interface ItemManagerProps {
-  onItemsCreate: (newItems: ItemProps[]) => void;
+  onItemsCreate: (newItems: Item[]) => void;
   onUndoItemsCreate: (itemIds: string[]) => void;
   resetItems: () => void;
   deleteAllItems: () => void;
   undoReset: () => void;
   undoDelete: () => void;
+}
+
+interface ItemSet {
+  packageName: string;
+  tagName: string;
+  tagTitle: string;
+  images: string[];
 }
 
 const ItemManager: React.FC<ItemManagerProps> = ({
@@ -47,9 +61,54 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   resetItems,
   deleteAllItems,
   undoReset,
-  undoDelete
+  undoDelete,
 }) => {
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
+
+  const itemSets = useMemo(() => {
+    const sets: ItemSet[] = [];
+
+    imagesetConfig.packageImages.forEach(pkg => {
+      // Add an "All Items" set for each package
+      sets.push({
+        packageName: pkg.packageName,
+        tagName: 'all',
+        tagTitle: 'All Items',
+        images: pkg.images
+      });
+
+      // Add a set for each tag in the package
+      imagesetConfig.tags.forEach(tag => {
+        const taggedImages = pkg.images.filter(image => {
+          const metadata = imagesetConfig.metadata.find(m => m.filename === image);
+          return metadata && metadata.tags.some(t => t.name === tag.name);
+        });
+
+        if (taggedImages.length > 0) {
+          sets.push({
+            packageName: pkg.packageName,
+            tagName: tag.name,
+            tagTitle: tag.title,
+            images: taggedImages
+          });
+        }
+      });
+    });
+
+    return sets;
+  }, []);
+
+  const handleCreateItems = (newItems: Item[]) => {
+    onItemsCreate(newItems);
+    setIsItemCreatorOpen(false);
+    toast('Items Added', {
+      description: `${newItems.length} item(s) have been added.`,
+      action: {
+        label: 'Undo',
+        onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
+      },
+    });
+  };
 
   const handleReset = () => {
     resetItems();
@@ -73,45 +132,63 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
+  const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
+    const newItems = images.map((image: string, index: number) => {
+      const metadata = imagesetConfig.metadata.find(m => m.filename === image);
+      return {
+        id: `${packageName}-${tagName}-item-${index}`,
+        content: metadata?.label || `${image.split('.')[0]}`,
+        imageUrl: `/images/${packageName}/${image}`,
+        tags: metadata?.tags.map(tag => tag.name) || []
+      };
+    });
+    handleCreateItems(newItems);
+  };
+
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">
-            <DashboardIcon className="h-[1.2rem] w-[1.2rem]"/>
+            <GridIcon className="h-4 w-4"/>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>
-            Items
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Add Items</DropdownMenuLabel>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>From template</DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                  <ItemSetSelector itemSets={itemSets} onSelectItemSet={handleItemSetSelect}/>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
+          </DropdownMenuGroup>
           <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
-            Add
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleReset}>
-            Reset
+            From your device
           </DropdownMenuItem>
           <DropdownMenuSeparator/>
+          <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}
                                 className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
               >
-                Delete All
+                Remove All
               </DropdownMenuItem>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all items
-                  from all tiers.
+                  This will remove all items from all tiers.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
-                  Delete All Items
+                  Remove All Items
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -128,17 +205,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
             </DialogDescription>
           </DialogHeader>
           <ItemCreator
-            onItemsCreate={(newItems) => {
-              onItemsCreate(newItems);
-              setIsItemCreatorOpen(false);
-              toast('Items Added', {
-                description: `${newItems.length} item(s) have been added.`,
-                action: {
-                  label: 'Undo',
-                  onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
-                },
-              });
-            }}
+            onItemsCreate={handleCreateItems}
             onUndoItemsCreate={onUndoItemsCreate}
           />
         </DialogContent>

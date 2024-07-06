@@ -4,11 +4,12 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
 import RowHandle from '../components/RowHandle';
 import EditableLabel from '../components/EditableLabel';
-import Item, {ItemProps} from "@/components/Item";
+import ItemTile from "@/components/ItemTile";
 import {toast} from "sonner";
 import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
-import {Tier} from "@/app/page";
+import Item from "@/models/Item";
+import Tier from "@/models/Tier";
 
 interface DragDropTierListProps {
   initialTiers: Tier[];
@@ -16,7 +17,7 @@ interface DragDropTierListProps {
 }
 
 interface DeletedItemInfo {
-  item: ItemProps;
+  item: Item;
   tierId: string;
   id: string;
 }
@@ -246,7 +247,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                                             : provided.draggableProps.style?.transition,
                                         }}
                                       >
-                                        <Item {...item} onDelete={handleDeleteItem} showLabel={showLabels}/>
+                                        <ItemTile {...item} onDelete={handleDeleteItem} showLabel={showLabels}/>
                                       </div>
                                     )}
                                   </Draggable>

@@ -1,0 +1,177 @@
+{
+  "packages": [
+    "image-set"
+  ],
+  "packageImages": [
+    {
+      "packageName": "image-set",
+      "images": [
+        "hero1.webp",
+        "hero2.webp",
+        "hero3.webp",
+        "mecha/mecha1.webp",
+        "mecha/mecha2.webp"
+      ]
+    }
+  ],
+  "metadata": [
+    {
+      "filename": "hero2.webp",
+      "tags": [
+        {
+          "name": "people",
+          "title": "People",
+          "description": "Images featuring individuals or groups of people"
+        },
+        {
+          "name": "1_0_0",
+          "title": "Image set Version 1",
+          "description": "Images from Version 1"
+        }
+      ],
+      "label": "Handsome Hero"
+    },
+    {
+      "filename": "mecha/mecha1.webp",
+      "tags": [
+        {
+          "name": "tech",
+          "title": "Technology",
+          "description": "Images related to technological devices or concepts"
+        },
+        {
+          "name": "1_1_0",
+          "title": "Image set Version 1.1",
+          "description": "Images from Version 1.1"
+        }
+      ],
+      "label": "Flying Mecha"
+    },
+    {
+      "filename": "hero1.webp",
+      "tags": [
+        {
+          "name": "people",
+          "title": "People",
+          "description": "Images featuring individuals or groups of people"
+        },
+        {
+          "name": "hq",
+          "title": "High Quality",
+          "description": "Images with exceptional clarity and detail"
+        }
+      ],
+      "label": "Super Handsome Blonde Hero"
+    },
+    {
+      "filename": "hero3.webp",
+      "tags": [],
+      "label": ""
+    },
+    {
+      "filename": "mecha/mecha2.webp",
+      "tags": [],
+      "label": ""
+    }
+  ],
+  "tags": [
+    {
+      "name": "nature",
+      "title": "Nature",
+      "description": "Images of natural landscapes, flora, or fauna"
+    },
+    {
+      "name": "tech",
+      "title": "Technology",
+      "description": "Images related to technological devices or concepts"
+    },
+    {
+      "name": "people",
+      "title": "People",
+      "description": "Images featuring individuals or groups of people"
+    },
+    {
+      "name": "1_0_0",
+      "title": "Image set Version 1",
+      "description": "Images from Version 1"
+    },
+    {
+      "name": "1_1_0",
+      "title": "Image set Version 1.1",
+      "description": "Images from Version 1.1"
+    },
+    {
+      "name": "2_0_0",
+      "title": "Image set Version 2.0",
+      "description": "Images from Version 2"
+    },
+    {
+      "name": "hq",
+      "title": "High Quality",
+      "description": "Images with exceptional clarity and detail"
+    },
+    {
+      "name": "colorful",
+      "title": "Colorful",
+      "description": "Images with a vibrant color palette"
+    },
+    {
+      "name": "monochrome",
+      "title": "Black and White",
+      "description": "Monochrome images"
+    }
+  ],
+  "tagConfig": {
+    "subject": [
+      {
+        "name": "nature",
+        "title": "Nature",
+        "description": "Images of natural landscapes, flora, or fauna"
+      },
+      {
+        "name": "tech",
+        "title": "Technology",
+        "description": "Images related to technological devices or concepts"
+      },
+      {
+        "name": "people",
+        "title": "People",
+        "description": "Images featuring individuals or groups of people"
+      }
+    ],
+    "version": [
+      {
+        "name": "1_0_0",
+        "title": "Image set Version 1",
+        "description": "Images from Version 1"
+      },
+      {
+        "name": "1_1_0",
+        "title": "Image set Version 1.1",
+        "description": "Images from Version 1.1"
+      },
+      {
+        "name": "2_0_0",
+        "title": "Image set Version 2.0",
+        "description": "Images from Version 2"
+      }
+    ],
+    "general": [
+      {
+        "name": "hq",
+        "title": "High Quality",
+        "description": "Images with exceptional clarity and detail"
+      },
+      {
+        "name": "colorful",
+        "title": "Colorful",
+        "description": "Images with a vibrant color palette"
+      },
+      {
+        "name": "monochrome",
+        "title": "Black and White",
+        "description": "Monochrome images"
+      }
+    ]
+  }
+}

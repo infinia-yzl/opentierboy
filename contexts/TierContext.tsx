@@ -1,6 +1,5 @@
 import React from 'react';
-import {Tier} from "@/app/page";
-import {LabelPosition} from "@/components/TierTemplateSelector";
+import Tier, {LabelPosition} from "@/models/Tier";
 
 export interface TierContextType {
   tiers: Tier[];

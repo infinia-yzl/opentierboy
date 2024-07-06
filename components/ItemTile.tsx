@@ -2,16 +2,9 @@ import React from 'react';
 import Image from 'next/image';
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu";
 import {TrashIcon} from "@radix-ui/react-icons";
+import Item from "@/models/Item";
 
-export interface ItemProps {
-  id: string;
-  content: string;
-  imageUrl?: string;
-  onDelete?: (id: string) => void;
-  showLabel?: boolean;
-}
-
-const Item: React.FC<ItemProps> = ({
+const ItemTile: React.FC<Item> = ({
   id,
   content,
   imageUrl,
@@ -59,4 +52,4 @@ const Item: React.FC<ItemProps> = ({
   );
 };
 
-export default Item;
+export default ItemTile;
