@@ -2,10 +2,14 @@ import React, {useState, useMemo} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent, DropdownMenuGroup,
+  DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuPortal,
-  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -44,6 +48,13 @@ interface ItemManagerProps {
   undoDelete: () => void;
 }
 
+interface ItemSet {
+  packageName: string;
+  tagName: string;
+  tagTitle: string;
+  images: string[];
+}
+
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
   onUndoItemsCreate,
@@ -55,14 +66,36 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
 
   const itemSets = useMemo(() => {
-    if (!imagesetConfig.packageImages) {
-      console.error("imagesetConfig.packageImages is undefined");
-      return [];
-    }
-    return imagesetConfig.packageImages.map(pkg => ({
-      packageName: pkg.packageName,
-      images: pkg.images
-    }));
+    const sets: ItemSet[] = [];
+
+    imagesetConfig.packageImages.forEach(pkg => {
+      // Add an "All Items" set for each package
+      sets.push({
+        packageName: pkg.packageName,
+        tagName: 'all',
+        tagTitle: 'All Items',
+        images: pkg.images
+      });
+
+      // Add a set for each tag in the package
+      imagesetConfig.tags.forEach(tag => {
+        const taggedImages = pkg.images.filter(image => {
+          const metadata = imagesetConfig.metadata.find(m => m.filename === image);
+          return metadata && metadata.tags.some(t => t.name === tag.name);
+        });
+
+        if (taggedImages.length > 0) {
+          sets.push({
+            packageName: pkg.packageName,
+            tagName: tag.name,
+            tagTitle: tag.title,
+            images: taggedImages
+          });
+        }
+      });
+    });
+
+    return sets;
   }, []);
 
   const handleCreateItems = (newItems: Item[]) => {
@@ -99,12 +132,16 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
-  const handleItemSetSelect = (packageName: string, images: string[]) => {
-    const newItems = images.map((image: string, index: number) => ({
-      id: `${packageName}-item-${index}`,
-      content: `${image.split('.')[0]}`,
-      imageUrl: `/images/${packageName}/${image}`,
-    }));
+  const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
+    const newItems = images.map((image: string, index: number) => {
+      const metadata = imagesetConfig.metadata.find(m => m.filename === image);
+      return {
+        id: `${packageName}-${tagName}-item-${index}`,
+        content: metadata?.label || `${image.split('.')[0]}`,
+        imageUrl: `/images/${packageName}/${image}`,
+        tags: metadata?.tags.map(tag => tag.name) || []
+      };
+    });
     handleCreateItems(newItems);
   };
 

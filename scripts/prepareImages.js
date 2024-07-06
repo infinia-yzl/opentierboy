@@ -1,10 +1,51 @@
 const fs = require('fs').promises;
 const path = require('path');
+const readline = require('readline');
+const {getImageList, getAllTags, getTagConfig, getImageMetadata} = require("image-set");
 
 async function getPackages() {
   const configPath = path.join(__dirname, '..', 'imageset.config.json');
-  const config = await fs.readFile(configPath, 'utf8');
-  return JSON.parse(config).packages;
+  try {
+    const config = await fs.readFile(configPath, 'utf8');
+    const parsedConfig = JSON.parse(config);
+    return parsedConfig.packages || [];
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.log('imageset.config.json not found. Creating a new one.');
+      return await createDefaultConfig(configPath);
+    } else if (error instanceof SyntaxError) {
+      console.log('imageset.config.json is empty or invalid. Resetting to default.');
+      return await createDefaultConfig(configPath);
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function createDefaultConfig(configPath) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  const packages = await new Promise((resolve) => {
+    rl.question('Please enter the package names, separated by commas: ', (answer) => {
+      resolve(answer.split(',').map(pkg => pkg.trim()).filter(pkg => pkg));
+      rl.close();
+    });
+  });
+
+  const defaultConfig = {
+    packages: packages,
+    packageImages: [],
+    metadata: [],
+    tags: [],
+    tagConfig: {subject: [], version: [], general: []}
+  };
+
+  await fs.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
+  console.log(`Default configuration created with packages: ${packages.join(', ')}`);
+  return packages;
 }
 
 async function logImageSetContents(dir, level = 0) {
@@ -23,7 +64,6 @@ async function logImageSetContents(dir, level = 0) {
 
 async function findImageDirectory(packageName) {
   const possiblePaths = [
-    path.join(__dirname, '..', 'node_modules', packageName, 'public', 'images', packageName),
     path.join(__dirname, '..', 'node_modules', packageName, 'public', 'images'),
     path.join(__dirname, '..', 'node_modules', packageName, 'images'),
   ];
@@ -40,6 +80,8 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
+// DO NOT MODIFY THIS FUNCTION
+// It doesn't use COPY intentionally due to Vercel deployment weird behavior
 async function copyFile(src, dest) {
   try {
     // Ensure the destination directory exists
@@ -124,8 +166,9 @@ async function processPackage(packageName, shouldCopy) {
       console.log(`Symlinked ${packageName} images to ${targetDir}`);
     }
 
-    const images = await getImagesRecursively(sourceDir);
+    const images = getImageList(sourceDir);
     console.log(`Found ${images.length} images in ${packageName}`);
+
     return {packageName, images};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
@@ -135,23 +178,15 @@ async function processPackage(packageName, shouldCopy) {
   }
 }
 
-async function getImagesRecursively(dir, baseDir = dir) {
-  const entries = await fs.readdir(dir, {withFileTypes: true});
-  const files = await Promise.all(entries.map(entry => {
-    const res = path.resolve(dir, entry.name);
-    if (entry.isDirectory()) {
-      return getImagesRecursively(res, baseDir);
-    } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
-      return path.relative(baseDir, res);
-    }
-  }));
-  return files.flat().filter(Boolean);
-}
-
 async function updateConfig(packagesData) {
   const configPath = path.join(__dirname, '..', 'imageset.config.json');
-  const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
-  config.packageImages = packagesData;
+  const config = {
+    packages: packagesData.map(pkg => pkg.packageName),
+    packageImages: packagesData,
+    metadata: getImageMetadata(),
+    tags: getAllTags(),
+    tagConfig: getTagConfig()
+  };
   await fs.writeFile(configPath, JSON.stringify(config, null, 2));
   console.log('Config updated at', configPath);
 }
