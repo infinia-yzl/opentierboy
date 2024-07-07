@@ -4,11 +4,7 @@ import React, {useEffect, useState} from 'react';
 import {useTheme} from 'next-themes';
 import {MoonIcon, SunIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
 
 const colorThemes = ['default', 'ocean', 'forest'];
 
@@ -34,44 +30,51 @@ export function ThemeSelector() {
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon">
           <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
           <MoonIcon
             className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
           <span className="sr-only">Select theme</span>
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="max-w-48 p-0">
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-48">
         {colorThemes.map((colorTheme) => (
-          <div key={colorTheme}
-               className="flex items-center justify-between p-2 hover:bg-accent hover:text-accent-foreground">
-            <div
-              className="flex-grow cursor-pointer pl-2 text-sm text-center"
-              onClick={() => handleThemeChange(colorTheme)}
-            >
+          <DropdownMenuItem key={colorTheme}
+                            className="flex items-center justify-between p-2"
+                            onClick={() => handleThemeChange(colorTheme)}
+          >
+            <span className="flex-grow pl-2 text-sm">
               {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
-            </div>
-            <div className="space-x-0.5">
+            </span>
+            <div className="flex space-x-0.5">
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleThemeChange(`${colorTheme}-light`)}
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleThemeChange(`${colorTheme}-light`);
+                }}
               >
                 <SunIcon className="h-4 w-4"/>
               </Button>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleThemeChange(`${colorTheme}-dark`)}
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleThemeChange(`${colorTheme}-dark`);
+                }}
               >
                 <MoonIcon className="h-4 w-4"/>
               </Button>
             </div>
-          </div>
+          </DropdownMenuItem>
         ))}
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
