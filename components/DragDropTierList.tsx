@@ -180,7 +180,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
-            className={`space-y-4 p-4 ${snapshot.isDraggingOver && 'ring-2 ring-accent-foreground rounded'}`}
+            className={`pt-4 py-4 ${snapshot.isDraggingOver && 'ring-2 ring-accent-foreground rounded'}`}
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
@@ -195,7 +195,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                       {...provided.draggableProps}
                       className={`
                         border
-                        p-4 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+                        p-1 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
                         flex items-center
                         ${snapshot.isDragging && 'shadow-lg ring-2'}
                       `}
@@ -219,7 +219,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                             <EditableLabel
                               text={previewLabel}
                               onSave={(newText) => handleSaveLabel(index, newText)}
-                              className="m-4"
+                              className="m-4 p-2 md:p-4 flex flex-1 min-w-16 justify-center"
                             />
                           )}
                           <Droppable droppableId={tier.id} direction="horizontal">
@@ -227,7 +227,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`w-full flex flex-wrap p-2 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
+                                className={`w-full flex flex-wrap p-0 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
                               >
                                 {tier.items.map((item, itemIndex) => (
                                   <Draggable key={item.id} draggableId={item.id} index={itemIndex}>

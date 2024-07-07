@@ -104,7 +104,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
     setTiers(prevTiers => {
       const allItems = prevTiers.flatMap(tier => tier.items).sort((a, b) => a.content.localeCompare(b.content));
       const resetTiers = prevTiers.map(tier => ({...tier, items: [] as Item[]}));
-      let uncategorizedTier = resetTiers.find(tier => tier.id === 'uncategorized');
+      let uncategorizedTier = resetTiers[resetTiers.length - 1];
       if (!uncategorizedTier) {
         uncategorizedTier = {
           id: 'uncategorized',
