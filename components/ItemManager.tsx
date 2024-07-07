@@ -1,4 +1,4 @@
-import React, {useState, useMemo} from 'react';
+import React, {useMemo, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,13 +13,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +32,7 @@ import {GridIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
+import {ItemSet} from "@/models/ItemSet";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -48,13 +43,28 @@ interface ItemManagerProps {
   undoDelete: () => void;
 }
 
-interface ItemSet {
-  packageName: string;
-  packageDisplayName: string;
-  tagName: string;
-  tagTitle: string;
-  images: string[];
+interface ImagesetConfig {
+  packages: {
+    [key: string]: {
+      displayName: string;
+      images: {
+        filename: string;
+        label: string;
+        tags: string[];
+      }[];
+      tags: {
+        [key: string]: {
+          title: string;
+          description: string;
+          category: string;
+        };
+      };
+    };
+  };
 }
+
+// Assert the type of imagesetConfig
+const typedImagesetConfig = imagesetConfig as ImagesetConfig;
 
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
@@ -69,32 +79,29 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
 
-    imagesetConfig.packageImages.forEach(pkg => {
-      const packageDisplayName = pkg.displayName || pkg.packageName;
+    Object.entries(typedImagesetConfig.packages).forEach(([packageName, packageData]) => {
+      const packageDisplayName = packageData.displayName;
 
       // Add an "All Items" set for each package
       sets.push({
-        packageName: pkg.packageName,
+        packageName,
         packageDisplayName,
         tagName: 'all',
         tagTitle: 'All Items',
-        images: pkg.images
+        images: packageData.images.map(img => img.filename)
       });
 
       // Add a set for each tag in the package
-      imagesetConfig.tags.forEach(tag => {
-        const taggedImages = pkg.images.filter(image => {
-          const metadata = imagesetConfig.metadata.find(m => m.filename === image);
-          return metadata && metadata.tags.some(t => t.name === tag.name);
-        });
+      Object.entries(packageData.tags).forEach(([tagName, tagData]) => {
+        const taggedImages = packageData.images.filter(image => image.tags.includes(tagName));
 
         if (taggedImages.length > 0) {
           sets.push({
-            packageName: pkg.packageName,
+            packageName,
             packageDisplayName,
-            tagName: tag.name,
-            tagTitle: tag.title,
-            images: taggedImages
+            tagName,
+            tagTitle: tagData.title,
+            images: taggedImages.map(img => img.filename)
           });
         }
       });
@@ -138,13 +145,14 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   };
 
   const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
+    const packageData = typedImagesetConfig.packages[packageName];
     const newItems = images.map((image: string, index: number) => {
-      const metadata = imagesetConfig.metadata.find(m => m.filename === image);
+      const imageData = packageData.images.find(img => img.filename === image);
       return {
         id: `${packageName}-${tagName}-item-${index}`,
-        content: metadata?.label || `${image.split('.')[0]}`,
+        content: imageData?.label || `${image.split('.')[0]}`,
         imageUrl: `/images/${packageName}/${image}`,
-        tags: metadata?.tags.map(tag => tag.name) || []
+        tags: imageData?.tags || []
       };
     });
     handleCreateItems(newItems);

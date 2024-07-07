@@ -5,17 +5,11 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList, CommandShortcut,
+  CommandList,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {ScrollArea} from "@/components/ui/scroll-area";
-
-interface ItemSet {
-  packageName: string;
-  packageDisplayName: string;
-  tagName: string;
-  tagTitle: string;
-  images: string[];
-}
+import {ItemSet} from "@/models/ItemSet";
 
 interface ItemSetSelectorProps {
   itemSets: ItemSet[];
