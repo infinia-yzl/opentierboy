@@ -5,6 +5,7 @@
   "packageImages": [
     {
       "packageName": "image-set",
+      "displayName": "Example Items Template",
       "images": [
         "hero1.webp",
         "hero2.webp",

@@ -169,12 +169,17 @@ async function processPackage(packageName, shouldCopy) {
     const images = getImageList(sourceDir);
     console.log(`Found ${images.length} images in ${packageName}`);
 
-    return {packageName, images};
+    // Get package.json to retrieve display name
+    const packageJsonPath = path.join(__dirname, '..', 'node_modules', packageName, 'package.json');
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
+    const displayName = packageJson.displayName || packageName;
+
+    return {packageName, displayName, images};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
     console.log(`Logging contents of ${packageName} package due to error:`);
     await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName));
-    return {packageName, images: []};
+    return {packageName, displayName: packageName, images: []};
   }
 }
 
@@ -182,7 +187,11 @@ async function updateConfig(packagesData) {
   const configPath = path.join(__dirname, '..', 'imageset.config.json');
   const config = {
     packages: packagesData.map(pkg => pkg.packageName),
-    packageImages: packagesData,
+    packageImages: packagesData.map(({packageName, displayName, images}) => ({
+      packageName,
+      displayName,
+      images
+    })),
     metadata: getImageMetadata(),
     tags: getAllTags(),
     tagConfig: getTagConfig()

@@ -50,6 +50,7 @@ interface ItemManagerProps {
 
 interface ItemSet {
   packageName: string;
+  packageDisplayName: string;
   tagName: string;
   tagTitle: string;
   images: string[];
@@ -69,9 +70,12 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     const sets: ItemSet[] = [];
 
     imagesetConfig.packageImages.forEach(pkg => {
+      const packageDisplayName = pkg.displayName || pkg.packageName;
+
       // Add an "All Items" set for each package
       sets.push({
         packageName: pkg.packageName,
+        packageDisplayName,
         tagName: 'all',
         tagTitle: 'All Items',
         images: pkg.images
@@ -87,6 +91,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         if (taggedImages.length > 0) {
           sets.push({
             packageName: pkg.packageName,
+            packageDisplayName,
             tagName: tag.name,
             tagTitle: tag.title,
             images: taggedImages
