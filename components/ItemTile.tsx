@@ -15,7 +15,8 @@ const ItemTile: React.FC<Item> = ({
   return (
     <ContextMenu>
       <ContextMenuTrigger>
-        <div className="relative flex flex-col items-center justify-center text-center w-16 h-16 overflow-hidden">
+        <div
+          className="relative flex flex-col items-center justify-center text-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 overflow-hidden">
           {imageUrl ? (
             <>
               <Image
