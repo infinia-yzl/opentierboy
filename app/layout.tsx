@@ -3,7 +3,7 @@ import {Inter as FontSans} from "next/font/google";
 import "./globals.css";
 import {cn} from "@/lib/utils"
 
-import {ThemeProvider} from "@/components/ThemeProvider"
+import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
 
 const fontSans = FontSans({
@@ -16,12 +16,11 @@ export const metadata: Metadata = {
   description: "Create amazing tier lists with Tier Author.",
 };
 
-export default function RootLayout(
-  {
-    children,
-  }: Readonly<{
-    children: React.ReactNode;
-  }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en" suppressHydrationWarning>
     <body className={cn(

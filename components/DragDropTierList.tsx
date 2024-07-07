@@ -175,6 +175,18 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
     return tiers[index].name;
   };
 
+  let tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
+  switch (tiers.length) {
+    case 4:
+      tierGradientIndexMap = [0, 2, 4];
+      break;
+    case 6:
+      tierGradientIndexMap = [0, 1, 3, 4, 6];
+      break;
+    default:
+      tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
+  }
+
   return (
     <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
@@ -187,6 +199,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
             {tiers.map((tier, index) => {
               const labelPosition = tier.labelPosition || 'left';
               const previewLabel = getPreviewLabel(index);
+              const tierGradient = index === tiers.length - 1 ? '' : `var(--tier-gradient-${tierGradientIndexMap[index] % 7})`;
               return (
                 <Draggable draggableId={tier.id} index={index} key={tier.id}>
                   {(provided, snapshot) => (
@@ -201,13 +214,14 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                       `}
                       style={{
                         ...provided.draggableProps.style,
+                        background: tierGradient,
                         transition: snapshot.isDropAnimating
                           ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
                           : provided.draggableProps.style?.transition,
                       }}
                     >
                       <div className="flex-1">
-                        {labelPosition === 'top' && (
+                        {labelPosition === 'top' && index !== tiers.length - 1 && (
                           <EditableLabel
                             text={previewLabel}
                             onSave={(newText) => handleSaveLabel(index, newText)}
@@ -227,7 +241,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`w-full flex flex-wrap p-0 rounded-md bg-secondary ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
+                                className={`w-full flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
                               >
                                 {tier.items.map((item, itemIndex) => (
                                   <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
