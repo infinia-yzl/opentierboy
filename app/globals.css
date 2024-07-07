@@ -75,7 +75,7 @@
     --foreground: 200 50% 20%;
     --primary: 200 100% 30%;
     --secondary: 190 90% 90%;
-    --accent: 220 100% 50%;
+    --accent: 220 100% 90%;
     --muted: 200 20% 80%;
     --tier-gradient-0: linear-gradient(to right, #87CEEB, #87CEEB); /* Light sky blue */
     --tier-gradient-1: linear-gradient(to right, #ADD8E6, #ADD8E6); /* Sky blue */
