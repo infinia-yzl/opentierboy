@@ -6,15 +6,10 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from "@/components/ui/command";
 import {ScrollArea} from "@/components/ui/scroll-area";
-
-interface ItemSet {
-  packageName: string;
-  tagName: string;
-  tagTitle: string;
-  images: string[];
-}
+import {ItemSet} from "@/models/ItemSet";
 
 interface ItemSetSelectorProps {
   itemSets: ItemSet[];
@@ -25,29 +20,33 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
   // Group item sets by package name
   const groupedItemSets = itemSets.reduce((acc, itemSet) => {
     if (!acc[itemSet.packageName]) {
-      acc[itemSet.packageName] = [];
+      acc[itemSet.packageName] = {
+        displayName: itemSet.packageDisplayName,
+        sets: []
+      };
     }
-    acc[itemSet.packageName].push(itemSet);
+    acc[itemSet.packageName].sets.push(itemSet);
     return acc;
-  }, {} as Record<string, ItemSet[]>);
+  }, {} as Record<string, { displayName: string; sets: ItemSet[] }>);
 
   return (
     <Command>
-      <CommandInput placeholder="Search item templates..."/>
+      <CommandInput placeholder="Search"/>
       <CommandEmpty>No item templates found.</CommandEmpty>
       <CommandList>
         <ScrollArea className="h-[300px]">
-          {Object.entries(groupedItemSets).map(([packageName, sets]) => (
-            <CommandGroup key={packageName} heading={packageName}>
+          {Object.entries(groupedItemSets).map(([packageName, {displayName, sets}]) => (
+            <CommandGroup key={packageName} heading={displayName}>
               {sets.map((itemSet) => (
                 <CommandItem
                   key={`${itemSet.packageName}-${itemSet.tagName}`}
-                  value={`${itemSet.packageName}-${itemSet.tagTitle}`}
+                  value={`${itemSet.packageDisplayName}-${itemSet.tagTitle}`}
                   onSelect={() => {
                     onSelectItemSet(itemSet.packageName, itemSet.tagName, itemSet.images);
                   }}
                 >
-                  {itemSet.tagTitle} ({itemSet.images.length} items)
+                  {itemSet.tagTitle}
+                  <CommandShortcut>({itemSet.images.length})</CommandShortcut>
                 </CommandItem>
               ))}
             </CommandGroup>

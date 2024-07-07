@@ -1,28 +1,27 @@
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
-const {getImageList, getAllTags, getTagConfig, getImageMetadata} = require("image-set");
+const {getImageList, getImageMetadata} = require("image-set");
 
-async function getPackages() {
-  const configPath = path.join(__dirname, '..', 'imageset.config.json');
+const CONFIG_PATH = path.join(__dirname, '..', 'imageset.config.json');
+const CUSTOM_CONFIG_PATH = path.join(__dirname, '..', 'imageset.custom.json');
+
+async function getCustomConfig() {
   try {
-    const config = await fs.readFile(configPath, 'utf8');
-    const parsedConfig = JSON.parse(config);
-    return parsedConfig.packages || [];
+    const customConfigFile = await fs.readFile(CUSTOM_CONFIG_PATH, 'utf8');
+    return JSON.parse(customConfigFile);
   } catch (error) {
     if (error.code === 'ENOENT') {
-      console.log('imageset.config.json not found. Creating a new one.');
-      return await createDefaultConfig(configPath);
-    } else if (error instanceof SyntaxError) {
-      console.log('imageset.config.json is empty or invalid. Resetting to default.');
-      return await createDefaultConfig(configPath);
+      console.log('Custom config file not found. Creating a new one.');
+      return await createCustomConfig();
     } else {
+      console.error('Error reading custom config file:', error);
       throw error;
     }
   }
 }
 
-async function createDefaultConfig(configPath) {
+async function createCustomConfig() {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -35,17 +34,16 @@ async function createDefaultConfig(configPath) {
     });
   });
 
-  const defaultConfig = {
-    packages: packages,
-    packageImages: [],
-    metadata: [],
-    tags: [],
-    tagConfig: {subject: [], version: [], general: []}
+  const customConfig = {
+    packages: packages.reduce((acc, pkg) => {
+      acc[pkg] = {displayName: pkg};
+      return acc;
+    }, {})
   };
 
-  await fs.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
-  console.log(`Default configuration created with packages: ${packages.join(', ')}`);
-  return packages;
+  await fs.writeFile(CUSTOM_CONFIG_PATH, JSON.stringify(customConfig, null, 2));
+  console.log(`Custom configuration created with packages: ${packages.join(', ')}`);
+  return customConfig;
 }
 
 async function logImageSetContents(dir, level = 0) {
@@ -133,7 +131,7 @@ async function copyImagesRecursively(sourceDir, targetDir) {
   }
 }
 
-async function processPackage(packageName, shouldCopy) {
+async function processPackage(packageName, customConfig, shouldCopy) {
   try {
     const sourceDir = await findImageDirectory(packageName);
     const targetDir = path.join(__dirname, '..', 'public', 'images', packageName);
@@ -169,35 +167,78 @@ async function processPackage(packageName, shouldCopy) {
     const images = getImageList(sourceDir);
     console.log(`Found ${images.length} images in ${packageName}`);
 
-    return {packageName, images};
+    // Get display name from custom config or fallback to package name
+    const displayName = customConfig.packages[packageName]?.displayName || packageName;
+
+    return {packageName, displayName, images};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
     console.log(`Logging contents of ${packageName} package due to error:`);
     await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName));
-    return {packageName, images: []};
+    return {packageName, displayName: packageName, images: []};
   }
 }
 
-async function updateConfig(packagesData) {
-  const configPath = path.join(__dirname, '..', 'imageset.config.json');
+async function updateConfigs(packagesData, customConfig) {
   const config = {
-    packages: packagesData.map(pkg => pkg.packageName),
-    packageImages: packagesData,
-    metadata: getImageMetadata(),
-    tags: getAllTags(),
-    tagConfig: getTagConfig()
+    packages: {}
   };
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2));
-  console.log('Config updated at', configPath);
+
+  // Process package data
+  packagesData.forEach(({packageName, displayName, images}) => {
+    const packageTags = {};
+    const packageImages = images.map(image => {
+      const metadata = getImageMetadata().find(m => m.filename === image);
+      const imageTags = metadata?.tags || [];
+      imageTags.forEach(tag => {
+        if (!packageTags[tag.name]) {
+          packageTags[tag.name] = {
+            title: tag.title || `${tag.name} for ${displayName}`,
+            description: tag.description || `Description of ${tag.name} in ${displayName}`,
+            category: tag.category || 'general'
+          };
+        }
+      });
+      return {
+        filename: image,
+        label: metadata?.label || image,
+        tags: imageTags.map(tag => tag.name)
+      };
+    });
+
+    config.packages[packageName] = {
+      displayName,
+      images: packageImages,
+      tags: packageTags
+    };
+  });
+
+  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
+  console.log('Config updated at', CONFIG_PATH);
+
+  // Update custom config (if needed)
+  let customConfigUpdated = false;
+  Object.keys(config.packages).forEach(packageName => {
+    if (!customConfig.packages[packageName]) {
+      customConfig.packages[packageName] = {displayName: config.packages[packageName].displayName};
+      customConfigUpdated = true;
+    }
+  });
+
+  if (customConfigUpdated) {
+    await fs.writeFile(CUSTOM_CONFIG_PATH, JSON.stringify(customConfig, null, 2));
+    console.log('Custom config updated at', CUSTOM_CONFIG_PATH);
+  }
 }
 
 async function main() {
   const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
-  const packages = await getPackages();
-  const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, isProduction)));
-  await updateConfig(packagesData);
+  const customConfig = await getCustomConfig();
+  const packages = Object.keys(customConfig.packages);
+  const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, customConfig, isProduction)));
+  await updateConfigs(packagesData, customConfig);
 }
 
 main().catch(console.error);
