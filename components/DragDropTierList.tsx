@@ -221,7 +221,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                       }}
                     >
                       <div className="flex-1">
-                        {labelPosition === 'top' && (
+                        {labelPosition === 'top' && index !== tiers.length - 1 && (
                           <EditableLabel
                             text={previewLabel}
                             onSave={(newText) => handleSaveLabel(index, newText)}

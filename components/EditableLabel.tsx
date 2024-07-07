@@ -64,7 +64,7 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
           onChange={handleChange}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className={cn(contentClassName, 'py-6')}
+          className={cn(contentClassName, 'py-6 min-w-24 text-center')}
           placeholder={placeholder}
         />
       );
