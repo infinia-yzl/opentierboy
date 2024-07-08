@@ -24,7 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
     <body className={cn(
-      "min-h-screen bg-background font-sans antialiased",
+      "bg-background font-sans antialiased min-h-screen flex justify-center",
       fontSans.variable
     )}>
     <ThemeProvider
@@ -33,7 +33,9 @@ export default function RootLayout({
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <div className="max-w-screen-lg w-full">
+        {children}
+      </div>
       <Toaster/>
     </ThemeProvider>
     </body>

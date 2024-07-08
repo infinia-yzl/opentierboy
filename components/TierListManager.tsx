@@ -11,10 +11,9 @@ import Item from "@/models/Item";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
-  children: React.ReactNode;
 }
 
-const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children}) => {
+const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
   const [name, setName] = useState('');
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
@@ -147,7 +146,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
         <EditableLabel as="h2" text={name} onSave={setName} placeholder="Enter title"
                        contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
       </div>
-      <div className="flex flex-auto space-x-2">
+      <div className="flex flex-col items-center hide-in-zen">
         <div className="flex space-x-2" id="settings">
           <TierTemplateSelector/>
           <ItemManager
@@ -158,7 +157,17 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, children
             undoReset={undoReset}
             undoDelete={undoDelete}
           />
-          {children}
+        </div>
+        <div className="p-2">
+          <p className="text-sm text-muted-foreground text-center">
+            Drag to reorder.
+          </p>
+          <p className="tooltip-mouse text-sm text-muted-foreground text-center">
+            Right-click on any item to delete.
+          </p>
+          <p className="tooltip-touch text-sm text-muted-foreground text-center">
+            Long-press on any item to delete.
+          </p>
         </div>
       </div>
       <DragDropTierList
