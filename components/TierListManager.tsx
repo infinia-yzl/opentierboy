@@ -8,6 +8,7 @@ import EditableLabel from "@/components/EditableLabel";
 import ItemManager from "@/components/ItemManager";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
+import ShareButton from "@/components/ShareButton";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
@@ -147,7 +148,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
                        contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
       </div>
       <div className="flex flex-col items-center hide-in-zen">
-        <div className="flex space-x-2" id="settings">
+        <div className="flex space-x-2" id="settings" data-html2canvas-ignore>
           <TierTemplateSelector/>
           <ItemManager
             onItemsCreate={handleItemsCreate}
@@ -157,8 +158,9 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
             undoReset={undoReset}
             undoDelete={undoDelete}
           />
+          <ShareButton/>
         </div>
-        <div className="p-2">
+        <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
             Drag to reorder.
           </p>
