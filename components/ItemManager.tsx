@@ -28,7 +28,7 @@ import {
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
-import {GridIcon} from "@radix-ui/react-icons";
+import {DashboardIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
@@ -163,7 +163,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon">
-            <GridIcon className="h-4 w-4"/>
+            <DashboardIcon className="h-4 w-4"/>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>

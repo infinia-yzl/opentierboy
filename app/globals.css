@@ -145,3 +145,37 @@
     @apply bg-background text-foreground;
   }
 }
+
+html.zen-mode {
+  /* Global styles for zen mode */
+}
+
+html.zen-mode .hide-in-zen {
+  display: none;
+}
+
+html.zen-mode .show-in-zen {
+  display: block;
+}
+
+/* Styles for touch devices */
+@media (pointer: coarse) {
+  .tooltip-mouse {
+    @apply hidden;
+  }
+
+  .tooltip-touch {
+    @apply block;
+  }
+}
+
+/* Styles for mouse devices */
+@media (pointer: fine) {
+  .tooltip-mouse {
+    @apply block;
+  }
+
+  .tooltip-touch {
+    @apply hidden;
+  }
+}
