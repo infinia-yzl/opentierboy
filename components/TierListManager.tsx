@@ -159,10 +159,13 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
           />
         </div>
         <div className="p-2">
-          <p className="tooltip-mouse text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground text-center">
+            Drag to reorder.
+          </p>
+          <p className="tooltip-mouse text-sm text-muted-foreground text-center">
             Right-click on any item to delete.
           </p>
-          <p className="tooltip-touch text-sm text-muted-foreground">
+          <p className="tooltip-touch text-sm text-muted-foreground text-center">
             Long-press on any item to delete.
           </p>
         </div>
