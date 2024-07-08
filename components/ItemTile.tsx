@@ -19,42 +19,43 @@ const ItemTile: React.FC<Item> = ({
       setIsZenMode(document.documentElement.classList.contains('zen-mode'));
     };
 
-    // Check initial state
     checkZenMode();
-
-    // Set up a MutationObserver to watch for changes to the class on the html element
     const observer = new MutationObserver(checkZenMode);
     observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
 
-    // Cleanup
     return () => observer.disconnect();
   }, []);
 
   const tileContent = (
-    <div
-      className="relative flex flex-col items-center justify-center text-center w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 overflow-hidden"
-    >
+    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 overflow-hidden rounded-md">
       {imageUrl ? (
         <>
-          <Image
-            src={imageUrl}
-            alt={content}
-            width={128}
-            height={128}
-            style={{
-              objectFit: 'cover',
-            }}
-          />
-          <div
-            className={`absolute bottom-0 left-0 right-0 p-0.5 bg-black bg-opacity-30 backdrop-blur-sm
-                        transition-opacity duration-180 ease-in-out
-                        ${showLabel ? 'opacity-100' : 'opacity-0'}`}
-          >
-            <span className="text-[8px] leading-tight text-white block truncate">{content}</span>
+          <div className="absolute inset-0 overflow-hidden">
+            <Image
+              src={imageUrl}
+              alt={content}
+              fill
+              style={{
+                objectFit: "cover"
+              }}
+            />
           </div>
+          {showLabel && (
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-30 p-1 backdrop-blur-sm transition-opacity duration-180 ease-in-out"
+            >
+              <span
+                className="text-[8px] leading-tight text-white block mb-0.5"
+              >
+                {content}
+              </span>
+            </div>
+          )}
         </>
       ) : (
-        <div className="m-4 p-4">{content}</div>
+        <div className="flex items-center justify-center h-full text-sm">
+          {content}
+        </div>
       )}
     </div>
   );
@@ -65,9 +66,7 @@ const ItemTile: React.FC<Item> = ({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>
-        {tileContent}
-      </ContextMenuTrigger>
+      <ContextMenuTrigger>{tileContent}</ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem
           onClick={() => onDelete(id)}

@@ -7,7 +7,7 @@ import {ZenToggle} from "@/components/ZenToggle";
 const Home = () => {
   return (
     <main className="flex flex-col items-center justify-between">
-      <div className="flex flex-row p-4 w-full justify-between items-center align-middle">
+      <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
         <h1 className="text-xl">Tier Scribble</h1>
         <div className="space-x-1">
           <ZenToggle/>
@@ -16,7 +16,7 @@ const Home = () => {
           </span>
         </div>
       </div>
-      <Separator className="mb-8"/>
+      <Separator className="mb-8" data-html2canvas-ignore/>
       <TierListManager initialTiers={DEFAULT_TIER_TEMPLATE}/>
     </main>
   );
