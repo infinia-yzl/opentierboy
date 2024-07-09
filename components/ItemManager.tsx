@@ -13,7 +13,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from "@/components/ui/dialog";
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,14 +75,12 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   undoDelete,
 }) => {
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
+  const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
-
-    Object.entries(typedImagesetConfig.packages).forEach(([packageName, packageData]) => {
+    Object.entries(imagesetConfig.packages).forEach(([packageName, packageData]) => {
       const packageDisplayName = packageData.displayName;
-
-      // Add an "All Items" set for each package
       sets.push({
         packageName,
         packageDisplayName,
@@ -90,11 +88,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         tagTitle: 'All Items',
         images: packageData.images.map(img => img.filename)
       });
-
-      // Add a set for each tag in the package
       Object.entries(packageData.tags).forEach(([tagName, tagData]) => {
         const taggedImages = packageData.images.filter(image => image.tags.includes(tagName));
-
         if (taggedImages.length > 0) {
           sets.push({
             packageName,
@@ -106,13 +101,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         }
       });
     });
-
     return sets;
   }, []);
 
   const handleCreateItems = (newItems: Item[]) => {
     onItemsCreate(newItems);
     setIsItemCreatorOpen(false);
+    setIsItemSetSelectorOpen(false);
     toast('Items Added', {
       description: `${newItems.length} item(s) have been added.`,
       action: {
@@ -169,18 +164,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         <DropdownMenuContent>
           <DropdownMenuGroup>
             <DropdownMenuLabel>Add Items</DropdownMenuLabel>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>From template</DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  <ItemSetSelector itemSets={itemSets} onSelectItemSet={handleItemSetSelect}/>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
+            <DropdownMenuItem onSelect={() => setIsItemSetSelectorOpen(true)}>
+              From template
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
+              From your device
+            </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
-            From your device
-          </DropdownMenuItem>
           <DropdownMenuSeparator/>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <AlertDialog>
@@ -223,6 +213,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
           />
         </DialogContent>
       </Dialog>
+
+      <ItemSetSelector
+        itemSets={itemSets}
+        onSelectItemSet={handleItemSetSelect}
+        open={isItemSetSelectorOpen}
+        onOpenChange={setIsItemSetSelectorOpen}
+      />
     </>
   );
 };
