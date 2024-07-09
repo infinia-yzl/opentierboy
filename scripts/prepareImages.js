@@ -1,10 +1,23 @@
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
-const {getImageList, getImageMetadata} = require("image-set");
 
 const CONFIG_PATH = path.join(__dirname, '..', 'imageset.config.json');
 const CUSTOM_CONFIG_PATH = path.join(__dirname, '..', 'imageset.custom.json');
+
+async function callPackageFunction(packageName, functionName, ...args) {
+  try {
+    const packageModule = await import(packageName);
+    if (typeof packageModule[functionName] === 'function') {
+      return packageModule[functionName](...args);
+    } else {
+      throw new Error(`Function ${functionName} not found in package ${packageName}`);
+    }
+  } catch (error) {
+    console.error(`Error calling ${functionName} from ${packageName}:`, error);
+    return null;
+  }
+}
 
 async function getCustomConfig() {
   try {
@@ -164,7 +177,7 @@ async function processPackage(packageName, customConfig, shouldCopy) {
       console.log(`Symlinked ${packageName} images to ${targetDir}`);
     }
 
-    const images = getImageList(sourceDir);
+    const images = await callPackageFunction(packageName, 'getImageList', sourceDir);
     console.log(`Found ${images.length} images in ${packageName}`);
 
     // Get display name from custom config or fallback to package name
@@ -185,11 +198,13 @@ async function updateConfigs(packagesData, customConfig) {
   };
 
   // Process package data
-  packagesData.forEach(({packageName, displayName, images}) => {
+  for (const {packageName, displayName, images} of packagesData) {
     const packageTags = {};
+    // Use the dynamic function call for getImageMetadata
+    const metadata = await callPackageFunction(packageName, 'getImageMetadata');
     const packageImages = images.map(image => {
-      const metadata = getImageMetadata().find(m => m.filename === image);
-      const imageTags = metadata?.tags || [];
+      const imageMetadata = metadata.find(m => m.filename === image);
+      const imageTags = imageMetadata?.tags || [];
       imageTags.forEach(tag => {
         if (!packageTags[tag.name]) {
           packageTags[tag.name] = {
@@ -201,7 +216,7 @@ async function updateConfigs(packagesData, customConfig) {
       });
       return {
         filename: image,
-        label: metadata?.label || image,
+        label: imageMetadata?.label || image,
         tags: imageTags.map(tag => tag.name)
       };
     });
@@ -211,7 +226,7 @@ async function updateConfigs(packagesData, customConfig) {
       images: packageImages,
       tags: packageTags
     };
-  });
+  }
 
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
   console.log('Config updated at', CONFIG_PATH);
