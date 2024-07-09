@@ -2,6 +2,9 @@
   "packages": {
     "image-set": {
       "displayName": "Example Items Template"
+    },
+    "image-reachthefinals": {
+      "displayName": "The Finals"
     }
   }
 }

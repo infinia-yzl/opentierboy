@@ -65,6 +65,661 @@
           "category": "general"
         }
       }
+    },
+    "image-reachthefinals": {
+      "displayName": "The Finals",
+      "images": [
+        {
+          "filename": "93R_Rank_1.webp",
+          "label": "93R",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "AKM_Rank_1.webp",
+          "label": "AKM",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "APS_Turret_Rank_1.webp",
+          "label": "APS Turret",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Anti-Gravity_Cube_Rank_1.webp",
+          "label": "ANTI-GRAVITY CUBE",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Barricade_Rank_1.webp",
+          "label": "BARRICADE",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Breach_Charge_Rank_1.webp",
+          "label": "BREACH CHARGE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "C4_Rank_1.webp",
+          "label": "C4",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "CL-40_Rank_1.webp",
+          "label": "CL-40",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Charge_N_Slam_Rank_1.webp",
+          "label": "CHARGE 'N' SLAM",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Cloaking_Device_Rank_1.webp",
+          "label": "CLOAKING DEVICE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Dagger_Rank_1.webp",
+          "label": "DAGGER",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Data_Reshaper_Rank_1.webp",
+          "label": "DATA RESHAPER",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Defibrillator_Rank_1.webp",
+          "label": "DEFIBRILLATOR",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Dematerializer_Rank_1.webp",
+          "label": "DEMATERIALIZER",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Dome_Shield_Rank_1.webp",
+          "label": "DOME SHIELD",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Dual_Blades_Rank_1.webp",
+          "label": "DUAL BLADES",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Evasive_Dash_Rank_1.webp",
+          "label": "EVASIVE DASH",
+          "tags": [
+            "light",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Explosive_Mine_Rank_1.webp",
+          "label": "EXPLOSIVE MINE",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "FAMAS_Rank_1.webp",
+          "label": "FAMAS",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "FCAR_Rank_1.webp",
+          "label": "FCAR",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Flamethrower_Rank_1.webp",
+          "label": "FLAMETHROWER",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Flashbang_Rank_1.webp",
+          "label": "FLASHBANG",
+          "tags": [
+            "light",
+            "medium",
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Frag_Grenade_Rank_1.webp",
+          "label": "FRAG GRENADE",
+          "tags": [
+            "light",
+            "medium",
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Gas_Grenade_Rank_1.webp",
+          "label": "GAS GRENADE",
+          "tags": [
+            "light",
+            "medium",
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Gas_Mine_Rank_1.webp",
+          "label": "GAS MINE",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Gateway_Rank_1.webp",
+          "label": "GATEWAY",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Glitch_Grenade_Rank_1.webp",
+          "label": "GLITCH GRENADE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Glitch_Trap_Rank_1.webp",
+          "label": "GLITCH TRAP",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Goo_Grenade_Rank_1.webp",
+          "label": "GOO GRENADE",
+          "tags": [
+            "light",
+            "medium",
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Goo_Gun_Rank_1.webp",
+          "label": "GOO GUN",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Grappling_Hook_Rank_1.webp",
+          "label": "GRAPPLING HOOK",
+          "tags": [
+            "light",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Guardian_Turret_Rank_1.webp",
+          "label": "GUARDIAN TURRET",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Healing_Beam_Rank_1.webp",
+          "label": "HEALING BEAM",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Jump_Pad_Rank_1.webp",
+          "label": "JUMP PAD",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "KS-23_Rank_1.webp",
+          "label": "KS-23",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "LH1_Rank_1.webp",
+          "label": "LH1",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Lewis_Gun_Rank_1.webp",
+          "label": "LEWIS GUN",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "M11_Rank_1.webp",
+          "label": "M11",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "M60_Rank_1.webp",
+          "label": "M60",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "MGL32_Rank_1.webp",
+          "label": "MGL32",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Mesh_Shield_Rank_1.webp",
+          "label": "MESH SHIELD",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "Model_1887_Rank_1.webp",
+          "label": "MODEL 1887",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Motion_Sensor_Rank_1.webp",
+          "label": "MOTION SENSOR",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Pyro_Grenade_Rank_1.webp",
+          "label": "PYRO GRENADE",
+          "tags": [
+            "light",
+            "medium",
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Pyro_Mine_Rank_1.webp",
+          "label": "PYRO MINE",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "RPG-7_Rank_1.webp",
+          "label": "RPG-7",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "R_.357_Rank_1.webp",
+          "label": "R .357",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Recurve_Bow_Rank_1.webp",
+          "label": "RECURVE BOW",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Riot_Shield_Rank_1.webp",
+          "label": "RIOT SHIELD",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "SA1216_Rank_1.webp",
+          "label": "SA1216",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "SH1900_Rank_1.webp",
+          "label": "SH1900",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "SR-84_Rank_1.webp",
+          "label": "SR-84",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Sledgehammer_Rank_1.webp",
+          "label": "SLEDGEHAMMER",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Smoke_Grenade_Rank_1.webp",
+          "label": "SMOKE GRENADE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Sonar_Grenade_Rank_1.webp",
+          "label": "SONAR GRENADE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Spear_Rank_1.webp",
+          "label": "SPEAR",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Stun_Gun_Rank_1.webp",
+          "label": "STUN GUN",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Sword_Rank_1.webp",
+          "label": "SWORD",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Thermal_Bore_Rank_1.webp",
+          "label": "THERMAL BORE",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Thermal_Vision_Rank_1.webp",
+          "label": "THERMAL VISION",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Throwing_Knives_Rank_1.webp",
+          "label": "THROWING KNIVES",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Tracking_Dart_Rank_1.webp",
+          "label": "TRACKING DART",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "V9S_Rank_1.webp",
+          "label": "V9S",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Vanishing_Bomb_Rank_1.webp",
+          "label": "VANSHING BOMB",
+          "tags": [
+            "light",
+            "3_0_0",
+            "gadgets"
+          ]
+        },
+        {
+          "filename": "Winch_Claw_Rank_1.webp",
+          "label": "WINCH CLAW",
+          "tags": [
+            "heavy",
+            "3_0_0",
+            "special"
+          ]
+        },
+        {
+          "filename": "XP-54_Rank_1.webp",
+          "label": "XP-54",
+          "tags": [
+            "light",
+            "3_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Zipline_Rank_1.webp",
+          "label": "ZIPLINE",
+          "tags": [
+            "medium",
+            "3_0_0",
+            "gadgets"
+          ]
+        }
+      ],
+      "tags": {
+        "light": {
+          "title": "Light Build",
+          "description": "Equipment available to Light builds",
+          "category": "general"
+        },
+        "3_0_0": {
+          "title": "Season 3",
+          "description": "Everything available in Season 3",
+          "category": "general"
+        },
+        "weapon": {
+          "title": "Weapons",
+          "description": "Images of weapons",
+          "category": "general"
+        },
+        "medium": {
+          "title": "Medium Build",
+          "description": "Equipment available to Medium builds",
+          "category": "general"
+        },
+        "gadgets": {
+          "title": "Gadgets",
+          "description": "Images of gadgets",
+          "category": "general"
+        },
+        "heavy": {
+          "title": "Heavy Build",
+          "description": "Equipment available to Heavy builds",
+          "category": "general"
+        },
+        "special": {
+          "title": "Specializations",
+          "description": "Images of build specializations",
+          "category": "general"
+        }
+      }
     }
   }
 }
