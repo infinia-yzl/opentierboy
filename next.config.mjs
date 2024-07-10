@@ -24,16 +24,6 @@ const nextConfig = {
     }
     return config;
   },
-
-  async redirects() {
-    return [
-      {
-        source: '/rank/:nameOrPackage',
-        destination: '/rank/:nameOrPackage/all',
-        permanent: true,
-      },
-    ]
-  },
 };
 
 export default nextConfig;
