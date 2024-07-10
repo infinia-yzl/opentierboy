@@ -29,6 +29,7 @@ import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
+import ImageSetConfig from "@/models/ImageSet";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -39,28 +40,7 @@ interface ItemManagerProps {
   undoDelete: () => void;
 }
 
-interface ImagesetConfig {
-  packages: {
-    [key: string]: {
-      displayName: string;
-      images: {
-        filename: string;
-        label: string;
-        tags: string[];
-      }[];
-      tags: {
-        [key: string]: {
-          title: string;
-          description: string;
-          category: string;
-        };
-      };
-    };
-  };
-}
-
-// Assert the type of imagesetConfig
-const typedImagesetConfig = imagesetConfig as ImagesetConfig;
+const typedImagesetConfig = imagesetConfig as ImageSetConfig;
 
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
