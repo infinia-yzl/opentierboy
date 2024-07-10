@@ -40,7 +40,7 @@ interface ItemManagerProps {
   undoDelete: () => void;
 }
 
-const typedImagesetConfig = imagesetConfig as ImageSetConfig;
+const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
@@ -116,7 +116,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   };
 
   const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
-    const packageData = typedImagesetConfig.packages[packageName];
+    const packageData = typedImageSetConfig.packages[packageName];
     const newItems = images.map((image: string, index: number) => {
       const imageData = packageData.images.find(img => img.filename === image);
       return {

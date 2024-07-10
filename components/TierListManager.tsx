@@ -12,10 +12,11 @@ import ShareButton from "@/components/ShareButton";
 
 interface TierListManagerProps {
   initialTiers: Tier[];
+  title?: string;
 }
 
-const TierListManager: React.FC<TierListManagerProps> = ({initialTiers}) => {
-  const [name, setName] = useState('');
+const TierListManager: React.FC<TierListManagerProps> = ({initialTiers, title}) => {
+  const [name, setName] = useState(title ?? '');
   const [tiers, setTiers] = useState(initialTiers);
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(initialTiers[0].labelPosition ?? 'left');

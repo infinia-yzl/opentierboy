@@ -28,8 +28,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/rank/:packageName',
-        destination: '/rank/:packageName/all',
+        source: '/rank/:nameOrPackage',
+        destination: '/rank/:nameOrPackage/all',
         permanent: true,
       },
     ]
