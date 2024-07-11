@@ -3,86 +3,103 @@ import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
+import LZString from 'lz-string';
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
-
 interface SimplifiedTier {
-  id: string;
-  name: string;
-  items: SimplifiedItem[];
-}
-
-interface SimplifiedItem {
-  id: string;
-  content: string;
+  i: string; // id
+  n: string; // name
+  t: string[]; // items (array of item ids)
 }
 
 interface StoredCustomItem {
-  id: string;
-  content: string;
-  imageData: string;
+  i: string; // id
+  c: string; // content
+  d: string; // imageData
+}
+
+// Precompute package item lookup
+const packageItemLookup: Record<string, Item> = {};
+
+function initializePackageItemLookup() {
+  for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
+    for (const image of packageData.images) {
+      const id = `${packageName}-${image.filename}`;
+      packageItemLookup[id] = {
+        id,
+        content: image.label || image.filename.split('.')[0],
+        imageUrl: `/images/${packageName}/${image.filename}`,
+      };
+    }
+  }
+}
+
+initializePackageItemLookup();
+
+// Use a Map for faster lookups of custom items
+const customItemsMap = new Map<string, StoredCustomItem>();
+
+function initializeCustomItemsMap() {
+  if (customItemsMap.size === 0) {
+    const customItems = loadCustomItemsFromLocalStorage();
+    customItems.forEach(item => customItemsMap.set(item.i, item));
+  }
 }
 
 export function encodeTierStateForURL(tiers: Tier[]): string {
   const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
-    id: tier.id,
-    name: tier.name,
-    items: tier.items.map(item => ({
-      id: item.id,
-      content: item.content
-    }))
+    i: tier.id,
+    n: tier.name,
+    t: tier.items.map(item => item.id)
   }));
-  return btoa(JSON.stringify(simplifiedTiers));
+  const jsonString = JSON.stringify(simplifiedTiers);
+  return LZString.compressToEncodedURIComponent(jsonString);
 }
 
 export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
   try {
-    const simplifiedTiers = JSON.parse(atob(encodedState)) as SimplifiedTier[];
-    const customItems = loadCustomItemsFromLocalStorage();
+    const jsonString = LZString.decompressFromEncodedURIComponent(encodedState);
+    if (!jsonString) throw new Error('Failed to decompress state');
+
+    const simplifiedTiers = JSON.parse(jsonString) as SimplifiedTier[];
+    initializeCustomItemsMap();
 
     return simplifiedTiers.map(simplifiedTier => ({
-      ...simplifiedTier,
-      items: simplifiedTier.items.map(simplifiedItem => resolveItem(simplifiedItem, customItems))
-    })) as Tier[];
+      id: simplifiedTier.i,
+      name: simplifiedTier.n,
+      items: simplifiedTier.t.map(itemId => resolveItem(itemId))
+    }));
   } catch (error) {
     console.error('Failed to decode tier state from URL:', error);
     return null;
   }
 }
 
-function resolveItem(simplifiedItem: SimplifiedItem, customItems: StoredCustomItem[]): Item {
-  // 1. Assume it's a package item and search for it
-  for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
-    const image = packageData.images.find(img => simplifiedItem.id.includes(img.filename));
-    if (image) {
-      return {
-        id: simplifiedItem.id,
-        content: image.label || image.filename.split('.')[0],
-        imageUrl: `/images/${packageName}/${image.filename}`,
-      };
-    }
-  }
+function resolveItem(itemId: string): Item {
+  // 1. Check package items
+  const packageItem = packageItemLookup[itemId];
+  if (packageItem) return packageItem;
 
-  // 2. If not found in packages, search localStorage
-  const customItem = customItems.find(item => item.id === simplifiedItem.id);
+  // 2. Check custom items
+  const customItem = customItemsMap.get(itemId);
   if (customItem) {
     return {
-      id: customItem.id,
-      content: customItem.content,
-      imageUrl: customItem.imageData,
+      id: customItem.i,
+      content: customItem.c,
+      imageUrl: customItem.d,
     };
   }
 
-  // 3. If not found in either, create a placeholder
-  return createPlaceholderItem(simplifiedItem.id, simplifiedItem.content);
+  // 3. Create a placeholder
+  return createPlaceholderItem(itemId, 'Unavailable Item');
 }
 
 function createPlaceholderItem(itemId: string, content: string): Item {
   return {
     id: itemId,
-    content: content || 'Unavailable Item',
+    content,
     imageUrl: '/placeholder-image.jpg',
   };
 }
@@ -98,24 +115,18 @@ export function loadCustomItemsFromLocalStorage(): StoredCustomItem[] {
   }
 }
 
-// Uploaded items will remain in perpetuity until manually deleted
 export function addCustomItems(items: Item[]): void {
-  const customItems = loadCustomItemsFromLocalStorage();
   const newItems = items.map(item => ({
-    id: item.id,
-    content: item.content,
-    imageData: item.imageUrl ?? ''
+    i: item.id,
+    c: item.content,
+    d: item.imageUrl ?? ''
   }));
-  customItems.push(...newItems);
-  localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(customItems));
-}
 
-// do not remove custom item pointers from local storage, because other lists may point to the same item
-// export function removeCustomItem(itemId: string): void {
-//   const customItems = loadCustomItemsFromLocalStorage();
-//   const updatedItems = customItems.filter(item => item.id !== itemId);
-//   localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(updatedItems));
-// }
+  newItems.forEach(item => customItemsMap.set(item.i, item));
+
+  const allItems = Array.from(customItemsMap.values());
+  localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(allItems));
+}
 
 export function getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
   if (initialState) {
@@ -125,18 +136,11 @@ export function getInitialTiers(initialState: string | undefined, initialItemSet
 
   if (initialItemSet) {
     const initialTiers = [...DEFAULT_TIER_TEMPLATE];
-    const packageData = typedImageSetConfig.packages[initialItemSet.packageName];
-    initialTiers[initialTiers.length - 1].items = initialItemSet.images.map((filename) => {
-      const imageData = packageData.images.find(img => img.filename === filename);
-      if (!imageData) {
-        console.error(`Image ${filename} not found in package ${initialItemSet.packageName}.`);
-        return createPlaceholderItem(`${initialItemSet.packageName}-${filename}`, filename);
-      }
-      return {
-        id: `${initialItemSet.packageName}-${filename}`,
-        content: imageData.label || filename.split('.')[0],
-        imageUrl: `/images/${initialItemSet.packageName}/${filename}`,
-      };
+    const lastTierIndex = initialTiers.length - 1;
+
+    initialTiers[lastTierIndex].items = initialItemSet.images.map((filename) => {
+      const itemId = `${initialItemSet.packageName}-${filename}`;
+      return packageItemLookup[itemId] || createPlaceholderItem(itemId, filename);
     });
     return initialTiers;
   }
