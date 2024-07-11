@@ -8,9 +8,8 @@ import {Button} from "@/components/ui/button"
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,} from "@/components/ui/form"
 import {Input} from "@/components/ui/input"
 import Image from 'next/image'
-import {toast} from "sonner"
 import Item from "@/models/Item";
-import {addCustomItem} from "@/lib/tierStateUtils";
+import {addCustomItems} from "@/lib/tierStateUtils";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -42,19 +41,8 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
 
   const onSubmit = useCallback((values: z.infer<typeof formSchema>) => {
     if (values.files && values.files.length > 0) {
-      const filesToSubmit = Array.from(values.files as FileList).map(file => {
-        const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]) ?? {
-          id: generateId(),
-          content: file.name.split('.')[0],
-          imageUrl: URL.createObjectURL(file),
-        };
-        return {
-          ...existingItem,
-          isUploaded: true,
-        } as Item;
-      });
-
-      onItemsCreate(filesToSubmit);
+      addCustomItems(uploadedItems);
+      onItemsCreate(uploadedItems);
 
       setUploadedItems([]);
       form.reset();
@@ -62,7 +50,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
         fileInputRef.current.value = '';
       }
     }
-  }, [uploadedItems, form, onItemsCreate, onUndoItemsCreate]);
+  }, [uploadedItems, form, onItemsCreate]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

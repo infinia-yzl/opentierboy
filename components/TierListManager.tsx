@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import DragDropTierList from './DragDropTierList';
 import {TierContext} from '@/contexts/TierContext';
 import TierTemplateSelector from "@/components/TierTemplateSelector";
@@ -9,7 +9,7 @@ import ItemManager from "@/components/ItemManager";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import ShareButton from "@/components/ShareButton";
-import {encodeTierStateForURL, saveTierStateToLocalStorage} from "@/lib/tierStateUtils";
+import {encodeTierStateForURL} from "@/lib/tierStateUtils";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 
 interface TierListManagerProps {
@@ -27,10 +27,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({tiers, onTiersUpdate, 
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(tiers[0].labelPosition ?? 'left');
   const previousTiersRef = useRef<Tier[]>(tiers);
-
-  useEffect(() => {
-    saveTierStateToLocalStorage(tiers);
-  }, [tiers]);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     previousTiersRef.current = updatedTiers;

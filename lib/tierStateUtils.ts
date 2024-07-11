@@ -37,14 +37,13 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
     return simplifiedTiers.map(simplifiedTier => ({
       ...simplifiedTier,
       items: simplifiedTier.items.map(itemId => {
-        // Check if it's a custom item first
+        // Match id with local storage to determine if it's a custom item
         const customItem = customItems.find(item => item.id === itemId);
         if (customItem) {
           return {
             id: customItem.id,
             content: customItem.content,
             imageUrl: customItem.imageData,
-            isUploaded: true,
             tags: []
           };
         }
@@ -97,24 +96,6 @@ function createPlaceholderItem(itemId: string): Item {
   };
 }
 
-export function saveTierStateToLocalStorage(tiers: Tier[]): void {
-  const customItems = tiers.flatMap(tier =>
-    tier.items.filter(item => item.isUploaded)
-  );
-
-  if (customItems.length > 0) {
-    const storedCustomItems = customItems.map(item => ({
-      id: item.id,
-      content: item.content,
-      imageData: item.imageUrl
-    })) as StoredCustomItem[]
-    localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(storedCustomItems));
-  } else {
-    // be careful of this, if customItems aren't detected correctly, it will auto-delete from local storage
-    localStorage.removeItem(CUSTOM_ITEMS_KEY);
-  }
-}
-
 export function loadCustomItemsFromLocalStorage(): StoredCustomItem[] {
   const storedItems = localStorage.getItem(CUSTOM_ITEMS_KEY);
   if (!storedItems) return [];
@@ -126,22 +107,24 @@ export function loadCustomItemsFromLocalStorage(): StoredCustomItem[] {
   }
 }
 
-export function addCustomItem(item: Item): void {
+// Uploaded items will remain in perpetuity until manually deleted
+export function addCustomItems(items: Item[]): void {
   const customItems = loadCustomItemsFromLocalStorage();
-  const newItem: StoredCustomItem = {
+  const newItems = items.map(item => ({
     id: item.id,
     content: item.content,
     imageData: item.imageUrl ?? ''
-  };
-  customItems.push(newItem);
+  }));
+  customItems.push(...newItems);
   localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(customItems));
 }
 
-export function removeCustomItem(itemId: string): void {
-  const customItems = loadCustomItemsFromLocalStorage();
-  const updatedItems = customItems.filter(item => item.id !== itemId);
-  localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(updatedItems));
-}
+// do not remove custom item pointers from local storage, because other lists may point to the same item
+// export function removeCustomItem(itemId: string): void {
+//   const customItems = loadCustomItemsFromLocalStorage();
+//   const updatedItems = customItems.filter(item => item.id !== itemId);
+//   localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(updatedItems));
+// }
 
 export function getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
   if (initialState) {

@@ -10,7 +10,6 @@ import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
 import Item from "@/models/Item";
 import Tier from "@/models/Tier";
-import {removeCustomItem} from "@/lib/tierStateUtils";
 
 interface DragDropTierListProps {
   tiers: Tier[];
@@ -139,8 +138,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       deletedItemsRef.current.push(deletedItemInfo);
       onTiersUpdate(newTiers);
 
-      // remove custom item from local storage if it exists
-      removeCustomItem(itemId);
+      // do not remove custom item pointer from local storage, because other lists may point to the same item
 
       toast('Item deleted', {
         description: `${deletedItemInfo.item.content} was removed.`,
