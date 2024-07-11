@@ -3,7 +3,7 @@
 import {useState, useEffect} from 'react';
 import {useSearchParams} from 'next/navigation';
 import {ItemSet} from "@/models/ItemSet";
-import Tier, {DEFAULT_TIER_TEMPLATE} from "@/models/Tier";
+import Tier from "@/models/Tier";
 import {
   decodeTierStateFromURL, getInitialTiers,
 } from '@/lib/tierStateUtils';

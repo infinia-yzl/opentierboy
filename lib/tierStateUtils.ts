@@ -11,7 +11,12 @@ const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 interface SimplifiedTier {
   id: string;
   name: string;
-  items: string[]; // Store item IDs as strings
+  items: SimplifiedItem[];
+}
+
+interface SimplifiedItem {
+  id: string;
+  content: string;
 }
 
 interface StoredCustomItem {
@@ -24,7 +29,10 @@ export function encodeTierStateForURL(tiers: Tier[]): string {
   const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
     id: tier.id,
     name: tier.name,
-    items: tier.items.map(item => item.id)
+    items: tier.items.map(item => ({
+      id: item.id,
+      content: item.content
+    }))
   }));
   return btoa(JSON.stringify(simplifiedTiers));
 }
@@ -36,51 +44,7 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
 
     return simplifiedTiers.map(simplifiedTier => ({
       ...simplifiedTier,
-      items: simplifiedTier.items.map(itemId => {
-        // Match id with local storage to determine if it's a custom item
-        const customItem = customItems.find(item => item.id === itemId);
-        if (customItem) {
-          return {
-            id: customItem.id,
-            content: customItem.content,
-            imageUrl: customItem.imageData,
-            tags: []
-          };
-        }
-
-        // If not a custom item, try to parse as a package item
-        const packageMatch = itemId.match(/^(.+)-(\w+)-item-(\d+)$/);
-        if (packageMatch) {
-          const [, packageName, tagName, indexStr] = packageMatch;
-          const index = parseInt(indexStr, 10);
-
-          const packageData = typedImageSetConfig.packages[packageName];
-
-          if (!packageData) {
-            console.error(`Package ${packageName} not found in configuration.`);
-            return createPlaceholderItem(itemId);
-          }
-
-          const image = packageData.images[index];
-
-          if (!image) {
-            console.error(`Image at index ${index} not found in package ${packageName}.`);
-            return createPlaceholderItem(itemId);
-          }
-
-          return {
-            id: itemId,
-            content: image.label || image.filename.split('.')[0],
-            imageUrl: `/images/${packageName}/${image.filename}`,
-            tags: image.tags || [tagName],
-            source: 'package' as const
-          };
-        }
-
-        // If it doesn't match either format, return a placeholder
-        console.error(`Invalid item ID format: ${itemId}`);
-        return createPlaceholderItem(itemId);
-      })
+      items: simplifiedTier.items.map(simplifiedItem => resolveItem(simplifiedItem, customItems))
     })) as Tier[];
   } catch (error) {
     console.error('Failed to decode tier state from URL:', error);
@@ -88,10 +52,37 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
   }
 }
 
-function createPlaceholderItem(itemId: string): Item {
+function resolveItem(simplifiedItem: SimplifiedItem, customItems: StoredCustomItem[]): Item {
+  // 1. Assume it's a package item and search for it
+  for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
+    const image = packageData.images.find(img => simplifiedItem.id.includes(img.filename));
+    if (image) {
+      return {
+        id: simplifiedItem.id,
+        content: image.label || image.filename.split('.')[0],
+        imageUrl: `/images/${packageName}/${image.filename}`,
+      };
+    }
+  }
+
+  // 2. If not found in packages, search localStorage
+  const customItem = customItems.find(item => item.id === simplifiedItem.id);
+  if (customItem) {
+    return {
+      id: customItem.id,
+      content: customItem.content,
+      imageUrl: customItem.imageData,
+    };
+  }
+
+  // 3. If not found in either, create a placeholder
+  return createPlaceholderItem(simplifiedItem.id, simplifiedItem.content);
+}
+
+function createPlaceholderItem(itemId: string, content: string): Item {
   return {
     id: itemId,
-    content: 'Unavailable Item',
+    content: content || 'Unavailable Item',
     imageUrl: '/placeholder-image.jpg',
   };
 }
@@ -135,14 +126,16 @@ export function getInitialTiers(initialState: string | undefined, initialItemSet
   if (initialItemSet) {
     const initialTiers = [...DEFAULT_TIER_TEMPLATE];
     const packageData = typedImageSetConfig.packages[initialItemSet.packageName];
-    initialTiers[initialTiers.length - 1].items = initialItemSet.images.map((image, index) => {
-      const imageData = packageData.images.find(img => img.filename === image);
+    initialTiers[initialTiers.length - 1].items = initialItemSet.images.map((filename) => {
+      const imageData = packageData.images.find(img => img.filename === filename);
+      if (!imageData) {
+        console.error(`Image ${filename} not found in package ${initialItemSet.packageName}.`);
+        return createPlaceholderItem(`${initialItemSet.packageName}-${filename}`, filename);
+      }
       return {
-        id: `${initialItemSet.packageName}-${initialItemSet.tagName}-item-${index}`,
-        content: imageData?.label || image.split('.')[0],
-        imageUrl: `/images/${initialItemSet.packageName}/${image}`,
-        tags: imageData?.tags || [initialItemSet.tagName],
-        source: 'package' as const
+        id: `${initialItemSet.packageName}-${filename}`,
+        content: imageData.label || filename.split('.')[0],
+        imageUrl: `/images/${initialItemSet.packageName}/${filename}`,
       };
     });
     return initialTiers;
