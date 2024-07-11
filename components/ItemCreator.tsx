@@ -10,6 +10,7 @@ import {Input} from "@/components/ui/input"
 import Image from 'next/image'
 import {toast} from "sonner"
 import Item from "@/models/Item";
+import {addCustomItem} from "@/lib/tierStateUtils";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -45,20 +46,15 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCrea
         const existingItem = uploadedItems.find(item => item.content === file.name.split('.')[0]) ?? {
           id: generateId(),
           content: file.name.split('.')[0],
-          imageUrl: URL.createObjectURL(file)
+          imageUrl: URL.createObjectURL(file),
         };
-        return existingItem as Item;
+        return {
+          ...existingItem,
+          isUploaded: true,
+        } as Item;
       });
 
       onItemsCreate(filesToSubmit);
-
-      toast('Items added', {
-        description: `${filesToSubmit.length} item(s) have been added.`,
-        action: {
-          label: 'Undo',
-          onClick: () => onUndoItemsCreate(filesToSubmit.map(item => item.id)),
-        },
-      });
 
       setUploadedItems([]);
       form.reset();

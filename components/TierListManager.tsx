@@ -41,7 +41,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({tiers, onTiersUpdate, 
     newParams.set('state', encodedState);
     router.replace(`${pathname}?${newParams.toString()}`, {scroll: false});
 
-    saveTierStateToLocalStorage(updatedTiers);
   }, [onTiersUpdate, router, pathname, searchParams]);
 
   const handleItemsCreate = useCallback((newItems: Item[]) => {
@@ -52,7 +51,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({tiers, onTiersUpdate, 
       !updatedTiers.some(tier =>
         tier.items.some(item => item.id === newItem.id || item.content === newItem.content)
       )
-    ).map(item => ({...item, source: 'user'}));
+    );
 
     lastTier.items = [...lastTier.items, ...uniqueNewItems];
 

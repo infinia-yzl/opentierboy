@@ -4,4 +4,5 @@ export default interface Item {
   imageUrl?: string;
   onDelete?: (id: string) => void;
   showLabel?: boolean;
+  isUploaded?: boolean;
 }
