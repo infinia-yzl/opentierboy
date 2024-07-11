@@ -38,7 +38,7 @@ export default function RootLayout({
     >
       <div className="max-w-screen-lg w-full">
         <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
-          <h1 className="text-xl">Tier Scribble</h1>
+          <a href="/" className="text-xl">Tier Scribble</a>
           <div className="space-x-1">
             <ZenToggle/>
             <span className="hide-in-zen">
