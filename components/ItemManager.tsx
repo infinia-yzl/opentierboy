@@ -183,10 +183,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
               Add your images to create new items. Edit names if needed.
             </DialogDescription>
           </DialogHeader>
-          <ItemCreator
-            onItemsCreate={handleCreateItems}
-            onUndoItemsCreate={onUndoItemsCreate}
-          />
+          <ItemCreator onItemsCreate={handleCreateItems}/>
         </DialogContent>
       </Dialog>
 

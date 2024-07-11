@@ -17,7 +17,6 @@ const formSchema = z.object({
 
 interface ItemCreatorProps {
   onItemsCreate: (items: Item[]) => void;
-  onUndoItemsCreate: (itemIds: string[]) => void;
 }
 
 interface UploadedItem {
@@ -28,7 +27,7 @@ interface UploadedItem {
 
 const generateId = () => Math.random().toString(36).slice(2, 11);
 
-const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate, onUndoItemsCreate}) => {
+const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
