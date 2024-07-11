@@ -11,7 +11,12 @@ const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 interface SimplifiedTier {
   i: string; // id
   n: string; // name
-  t: string[]; // items (array of item ids)
+  t: SimplifiedItem[]; // items
+}
+
+interface SimplifiedItem {
+  i: string; // id
+  c: string; // content
 }
 
 interface StoredCustomItem {
@@ -52,7 +57,10 @@ export function encodeTierStateForURL(tiers: Tier[]): string {
   const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
     i: tier.id,
     n: tier.name,
-    t: tier.items.map(item => item.id)
+    t: tier.items.map(item => ({
+      i: item.id,
+      c: item.content
+    }))
   }));
   const jsonString = JSON.stringify(simplifiedTiers);
   return LZString.compressToEncodedURIComponent(jsonString);
@@ -69,7 +77,7 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
     return simplifiedTiers.map(simplifiedTier => ({
       id: simplifiedTier.i,
       name: simplifiedTier.n,
-      items: simplifiedTier.t.map(itemId => resolveItem(itemId))
+      items: simplifiedTier.t.map(item => resolveItem(item.i, item.c))
     }));
   } catch (error) {
     console.error('Failed to decode tier state from URL:', error);
@@ -77,7 +85,7 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
   }
 }
 
-function resolveItem(itemId: string): Item {
+function resolveItem(itemId: string, content: string): Item {
   // 1. Check package items
   const packageItem = packageItemLookup[itemId];
   if (packageItem) return packageItem;
@@ -87,13 +95,17 @@ function resolveItem(itemId: string): Item {
   if (customItem) {
     return {
       id: customItem.i,
-      content: customItem.c,
+      content: content, // Use the content from the encoded URL
       imageUrl: customItem.d,
     };
   }
 
-  // 3. Create a placeholder
-  return createPlaceholderItem(itemId, 'Unavailable Item');
+  // 3. Create an item with the provided content
+  return {
+    id: itemId,
+    content: content,
+    imageUrl: '/placeholder-image.jpg',
+  };
 }
 
 function createPlaceholderItem(itemId: string, content: string): Item {
