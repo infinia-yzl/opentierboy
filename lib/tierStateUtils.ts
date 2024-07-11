@@ -26,7 +26,7 @@ interface StoredCustomItem {
 }
 
 // Precompute package item lookup
-const packageItemLookup: Record<string, Item> = {};
+export const packageItemLookup: Record<string, Item> = {};
 
 function initializePackageItemLookup() {
   for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {

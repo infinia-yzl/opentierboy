@@ -23,7 +23,7 @@ import {useCommandState} from 'cmdk';
 
 interface ItemSetSelectorProps {
   itemSets: ItemSet[];
-  onSelectItemSet: (packageName: string, tagName: string, images: string[]) => void;
+  onSelectItemSet: (packageName: string, images: string[]) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -151,7 +151,7 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
                       <SubItem
                         key={`${packageName}-${itemSet.tagName}`}
                         value={`${packageName}-${itemSet.tagName}`}
-                        onSelect={() => onSelectItemSet(packageName, itemSet.tagName, itemSet.images)}
+                        onSelect={() => onSelectItemSet(packageName, itemSet.images)}
                         packageDisplayName={packageData.displayName}
                       >
                         {itemSet.tagTitle}
@@ -172,7 +172,7 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
                   .map((itemSet) => (
                     <CommandItem
                       key={`${page}-${itemSet.tagName}`}
-                      onSelect={() => onSelectItemSet(page, itemSet.tagName, itemSet.images)}
+                      onSelect={() => onSelectItemSet(page, itemSet.images)}
                     >
                       {itemSet.tagTitle}
                       <span className="ml-auto text-xs text-muted-foreground">

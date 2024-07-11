@@ -29,7 +29,7 @@ import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
-import ImageSetConfig from "@/models/ImageSet";
+import {packageItemLookup} from "@/lib/tierStateUtils";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -39,8 +39,6 @@ interface ItemManagerProps {
   undoReset: () => void;
   undoDelete: () => void;
 }
-
-const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
@@ -115,17 +113,26 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
-  const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
-    const packageData = typedImageSetConfig.packages[packageName];
-    const newItems = images.map((image: string, index: number) => {
-      const imageData = packageData.images.find(img => img.filename === image);
+  const handleItemSetSelect = (packageName: string, images: string[]) => {
+    const newItems: Item[] = images.map((filename) => {
+      const itemId = `${packageName}-${filename}`;
+      const packageItem = packageItemLookup[itemId];
+
+      if (packageItem) {
+        return {
+          ...packageItem,
+          id: itemId,
+        };
+      }
+
+      // Fallback for items not in packageItemLookup
       return {
-        id: `${packageName}-${tagName}-item-${index}`,
-        content: imageData?.label || `${image.split('.')[0]}`,
-        imageUrl: `/images/${packageName}/${image}`,
-        tags: imageData?.tags || []
+        id: itemId,
+        content: filename.split('.')[0],
+        imageUrl: `/images/${packageName}/${filename}`,
       };
     });
+
     handleCreateItems(newItems);
   };
 
