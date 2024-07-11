@@ -15,8 +15,8 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: "Tier Author",
-  description: "Create amazing tier lists with Tier Author.",
+  title: "Tier Scribble",
+  description: "Create amazing tier lists with Tier Scribble.",
 };
 
 export default function RootLayout({
