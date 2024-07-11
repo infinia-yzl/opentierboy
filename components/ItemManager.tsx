@@ -6,14 +6,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,} from "@/components/ui/dialog";
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +29,7 @@ import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
+import {packageItemLookup} from "@/lib/tierStateUtils";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -43,29 +40,6 @@ interface ItemManagerProps {
   undoDelete: () => void;
 }
 
-interface ImagesetConfig {
-  packages: {
-    [key: string]: {
-      displayName: string;
-      images: {
-        filename: string;
-        label: string;
-        tags: string[];
-      }[];
-      tags: {
-        [key: string]: {
-          title: string;
-          description: string;
-          category: string;
-        };
-      };
-    };
-  };
-}
-
-// Assert the type of imagesetConfig
-const typedImagesetConfig = imagesetConfig as ImagesetConfig;
-
 const ItemManager: React.FC<ItemManagerProps> = ({
   onItemsCreate,
   onUndoItemsCreate,
@@ -75,14 +49,12 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   undoDelete,
 }) => {
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
+  const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
-
-    Object.entries(typedImagesetConfig.packages).forEach(([packageName, packageData]) => {
+    Object.entries(imagesetConfig.packages).forEach(([packageName, packageData]) => {
       const packageDisplayName = packageData.displayName;
-
-      // Add an "All Items" set for each package
       sets.push({
         packageName,
         packageDisplayName,
@@ -90,11 +62,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         tagTitle: 'All Items',
         images: packageData.images.map(img => img.filename)
       });
-
-      // Add a set for each tag in the package
       Object.entries(packageData.tags).forEach(([tagName, tagData]) => {
         const taggedImages = packageData.images.filter(image => image.tags.includes(tagName));
-
         if (taggedImages.length > 0) {
           sets.push({
             packageName,
@@ -106,13 +75,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         }
       });
     });
-
     return sets;
   }, []);
 
   const handleCreateItems = (newItems: Item[]) => {
     onItemsCreate(newItems);
     setIsItemCreatorOpen(false);
+    setIsItemSetSelectorOpen(false);
     toast('Items Added', {
       description: `${newItems.length} item(s) have been added.`,
       action: {
@@ -144,17 +113,26 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
-  const handleItemSetSelect = (packageName: string, tagName: string, images: string[]) => {
-    const packageData = typedImagesetConfig.packages[packageName];
-    const newItems = images.map((image: string, index: number) => {
-      const imageData = packageData.images.find(img => img.filename === image);
+  const handleItemSetSelect = (packageName: string, images: string[]) => {
+    const newItems: Item[] = images.map((filename) => {
+      const itemId = `${packageName}-${filename}`;
+      const packageItem = packageItemLookup[itemId];
+
+      if (packageItem) {
+        return {
+          ...packageItem,
+          id: itemId,
+        };
+      }
+
+      // Fallback for items not in packageItemLookup
       return {
-        id: `${packageName}-${tagName}-item-${index}`,
-        content: imageData?.label || `${image.split('.')[0]}`,
-        imageUrl: `/images/${packageName}/${image}`,
-        tags: imageData?.tags || []
+        id: itemId,
+        content: filename.split('.')[0],
+        imageUrl: `/images/${packageName}/${filename}`,
       };
     });
+
     handleCreateItems(newItems);
   };
 
@@ -169,18 +147,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         <DropdownMenuContent>
           <DropdownMenuGroup>
             <DropdownMenuLabel>Add Items</DropdownMenuLabel>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>From template</DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent>
-                  <ItemSetSelector itemSets={itemSets} onSelectItemSet={handleItemSetSelect}/>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
+            <DropdownMenuItem onSelect={() => setIsItemSetSelectorOpen(true)}>
+              From template
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
+              From your device
+            </DropdownMenuItem>
           </DropdownMenuGroup>
-          <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
-            From your device
-          </DropdownMenuItem>
           <DropdownMenuSeparator/>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <AlertDialog>
@@ -217,12 +190,16 @@ const ItemManager: React.FC<ItemManagerProps> = ({
               Add your images to create new items. Edit names if needed.
             </DialogDescription>
           </DialogHeader>
-          <ItemCreator
-            onItemsCreate={handleCreateItems}
-            onUndoItemsCreate={onUndoItemsCreate}
-          />
+          <ItemCreator onItemsCreate={handleCreateItems}/>
         </DialogContent>
       </Dialog>
+
+      <ItemSetSelector
+        itemSets={itemSets}
+        onSelectItemSet={handleItemSetSelect}
+        open={isItemSetSelectorOpen}
+        onOpenChange={setIsItemSetSelectorOpen}
+      />
     </>
   );
 };

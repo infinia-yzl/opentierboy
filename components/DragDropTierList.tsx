@@ -12,7 +12,7 @@ import Item from "@/models/Item";
 import Tier from "@/models/Tier";
 
 interface DragDropTierListProps {
-  initialTiers: Tier[];
+  tiers: Tier[];
   onTiersUpdate: (updatedTiers: Tier[]) => void;
 }
 
@@ -23,11 +23,10 @@ interface DeletedItemInfo {
 }
 
 const DragDropTierList: React.FC<DragDropTierListProps> = ({
-  initialTiers, onTiersUpdate,
+  tiers, onTiersUpdate
 }) => {
   const {showLabels} = useTierContext();
 
-  const [tiers, setTiers] = useState(initialTiers);
   const tiersRef = useRef(tiers); // to solve stale closure issue with undo buttons
 
   const [draggedTierIndex, setDraggedTierIndex] = useState<number | null>(null);
@@ -38,10 +37,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
   useEffect(() => {
     tiersRef.current = tiers;
   }, [tiers]);
-
-  useEffect(() => {
-    setTiers(initialTiers);
-  }, [initialTiers]);
 
   const onDragStart = useCallback((start: any) => {
     if (start.type === 'TIER') {
@@ -94,7 +89,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       }
     }
 
-    setTiers(newTiers);
     onTiersUpdate(newTiers);
 
     setDraggedTierIndex(null);
@@ -116,7 +110,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       return tier;
     });
 
-    setTiers(newTiers);
     onTiersUpdate(newTiers);
 
     toast('Item restored', {
@@ -143,8 +136,9 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
 
     if (deletedItemInfo) {
       deletedItemsRef.current.push(deletedItemInfo);
-      setTiers(newTiers);
       onTiersUpdate(newTiers);
+
+      // do not remove custom item pointer from local storage, because other lists may point to the same item
 
       toast('Item deleted', {
         description: `${deletedItemInfo.item.content} was removed.`,
@@ -158,7 +152,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
 
   const handleSaveLabel = (index: number, newText: string) => {
     const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
-    setTiers(newTiers);
     onTiersUpdate(newTiers);
   };
 

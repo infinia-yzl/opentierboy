@@ -5,6 +5,9 @@ import {cn} from "@/lib/utils"
 
 import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
+import {ZenToggle} from "@/components/ZenToggle";
+import {ThemeSelector} from "@/components/ThemeSelector";
+import {Separator} from "@/components/ui/separator";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -12,8 +15,8 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: "Tier Author",
-  description: "Create amazing tier lists with Tier Author.",
+  title: "Tier Scribble",
+  description: "Create amazing tier lists with Tier Scribble.",
 };
 
 export default function RootLayout({
@@ -34,6 +37,16 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <div className="max-w-screen-lg w-full">
+        <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
+          <a href="/" className="text-xl">Tier Scribble</a>
+          <div className="space-x-1">
+            <ZenToggle/>
+            <span className="hide-in-zen">
+            <ThemeSelector/>
+          </span>
+          </div>
+        </div>
+        <Separator className="mb-8" data-html2canvas-ignore/>
         {children}
       </div>
       <Toaster/>

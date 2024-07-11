@@ -35,6 +35,7 @@ const ItemTile: React.FC<Item> = ({
               src={imageUrl}
               alt={content}
               fill
+              sizes="(min-width: 640px) 160px, 120px"
               style={{
                 objectFit: "cover"
               }}
