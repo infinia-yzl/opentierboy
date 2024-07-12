@@ -1,15 +1,13 @@
-"use client";
-
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
-import RowHandle from '../components/RowHandle';
-import EditableLabel from '../components/EditableLabel';
-import ItemTile from "@/components/ItemTile";
+import React, {useCallback, useEffect, useRef, memo} from 'react';
+import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
 import {toast} from "sonner";
 import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
 import Item from "@/models/Item";
 import Tier from "@/models/Tier";
+import EditableLabel from '../components/EditableLabel';
+import RowHandle from '../components/RowHandle';
+import ItemTile from "@/components/ItemTile";
 
 interface DragDropTierListProps {
   tiers: Tier[];
@@ -22,49 +20,141 @@ interface DeletedItemInfo {
   id: string;
 }
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({
-  tiers, onTiersUpdate
-}) => {
+const reorder = <T, >(list: T[], startIndex: number, endIndex: number): T[] => {
+  const result = Array.from(list);
+  const [removed] = result.splice(startIndex, 1);
+  result.splice(endIndex, 0, removed);
+  return result;
+};
+
+const getTierGradient = (index: number, tiersLength: number): string => {
+  if (index === tiersLength - 1) return '';
+
+  const tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
+  switch (tiersLength) {
+    case 4:
+      return `var(--tier-gradient-${[0, 2, 4][index % 3]})`;
+    case 6:
+      return `var(--tier-gradient-${[0, 1, 3, 4, 6][index % 5]})`;
+    default:
+      return `var(--tier-gradient-${tierGradientIndexMap[index % 7]})`;
+  }
+};
+
+const TierItems = memo<{
+  tier: Tier;
+  showLabels: boolean;
+  onDeleteItem: (itemId: string) => void;
+}>(({tier, showLabels, onDeleteItem}) => {
+  return (
+    <Droppable droppableId={tier.id} direction="horizontal">
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className={`w-full flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
+        >
+          {tier.items.map((item, itemIndex) => (
+            <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  {...provided.dragHandleProps}
+                  className={`
+                    m-1 rounded-md bg-card
+                    ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
+                  `}
+                  style={{
+                    ...provided.draggableProps.style,
+                    transition: snapshot.isDropAnimating
+                      ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
+                      : provided.draggableProps.style?.transition,
+                  }}
+                >
+                  <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
+                </div>
+              )}
+            </Draggable>
+          ))}
+          {provided.placeholder}
+        </div>
+      )}
+    </Droppable>
+  );
+});
+TierItems.displayName = 'TierItems';
+
+const TierRow = memo<{
+  tier: Tier;
+  index: number;
+  tiersLength: number;
+  showLabels: boolean;
+  onSaveLabel: (index: number, newText: string) => void;
+  onDeleteItem: (itemId: string) => void;
+}>(({tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem}) => {
+  const labelPosition = tier.labelPosition || 'left';
+  const tierGradient = getTierGradient(index, tiersLength);
+
+  return (
+    <Draggable draggableId={tier.id} index={index}>
+      {(provided, snapshot) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          className={`
+            border p-1 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+            flex items-center
+            ${snapshot.isDragging ? 'shadow-lg ring-2' : ''}
+          `}
+          style={{
+            ...provided.draggableProps.style,
+            background: tierGradient,
+            transition: snapshot.isDropAnimating
+              ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
+              : provided.draggableProps.style?.transition,
+          }}
+        >
+          <div className="flex-1">
+            {labelPosition === 'top' && index !== tiersLength - 1 && (
+              <EditableLabel
+                text={tier.name}
+                onSave={(newText) => onSaveLabel(index, newText)}
+              />
+            )}
+            <div
+              className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
+              {(labelPosition === 'left' || labelPosition === 'right') && (
+                <EditableLabel
+                  text={tier.name}
+                  onSave={(newText) => onSaveLabel(index, newText)}
+                  className="m-4 p-2 md:p-4 flex flex-1 min-w-16 justify-center"
+                />
+              )}
+              <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
+            </div>
+          </div>
+          <RowHandle dragHandleProps={provided.dragHandleProps}/>
+        </div>
+      )}
+    </Draggable>
+  );
+});
+TierRow.displayName = 'TierRow';
+
+const DragDropTierList: React.FC<DragDropTierListProps> = ({tiers, onTiersUpdate}) => {
   const {showLabels} = useTierContext();
-
-  const tiersRef = useRef(tiers); // to solve stale closure issue with undo buttons
-
-  const [draggedTierIndex, setDraggedTierIndex] = useState<number | null>(null);
-  const [dragOverTierIndex, setDragOverTierIndex] = useState<number | null>(null);
+  const tiersRef = useRef(tiers);
   const deletedItemsRef = useRef<DeletedItemInfo[]>([]);
 
-  // Preserve tiers in ref for undo functionality
   useEffect(() => {
     tiersRef.current = tiers;
   }, [tiers]);
 
-  const onDragStart = useCallback((start: any) => {
-    if (start.type === 'TIER') {
-      setDraggedTierIndex(start.source.index);
-    }
-  }, []);
-
-  const onDragUpdate = useCallback((update: any) => {
-    if (update.destination && update.type === 'TIER') {
-      setDragOverTierIndex(update.destination.index);
-    }
-  }, []);
-
-  const reorder = <T, >(list: T[], startIndex: number, endIndex: number): T[] => {
-    const result = Array.from(list);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    return result;
-  };
-
-  const onDragEnd = (result: DropResult) => {
+  const onDragEnd = useCallback((result: DropResult) => {
     const {source, destination, type} = result;
 
-    if (!destination) {
-      setDraggedTierIndex(null);
-      setDragOverTierIndex(null);
-      return;
-    }
+    if (!destination) return;
 
     let newTiers: Tier[];
 
@@ -72,28 +162,23 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       newTiers = reorder(tiers, source.index, destination.index);
       newTiers = newTiers.map((tier, index) => ({
         ...tier,
-        name: tiers[index].name // Preserve original names in new positions
+        name: tiers[index].name
       }));
     } else {
       newTiers = [...tiers];
-      const sourceTier = newTiers[newTiers.findIndex(t => t.id === source.droppableId)];
-      const destTier = newTiers[newTiers.findIndex(t => t.id === destination.droppableId)];
+      const sourceTier = newTiers.find(t => t.id === source.droppableId)!;
+      const destTier = newTiers.find(t => t.id === destination.droppableId)!;
 
       if (sourceTier.id === destTier.id) {
-        // Reordering within the same tier
         sourceTier.items = reorder(sourceTier.items, source.index, destination.index);
       } else {
-        // Moving between tiers
         const [movedItem] = sourceTier.items.splice(source.index, 1);
         destTier.items.splice(destination.index, 0, movedItem);
       }
     }
 
     onTiersUpdate(newTiers);
-
-    setDraggedTierIndex(null);
-    setDragOverTierIndex(null);
-  };
+  }, [tiers, onTiersUpdate]);
 
   const handleUndoDelete = useCallback((uniqueId: string) => {
     const deletedItemIndex = deletedItemsRef.current.findIndex((item) => item.id === uniqueId);
@@ -103,9 +188,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
 
     const newTiers = tiersRef.current.map((tier) => {
       if (tier.id === deletedItem.tierId) {
-        const restoredItems = [...tier.items];
-        restoredItems.push(deletedItem.item);
-        return {...tier, items: restoredItems};
+        return {...tier, items: [...tier.items, deletedItem.item]};
       }
       return tier;
     });
@@ -138,8 +221,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
       deletedItemsRef.current.push(deletedItemInfo);
       onTiersUpdate(newTiers);
 
-      // do not remove custom item pointer from local storage, because other lists may point to the same item
-
       toast('Item deleted', {
         description: `${deletedItemInfo.item.content} was removed.`,
         action: {
@@ -150,127 +231,31 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
     }
   }, [tiers, onTiersUpdate, handleUndoDelete]);
 
-  const handleSaveLabel = (index: number, newText: string) => {
+  const handleSaveLabel = useCallback((index: number, newText: string) => {
     const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
     onTiersUpdate(newTiers);
-  };
-
-  const getPreviewLabel = (index: number) => {
-    if (draggedTierIndex === null || dragOverTierIndex === null) return tiers[index].name;
-
-    if (index === draggedTierIndex) return tiers[dragOverTierIndex].name;
-    if (draggedTierIndex < dragOverTierIndex && index > draggedTierIndex && index <= dragOverTierIndex) {
-      return tiers[index - 1].name;
-    }
-    if (draggedTierIndex > dragOverTierIndex && index >= dragOverTierIndex && index < draggedTierIndex) {
-      return tiers[index + 1].name;
-    }
-    return tiers[index].name;
-  };
-
-  let tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
-  switch (tiers.length) {
-    case 4:
-      tierGradientIndexMap = [0, 2, 4];
-      break;
-    case 6:
-      tierGradientIndexMap = [0, 1, 3, 4, 6];
-      break;
-    default:
-      tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
-  }
+  }, [tiers, onTiersUpdate]);
 
   return (
-    <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
+    <DragDropContext onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
-            className={`pt-4 py-4 ${snapshot.isDraggingOver && 'ring-2 ring-accent-foreground rounded'}`}
+            className={`pt-4 py-4 ${snapshot.isDraggingOver ? 'ring-2 ring-accent-foreground rounded' : ''}`}
             {...provided.droppableProps}
             ref={provided.innerRef}
           >
-            {tiers.map((tier, index) => {
-              const labelPosition = tier.labelPosition || 'left';
-              const previewLabel = getPreviewLabel(index);
-              const tierGradient = index === tiers.length - 1 ? '' : `var(--tier-gradient-${tierGradientIndexMap[index] % 7})`;
-              return (
-                <Draggable draggableId={tier.id} index={index} key={tier.id}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={`
-                        border
-                        p-1 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
-                        flex items-center
-                        ${snapshot.isDragging && 'shadow-lg ring-2'}
-                      `}
-                      style={{
-                        ...provided.draggableProps.style,
-                        background: tierGradient,
-                        transition: snapshot.isDropAnimating
-                          ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-                          : provided.draggableProps.style?.transition,
-                      }}
-                    >
-                      <div className="flex-1">
-                        {labelPosition === 'top' && index !== tiers.length - 1 && (
-                          <EditableLabel
-                            text={previewLabel}
-                            onSave={(newText) => handleSaveLabel(index, newText)}
-                          />
-                        )}
-                        <div
-                          className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
-                          {(labelPosition === 'left' || labelPosition === 'right') && (
-                            <EditableLabel
-                              text={previewLabel}
-                              onSave={(newText) => handleSaveLabel(index, newText)}
-                              className="m-4 p-2 md:p-4 flex flex-1 min-w-16 justify-center"
-                            />
-                          )}
-                          <Droppable droppableId={tier.id} direction="horizontal">
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`w-full flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver && 'ring-1 ring-accent-foreground'}`}
-                              >
-                                {tier.items.map((item, itemIndex) => (
-                                  <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
-                                    {(provided, snapshot) => (
-                                      <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        className={`
-                                          m-1 rounded-md bg-card
-                                          ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
-                                        `}
-                                        style={{
-                                          ...provided.draggableProps.style,
-                                          transition: snapshot.isDropAnimating
-                                            ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-                                            : provided.draggableProps.style?.transition,
-                                        }}
-                                      >
-                                        <ItemTile {...item} onDelete={handleDeleteItem} showLabel={showLabels}/>
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                ))}
-                                {provided.placeholder}
-                              </div>
-                            )}
-                          </Droppable>
-                        </div>
-                      </div>
-                      <RowHandle dragHandleProps={provided.dragHandleProps}/>
-                    </div>
-                  )}
-                </Draggable>
-              );
-            })}
+            {tiers.map((tier, index) => (
+              <TierRow
+                key={tier.id}
+                tier={tier}
+                index={index}
+                tiersLength={tiers.length}
+                showLabels={showLabels}
+                onSaveLabel={handleSaveLabel}
+                onDeleteItem={handleDeleteItem}
+              />
+            ))}
             {provided.placeholder}
           </div>
         )}
