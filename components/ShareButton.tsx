@@ -5,9 +5,12 @@ import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
-import {Share1Icon, CopyIcon, TwitterLogoIcon} from '@radix-ui/react-icons';
+import {Share1Icon, CopyIcon, TwitterLogoIcon, QuestionMarkCircledIcon} from '@radix-ui/react-icons';
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
+import {Separator} from "@/components/ui/separator";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
 
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
@@ -122,24 +125,58 @@ const ShareButton: React.FC = () => {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px]" ref={popoverRef}>
-        <div className="grid gap-4">
-          <h4 className="font-medium leading-none">Share Tier List</h4>
-          <p className="text-sm text-muted-foreground">
-            Capturing images might be buggy. Please try one of the following methods or take a screenshot manually.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Select value={captureMethod} onValueChange={handleCaptureMethodChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select capture method"/>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="original">Original html2canvas</SelectItem>
-                <SelectItem value="pro">html2canvas-pro</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={captureImage} disabled={isCapturing} className="sm:w-auto">
-              {isCapturing ? 'Capturing...' : 'Recapture'}
-            </Button>
+        <div className="grid gap-5">
+          <h3 className="scroll-m-20 text-xl font-semibold tracking-tight">
+            Share Tier List
+          </h3>
+          <div className="space-y-2">
+            <div className="flex flex-row space-x-2">
+              <h4 className="font-medium leading-none">As URL</h4>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <QuestionMarkCircledIcon className="h-4 w-4"/>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Consider using URL shorteners for ease of sharing.
+                    Images added from your device will be replaced with placeholders.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Copy the URL from the browser address bar to share the tier list.
+            </p>
+          </div>
+          <Separator/>
+
+          <div>
+            <h4 className="font-medium leading-none">As Image</h4>
+            <Collapsible>
+              <CollapsibleTrigger className="text-[10px] underline underline-offset-1 decoration-dotted">
+                Options
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <p className="text-sm text-muted-foreground">
+                  Capturing images might be buggy. Please try one of the following methods or take a screenshot
+                  manually.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={captureMethod} onValueChange={handleCaptureMethodChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select capture method"/>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="original">Original html2canvas</SelectItem>
+                      <SelectItem value="pro">html2canvas-pro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={captureImage} disabled={isCapturing} className="sm:w-auto">
+                    {isCapturing ? 'Capturing...' : 'Recapture'}
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
           {imageBlob && (
             <div className="relative w-full h-48">
@@ -151,6 +188,14 @@ const ShareButton: React.FC = () => {
               />
             </div>
           )}
+          <div>
+            <p className="text-sm text-muted-foreground text-right">
+              If sharing on social media, remember to paste the copied image into your post.
+            </p>
+            <p className="text-[8px] text-muted-foreground text-right">
+              (it isn&apos;t automatic)
+            </p>
+          </div>
           <div className="flex justify-end space-x-1">
             <Button variant="outline" size="icon" onClick={copyImage} disabled={!imageBlob}>
               <CopyIcon className="h-4 w-4"/>
