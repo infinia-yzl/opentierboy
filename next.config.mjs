@@ -24,6 +24,15 @@ const nextConfig = {
     }
     return config;
   },
+
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cdn.wanderer.moe',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

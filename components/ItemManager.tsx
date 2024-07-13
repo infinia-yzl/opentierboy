@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,7 +29,15 @@ import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
-import {packageItemLookup} from "@/lib/tierStateUtils";
+import {ItemWithTags, packageItemLookup} from "@/lib/tierStateUtils";
+import {
+  API_PREFIX_MOE, encodeMoeApiItemId,
+  FormatCategoryName,
+  FormatGameName,
+  MoeAsset,
+  MoeGame,
+  wandererMoeApiClient
+} from "@/lib/wandererMoeApiClient";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -48,14 +56,41 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   undoReset,
   undoDelete,
 }) => {
+  const [games, setGames] = useState<MoeGame[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const fetchedGames = await wandererMoeApiClient.getAllGames();
+        setGames(fetchedGames);
+      } catch (error) {
+        console.error('Failed to fetch games:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGames().then();
+  }, []);
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
 
   const itemSets = useMemo(() => {
-    const sets: ItemSet[] = [];
+    const apiSets: ItemSet[] = games.flatMap(game =>
+      game.subfolders.map(subfolder => ({
+        packageName: `${API_PREFIX_MOE}${game.name}`,
+        packageDisplayName: `${FormatGameName(game.name)} (Wanderer Moe)`,
+        tagName: subfolder.name,
+        tagTitle: FormatCategoryName(subfolder.name),
+        images: [], // We'll fetch actual images when selected
+      }))
+    );
+
+    const packageSets: ItemSet[] = [];
     Object.entries(imagesetConfig.packages).forEach(([packageName, packageData]) => {
       const packageDisplayName = packageData.displayName;
-      sets.push({
+      packageSets.push({
         packageName,
         packageDisplayName,
         tagName: 'all',
@@ -65,7 +100,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
       Object.entries(packageData.tags).forEach(([tagName, tagData]) => {
         const taggedImages = packageData.images.filter(image => image.tags.includes(tagName));
         if (taggedImages.length > 0) {
-          sets.push({
+          packageSets.push({
             packageName,
             packageDisplayName,
             tagName,
@@ -75,8 +110,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         }
       });
     });
-    return sets;
-  }, []);
+    return [...packageSets, ...apiSets];
+  }, [games]);
 
   const handleCreateItems = (newItems: Item[]) => {
     onItemsCreate(newItems);
@@ -113,27 +148,39 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     });
   };
 
-  const handleItemSetSelect = (packageName: string, images: string[]) => {
-    const newItems: Item[] = images.map((filename) => {
-      const itemId = `${packageName}-${filename}`;
-      const packageItem = packageItemLookup[itemId];
+  const handleItemSetSelect = async (packageName: string, tagName: string) => {
+    const selectedItemSet = itemSets.find(set => set.packageName === packageName && set.tagName === tagName);
 
-      if (packageItem) {
-        return {
-          ...packageItem,
-          id: itemId,
-        };
+    if (!selectedItemSet) {
+      console.error('Selected item set not found');
+      return;
+    }
+
+    if (packageName.startsWith(API_PREFIX_MOE)) {
+      const gameName = packageName.replace(API_PREFIX_MOE, '');
+      try {
+        const assetData = await wandererMoeApiClient.getGameAssetData(gameName, tagName);
+        const newItems: Item[] = assetData.images.map((asset: MoeAsset) => ({
+          id: encodeMoeApiItemId(gameName, tagName, asset.name),
+          content: asset.name,
+          imageUrl: asset.path,
+        }));
+
+        handleCreateItems(newItems);
+      } catch (error) {
+        console.error('Failed to fetch game assets:', error);
       }
+    } else {
+      // Handle local item sets
+      const newItems: Item[] = (
+        tagName === 'all' ? Object.values(packageItemLookup)
+          : Object.values(packageItemLookup).filter((item: ItemWithTags) =>
+            item.id.startsWith(packageName) && item.tags.includes(tagName)
+          )
+      ).map(({tags, ...item}) => item); // Remove tags from the final item object
 
-      // Fallback for items not in packageItemLookup
-      return {
-        id: itemId,
-        content: filename.split('.')[0],
-        imageUrl: `/images/${packageName}/${filename}`,
-      };
-    });
-
-    handleCreateItems(newItems);
+      handleCreateItems(newItems);
+    }
   };
 
   return (
@@ -199,6 +246,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
         onSelectItemSet={handleItemSetSelect}
         open={isItemSetSelectorOpen}
         onOpenChange={setIsItemSetSelectorOpen}
+        isLoading={isLoading}
       />
     </>
   );

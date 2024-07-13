@@ -20,15 +20,19 @@ interface ClientTierListManagerProps {
 export default function ClientTierListManager({initialItemSet, initialState, title}: ClientTierListManagerProps) {
   const searchParams = useSearchParams();
 
-  const [tiers, setTiers] = useState<Tier[]>(() =>
-    getInitialTiers(initialState, initialItemSet)
-  );
+  const [tiers, setTiers] = useState<Tier[]>([]);
+
+  useEffect(() => {
+    getInitialTiers(initialState, initialItemSet).then(setTiers)
+  }, [initialItemSet, initialState]);
 
   useEffect(() => {
     const state = searchParams.get('state');
     if (state) {
-      const decodedState = decodeTierStateFromURL(state);
-      if (decodedState) setTiers(decodedState);
+      decodeTierStateFromURL(state).then((decodedState) => {
+          if (decodedState) setTiers(decodedState);
+        }
+      );
     }
   }, [searchParams]);
 

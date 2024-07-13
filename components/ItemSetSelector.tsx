@@ -5,7 +5,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
+  CommandList
 } from "@/components/ui/command";
 import {ScrollArea} from "@/components/ui/scroll-area";
 import {ItemSet} from "@/models/ItemSet";
@@ -23,9 +23,10 @@ import {useCommandState} from 'cmdk';
 
 interface ItemSetSelectorProps {
   itemSets: ItemSet[];
-  onSelectItemSet: (packageName: string, images: string[]) => void;
+  onSelectItemSet: (packageName: string, tagName: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isLoading: boolean;
 }
 
 interface PackageData {
@@ -54,7 +55,17 @@ const SubItem: React.FC<SubItemProps> = ({packageDisplayName, ...props}) => {
   );
 };
 
-const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItemSet, open, onOpenChange}) => {
+const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({
+  itemSets,
+  onSelectItemSet,
+  open,
+  onOpenChange,
+  isLoading
+}) => {
+  const [search, setSearch] = useState('');
+  const [pages, setPages] = useState<string[]>(['root']);
+  const page = pages[pages.length - 1];
+
   const organizedItemSets = useMemo<OrganizedItemSet[]>(() => {
     const grouped = itemSets.reduce((acc, itemSet) => {
       if (!acc[itemSet.packageName]) {
@@ -69,10 +80,6 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
 
     return Object.entries(grouped).sort((a, b) => a[1].displayName.localeCompare(b[1].displayName));
   }, [itemSets]);
-
-  const [pages, setPages] = useState<string[]>(['root']);
-  const [search, setSearch] = useState('');
-  const page = pages[pages.length - 1];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !search && pages.length > 1) {
@@ -97,15 +104,11 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
               <BreadcrumbItem className="hover:cursor-pointer">
                 {index === pages.length - 1 ? (
                   <BreadcrumbPage>
-                    {pageName === 'root'
-                      ? 'Packages'
-                      : organizedItemSets.find(([name]) => name === pageName)?.[1].displayName}
+                    {pageName === 'root' ? 'Games' : pageName}
                   </BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink onClick={() => setPages(pages.slice(0, index + 1))}>
-                    {pageName === 'root'
-                      ? 'Packages'
-                      : organizedItemSets.find(([name]) => name === pageName)?.[1].displayName}
+                    {pageName === 'root' ? 'Games' : pageName}
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
@@ -128,20 +131,23 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
           </div>
         )}
         <CommandInput
-          placeholder="Search packages and sets..."
+          placeholder="Search games and asset types..."
           value={search}
           onValueChange={setSearch}
           onKeyDown={handleKeyDown}
-          className="flex flex-grow"
         />
         <div className="text-[10px] text-muted-foreground px-4 pt-1 pb-2 tooltip-mouse">
           Press Escape to close. Backspace to go back while typing.
         </div>
         <CommandList>
-          <CommandEmpty>No packages or sets found.</CommandEmpty>
+          <CommandEmpty>No games or asset types found.</CommandEmpty>
           <ScrollArea className="h-[300px]">
-            {page === 'root' && (
-              <CommandGroup heading="Packages">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                Loading games...
+              </div>
+            ) : page === 'root' ? (
+              <CommandGroup heading="Games">
                 {organizedItemSets.map(([packageName, packageData]) => (
                   <React.Fragment key={packageName}>
                     <CommandItem onSelect={() => setPages([...pages, packageName])}>
@@ -151,20 +157,16 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
                       <SubItem
                         key={`${packageName}-${itemSet.tagName}`}
                         value={`${packageName}-${itemSet.tagName}`}
-                        onSelect={() => onSelectItemSet(packageName, itemSet.images)}
+                        onSelect={() => onSelectItemSet(packageName, itemSet.tagName)}
                         packageDisplayName={packageData.displayName}
                       >
                         {itemSet.tagTitle}
-                        <span className="mx-1 text-xs text-muted-foreground">
-                          ({itemSet.images.length})
-                        </span>
                       </SubItem>
                     ))}
                   </React.Fragment>
                 ))}
               </CommandGroup>
-            )}
-            {page !== 'root' && (
+            ) : (
               <CommandGroup heading={organizedItemSets.find(([name]) => name === page)?.[1].displayName || ''}>
                 {organizedItemSets
                   .find(([name]) => name === page)?.[1].sets
@@ -172,12 +174,9 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
                   .map((itemSet) => (
                     <CommandItem
                       key={`${page}-${itemSet.tagName}`}
-                      onSelect={() => onSelectItemSet(page, itemSet.images)}
+                      onSelect={() => onSelectItemSet(page, itemSet.tagName)}
                     >
                       {itemSet.tagTitle}
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        ({itemSet.images.length})
-                      </span>
                     </CommandItem>
                   ))}
               </CommandGroup>

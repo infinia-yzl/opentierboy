@@ -4,6 +4,7 @@ import imagesetConfig from "@/imageset.config.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
 import LZString from 'lz-string';
+import {apiMoeItemCache, extractMoeApiItemInfo, wandererMoeApiClient} from "@/lib/wandererMoeApiClient";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -25,8 +26,12 @@ interface StoredCustomItem {
   d: string; // imageData
 }
 
+export interface ItemWithTags extends Item {
+  tags: string[];
+}
+
 // Precompute package item lookup
-export const packageItemLookup: Record<string, Item> = {};
+export const packageItemLookup: Record<string, ItemWithTags> = {};
 
 function initializePackageItemLookup() {
   for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
@@ -36,6 +41,7 @@ function initializePackageItemLookup() {
         id,
         content: image.label || image.filename.split('.')[0],
         imageUrl: `/images/${packageName}/${image.filename}`,
+        tags: image.tags,
       };
     }
   }
@@ -66,7 +72,7 @@ export function encodeTierStateForURL(tiers: Tier[]): string {
   return LZString.compressToEncodedURIComponent(jsonString);
 }
 
-export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
+export async function decodeTierStateFromURL(encodedState: string): Promise<Tier[] | null> {
   try {
     const jsonString = LZString.decompressFromEncodedURIComponent(encodedState);
     if (!jsonString) throw new Error('Failed to decompress state');
@@ -74,10 +80,16 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
     const simplifiedTiers = JSON.parse(jsonString) as SimplifiedTier[];
     initializeCustomItemsMap();
 
-    return simplifiedTiers.map(simplifiedTier => ({
-      id: simplifiedTier.i,
-      name: simplifiedTier.n,
-      items: simplifiedTier.t.map(item => resolveItem(item.i, item.c))
+    return await Promise.all(simplifiedTiers.map(async (simplifiedTier) => {
+      const items = await Promise.all(
+        simplifiedTier.t.map(async (item) => await resolveItem(item.i, item.c))
+      );
+
+      return {
+        id: simplifiedTier.i,
+        name: simplifiedTier.n,
+        items: items
+      };
     }));
   } catch (error) {
     console.error('Failed to decode tier state from URL:', error);
@@ -85,7 +97,7 @@ export function decodeTierStateFromURL(encodedState: string): Tier[] | null {
   }
 }
 
-function resolveItem(itemId: string, content: string): Item {
+async function resolveItem(itemId: string, content: string): Promise<Item> {
   // 1. Check package items
   const packageItem = packageItemLookup[itemId];
   if (packageItem) return packageItem;
@@ -100,7 +112,46 @@ function resolveItem(itemId: string, content: string): Item {
     };
   }
 
-  // 3. Create an item with the provided content
+  // 3. Check if it's an API item
+  const apiItemInfo = extractMoeApiItemInfo(itemId);
+  if (apiItemInfo) {
+    const {gameName, assetType, assetName} = apiItemInfo;
+
+    // Check cache first
+    const cacheKey = `${gameName}/${assetType}/${assetName}`;
+    const cachedItem = apiMoeItemCache[cacheKey];
+    if (cachedItem && cachedItem.expiresAt > Date.now()) {
+      return {
+        id: itemId,
+        content: content,
+        imageUrl: cachedItem.imageUrl,
+      };
+    }
+
+    // If not in cache or expired, fetch from API
+    try {
+      const assetData = await wandererMoeApiClient.getGameAssetData(gameName, assetType);
+      const asset = assetData.images.find(img => img.name === assetName);
+
+      if (asset) {
+        // Cache the result
+        apiMoeItemCache[cacheKey] = {
+          imageUrl: asset.path,
+          expiresAt: Date.now() + 3600000, // Cache for 1 hour
+        };
+
+        return {
+          id: itemId,
+          content: content,
+          imageUrl: asset.path,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to fetch API item:', error);
+    }
+  }
+
+  // 4. If all else fails, create an item with the provided content and a placeholder image
   return {
     id: itemId,
     content: content,
@@ -140,9 +191,9 @@ export function addCustomItems(items: Item[]): void {
   localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(allItems));
 }
 
-export function getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
+export async function getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Promise<Tier[]> {
   if (initialState) {
-    const decodedState = decodeTierStateFromURL(initialState);
+    const decodedState = await decodeTierStateFromURL(initialState);
     if (decodedState) return decodedState;
   }
 
