@@ -6,7 +6,7 @@ import {MoonIcon, SunIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
 
-const colorThemes = ['default', 'ocean', 'forest'];
+const colorThemes = ['classic', 'ocean', 'forest'];
 
 export function ThemeSelector() {
   const [mounted, setMounted] = useState(false);
@@ -19,7 +19,7 @@ export function ThemeSelector() {
   const handleThemeChange = (newTheme: string) => {
     const [newColorTheme, newMode] = newTheme.split('-');
     document.documentElement.classList.remove('theme-ocean', 'theme-forest');
-    if (newColorTheme !== 'default') {
+    if (newColorTheme !== 'classic') {
       document.documentElement.classList.add(`theme-${newColorTheme}`);
     }
     setTheme(newMode);

@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, memo} from 'react';
+import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
 import Image from 'next/image';
 import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu";
 import {TrashIcon} from "@radix-ui/react-icons";
@@ -18,6 +18,8 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   showLabel = true,
 }) => {
   const [isZenMode, setIsZenMode] = useState(false);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const checkZenMode = () => {
@@ -28,7 +30,25 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
     const observer = new MutationObserver(checkZenMode);
     observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
 
-    return () => observer.disconnect();
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      scrollTimeoutRef.current = setTimeout(() => {
+        setIsScrolling(false);
+      }, 450);
+    };
+
+    window.addEventListener('scroll', handleScroll, {passive: true});
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
   }, []);
 
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
@@ -46,14 +66,18 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
               style={{
                 objectFit: "cover"
               }}
+              placeholder="blur"
+              blurDataURL={imageUrl}
             />
           </div>
           {showLabel && (
             <div
-              className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-30 p-1 transition-opacity duration-180 ease-in-out"
+              className={`absolute bottom-0 left-0 right-0 bg-black bg-opacity-30  ${
+                isScrolling ? '' : 'backdrop-blur-sm will-change-transform transform-gpu'
+              }  p-1 transition-all duration-180 ease-in-out`}
             >
               <span
-                className="text-[8px] leading-tight text-white block mb-0.5"
+                className="text-[9px] leading-tight text-white block mb-0.5 text-center"
               >
                 {content}
               </span>
