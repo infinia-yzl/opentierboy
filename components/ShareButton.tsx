@@ -1,6 +1,5 @@
 import React, {useState, useRef, useCallback} from 'react';
 import html2canvas from 'html2canvas';
-// @ts-ignore
 import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
