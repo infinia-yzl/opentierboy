@@ -62,7 +62,7 @@ const TierItems = memo<{
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
                   className={`
-                    m-1 rounded-md bg-card
+                    m-1 rounded-md 
                     ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                   `}
                   style={{
