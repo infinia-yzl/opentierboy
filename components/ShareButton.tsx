@@ -11,6 +11,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/c
 import {Separator} from "@/components/ui/separator";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
+import {Skeleton} from "@/components/ui/skeleton";
 
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
@@ -127,7 +128,7 @@ const ShareButton: React.FC = () => {
       <PopoverContent className="w-[320px]" ref={popoverRef}>
         <div className="grid gap-5">
           <h3 className="scroll-m-20 text-xl font-semibold tracking-tight">
-            Share Tier List
+            Share Your Tier List Rankings
           </h3>
           <div className="space-y-2">
             <div className="flex flex-row space-x-2">
@@ -178,7 +179,7 @@ const ShareButton: React.FC = () => {
               </CollapsibleContent>
             </Collapsible>
           </div>
-          {imageBlob && (
+          {imageBlob ? (
             <div className="relative w-full h-48">
               <Image
                 src={URL.createObjectURL(imageBlob)}
@@ -186,6 +187,14 @@ const ShareButton: React.FC = () => {
                 fill
                 style={{objectFit: "contain"}}
               />
+            </div>
+          ) : (
+            <div className="flex items-center">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-[280px]"/>
+                <Skeleton className="h-6 w-[280px]"/>
+                <Skeleton className="h-6 w-[280px]"/>
+              </div>
             </div>
           )}
           <div>
