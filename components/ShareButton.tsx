@@ -128,7 +128,7 @@ const ShareButton: React.FC = () => {
       <PopoverContent className="w-[320px]" ref={popoverRef}>
         <div className="grid gap-5">
           <h3 className="scroll-m-20 text-xl font-semibold tracking-tight">
-            Share Your Tier List Rankings
+            Share Your Rankings
           </h3>
           <div className="space-y-2">
             <div className="flex flex-row space-x-2">
