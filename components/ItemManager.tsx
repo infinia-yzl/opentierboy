@@ -29,7 +29,7 @@ import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
-import {packageItemLookup} from "@/lib/tierStateUtils";
+import {useTierContext} from "@/contexts/TierContext";
 
 interface ItemManagerProps {
   onItemsCreate: (newItems: Item[]) => void;
@@ -48,6 +48,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   undoReset,
   undoDelete,
 }) => {
+  const {tierCortex} = useTierContext();
+
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
 
@@ -114,26 +116,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   };
 
   const handleItemSetSelect = (packageName: string, images: string[]) => {
-    const newItems: Item[] = images.map((filename) => {
-      const itemId = `${packageName}-${filename}`;
-      const packageItem = packageItemLookup[itemId];
-
-      if (packageItem) {
-        return {
-          ...packageItem,
-          id: itemId,
-        };
-      }
-
-      // Fallback for items not in packageItemLookup
-      return {
-        id: itemId,
-        content: filename.split('.')[0],
-        imageUrl: `/images/${packageName}/${filename}`,
-      };
-    });
-
-    handleCreateItems(newItems);
+    handleCreateItems(tierCortex.resolveItemsFromPackage(packageName, images));
   };
 
   return (

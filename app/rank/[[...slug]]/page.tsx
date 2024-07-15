@@ -5,8 +5,8 @@ import {slugify} from "@/lib/utils";
 import dynamic from "next/dynamic";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
-const ClientTierListManager = dynamic(
-  () => import('@/components/ClientTierListManager'),
+const TierListManager = dynamic(
+  () => import('@/components/TierListManager'),
   {ssr: false}
 );
 
@@ -71,7 +71,7 @@ export default async function TierListPage({params, searchParams}: {
 
   return (
     <main className="flex flex-col items-center justify-between">
-      <ClientTierListManager
+      <TierListManager
         initialItemSet={itemSet ?? undefined}
         initialState={initialState}
         title={title}

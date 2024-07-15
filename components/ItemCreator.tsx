@@ -9,7 +9,7 @@ import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, Form
 import {Input} from "@/components/ui/input"
 import Image from 'next/image'
 import Item from "@/models/Item";
-import {addCustomItems} from "@/lib/tierStateUtils";
+import {useTierContext} from "@/contexts/TierContext";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -28,6 +28,8 @@ interface UploadedItem {
 const generateId = () => Math.random().toString(36).slice(2, 11);
 
 const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
+  const {tierCortex} = useTierContext();
+
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -40,7 +42,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
 
   const onSubmit = useCallback((values: z.infer<typeof formSchema>) => {
     if (values.files && values.files.length > 0) {
-      addCustomItems(uploadedItems);
+      tierCortex.addCustomItems(uploadedItems);
       onItemsCreate(uploadedItems);
 
       setUploadedItems([]);
@@ -49,7 +51,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
         fileInputRef.current.value = '';
       }
     }
-  }, [uploadedItems, form, onItemsCreate]);
+  }, [tierCortex, uploadedItems, onItemsCreate, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
