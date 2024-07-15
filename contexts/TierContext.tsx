@@ -1,7 +1,9 @@
 import React from 'react';
 import Tier, {LabelPosition} from "@/models/Tier";
+import TierCortex from "@/lib/TierCortex";
 
-export interface TierContextType {
+export interface TierContext {
+  tierCortex: TierCortex;
   tiers: Tier[];
   labelPosition: LabelPosition;
   showLabels: boolean;
@@ -10,7 +12,7 @@ export interface TierContextType {
   onTemplateChange: (template: Tier[]) => void;
 }
 
-export const TierContext = React.createContext<TierContextType | undefined>(undefined);
+export const TierContext = React.createContext<TierContext | undefined>(undefined);
 
 export const useTierContext = () => {
   const context = React.useContext(TierContext);

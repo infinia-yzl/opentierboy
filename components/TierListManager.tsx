@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import DragDropTierList from './DragDropTierList';
 import {TierContext} from '@/contexts/TierContext';
 import TierTemplateSelector from "@/components/TierTemplateSelector";
@@ -9,35 +9,44 @@ import ItemManager from "@/components/ItemManager";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import ShareButton from "@/components/ShareButton";
-import {encodeTierStateForURL} from "@/lib/tierStateUtils";
+import {TierCortex} from "@/lib/TierCortex";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
+import {ItemSet} from "@/models/ItemSet";
 
 interface TierListManagerProps {
-  tiers: Tier[];
-  onTiersUpdate: (updatedTiers: Tier[]) => void;
+  initialItemSet?: ItemSet;
+  initialState?: string;
   title?: string;
 }
 
-const TierListManager: React.FC<TierListManagerProps> = ({tiers, onTiersUpdate, title}) => {
+const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initialState, title}) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const tierCortex = useMemo(() => new TierCortex(), []);
+  const [tiers, setTiers] = useState<Tier[]>(() =>
+    tierCortex.getInitialTiers(initialState, initialItemSet)
+  );
   const [name, setName] = useState(title ?? '');
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(tiers[0].labelPosition ?? 'left');
   const previousTiersRef = useRef<Tier[]>(tiers);
 
+  useEffect(() => {
+    const state = searchParams.get('state');
+    if (state) {
+      const decodedState = tierCortex.decodeTierStateFromURL(state);
+      if (decodedState) setTiers(decodedState);
+    }
+  }, [searchParams, tierCortex]);
+
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     previousTiersRef.current = updatedTiers;
-    onTiersUpdate(updatedTiers);
+    setTiers(updatedTiers);
 
-    const encodedState = encodeTierStateForURL(updatedTiers);
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('state', encodedState);
-    router.replace(`${pathname}?${newParams.toString()}`, {scroll: false});
-
-  }, [onTiersUpdate, router, pathname, searchParams]);
+    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(updatedTiers)}`, {scroll: false});
+  }, [setTiers, router, pathname]);
 
   const handleItemsCreate = useCallback((newItems: Item[]) => {
     const updatedTiers = [...tiers];
@@ -148,6 +157,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({tiers, onTiersUpdate, 
   }, [handleTiersUpdate]);
 
   const contextValue = {
+    tierCortex,
     tiers,
     labelPosition,
     showLabels,
