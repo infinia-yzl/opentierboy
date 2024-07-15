@@ -720,6 +720,283 @@
           "category": "general"
         }
       }
+    },
+    "image-wutheringwaves": {
+      "displayName": "Wuthering Waves",
+      "images": [
+        {
+          "filename": "c/aa.webp",
+          "label": "Aalto",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_aer",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/bz.webp",
+          "label": "Baizhi",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_gla",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/cc.webp",
+          "label": "Calcharo",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_ele",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/cl.webp",
+          "label": "Changli",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_fus",
+            "c_1_1"
+          ]
+        },
+        {
+          "filename": "c/cx.webp",
+          "label": "Chixia",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_fus",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/dj.webp",
+          "label": "Danjin",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_hav",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/ec.webp",
+          "label": "Encore",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_fus",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/js.webp",
+          "label": "Jinshi",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_spe",
+            "c_1_1"
+          ]
+        },
+        {
+          "filename": "c/jx.webp",
+          "label": "Jianxin",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_aer",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/jy.webp",
+          "label": "Jiyan",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_aer",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/ly.webp",
+          "label": "Lingyang",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_gla",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/mf.webp",
+          "label": "Mortefi",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_fus",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/rm-h.webp",
+          "label": "Rover Havoc",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_hav",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/rm-s.webp",
+          "label": "Rover Spectro",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_spe",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/sh.webp",
+          "label": "Sanhua",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_gla",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/vr.webp",
+          "label": "Verina",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_spe",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/xy.webp",
+          "label": "Xiangli Yao",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_ele",
+            "c_1_2"
+          ]
+        },
+        {
+          "filename": "c/yl.webp",
+          "label": "Yinlin",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_ele",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/yw.webp",
+          "label": "Yuanwu",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_ele",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/yy.webp",
+          "label": "Yangyang",
+          "tags": [
+            "c_all",
+            "c_rarity_4",
+            "c_att_aer",
+            "c_1_0"
+          ]
+        },
+        {
+          "filename": "c/zz.webp",
+          "label": "Zhezhi",
+          "tags": [
+            "c_all",
+            "c_rarity_5",
+            "c_att_gla",
+            "c_1_2"
+          ]
+        }
+      ],
+      "tags": {
+        "c_all": {
+          "title": "All Resonators",
+          "description": "All Resonators who have been officially released or announced",
+          "category": "general"
+        },
+        "c_rarity_4": {
+          "title": "4-Star Resonators",
+          "description": "Resonators with a rarity of 4 stars",
+          "category": "general"
+        },
+        "c_att_aer": {
+          "title": "Aero Resonators",
+          "description": "Aero attribute Resonators",
+          "category": "general"
+        },
+        "c_1_0": {
+          "title": "Resonators - Version 1",
+          "description": "Resonators from Version 1",
+          "category": "general"
+        },
+        "c_att_gla": {
+          "title": "Glacio Resonators",
+          "description": "Glacio attribute Resonators",
+          "category": "general"
+        },
+        "c_rarity_5": {
+          "title": "5-Star Resonators",
+          "description": "Resonators with a rarity of 5 stars",
+          "category": "general"
+        },
+        "c_att_ele": {
+          "title": "Electro Resonators",
+          "description": "Electro attribute Resonators",
+          "category": "general"
+        },
+        "c_att_fus": {
+          "title": "Fusion Resonators",
+          "description": "Fusion attribute Resonators",
+          "category": "general"
+        },
+        "c_1_1": {
+          "title": "Resonators - Version 1.1",
+          "description": "Resonators from Version 1.1",
+          "category": "general"
+        },
+        "c_att_hav": {
+          "title": "Havoc Resonators",
+          "description": "Havoc attribute Resonators",
+          "category": "general"
+        },
+        "c_att_spe": {
+          "title": "Spectro Resonators",
+          "description": "Spectro attribute Resonators",
+          "category": "general"
+        },
+        "c_1_2": {
+          "title": "Resonators - Version 1.2",
+          "description": "Resonators from Version 1.2",
+          "category": "general"
+        }
+      }
     }
   }
 }

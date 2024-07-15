@@ -8,8 +8,13 @@ import {PlusCircledIcon} from "@radix-ui/react-icons";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
-const featuredSets = {
+const FEATURED_SETS = {
   "image-reachthefinals": ['all', 'light', 'medium', 'heavy'],
+  "image-wutheringwaves": [
+    'c_all',
+    'c_rarity_5',
+    'c_rarity_4',
+  ]
   // Add more packages and their featured sets here
 };
 
@@ -20,7 +25,7 @@ const Home = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
         {/* Featured sets */}
-        {Object.entries(featuredSets).map(([packageName, tags]) => {
+        {Object.entries(FEATURED_SETS).map(([packageName, tags]) => {
           const packageData = typedImageSetConfig.packages[packageName];
           if (!packageData) return null;
 
