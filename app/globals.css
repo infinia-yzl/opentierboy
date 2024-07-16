@@ -144,6 +144,14 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  h1 {
+    @apply font-heading;
+  }
+
+  h2 {
+    @apply font-heading;
+  }
 }
 
 html.zen-mode {

@@ -145,7 +145,7 @@ const ShareButton: React.FC = () => {
               </TooltipProvider>
             </div>
             <p className="text-sm text-muted-foreground">
-              Copy the URL from the browser address bar to share the tier list.
+              Copy the URL from the browser address bar to share the tier list. <i>Copy-jutsu!</i>
             </p>
           </div>
           <Separator/>
@@ -190,6 +190,7 @@ const ShareButton: React.FC = () => {
           ) : (
             <div className="flex items-center">
               <div className="space-y-2">
+                <p className="text-center italic">Freeze frame!</p>
                 <Skeleton className="h-6 w-[280px]"/>
                 <Skeleton className="h-6 w-[280px]"/>
                 <Skeleton className="h-6 w-[280px]"/>

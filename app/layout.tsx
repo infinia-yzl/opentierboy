@@ -1,5 +1,5 @@
 import type {Metadata} from "next";
-import {Inter as FontSans} from "next/font/google";
+import {Nunito_Sans as FontSans, Urbanist as FontHeading} from "next/font/google";
 import "./globals.css";
 import {cn} from "@/lib/utils"
 
@@ -14,9 +14,15 @@ const fontSans = FontSans({
   variable: "--font-sans",
 })
 
+const fontHeading = FontHeading({
+  subsets: ["latin"],
+  variable: "--font-heading"
+})
+
 export const metadata: Metadata = {
-  title: "Tier Scribble",
-  description: "Create amazing tier lists with Tier Scribble.",
+  title: "OpenTierBoy - Craft, Rank, Share Your Tiers",
+  description: "OpenTierBoy: The open-source tier list creator that helps you craft, rank, and share your passion! No logins, no sign-ups.",
+  keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
 };
 
 export default function RootLayout({
@@ -28,7 +34,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
     <body className={cn(
       "bg-background font-sans antialiased min-h-screen flex justify-center",
-      fontSans.variable
+      fontSans.variable,
+      fontHeading.variable,
     )}>
     <ThemeProvider
       attribute="class"
@@ -38,7 +45,7 @@ export default function RootLayout({
     >
       <div className="max-w-screen-lg w-full">
         <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
-          <a href="/" className="text-xl">Tier Scribble</a>
+          <a href="/" className="text-xl"><h1>OpenTierBoy</h1></a>
           <div className="space-x-1">
             <ZenToggle/>
             <span className="hide-in-zen">
