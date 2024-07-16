@@ -1,5 +1,5 @@
 import type {Metadata} from "next";
-import {Inter as FontSans} from "next/font/google";
+import {Nunito_Sans as FontSans, Urbanist as FontHeading} from "next/font/google";
 import "./globals.css";
 import {cn} from "@/lib/utils"
 
@@ -12,6 +12,11 @@ import {Separator} from "@/components/ui/separator";
 const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
+})
+
+const fontHeading = FontHeading({
+  subsets: ["latin"],
+  variable: "--font-heading"
 })
 
 export const metadata: Metadata = {
@@ -29,7 +34,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
     <body className={cn(
       "bg-background font-sans antialiased min-h-screen flex justify-center",
-      fontSans.variable
+      fontSans.variable,
+      fontHeading.variable,
     )}>
     <ThemeProvider
       attribute="class"
@@ -39,7 +45,7 @@ export default function RootLayout({
     >
       <div className="max-w-screen-lg w-full">
         <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
-          <a href="/" className="text-xl">OpenTierBoy</a>
+          <a href="/" className="text-xl"><h1>OpenTierBoy</h1></a>
           <div className="space-x-1">
             <ZenToggle/>
             <span className="hide-in-zen">
