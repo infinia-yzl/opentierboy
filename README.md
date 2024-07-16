@@ -65,7 +65,7 @@ for details.
 
 ## 🌐 Community
 
-Join our [Discord server](https://discord.gg/yourdiscordlink) to share your tier lists, discuss features, and connect
+Join our [Discord server](https://discord.gg/CEtDSHV38b) to share your tier lists, discuss features, and connect
 with other rankers!
 
 ---
