@@ -15,8 +15,9 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: "Tier Scribble",
-  description: "Create amazing tier lists with Tier Scribble.",
+  title: "OpenTierBoy - Craft, Rank, Share Your Tiers",
+  description: "OpenTierBoy: The open-source tier list creator that helps you craft, rank, and share your passion! No logins, no sign-ups.",
+  keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
 };
 
 export default function RootLayout({
@@ -38,7 +39,7 @@ export default function RootLayout({
     >
       <div className="max-w-screen-lg w-full">
         <div className="flex flex-row p-4 w-full justify-between items-center align-middle" data-html2canvas-ignore>
-          <a href="/" className="text-xl">Tier Scribble</a>
+          <a href="/" className="text-xl">OpenTierBoy</a>
           <div className="space-x-1">
             <ZenToggle/>
             <span className="hide-in-zen">
