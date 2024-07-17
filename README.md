@@ -12,6 +12,17 @@ Welcome to OpenTierBoy - the open-source tier list creator that helps you craft,
 - **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking - we only use local storage for
   functionality
 
+## ♨️ Open Source
+
+OpenTierBoy is proud to be an open-source project. We believe in the power of community-driven development and welcome
+contributions from developers around the world. By being open-source, we ensure transparency, foster innovation, and
+provide a platform for learning and collaboration.
+
+- **Transparency**: Our code is open for review, ensuring security and trust.
+- **Community-Driven**: Features and improvements are guided by user needs and community input.
+- **Educational**: Developers can learn from and build upon our codebase.
+- **Customizable**: Users can fork and modify the project to suit their specific needs.
+
 ## 🚀 Getting Started
 
 1. Visit [https://opentierboy.com](https://opentierboy.com)
@@ -60,8 +71,18 @@ Found a bug or have a suggestion? Open an issue on GitHub:
 
 ## 📜 License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See the [LICENSE](LICENSE) file
-for details.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+This means:
+
+- You can freely use, modify, and distribute the software.
+- You must provide appropriate attribution to the original project and authors.
+- You must include a copy of the full license text with any distribution of the software or derivative works.
+- If you modify OpenTierBoy and provide it as a service over a network, you must make your modified source code
+  available to users of that service under the same AGPL-3.0 license.
+- Any derivative works must also be licensed under AGPL-3.0.
+- You must clearly indicate any changes made to the original software.
+
+See the [LICENSE](LICENSE) file for full details.
 
 ## 🌐 Community
 
