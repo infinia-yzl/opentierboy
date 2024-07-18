@@ -1,6 +1,6 @@
 ---
 title: Terms of Service
-description: This document outlines the rules and regulations for using OpenTierBoy. By accessing our service, you agree to abide by these terms.
+description: This document outlines the terms for using OpenTierBoy. By accessing our service, you agree to abide by these terms.
 ---
 
 # OpenTierBoy Terms of Service
