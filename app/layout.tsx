@@ -21,8 +21,8 @@ const fontHeading = FontHeading({
 })
 
 export const metadata: Metadata = {
-  title: "OpenTierBoy - Craft, Rank, Share Your Tiers",
-  description: "OpenTierBoy: The open-source tier list creator that helps you craft, rank, and share your passion! No logins, no sign-ups.",
+  title: "OpenTierBoy - Craft, Rank, Share Your Tier Lists",
+  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank, and share your passion! No ads, no logins, no sign-ups.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
 };
 
@@ -69,7 +69,7 @@ export default function RootLayout({
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
-              <p className="text-sm text-muted-foreground">No logins, no sign-ups.</p>
+              <p className="text-sm text-muted-foreground">No ads, no logins, no sign-ups.</p>
               <a href="/about" className="text-sm hover:underline">About</a>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
