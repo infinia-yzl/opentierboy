@@ -8,6 +8,7 @@ import {Toaster} from "@/components/ui/sonner";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ThemeSelector} from "@/components/ThemeSelector";
 import {DiscordLogoIcon, EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {Button} from "@/components/ui/button";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -50,8 +51,8 @@ export default function RootLayout({
             <div className="space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
-                    <ThemeSelector/>
-                  </span>
+                <ThemeSelector/>
+              </span>
             </div>
           </div>
         </div>
@@ -63,7 +64,7 @@ export default function RootLayout({
         </div>
       </main>
 
-      <footer className="w-full mt-8 py-8 border-t" data-html2canvas-ignore>
+      <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
         <div className="max-w-screen-lg mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
@@ -72,19 +73,25 @@ export default function RootLayout({
               <a href="/about" className="text-sm hover:underline">About</a>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
-              <div className="flex space-x-4">
-                <a href="https://github.com/infinia-yzl/opentierboy" className="text-foreground hover:text-primary"
-                   aria-label="GitHub">
-                  <GitHubLogoIcon className="h-5 w-5"/>
-                </a>
-                <a href="https://discord.gg/CEtDSHV38b" className="text-foreground hover:text-primary"
-                   aria-label="Discord">
-                  <DiscordLogoIcon className="h-5 w-5"/>
-                </a>
-                <a href="mailto:dev@infinia.space" className="text-foreground hover:text-primary"
-                   aria-label="Contact">
-                  <EnvelopeClosedIcon className="h-5 w-5"/>
-                </a>
+              <div className="flex space-x-2">
+                <Button variant="ghost" asChild size="icon">
+                  <a href="https://github.com/infinia-yzl/opentierboy" className="text-foreground hover:text-primary"
+                     aria-label="GitHub">
+                    <GitHubLogoIcon className="h-5 w-5"/>
+                  </a>
+                </Button>
+                <Button variant="ghost" asChild size="icon">
+                  <a href="https://discord.gg/CEtDSHV38b" className="text-foreground hover:text-primary"
+                     aria-label="Discord">
+                    <DiscordLogoIcon className="h-5 w-5"/>
+                  </a>
+                </Button>
+                <Button variant="ghost" asChild size="icon">
+                  <a href="mailto:dev@infinia.space" className="text-foreground hover:text-primary"
+                     aria-label="Contact">
+                    <EnvelopeClosedIcon className="h-5 w-5"/>
+                  </a>
+                </Button>
               </div>
               <p className="text-center text-sm text-muted-foreground py-1">
                 © 2024 OpenTierBoy. All rights reserved.
