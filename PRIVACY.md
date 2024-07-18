@@ -5,7 +5,7 @@ description: This policy explains how OpenTierBoy collects, uses, and protects y
 
 # OpenTierBoy Privacy Policy
 
-**Effective Date: 17 July 2024**
+**Effective Date: 18 July 2024**
 
 This Privacy Policy describes our policies and procedures on the collection, use, and disclosure of your information
 when you use the Service and tells you about your privacy rights and how the law protects you.
