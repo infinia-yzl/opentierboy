@@ -67,7 +67,7 @@
       }
     },
     "image-reachthefinals": {
-      "displayName": "The Finals",
+      "displayName": "THE FINALS",
       "images": [
         {
           "filename": "93R_Rank_1.webp",
@@ -719,10 +719,12 @@
           "description": "Images of build specializations",
           "category": "general"
         }
-      }
+      },
+      "googleFont": "Saira",
+      "backgroundImage": "/splash/thefinals-red-bg.png"
     },
     "image-wutheringwaves": {
-      "displayName": "Wuthering Waves",
+      "displayName": "WUTHERING WAVES",
       "images": [
         {
           "filename": "c/aa.webp",
@@ -996,7 +998,9 @@
           "description": "Resonators from Version 1.2",
           "category": "general"
         }
-      }
+      },
+      "googleFont": "Cinzel",
+      "backgroundImage": "/splash/wuwa-bg-1.jpg"
     }
   }
 }

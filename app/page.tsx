@@ -3,8 +3,8 @@ import {Button} from "@/components/ui/button";
 import {Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
 import imagesetConfig from "@/imageset.config.json";
 import ImageSetConfig from "@/models/ImageSet";
-import {slugify} from "@/lib/utils";
 import {PlusCircledIcon} from "@radix-ui/react-icons";
+import PackageCard from "@/components/PackageCard";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
@@ -29,27 +29,7 @@ const Home = () => {
           const packageData = typedImageSetConfig.packages[packageName];
           if (!packageData) return null;
 
-          return (
-            <Card key={packageName}>
-              <CardHeader>
-                <CardTitle>{packageData.displayName}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {tags.map((tagName) => (
-                  <Button
-                    key={tagName}
-                    asChild
-                    variant="outline"
-                    className="w-full justify-start"
-                  >
-                    <Link href={`/rank/${slugify(packageData.displayName)}/${tagName}`}>
-                      {tagName === 'all' ? 'All Items' : packageData.tags[tagName]?.title || tagName}
-                    </Link>
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
-          );
+          return <PackageCard key={packageName} packageData={packageData} tags={tags}/>
         })}
 
         <Card>
