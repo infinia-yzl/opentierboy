@@ -3,8 +3,9 @@ import {Button} from "@/components/ui/button";
 import {Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
 import imagesetConfig from "@/imageset.config.json";
 import ImageSetConfig from "@/models/ImageSet";
-import {slugify} from "@/lib/utils";
 import {PlusCircledIcon} from "@radix-ui/react-icons";
+import PackageCard from "@/components/PackageCard";
+import {Separator} from "@/components/ui/separator";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
@@ -21,40 +22,38 @@ const FEATURED_SETS = {
 const Home = () => {
   return (
     <main className="container mx-auto px-8 py-4">
-      <h1 className="text-3xl font-bold pb-8 text-center">Create a New Tier List</h1>
+      <div className="text-center mb-8">
+        <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
+          Welcome to OpenTierBoy
+        </h1>
+        <p className="text-xl text-muted-foreground [&:not(:first-child)]:mt-4 mb-4">
+          Craft, rank, share your tier lists - free and open-source.
+        </p>
+        <Button asChild variant="outline" size="sm">
+          <Link href={"/about"}>
+            Learn More
+          </Link>
+        </Button>
+      </div>
+      <div className="flex justify-center items-center w-full my-10">
+        <Separator className="w-1/4"/>
+      </div>
+      <h2 className="scroll-m-20 pb-4 text-3xl font-semibold tracking-tight first:mt-0">
+        Create a New Tier List
+      </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
         {/* Featured sets */}
         {Object.entries(FEATURED_SETS).map(([packageName, tags]) => {
           const packageData = typedImageSetConfig.packages[packageName];
           if (!packageData) return null;
 
-          return (
-            <Card key={packageName}>
-              <CardHeader>
-                <CardTitle>{packageData.displayName}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {tags.map((tagName) => (
-                  <Button
-                    key={tagName}
-                    asChild
-                    variant="outline"
-                    className="w-full justify-start"
-                  >
-                    <Link href={`/rank/${slugify(packageData.displayName)}/${tagName}`}>
-                      {tagName === 'all' ? 'All Items' : packageData.tags[tagName]?.title || tagName}
-                    </Link>
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
-          );
+          return <PackageCard key={packageName} packageData={packageData} tags={tags}/>
         })}
 
         <Card>
           <CardHeader>
             <CardTitle>Others</CardTitle>
+            <Separator/>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button asChild className="w-full" variant="outline">

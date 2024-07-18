@@ -9,7 +9,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
     '',
     '/rank',
-    // '/about',
+    '/about',
     '/privacy',
     '/terms',
   ].map(route => ({

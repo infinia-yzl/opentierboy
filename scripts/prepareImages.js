@@ -224,7 +224,10 @@ async function updateConfigs(packagesData, customConfig) {
     config.packages[packageName] = {
       displayName,
       images: packageImages,
-      tags: packageTags
+      tags: packageTags,
+      // Only include googleFont and backgroundImage if they exist in customConfig
+      ...(customConfig.packages[packageName]?.googleFont && {googleFont: customConfig.packages[packageName].googleFont}),
+      ...(customConfig.packages[packageName]?.backgroundImage && {backgroundImage: customConfig.packages[packageName].backgroundImage})
     };
   }
 
@@ -235,7 +238,11 @@ async function updateConfigs(packagesData, customConfig) {
   let customConfigUpdated = false;
   Object.keys(config.packages).forEach(packageName => {
     if (!customConfig.packages[packageName]) {
-      customConfig.packages[packageName] = {displayName: config.packages[packageName].displayName};
+      customConfig.packages[packageName] = {
+        displayName: config.packages[packageName].displayName,
+        googleFont: config.packages[packageName].googleFont,
+        backgroundImage: config.packages[packageName].backgroundImage
+      };
       customConfigUpdated = true;
     }
   });

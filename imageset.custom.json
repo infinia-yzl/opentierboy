@@ -4,10 +4,14 @@
       "displayName": "Example Items Template"
     },
     "image-reachthefinals": {
-      "displayName": "The Finals"
+      "displayName": "THE FINALS",
+      "googleFont": "Saira",
+      "backgroundImage": "/splash/thefinals-red-bg.png"
     },
     "image-wutheringwaves": {
-      "displayName": "Wuthering Waves"
+      "displayName": "WUTHERING WAVES",
+      "googleFont": "Cinzel",
+      "backgroundImage": "/splash/wuwa-bg-1.jpg"
     }
   }
 }
