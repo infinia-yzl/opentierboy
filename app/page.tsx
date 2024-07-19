@@ -15,7 +15,13 @@ const FEATURED_SETS = {
     'c_all',
     'c_rarity_5',
     'c_rarity_4',
-  ]
+  ],
+  "image-overwatch": [
+    'h_all',
+    'tank',
+    'dps',
+    'sup',
+  ],
   // Add more packages and their featured sets here
 };
 
