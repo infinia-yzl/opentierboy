@@ -29,15 +29,33 @@ export interface PackageItemLookup {
   [key: string]: Item;
 }
 
+const OG_TIER_GRADIENTS = [
+  'linear-gradient(to right, #d21203, #c40a01)',
+  'linear-gradient(to right, #ee1e1e, #f84a44)',
+  'linear-gradient(to right, #dca414, #dc991d)',
+  'linear-gradient(to right, #c98b17, #e8910f)',
+  'linear-gradient(to right, #7ad21f, #1aea1d)',
+  'linear-gradient(to right, #72b231, #0cd30e)',
+  'linear-gradient(to right, #4d7e15, #01b004)',
+];
+
 export class TierCortex {
   // this class isn't concerned about managing UI states, so tiers are managed externally
   private readonly packageItemLookup: PackageItemLookup;
   private customItemsMap: Map<string, StoredCustomItem>;
+  private readonly isServer: boolean;
+  private baseUrl: string;
+
 
   constructor() {
+    this.isServer = typeof window === 'undefined';
+    this.baseUrl = this.isServer ? process.env.NEXT_PUBLIC_BASE_URL || '' : window.location.origin;
     this.packageItemLookup = this.initializePackageItemLookup();
     this.customItemsMap = new Map<string, StoredCustomItem>();
-    this.initializeCustomItemsMap();
+
+    if (!this.isServer) {
+      this.initializeCustomItemsMap();
+    }
   }
 
   public static encodeTierStateForURL(tiers: Tier[]): string {
@@ -51,6 +69,11 @@ export class TierCortex {
     }));
     const jsonString = JSON.stringify(simplifiedTiers);
     return LZString.compressToEncodedURIComponent(jsonString);
+  }
+
+  public getOgTierGradient(index: number, tiersLength: number): string {
+    if (index === tiersLength - 1) return 'linear-gradient(to right, #f0f0f0, #f0f0f0)';
+    return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
   public decodeTierStateFromURL(encodedState: string): Tier[] | null {
@@ -72,6 +95,8 @@ export class TierCortex {
   }
 
   public addCustomItems(items: Item[]): void {
+    if (this.isServer) return;
+
     const newItems = items.map(item => ({
       i: item.id,
       c: item.content,
@@ -104,15 +129,28 @@ export class TierCortex {
     return DEFAULT_TIER_TEMPLATE;
   }
 
-  public resolveItemsFromPackage(packageName: string, filenames: string[]): Item[] {
-    return filenames.map(filename => {
-      const itemId = `${packageName}-${filename}`;
-      return this.resolveItem(itemId, filename.split('.')[0]);
-    });
+  public getOgSafeImageUrl(url: string): string {
+    // Convert WebP to PNG
+    if (url.toLowerCase().endsWith('.webp')) {
+      url = url.substring(0, url.length - 5) + '.png';
+    }
+
+    // Make URL absolute if it's not already
+    if (!url.startsWith('http')) {
+      url = new URL(url, this.baseUrl).toString();
+    }
+
+    return url;
+  }
+
+  public getOgSafeItem(item: Item): Item {
+    return {
+      ...item,
+      imageUrl: this.getOgSafeImageUrl(item.imageUrl ?? '')
+    };
   }
 
   private initializePackageItemLookup(): PackageItemLookup {
-    console.log('initializePackageItemLookup');
     let packageItemLookup: PackageItemLookup = {};
     for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
       for (const image of packageData.images) {
@@ -135,21 +173,20 @@ export class TierCortex {
   }
 
   private resolveItem(itemId: string, content: string): Item {
-    // 1. Check package items
     const packageItem = this.packageItemLookup[itemId];
     if (packageItem) return packageItem;
 
-    // 2. Check custom items
-    const customItem = this.customItemsMap.get(itemId);
-    if (customItem) {
-      return {
-        id: customItem.i,
-        content: content, // Use the content from the encoded URL
-        imageUrl: customItem.d,
-      };
+    if (!this.isServer) {
+      const customItem = this.customItemsMap.get(itemId);
+      if (customItem) {
+        return {
+          id: customItem.i,
+          content: content,
+          imageUrl: customItem.d,
+        };
+      }
     }
 
-    // 3. Create an item with the provided content
     return this.createPlaceholderItem(itemId, content);
   }
 
@@ -157,11 +194,13 @@ export class TierCortex {
     return {
       id: itemId,
       content,
-      imageUrl: '/placeholder-image.jpg',
+      imageUrl: this.getAbsoluteUrl('/placeholder-image.jpg'),
     };
   }
 
   private loadCustomItemsFromLocalStorage(): StoredCustomItem[] {
+    if (this.isServer) return [];
+
     const storedItems = localStorage.getItem(CUSTOM_ITEMS_KEY);
     if (!storedItems) return [];
     try {
@@ -170,6 +209,10 @@ export class TierCortex {
       console.error('Failed to parse stored custom items:', error);
       return [];
     }
+  }
+
+  private getAbsoluteUrl(path: string): string {
+    return new URL(path, this.baseUrl).toString();
   }
 }
 

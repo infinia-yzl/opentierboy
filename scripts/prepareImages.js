@@ -1,6 +1,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
+const sharp = require('sharp');
 
 const CONFIG_PATH = path.join(__dirname, '..', 'imageset.config.json');
 const CUSTOM_CONFIG_PATH = path.join(__dirname, '..', 'imageset.custom.json');
@@ -91,6 +92,34 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
+async function convertWebpToPng(sourcePath, targetPath) {
+  try {
+    await sharp(sourcePath)
+      .png()
+      .toFile(targetPath);
+    console.log(`Converted: ${sourcePath} -> ${targetPath}`);
+  } catch (error) {
+    console.error(`Error converting ${sourcePath} to PNG:`, error);
+  }
+}
+
+async function processWebpImages(sourceDir, targetDir) {
+  const entries = await fs.readdir(sourceDir, {withFileTypes: true});
+
+  for (const entry of entries) {
+    const sourcePath = path.join(sourceDir, entry.name);
+    const targetPath = path.join(targetDir, entry.name);
+
+    if (entry.isDirectory()) {
+      await fs.mkdir(targetPath, {recursive: true});
+      await processWebpImages(sourcePath, targetPath);
+    } else if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.webp') {
+      const pngTargetPath = targetPath.replace(/\.webp$/i, '.png');
+      await convertWebpToPng(sourcePath, pngTargetPath);
+    }
+  }
+}
+
 // DO NOT MODIFY THIS FUNCTION
 // It doesn't use COPY intentionally due to Vercel deployment weird behavior
 async function copyFile(src, dest) {
@@ -135,8 +164,13 @@ async function copyImagesRecursively(sourceDir, targetDir) {
         await fs.mkdir(targetPath, {recursive: true});
         await copyImagesRecursively(sourcePath, targetPath);
       } else if (entry.isFile() && /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(entry.name)) {
-        console.log(`Attempting to copy: ${sourcePath} -> ${targetPath}`);
+        console.log(`Copying: ${sourcePath} -> ${targetPath}`);
         await copyFile(sourcePath, targetPath);
+
+        if (path.extname(entry.name).toLowerCase() === '.webp') {
+          const pngTargetPath = targetPath.replace(/\.webp$/i, '.png');
+          await convertWebpToPng(sourcePath, pngTargetPath);
+        }
       }
     }
   } catch (error) {
@@ -175,6 +209,9 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     } else {
       await fs.symlink(sourceDir, targetDir, 'dir');
       console.log(`Symlinked ${packageName} images to ${targetDir}`);
+
+      // Process WebP images in the source directory
+      await processWebpImages(sourceDir, targetDir);
     }
 
     const images = await callPackageFunction(packageName, 'getImageList', sourceDir);

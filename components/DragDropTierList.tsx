@@ -8,6 +8,7 @@ import Tier from "@/models/Tier";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
+import {getTierGradient} from "@/lib/utils";
 
 interface DragDropTierListProps {
   tiers: Tier[];
@@ -25,20 +26,6 @@ const reorder = <T, >(list: T[], startIndex: number, endIndex: number): T[] => {
   const [removed] = result.splice(startIndex, 1);
   result.splice(endIndex, 0, removed);
   return result;
-};
-
-const getTierGradient = (index: number, tiersLength: number): string => {
-  if (index === tiersLength - 1) return '';
-
-  const tierGradientIndexMap = [0, 1, 2, 3, 4, 5, 6];
-  switch (tiersLength) {
-    case 4:
-      return `var(--tier-gradient-${[0, 2, 4][index % 3]})`;
-    case 6:
-      return `var(--tier-gradient-${[0, 1, 3, 4, 6][index % 5]})`;
-    default:
-      return `var(--tier-gradient-${tierGradientIndexMap[index % 7]})`;
-  }
 };
 
 const TierItems = memo<{
