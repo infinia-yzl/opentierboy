@@ -1001,6 +1001,414 @@
       },
       "googleFont": "Cinzel",
       "backgroundImage": "/splash/wuwa-bg-1.jpg"
+    },
+    "image-overwatch": {
+      "displayName": "OVERWATCH",
+      "images": [
+        {
+          "filename": "ana.webp",
+          "label": "Ana",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ash.webp",
+          "label": "Ashe",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "bal.webp",
+          "label": "Wrecking Ball",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "bap.webp",
+          "label": "Baptiste",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "bas.webp",
+          "label": "Bastion",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "brg.webp",
+          "label": "Brigitte",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "dfs.webp",
+          "label": "Doomfist",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "dva.webp",
+          "label": "D.Va",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ech.webp",
+          "label": "Echo",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "gen.webp",
+          "label": "Genji",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "han.webp",
+          "label": "Hanzo",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "hog.webp",
+          "label": "Roadhog",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ill.webp",
+          "label": "Illari",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "jqn.webp",
+          "label": "Junker Queen",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "jun.webp",
+          "label": "Juno",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "kir.webp",
+          "label": "Kiriko",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "luc.webp",
+          "label": "Lucio",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "mau.webp",
+          "label": "Mauga",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "mcr.webp",
+          "label": "Cassidy",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "mei.webp",
+          "label": "Mei",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "mer.webp",
+          "label": "Mercy",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "moi.webp",
+          "label": "Moira",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ori.webp",
+          "label": "Orisa",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "pha.webp",
+          "label": "Pharah",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ram.webp",
+          "label": "Ramattra",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "rat.webp",
+          "label": "Junkrat",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "rea.webp",
+          "label": "Reaper",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "rei.webp",
+          "label": "Reinhardt",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "s76.webp",
+          "label": "Soldier: 76",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "sig.webp",
+          "label": "Sigma",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "soj.webp",
+          "label": "Sojourn",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "som.webp",
+          "label": "Sombra",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "sym.webp",
+          "label": "Symmetra",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "tob.webp",
+          "label": "Torbjörn",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "tra.webp",
+          "label": "Tracer",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "ven.webp",
+          "label": "Venture",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "wdw.webp",
+          "label": "Widowmaker",
+          "tags": [
+            "dps",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "wea.webp",
+          "label": "Lifeweaver",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
+          "filename": "win.webp",
+          "label": "Winston",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "zar.webp",
+          "label": "Zarya",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_1"
+          ]
+        },
+        {
+          "filename": "zen.webp",
+          "label": "Zenyatta",
+          "tags": [
+            "sup",
+            "h_all",
+            "h_1"
+          ]
+        }
+      ],
+      "tags": {
+        "sup": {
+          "title": "Support",
+          "description": "Images of Overwatch support heroes",
+          "category": "general"
+        },
+        "h_all": {
+          "title": "All Heroes",
+          "description": "Images of all heroes from Overwatch 1 and 2",
+          "category": "general"
+        },
+        "h_1": {
+          "title": "Heroes from Overwatch 1",
+          "description": "Images of heroes from Overwatch 1",
+          "category": "general"
+        },
+        "dps": {
+          "title": "Damage",
+          "description": "Images of Overwatch damage (DPS) heroes",
+          "category": "general"
+        },
+        "tank": {
+          "title": "Tank",
+          "description": "Images of Overwatch tank heroes",
+          "category": "general"
+        },
+        "h_2": {
+          "title": "Heroes from Overwatch 2",
+          "description": "Images of heroes from Overwatch 2",
+          "category": "general"
+        }
+      },
+      "googleFont": "Russo One",
+      "backgroundImage": "/splash/overwatch-bg.jpg"
     }
   }
 }

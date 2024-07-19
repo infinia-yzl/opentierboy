@@ -12,6 +12,11 @@
       "displayName": "WUTHERING WAVES",
       "googleFont": "Cinzel",
       "backgroundImage": "/splash/wuwa-bg-1.jpg"
+    },
+    "image-overwatch": {
+      "displayName": "OVERWATCH",
+      "googleFont": "Russo One",
+      "backgroundImage": "/splash/overwatch-bg.jpg"
     }
   }
 }
