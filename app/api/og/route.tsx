@@ -3,19 +3,6 @@ import {TierCortex} from '@/lib/TierCortex';
 
 export const runtime = 'edge';
 
-async function fetchGoogleFont(fontFamily: string, weight: number, text: string) {
-  const API = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@${weight}&text=${encodeURIComponent(text)}`;
-  const css = await fetch(API).then((res) => res.text());
-  const resource = css.match(/src: url\((.+)\) format\('(opentype|truetype)'\)/);
-
-  if (!resource) {
-    throw new Error('Failed to fetch font');
-  }
-
-  const res = await fetch(resource[1]);
-  return res.arrayBuffer();
-}
-
 export async function GET(request: Request) {
   const {searchParams} = new URL(request.url);
   const state = searchParams.get('state');
@@ -37,11 +24,6 @@ export async function GET(request: Request) {
     });
   }
 
-  // Fetch Nunito Sans font
-  const fontNormal = await fetchGoogleFont('Nunito+Sans', 400, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
-  const fontBold = await fetchGoogleFont('Nunito+Sans', 700, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
-
-
   return new ImageResponse(
     (
       <div
@@ -51,7 +33,6 @@ export async function GET(request: Request) {
           width: '100%',
           height: '100%',
           backgroundColor: '#000',
-          fontFamily: 'Nunito Sans',
         }}
       >
         {/* Branding Text (replace with image later) */}
@@ -157,20 +138,6 @@ export async function GET(request: Request) {
     {
       width: 1200,
       height: 630,
-      fonts: [
-        {
-          name: 'Nunito Sans',
-          data: fontNormal,
-          style: 'normal',
-          weight: 400,
-        },
-        {
-          name: 'Nunito Sans',
-          data: fontBold,
-          style: 'normal',
-          weight: 700,
-        },
-      ]
     }
   );
 }
