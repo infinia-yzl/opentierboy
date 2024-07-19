@@ -150,6 +150,13 @@ export class TierCortex {
     };
   }
 
+  public resolveItemsFromPackage(packageName: string, filenames: string[]): Item[] {
+    return filenames.map(filename => {
+      const itemId = `${packageName}-${filename}`;
+      return this.resolveItem(itemId, filename.split('.')[0]);
+    });
+  }
+
   private initializePackageItemLookup(): PackageItemLookup {
     let packageItemLookup: PackageItemLookup = {};
     for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
