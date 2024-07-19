@@ -3,6 +3,19 @@ import {TierCortex} from '@/lib/TierCortex';
 
 export const runtime = 'edge';
 
+async function fetchGoogleFont(fontFamily: string, weight: number, text: string) {
+  const API = `https://fonts.googleapis.com/css2?family=${fontFamily}:wght@${weight}&text=${encodeURIComponent(text)}`;
+  const css = await fetch(API).then((res) => res.text());
+  const resource = css.match(/src: url\((.+)\) format\('(opentype|truetype)'\)/);
+
+  if (!resource) {
+    throw new Error('Failed to fetch font');
+  }
+
+  const res = await fetch(resource[1]);
+  return res.arrayBuffer();
+}
+
 export async function GET(request: Request) {
   const {searchParams} = new URL(request.url);
   const state = searchParams.get('state');
@@ -25,13 +38,9 @@ export async function GET(request: Request) {
   }
 
   // Fetch Nunito Sans font
-  const nunitoSansRegular = fetch(
-    new URL('https://fonts.gstatic.com/s/nunitosans/v12/pe0qMImSLYBIv1o4X1M8cce9I9s.woff2', import.meta.url)
-  ).then((res) => res.arrayBuffer());
+  const fontNormal = await fetchGoogleFont('Nunito+Sans', 400, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+  const fontBold = await fetchGoogleFont('Nunito+Sans', 700, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
 
-  const nunitoSansBold = fetch(
-    new URL('https://fonts.gstatic.com/s/nunitosans/v12/pe03MImSLYBIv1o4X1M8cc8GBs5tU1E.woff2', import.meta.url)
-  ).then((res) => res.arrayBuffer());
 
   return new ImageResponse(
     (
@@ -52,8 +61,18 @@ export async function GET(request: Request) {
           color: '#ffffff',
           textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
           padding: '10px',
+          paddingBottom: '0',
         }}>
-          OpenTierBoy
+          OpenTierBoy ~ opentierboy.com
+        </div>
+        <div style={{
+          fontSize: '22px',
+          color: '#ffffff',
+          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+          padding: '10px',
+          paddingTop: '0',
+        }}>
+          No ads, no logins, no sign ups. Create yours today.
         </div>
 
         {/* Uncomment when the branding image is ready */}
@@ -81,8 +100,7 @@ export async function GET(request: Request) {
             }}
           >
             <div style={{
-              fontSize: '36px',
-              fontWeight: 'bold',
+              fontSize: '28px',
               color: '#ffffff',
               marginRight: '10px',
               width: '50px',
@@ -142,13 +160,13 @@ export async function GET(request: Request) {
       fonts: [
         {
           name: 'Nunito Sans',
-          data: await nunitoSansRegular,
+          data: fontNormal,
           style: 'normal',
           weight: 400,
         },
         {
           name: 'Nunito Sans',
-          data: await nunitoSansBold,
+          data: fontBold,
           style: 'normal',
           weight: 700,
         },
