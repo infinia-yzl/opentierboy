@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm run prepare-images && next dev --turbo",
+    "dev": "npm run prepare-images && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -44,7 +44,7 @@
     "image-set": "^2.0.1",
     "image-wutheringwaves": "^1.0.1",
     "lz-string": "^1.5.0",
-    "next": "14.2.4",
+    "next": "14.2.5",
     "next-mdx-remote": "^5.0.0",
     "next-themes": "^0.3.0",
     "react": "^18",
@@ -65,6 +65,7 @@
     "eslint-config-next": "14.2.4",
     "eslint-config-prettier": "^9.1.0",
     "postcss": "^8",
+    "sharp": "^0.33.4",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
   }
