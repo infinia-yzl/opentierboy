@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const state = searchParams.get('state');
 
   if (!state) {
-    return new ImageResponse(<>Visit with "?state=..." query parameter</>, {
+    return new ImageResponse(<>Visit with &quot;?state=...&quot; query parameter</>, {
       width: 1200,
       height: 630,
     });
