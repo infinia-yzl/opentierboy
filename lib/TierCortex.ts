@@ -49,7 +49,10 @@ export class TierCortex {
 
   constructor() {
     this.isServer = typeof window === 'undefined';
-    this.baseUrl = this.isServer ? process.env.NEXT_PUBLIC_BASE_URL || '' : window.location.origin;
+    this.baseUrl = this.isServer ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : 'http://localhost:3000'
+      : window.location.origin;
     this.packageItemLookup = this.initializePackageItemLookup();
     this.customItemsMap = new Map<string, StoredCustomItem>();
 

@@ -81,13 +81,13 @@ export async function generateMetadata(
     ogImageUrl += `?state=${encodeURIComponent(initialState)}`;
   }
 
-  // If NEXT_PUBLIC_BASE_URL is defined and valid, prepend it to the ogImageUrl
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
+  // If VERCEL_PROJECT_PRODUCTION_URL is defined and valid, prepend it to the ogImageUrl
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     try {
-      const baseUrl = new URL(process.env.NEXT_PUBLIC_BASE_URL).toString().replace(/\/$/, '');
+      const baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
       ogImageUrl = `${baseUrl}${ogImageUrl}`;
     } catch (error) {
-      console.warn('Invalid NEXT_PUBLIC_BASE_URL, using relative path for OG image');
+      console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL, using relative path for OG image');
     }
   }
 

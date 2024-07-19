@@ -3,12 +3,83 @@ import {TierCortex} from '@/lib/TierCortex';
 
 export const runtime = 'edge';
 
+const DefaultOGImage = () => (
+  <div
+    style={{
+      display: 'flex',
+      flexDirection: 'column',
+      width: '100%',
+      height: '100%',
+      backgroundColor: '#000',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '20px',
+    }}
+  >
+    {/* Logo Placeholder */}
+    {/*<div*/}
+    {/*  style={{*/}
+    {/*    width: '200px',*/}
+    {/*    height: '200px',*/}
+    {/*    backgroundColor: '#333',*/}
+    {/*    borderRadius: '50%',*/}
+    {/*    display: 'flex',*/}
+    {/*    justifyContent: 'center',*/}
+    {/*    alignItems: 'center',*/}
+    {/*    marginBottom: '40px',*/}
+    {/*  }}*/}
+    {/*>*/}
+    {/*  <span style={{color: '#fff', fontSize: '24px', fontWeight: 'bold'}}>Logo</span>*/}
+    {/*</div>*/}
+
+    {/* Title */}
+    <h1
+      style={{
+        fontSize: '64px',
+        fontWeight: 'bold',
+        color: '#ffffff',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+        marginBottom: '20px',
+        textAlign: 'center',
+      }}
+    >
+      OpenTierBoy
+    </h1>
+
+    {/* Subtitle */}
+    <h2
+      style={{
+        fontSize: '36px',
+        color: '#ffffff',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+        marginBottom: '40px',
+        textAlign: 'center',
+      }}
+    >
+      No ads, no logins, no sign ups. Create tier lists for free.
+    </h2>
+
+    {/* Website URL */}
+    <div
+      style={{
+        position: 'absolute',
+        bottom: '20px',
+        fontSize: '24px',
+        color: '#ffffff',
+        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+      }}
+    >
+      opentierboy.com
+    </div>
+  </div>
+);
+
 export async function GET(request: Request) {
   const {searchParams} = new URL(request.url);
   const state = searchParams.get('state');
 
   if (!state) {
-    return new ImageResponse(<>Visit with &quot;?state=...&quot; query parameter</>, {
+    return new ImageResponse(<DefaultOGImage/>, {
       width: 1200,
       height: 630,
     });
@@ -18,7 +89,7 @@ export async function GET(request: Request) {
   const tiers = tierCortex.decodeTierStateFromURL(state);
 
   if (!tiers) {
-    return new ImageResponse(<>Failed to decode tier state</>, {
+    return new ImageResponse(<DefaultOGImage/>, {
       width: 1200,
       height: 630,
     });
