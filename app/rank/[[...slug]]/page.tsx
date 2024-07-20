@@ -3,7 +3,7 @@ import {ItemSet} from "@/models/ItemSet";
 import ImageSetConfig from "@/models/ImageSet";
 import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
-import {slugify} from "@/lib/utils";
+import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -11,10 +11,6 @@ const TierListManager = dynamic(
   () => import('@/components/TierListManager'),
   {ssr: false}
 );
-
-function createSEOFriendlyTagSlug(tag: string): string {
-  return tag ? tag.toLowerCase().replace(/_+/g, '-').replace(/^-|-$/g, '') : '';
-}
 
 export async function generateStaticParams() {
   const params: { slug: string[] }[] = [];

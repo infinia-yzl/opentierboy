@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {Button} from "@/components/ui/button";
 import {Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
-import {slugify, cn} from "@/lib/utils";
+import {slugify, cn, createSEOFriendlyTagSlug} from "@/lib/utils";
 import {getFont, FontName} from '@/lib/fonts';
 
 interface PackageCardProps {
@@ -60,7 +60,7 @@ const PackageCard: React.FC<PackageCardProps> = ({packageData, tags}) => {
                 "group-hover:hover:bg-white/30"  // Additional hover effect when card is hovered
               )}
             >
-              <Link href={`/rank/${slugify(packageData.displayName)}/${tagName}`}>
+              <Link href={`/rank/${slugify(packageData.displayName)}/${createSEOFriendlyTagSlug(tagName)}`}>
                 {tagName === 'all' ? 'All Items' : packageData.tags[tagName]?.title || tagName}
               </Link>
             </Button>
