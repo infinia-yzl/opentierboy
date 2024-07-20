@@ -31,10 +31,10 @@ const Home = () => {
       <div className="text-center mb-8">
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
           Welcome to OpenTierBoy
+          <span className="flex justify-center text-xl text-muted-foreground mt-4 mb-4 font-normal tracking-wide">
+            Craft, rank, share your tier lists - free and open-source.
+          </span>
         </h1>
-        <p className="text-xl text-muted-foreground [&:not(:first-child)]:mt-4 mb-4">
-          Craft, rank, share your tier lists - free and open-source.
-        </p>
         <Button asChild variant="outline" size="sm">
           <Link href={"/about"}>
             Learn More

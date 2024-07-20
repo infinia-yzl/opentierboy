@@ -1,9 +1,10 @@
 import imagesetConfig from "@/imageset.config.json";
 import {ItemSet} from "@/models/ItemSet";
 import ImageSetConfig from "@/models/ImageSet";
-import {slugify} from "@/lib/utils";
 import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
+import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
+import {redirect} from "next/navigation";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const TierListManager = dynamic(
@@ -19,14 +20,15 @@ export async function generateStaticParams() {
     [packageName, displayNameSlug].forEach(nameOrPackage => {
       params.push({slug: [nameOrPackage, 'all']});
       Object.keys(packageData.tags).forEach((tagName) => {
-        params.push({slug: [nameOrPackage, tagName]});
+        const seoFriendlyTag = createSEOFriendlyTagSlug(tagName);
+        params.push({slug: [nameOrPackage, seoFriendlyTag]});
       });
     });
   });
   return params;
 }
 
-async function getItemSetData(nameOrPackage: string, tagName: string): Promise<ItemSet | null> {
+async function getItemSetData(nameOrPackage: string, tagSlug: string): Promise<ItemSet | null> {
   let packageName: string | undefined;
   let packageData: ImageSetConfig["packages"]["data"] | undefined;
 
@@ -46,15 +48,24 @@ async function getItemSetData(nameOrPackage: string, tagName: string): Promise<I
 
   if (!packageName || !packageData) return null;
 
-  const images = tagName === 'all'
+  // Find the original tag that matches either the exact slug or the normalized version
+  const originalTag = tagSlug === 'all'
+    ? 'all'
+    : Object.keys(packageData.tags).find(tag =>
+      tag === tagSlug || createSEOFriendlyTagSlug(tag) === tagSlug
+    );
+
+  if (!originalTag) return null;
+
+  const images = originalTag === 'all'
     ? packageData.images.map((img) => img.filename)
-    : packageData.images.filter(image => image.tags.includes(tagName)).map(img => img.filename);
+    : packageData.images.filter(image => image.tags.includes(originalTag)).map(img => img.filename);
 
   return {
     packageName,
     packageDisplayName: packageData.displayName,
-    tagName,
-    tagTitle: tagName === 'all' ? 'All Items' : packageData.tags[tagName].title,
+    tagName: originalTag,
+    tagTitle: originalTag === 'all' ? 'All Items' : packageData.tags[originalTag].title,
     images
   };
 }
@@ -91,6 +102,14 @@ export async function generateMetadata(
     }
   }
 
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description: `Create and share tier lists for ${itemSet?.packageDisplayName || 'various topics'}`,
+    image: ogImageUrl,
+  };
+
   return {
     title,
     openGraph: {
@@ -102,22 +121,59 @@ export async function generateMetadata(
       title,
       images: [ogImageUrl],
     },
+    other: {
+      'application-name': 'OpenTierBoy',
+    },
+    alternates: {
+      canonical: `/${params.slug?.join('/') || ''}`,
+      types: {
+        'application/ld+json': JSON.stringify(structuredData),
+      },
+    },
   }
 }
 
-export default async function TierListPage({params, searchParams}: {
+export default async function TierListPage({
+  params,
+  searchParams
+}: {
   params: { slug?: string[] },
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
-  const [nameOrPackage, tagName] = params.slug || [];
-  const itemSet = nameOrPackage && tagName ? await getItemSetData(nameOrPackage, tagName) : null;
+  const [nameOrPackage, tagSlug] = params.slug || [];
 
-  const title = itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
+  // If no slug is provided, render an empty tier list
+  if (!nameOrPackage) {
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <TierListManager
+          initialItemSet={undefined}
+          initialState={undefined}
+          title="Custom Tier List"
+        />
+      </div>
+    );
+  }
 
+  // Only normalize and redirect if both nameOrPackage and tagSlug are present
+  if (nameOrPackage && tagSlug) {
+    const normalizedTagSlug = createSEOFriendlyTagSlug(tagSlug);
+    if (normalizedTagSlug !== tagSlug) {
+      const searchParamsString = new URLSearchParams(searchParams as Record<string, string>).toString();
+      const redirectUrl = `/rank/${nameOrPackage}/${normalizedTagSlug}${searchParamsString ? `?${searchParamsString}` : ''}`;
+      redirect(redirectUrl);
+    }
+  }
+
+  const itemSet = await getItemSetData(nameOrPackage, tagSlug);
+
+  const title = itemSet
+    ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}`
+    : 'Custom Tier List';
   const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
   return (
-    <div className="flex flex-col items-center justify-between">
+    <div className="flex flex-col items-center justify-center">
       <TierListManager
         initialItemSet={itemSet ?? undefined}
         initialState={initialState}

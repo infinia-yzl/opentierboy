@@ -6,17 +6,17 @@
     "image-reachthefinals": {
       "displayName": "THE FINALS",
       "googleFont": "Saira",
-      "backgroundImage": "/splash/thefinals-red-bg.png"
+      "backgroundImage": "/splash/thefinals-red-bg.webp"
     },
     "image-wutheringwaves": {
       "displayName": "WUTHERING WAVES",
       "googleFont": "Cinzel",
-      "backgroundImage": "/splash/wuwa-bg-1.jpg"
+      "backgroundImage": "/splash/wuwa-bg-1.webp"
     },
     "image-overwatch": {
       "displayName": "OVERWATCH",
       "googleFont": "Russo One",
-      "backgroundImage": "/splash/overwatch-bg.jpg"
+      "backgroundImage": "/splash/overwatch-bg.webp"
     }
   }
 }

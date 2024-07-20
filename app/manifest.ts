@@ -27,9 +27,14 @@ export default function manifest(): MetadataRoute.Manifest {
       },
       {
         "name": "Rank Wuthering Waves Resonators",
-        "url": "/rank/wuthering-waves/c_all",
+        "url": "/rank/wuthering-waves/c-all",
         "description": "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
-      }
+      },
+      {
+        "name": "Rank Overwatch Heroes",
+        "url": "/rank/overwatch/h-all",
+        "description": "Rank Overwatch Heroes in your own tier list and share it with the community"
+      },
     ],
     categories: ["productivity", "utilities"],
   }

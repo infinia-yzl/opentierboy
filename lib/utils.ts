@@ -29,3 +29,7 @@ export const getTierGradient = (index: number, tiersLength: number): string => {
       return `var(--tier-gradient-${tierGradientIndexMap[index % 7]})`;
   }
 };
+
+export function createSEOFriendlyTagSlug(tag: string): string {
+  return tag ? tag.toLowerCase().replace(/_+/g, '-').replace(/^-|-$/g, '') : '';
+}

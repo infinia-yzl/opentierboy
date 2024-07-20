@@ -51,7 +51,7 @@ export default function RootLayout({
       <header className="w-full border-b" data-html2canvas-ignore>
         <div className="max-w-screen-lg mx-auto px-4">
           <div className="flex flex-row py-4 justify-between items-center">
-            <a href="/" className="text-xl"><h1>OpenTierBoy</h1></a>
+            <a href="/" className="text-xl font-heading">OpenTierBoy</a>
             <div className="space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
