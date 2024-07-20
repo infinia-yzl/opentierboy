@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   title: "OpenTierBoy - Craft, Rank, Share Your Tier Lists",
   description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank, and share your passion! No ads, no logins, no sign-ups.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
+  openGraph: {
+    url: "https://opentierboy.com",
+    siteName: "OpenTierBoy",
+  }
 };
 
 export default function RootLayout({
