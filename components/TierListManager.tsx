@@ -169,7 +169,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   return (
     <TierContext.Provider value={contextValue}>
       <div className="mb-4">
-        <EditableLabel as="h2" text={name} onSave={setName} placeholder="Enter title"
+        <EditableLabel as="h1" text={name} onSave={setName} placeholder="Enter title"
                        contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
       </div>
       <div className="flex flex-col items-center hide-in-zen">
@@ -183,7 +183,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
             undoReset={undoReset}
             undoDelete={undoDelete}
           />
-          <ShareButton/>
+          <ShareButton title={name}/>
         </div>
         <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
