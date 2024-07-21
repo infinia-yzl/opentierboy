@@ -264,6 +264,5 @@ What do you think? 🤔
     </Popover>
   );
 };
-;
 
 export default ShareButton;
