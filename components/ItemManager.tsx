@@ -128,8 +128,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Add Items</DropdownMenuLabel>
+          <DropdownMenuLabel>Add Items</DropdownMenuLabel>
+          <DropdownMenuGroup className="mx-2">
             <DropdownMenuItem onSelect={() => setIsItemSetSelectorOpen(true)}>
               From template
             </DropdownMenuItem>
