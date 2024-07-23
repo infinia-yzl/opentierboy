@@ -11,6 +11,7 @@ import {EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
 import Image from "next/image";
 import {FaDiscord} from "react-icons/fa6";
+import otbLogo from "@/public/brand/otb-logo-wide.webp";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -63,8 +64,8 @@ export default function RootLayout({
       <header className="w-full border-b" data-html2canvas-ignore>
         <div className="max-w-screen-lg mx-auto px-4">
           <div className="flex flex-row py-4 justify-between items-center">
-            <a href="/" className="text-xl font-heading">
-              <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={150} height={50}/>
+            <a href="/" className="text-xl font-heading ">
+              <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
             </a>
             <div className="flex justify-center space-x-1">
               <ZenToggle/>

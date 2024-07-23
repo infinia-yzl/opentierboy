@@ -4,9 +4,11 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {ReaderIcon} from "@radix-ui/react-icons";
 import {Toggle} from "@/components/ui/toggle";
 import {toast} from "sonner";
+import {usePathname} from "next/navigation";
 
 export function ZenToggle() {
   const [isZenMode, setIsZenMode] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Check initial state
@@ -26,6 +28,8 @@ export function ZenToggle() {
 
     toast(zenModeMessage, zenModeData);
   }, []);
+
+  if (!pathname.includes('rank')) return null;
 
   return (
     <Toggle
