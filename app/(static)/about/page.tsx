@@ -3,6 +3,7 @@ import {Card, CardContent, CardHeader} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {DiscordLogoIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
 import Image from "next/image";
+import otbLogo from "@/public/brand/otb-logo-wide.webp";
 
 const AboutPage = () => {
   return (
@@ -10,8 +11,8 @@ const AboutPage = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
-          <div className="flex justify-center mb-6">
-            <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={600} height={200} priority/>
+          <div className="flex justify-center mb-6 max-w-[600]">
+            <Image src={otbLogo} alt="OpenTierBoy" priority/>
           </div>
           Craft, rank and share your passion - the open-source way!
         </h1>
