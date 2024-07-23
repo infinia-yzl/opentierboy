@@ -2,18 +2,19 @@ import React from 'react';
 import {Card, CardContent, CardHeader} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
 import {DiscordLogoIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import Image from "next/image";
 
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-6xl md:text-8xl font-extrabold mb-6">
-          OpenTierBoy
-        </h1>
-        <p className="text-2xl md:text-3xl font-light mb-12">
+        <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
+          <div className="flex justify-center mb-6">
+            <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={600} height={200}/>
+          </div>
           Craft, rank and share your passion - the open-source way!
-        </p>
+        </h1>
       </section>
 
       {/* Mission Section */}
