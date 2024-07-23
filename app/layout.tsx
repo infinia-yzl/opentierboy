@@ -64,7 +64,7 @@ export default function RootLayout({
         <div className="max-w-screen-lg mx-auto px-4">
           <div className="flex flex-row py-4 justify-between items-center">
             <a href="/" className="text-xl font-heading">
-              <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={150} height={50}/>
+              <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={150} height={40} priority/>
             </a>
             <div className="flex justify-center space-x-1">
               <ZenToggle/>

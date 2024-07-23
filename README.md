@@ -52,7 +52,7 @@ We welcome contributions to OpenTierBoy! Whether you're fixing bugs, adding new 
 sets, your input is valuable.
 
 For detailed information on how to contribute, including guidelines for code contributions and instructions for
-submitting new image sets, please see our CONTRIBUTING.md file.
+submitting new image sets, please see our [CONTRIBUTING](CONTRIBUTING.md) file.
 
 ## 🐛 Reporting Issues
 
