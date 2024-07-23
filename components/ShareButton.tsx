@@ -114,7 +114,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     const shareText = `I've just ranked **${title}** on OpenTierBoy.
 What do you think? 🤔
 [Check it out on OpenTierBoy!](${window.location.href})
--# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://opentierboy.com/\`.
+-# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://www.opentierboy.com/\`.
 `;
     navigator.clipboard.writeText(shareText).then(() => {
       toast.success('Markdown copied to clipboard', {

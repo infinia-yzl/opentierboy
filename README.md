@@ -1,6 +1,29 @@
-# OpenTierBoy
+<p align="center">
+  <a href="https://opentierboy.com">
+    <picture>
+      <img src="public/brand/otb-logo-wide.webp" height="172" alt="OpenTierBoy">
+    </picture>
+  </a>
+</p>
+<p align="center">
+  <a aria-label="License" href="LICENSE">
+    <img alt="" src="https://img.shields.io/github/license/infinia-yzl/opentierboy?style=for-the-badge&labelColor=000000">
+  </a>
+  <a aria-label="Vercel Deploy Status" href="https://opentierboy.com">
+    <img alt="" src="https://img.shields.io/github/deployments/infinia-yzl/opentierboy/Production?style=for-the-badge&labelColor=000&label=vercel&logo=vercel">
+  </a>
+  <a aria-label="Join the community on Discord" href="https://discord.gg/CEtDSHV38b">
+    <img alt="" src="https://img.shields.io/discord/1262730165838938112?style=for-the-badge&labelColor=000&label=discord&logo=discord&logoColor=white">
+  </a>
+</p>
 
-Welcome to OpenTierBoy - the open-source tier list creator that helps you craft, rank, and share your passion!
+## 🚀 Getting Started
+
+1. Visit [https://opentierboy.com](https://opentierboy.com)
+2. Choose a template or start from scratch
+3. Craft your tier list by dragging and dropping items
+4. Add more images from our image set templates or add your own images if desired
+5. Share your creation using _Copy Jutsu_ (URL) or capture a _Freeze Frame_ (screenshot)
 
 ## 🌟 Features
 
@@ -23,41 +46,13 @@ provide a platform for learning and collaboration.
 - **Educational**: Developers can learn from and build upon our codebase.
 - **Customizable**: Users can fork and modify the project to suit their specific needs.
 
-## 🚀 Getting Started
-
-1. Visit [https://opentierboy.com](https://opentierboy.com)
-2. Choose a template or start from scratch
-3. Craft your tier list by dragging and dropping items
-4. Add your own images if desired
-5. Share your creation using _Copy Jutsu_ (URL) or capture a _Freeze Frame_ (screenshot)
-
-## 💡 How to Use
-
-1. **Select a Realm**: Choose from our pre-made Ranking Categories or start with a blank slate.
-2. **Customize**: Arrange items in your preferred tiers.
-3. **Summon Characters**: Click the upload button to add custom images from your device.
-4. **Adjust Tiers**: Modify tiers as needed.
-5. **Copy Jutsu**: Get a unique, stateful URL to share your rankings.
-6. **Freeze Frame**: Save your rankings as an image.
-
 ## 🤝 Contributing
 
-We welcome contributions to OpenTierBoy! Here's how you can help forge the legend:
+We welcome contributions to OpenTierBoy! Whether you're fixing bugs, adding new features, or contributing new image
+sets, your input is valuable.
 
-1. **Fork the Repository**: Create your own fork of the project.
-2. **Clone**: `git clone https://github.com/your-username/opentierboy.git`
-3. **Create a Branch**: `git checkout -b feature/AmazingFeature`
-4. **Make Changes**: Implement your feature or bug fix.
-5. **Commit**: `git commit -m 'Add some AmazingFeature'`
-6. **Push**: `git push origin feature/AmazingFeature`
-7. **Open a Pull Request**: Submit your changes for review.
-
-### Contribution Guidelines
-
-- Ensure your code adheres to the project's coding standards.
-- Write clear, concise commit messages.
-- If adding a new feature, please include relevant information and documentation.
-- Be respectful and constructive in discussions and code reviews.
+For detailed information on how to contribute, including guidelines for code contributions and instructions for
+submitting new image sets, please see our CONTRIBUTING.md file.
 
 ## 🐛 Reporting Issues
 
@@ -89,6 +84,22 @@ See the [LICENSE](LICENSE) file for full details.
 Join our [Discord server](https://discord.gg/CEtDSHV38b) to share your tier lists, discuss features, and connect
 with other rankers!
 
+## 🙏 Credits and Attributions
+
+OpenTierBoy is built on the shoulders of giants. We're grateful to the creators and maintainers of all our dependencies,
+including but not limited to:
+
+- [Next.js](https://nextjs.org/) - The React framework for production.
+- [shadcn/ui](https://ui.shadcn.com/) - Beautifully designed components built with Radix UI and Tailwind CSS.
+- [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) - Beautiful and accessible drag and drop for lists with
+  React.
+- [html2canvas-pro](https://yorickshan.github.io/html2canvas-pro/) & [html2canvas](https://html2canvas.hertzen.com/) -
+  Screenshots with JavaScript.
+- [lz-string](https://github.com/pieroxy/lz-string/) - LZ-based compression algorithm for JavaScript.
+
+These are just a few examples of the many excellent libraries we use. For a full list of dependencies, please see our
+package.json file. Every package contributes to making OpenTierBoy what it is today.
+
 ---
 
-Craft, Rank, Share - Your Tiers with OpenTierBoy!
+Craft, Rank, and Share Your Passion with OpenTierBoy!

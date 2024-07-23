@@ -1,6 +1,6 @@
 {
-  "name": "tier-author",
-  "version": "0.1.0",
+  "name": "opentierboy",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "npm run prepare-images && next dev",
