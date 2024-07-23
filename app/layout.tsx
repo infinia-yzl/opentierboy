@@ -23,12 +23,22 @@ const fontHeading = FontHeading({
 })
 
 export const metadata: Metadata = {
-  title: "OpenTierBoy - Craft, Rank, Share Your Tier Lists",
-  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank, and share your passion! No ads, no logins, no sign-ups.",
+  title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
+  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
+  icons: [
+    {rel: 'icon', url: '/favicon.ico'},
+    {rel: 'apple-touch-icon', url: '/apple-touch-icon.png'},
+    {rel: 'icon', url: '/favicon-32x32.png', sizes: '32x32'},
+    {rel: 'icon', url: '/favicon-16x16.png', sizes: '16x16'},
+  ],
   openGraph: {
+    title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
     url: "https://opentierboy.com",
     siteName: "OpenTierBoy",
+    locale: 'en_US',
+    type: 'website',
   }
 };
 
