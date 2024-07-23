@@ -27,14 +27,18 @@ const FEATURED_SETS = {
 
 const Home = () => {
   return (
-    <main className="container mx-auto px-8 py-4">
-      <div className="text-center mb-8">
-        <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">
-          Welcome to OpenTierBoy
-          <span className="flex justify-center text-xl text-muted-foreground mt-4 mb-4 font-normal tracking-wide">
-            Craft, rank, share your tier lists - free and open-source.
-          </span>
-        </h1>
+    <div className="container mx-auto px-8 py-4">
+      <div className="text-center mb-8 md:my-8">
+        <div className="text-center">
+          <h1 className="relative inline-block mb-4">
+            <span className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+              Free and Open-Source Tier Lists
+            </span>
+            <span className="block text-xl text-muted-foreground mt-4 font-normal tracking-wide">
+              Craft, rank and share your passion with OpenTierBoy.
+            </span>
+          </h1>
+        </div>
         <Button asChild variant="outline" size="sm">
           <Link href={"/about"}>
             Learn More
@@ -76,7 +80,7 @@ const Home = () => {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </div>
   );
 };
 

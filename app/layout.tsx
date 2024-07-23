@@ -7,8 +7,10 @@ import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ThemeSelector} from "@/components/ThemeSelector";
-import {DiscordLogoIcon, EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
+import Image from "next/image";
+import {FaDiscord} from "react-icons/fa6";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -21,12 +23,22 @@ const fontHeading = FontHeading({
 })
 
 export const metadata: Metadata = {
-  title: "OpenTierBoy - Craft, Rank, Share Your Tier Lists",
-  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank, and share your passion! No ads, no logins, no sign-ups.",
+  title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
+  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
+  icons: [
+    {rel: 'icon', url: '/favicon.ico'},
+    {rel: 'apple-touch-icon', url: '/apple-touch-icon.png'},
+    {rel: 'icon', url: '/favicon-32x32.png', sizes: '32x32'},
+    {rel: 'icon', url: '/favicon-16x16.png', sizes: '16x16'},
+  ],
   openGraph: {
+    title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
     url: "https://opentierboy.com",
     siteName: "OpenTierBoy",
+    locale: 'en_US',
+    type: 'website',
   }
 };
 
@@ -51,8 +63,10 @@ export default function RootLayout({
       <header className="w-full border-b" data-html2canvas-ignore>
         <div className="max-w-screen-lg mx-auto px-4">
           <div className="flex flex-row py-4 justify-between items-center">
-            <a href="/" className="text-xl font-heading">OpenTierBoy</a>
-            <div className="space-x-1">
+            <a href="/" className="text-xl font-heading">
+              <Image src="/brand/otb-logo-wide.webp" alt="OpenTierBoy" width={150} height={50}/>
+            </a>
+            <div className="flex justify-center space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
                 <ThemeSelector/>
@@ -62,7 +76,7 @@ export default function RootLayout({
         </div>
       </header>
 
-      <main className="flex-grow md:my-8">
+      <main className="flex-grow my-2 md:my-4">
         <div className="max-w-screen-lg mx-auto px-4">
           {children}
         </div>
@@ -87,7 +101,7 @@ export default function RootLayout({
                 <Button variant="ghost" asChild size="icon">
                   <a href="https://discord.gg/CEtDSHV38b" className="text-foreground hover:text-primary"
                      aria-label="Discord">
-                    <DiscordLogoIcon className="h-5 w-5"/>
+                    <FaDiscord className="h-5 w-5"/>
                   </a>
                 </Button>
                 <Button variant="ghost" asChild size="icon">
