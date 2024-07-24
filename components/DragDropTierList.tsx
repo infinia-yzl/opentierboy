@@ -103,12 +103,14 @@ const TierRow = memo<{
               : provided.draggableProps.style?.transition,
           }}
         >
-          <div className="flex-1">
+          <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
             {labelPosition === 'top' && index !== tiersLength - 1 && (
               <EditableLabel
                 text={tier.name}
                 onSave={(newText) => onSaveLabel(index, newText)}
-                as="h3"
+                className="p-1"
+                contentClassName="tracking-wide text-xl font-semibold"
+                as="h2"
               />
             )}
             <div
@@ -118,8 +120,9 @@ const TierRow = memo<{
                   <EditableLabel
                     text={tier.name}
                     onSave={(newText) => onSaveLabel(index, newText)}
-                    className="p-1 flex flex-1 min-w-16 justify-center text-center"
-                    as="h3"
+                    className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
+                    contentClassName="tracking-wide text-xl font-semibold"
+                    as="h2"
                   />
                 </div>
               )}
