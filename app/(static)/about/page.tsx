@@ -1,9 +1,10 @@
 import React from 'react';
 import {Card, CardContent, CardHeader} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
-import {DiscordLogoIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import Image from "next/image";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
+import {FaDiscord} from "react-icons/fa6";
 
 const AboutPage = () => {
   return (
@@ -148,7 +149,7 @@ const AboutPage = () => {
               </Button>
               <Button variant="secondary" asChild>
                 <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2" aria-label="Discord">
-                  <DiscordLogoIcon className="h-5 w-5"/>
+                  <FaDiscord className="h-5 w-5"/>
                   <span>Join our Discord</span>
                 </a>
               </Button>

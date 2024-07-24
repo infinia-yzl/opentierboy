@@ -1,5 +1,7 @@
-import RemoteMdxComponent from "@/components/RemoteMdxComponent";
+import {ContentPage, generateContentMetadata} from "@/components/ContentPage";
 
 export default function TermsPage() {
-  return <RemoteMdxComponent filename="TERMS.md"/>;
+  return <ContentPage filename="TERMS.md"/>;
 }
+
+export const generateMetadata = () => generateContentMetadata("TERMS.md");
