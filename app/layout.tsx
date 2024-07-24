@@ -65,28 +65,28 @@ export default function RootLayout({
       <header className="w-full border-b" data-html2canvas-ignore>
         <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
-            <div className="flex flex-row space-x-6">
-              <a href="/" className="text-xl font-heading ">
+            <div className="flex flex-row items-center space-x-6">
+              <a href="/" className="flex items-center">
                 <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
               </a>
-              <nav className="flex space-x-2 align-middle">
-                <a href="/about" className="p-1">
-                  <Button variant="ghost" className="text-muted-foreground">
+              <nav className="flex space-x-2">
+                <Button asChild variant="ghost" className="text-muted-foreground">
+                  <a href="/about">
                     About
-                  </Button>
-                </a>
-                <a href="/blog" className="p-1">
-                  <Button variant="ghost" className="text-muted-foreground">
+                  </a>
+                </Button>
+                <Button asChild variant="ghost" className="text-muted-foreground">
+                  <a href="/blog">
                     Blog
-                  </Button>
-                </a>
+                  </a>
+                </Button>
               </nav>
             </div>
             <div className="flex justify-center space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
-                <ThemeSelector/>
-              </span>
+          <ThemeSelector/>
+        </span>
             </div>
           </div>
         </div>
