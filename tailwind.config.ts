@@ -80,7 +80,12 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function ({addVariant}: Config) {
+      addVariant('zen-mode', '.zen-mode &')
+    },
+  ],
 } satisfies Config
 
 export default config

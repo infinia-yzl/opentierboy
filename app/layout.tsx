@@ -62,7 +62,7 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <header className="w-full border-b" data-html2canvas-ignore>
-        <div className="max-w-screen-2xl mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
             <a href="/" className="text-xl font-heading ">
               <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
@@ -78,13 +78,13 @@ export default function RootLayout({
       </header>
 
       <main className="flex-grow my-2 md:my-4">
-        <div className="max-w-screen-2xl mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           {children}
         </div>
       </main>
 
       <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
-        <div className="max-w-screen-2xl mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:hide-in-zen mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
