@@ -29,6 +29,13 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --tier-gradient-0: linear-gradient(to right, #f18c85, #f64f44);
+    --tier-gradient-1: linear-gradient(to right, #f19180, #f87444);
+    --tier-gradient-2: linear-gradient(to right, #f5c86a, #fffd7f);
+    --tier-gradient-3: linear-gradient(to right, #f6de6a, #f5da30);
+    --tier-gradient-4: linear-gradient(to right, #98f860, #83f669);
+    --tier-gradient-5: linear-gradient(to right, #abf398, #a9ffa0);
+    --tier-gradient-6: linear-gradient(to right, #dcfacc, #9cf59e);
   }
 
   .dark {
@@ -56,27 +63,13 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-  }
-
-  /* Default theme tier gradients */
-  :root {
-    --tier-gradient-0: linear-gradient(to right, #f18c85, #f64f44);
-    --tier-gradient-1: linear-gradient(to right, #f19180, #f87444);
-    --tier-gradient-2: linear-gradient(to right, #f5c86a, #fffd7f);
-    --tier-gradient-3: linear-gradient(to right, #f6de6a, #f5da30);
-    --tier-gradient-4: linear-gradient(to right, #98f860, #83f669);
-    --tier-gradient-5: linear-gradient(to right, #abf398, #a9ffa0);
-    --tier-gradient-6: linear-gradient(to right, #dcfacc, #9cf59e);
-  }
-
-  .dark {
-    --tier-gradient-0: linear-gradient(to right, #d21203, #c40a01);
-    --tier-gradient-1: linear-gradient(to right, #ee1e1e, #f84a44);
-    --tier-gradient-2: linear-gradient(to right, #dca414, #dc991d);
-    --tier-gradient-3: linear-gradient(to right, #c98b17, #e8910f);
-    --tier-gradient-4: linear-gradient(to right, #7ad21f, #1aea1d);
-    --tier-gradient-5: linear-gradient(to right, #72b231, #0cd30e);
-    --tier-gradient-6: linear-gradient(to right, #4d7e15, #01b004);
+    --tier-gradient-0: linear-gradient(to right, #a61103, #960b01);
+    --tier-gradient-1: linear-gradient(to right, #be1919, #c63e3a);
+    --tier-gradient-2: linear-gradient(to right, #b58711, #b37e18);
+    --tier-gradient-3: linear-gradient(to right, #a47313, #bc770c);
+    --tier-gradient-4: linear-gradient(to right, #63aa1a, #18aa19);
+    --tier-gradient-5: linear-gradient(to right, #5e9128, #0aa80c);
+    --tier-gradient-6: linear-gradient(to right, #3f6712, #019004);
   }
 
   /* Ocean theme */
