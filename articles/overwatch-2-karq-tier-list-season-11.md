@@ -21,6 +21,10 @@ Tank players found themselves with more options as several off-tanks received bu
 compositions. Support heroes also saw adjustments, with some becoming more self-sufficient and others gaining enhanced
 utility.
 
+The impact of these changes was significant, with Game Director Aaron Keller revealing some official win rates. For
+instance, Pharah boasted a 58% win rate across all ranks at the beginning of Season 11, highlighting the strength of
+certain heroes in the new meta.
+
 These changes prompted players and content creators alike to reassess hero viability, leading to updated tier lists and
 strategy discussions within the community. KarQ, a prominent Overwatch content creator known for his insightful
 analysis, was quick to provide his rankings for the new season.
@@ -67,8 +71,8 @@ In a nutshell, OpenTierBoy offers:
 - **Flexible Creation**: Drag and drop items to arrange your tier list, with options to use customize the tier systems,
   use templates or start from scratch.
 - **Sharing Capabilities**:
-    - Generate a stateful URL (Copy Jutsu) that allows others to view or edit your tier list.
-    - Capture your tier list as an image (Freeze Frame) for quick sharing.
+    - Generate a stateful URL that allows others to view or edit your tier list -  _Copy Jutsu_.
+    - Capture your tier list as an image for quick sharing - _Freeze Frame_.
 - **A Focus on Privacy**: No tracking or ads, just straightforward tier list creation.
 
 ## KarQ's Season 11 Tier Lists (thus far)
@@ -83,6 +87,20 @@ You can view, interact, modify these tier lists to explore hero placements and c
 OpenTierBoy's stateful URLs make it easy to navigate through different versions of a tier list. As you make changes to
 the tier list, the URL updates automatically, allowing you to use your browser's back and forward buttons to move
 between different states of your tier list.
+
+## Key Factors Influencing Hero Placements
+
+KarQ's tier lists are influenced by several factors beyond just hero abilities:
+
+- Armor Changes: The mid-season patch included significant changes to how armor works, affecting many heroes. For
+  instance, D.Va benefited greatly from these changes, while heroes like Soldier: 76 and Sojourn were negatively
+  impacted.
+- Rise of 'Flyers': Heroes like Pharah and Echo saw increased play, influencing the viability of other heroes who
+  struggle to counter them.
+- Tank Dominance: The patch emphasized the strength of tanks, with KarQ referring to them as 'Kaiju Titans.' This shift
+  affected which DPS and support heroes were most effective.
+- Specific Ability Changes: KarQ discusses how even small changes to abilities can have significant impacts. For
+  example, the adjustment to Cassidy's falloff range changed his optimal playstyle.
 
 ## OpenTierBoy: Streamlining Content Creation
 
@@ -107,39 +125,16 @@ tier list evolution that goes beyond simple drag-and-drop functionality.
 
 ## Conclusion
 
-Recreating KarQ's Overwatch 2 Season 11 rankings with OpenTierBoy showcases the tool's effectiveness in visualizing and
-analyzing the evolving meta. OpenTierBoy's unique features, particularly its browser-based state management, offer
-significant advantages for both players and content creators:
+Recreating KarQ's Overwatch 2 Season 11 rankings with OpenTierBoy demonstrates the tool's effectiveness in visualizing
+and analyzing the evolving meta.
 
-1. **Meta Analysis**: Easily create, compare, and share tier lists to track hero viability over time.
-2. **Content Creation**: Streamline the process of presenting tier list evolution in videos or streams using browser
-   navigation.
-3. **Community Engagement**: Facilitate discussions about hero rankings and team compositions with shareable,
-   interactive tier lists.
+OpenTierBoy's browser-based state management simplifies tier list creation, allowing users to retrace steps and showcase
+list evolution effortlessly. Its accessibility makes it valuable for content creators, competitive players, and casual
+fans alike.
 
-While tier lists have been a staple of the Overwatch community for years, OpenTierBoy brings something new to the table.
-Its unique browser-based state management isn't just a cool feature – it's a game-changer for how we create and share
-tier lists.
-
-Imagine being able to retrace your steps as you build your tier list, or seamlessly showcase the evolution of your
-thoughts without endless recording takes. That's what OpenTierBoy offers. No downloads, no accounts, just pure,
-streamlined tier list creation.
-
-KarQ's Season 11 rankings gave us insight into the current meta, but with OpenTierBoy, you can do more than just view
-his list. You can recreate it, modify it, and share your version with a single link. Want to compare pre-patch and
-post-patch tier lists? Paste the URLs back to back and then simply use your browser's back and forward buttons. It's
-that simple.
-
-But the real power of OpenTierBoy lies in its accessibility. Whether you're a content creator, a competitive player, or
-just someone with strong opinions about hero viability, you can create professional-looking tier lists in minutes. No
-graphic design skills required.
-
-So, why not give it a try? Head over to [OpenTierBoy.com](https://www.opentierboy.com) and experience the difference for
-yourself. Create your Season 11 tier list, share it with your Overwatch community, and start discussions that go beyond
-just agreeing or disagreeing with the pros.
-
-In a game that's constantly evolving, having a tool that can keep up with your changing opinions is invaluable.
-OpenTierBoy isn't just another tier list maker – it's a new way to engage with the Overwatch meta.
+Try [OpenTierBoy](https://www.opentierboy.com) to create, share, and discuss your own tier lists. As Overwatch 2
+continues to evolve, including the upcoming release of Juno on August 20th, 2024, OpenTierBoy is here to help you stay
+engaged with the ever-changing meta.
 
 ## Sources and Further Analysis
 
