@@ -66,7 +66,7 @@ export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxC
   const allComponents = {...baseComponents, ...additionalComponents};
 
   return (
-    <Card className="w-full max-w-4xl md:max-w-screen-2xl mx-auto mt-8">
+    <Card className="w-full max-w-4xl md:max-w-screen-2xl mx-auto mt-4">
       <CardHeader>
         <CardTitle>{data.title}</CardTitle>
         {data.description && <CardDescription>{data.description}</CardDescription>}

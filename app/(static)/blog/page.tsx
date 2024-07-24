@@ -74,8 +74,8 @@ const BlogPostList: React.FC = () => {
   const posts = getBlogPosts();
 
   return (
-    <div className="max-w-4xl md:max-w-screen-2xl mx-auto mt-8 p-4">
-      <Breadcrumb className="py-4">
+    <div className="max-w-4xl md:max-w-screen-2xl mx-auto">
+      <Breadcrumb className="pb-4">
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink href="/">home</BreadcrumbLink>

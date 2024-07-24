@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import {Metadata} from 'next';
-import {BaseMdxComponent, generateBaseMdxMetadata, MdxData} from './BaseMdxComponent';
+import {BaseMdxComponent, MdxData} from './BaseMdxComponent';
 import {format} from "date-fns";
 
 interface BlogPostProps {

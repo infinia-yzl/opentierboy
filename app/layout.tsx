@@ -12,6 +12,7 @@ import {Button} from "@/components/ui/button";
 import Image from "next/image";
 import {FaDiscord} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
+import {Separator} from "@/components/ui/separator";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -64,9 +65,23 @@ export default function RootLayout({
       <header className="w-full border-b" data-html2canvas-ignore>
         <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
-            <a href="/" className="text-xl font-heading ">
-              <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
-            </a>
+            <div className="flex flex-row space-x-6">
+              <a href="/" className="text-xl font-heading ">
+                <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
+              </a>
+              <nav className="flex space-x-2 align-middle">
+                <a href="/about" className="p-1">
+                  <Button variant="ghost" className="text-muted-foreground">
+                    About
+                  </Button>
+                </a>
+                <a href="/blog" className="p-1">
+                  <Button variant="ghost" className="text-muted-foreground">
+                    Blog
+                  </Button>
+                </a>
+              </nav>
+            </div>
             <div className="flex justify-center space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
@@ -89,7 +104,11 @@ export default function RootLayout({
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
               <p className="text-sm text-muted-foreground">No ads, no logins, no sign-ups.</p>
-              <a href="/about" className="text-sm hover:underline">About</a>
+              <div className="flex flex-row space-x-4 h-5">
+                <a href="/about" className="text-sm hover:underline">About</a>
+                <Separator orientation="vertical"/>
+                <a href="/blog" className="text-sm hover:underline">Blog</a>
+              </div>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
               <div className="flex space-x-2">
