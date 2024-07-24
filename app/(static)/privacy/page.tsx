@@ -22,7 +22,7 @@ export default function TermsPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <ContentPage filename="PRIVACY.md"/>);
+      <ContentPage filename="PRIVACY.md"/>
     </div>
   );
 }

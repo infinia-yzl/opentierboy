@@ -22,7 +22,7 @@ export default function TermsPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <ContentPage filename="TERMS.md"/>);
+      <ContentPage filename="TERMS.md"/>
     </div>
   );
 }
