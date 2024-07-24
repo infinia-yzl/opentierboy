@@ -9,12 +9,12 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     icons: [
       {
-        src: '/icon-192.png',
+        src: '/icon192.png',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: '/icon-512.png',
+        src: '/icon512.png',
         sizes: '512x512',
         type: 'image/png',
       },
@@ -24,12 +24,12 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
       {
-        src: '/icon-16.png',
+        src: '/icon16.png',
         sizes: '16x16',
         type: 'image/png',
       },
       {
-        src: '/icon-32.png',
+        src: '/icon32.png',
         sizes: '32x32',
         type: 'image/png',
       },
