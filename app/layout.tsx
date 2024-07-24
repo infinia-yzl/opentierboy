@@ -62,7 +62,7 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <header className="w-full border-b" data-html2canvas-ignore>
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="flex flex-row py-4 justify-between items-center">
             <a href="/" className="text-xl font-heading ">
               <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
@@ -78,13 +78,13 @@ export default function RootLayout({
       </header>
 
       <main className="flex-grow my-2 md:my-4">
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           {children}
         </div>
       </main>
 
       <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-2xl mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
@@ -116,7 +116,7 @@ export default function RootLayout({
                 © 2024 OpenTierBoy. All rights reserved.
               </p>
             </div>
-            <div className="flex flex-col space-y-2 lg:px-20">
+            <div className="flex flex-col space-y-2 lg:pl-48">
               <h3 className="text-sm font-semibold text-muted-foreground">Legal</h3>
               <a href="/terms" className="text-sm hover:underline">Terms of Service</a>
               <a href="/privacy" className="text-sm hover:underline">Privacy Policy</a>
