@@ -5,10 +5,28 @@ import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import Image from "next/image";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {FaDiscord} from "react-icons/fa6";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
 
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator/>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/about">about</BreadcrumbLink>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
