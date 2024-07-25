@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Metadata} from "next";
+import {slug} from "github-slugger";
+import {Link2Icon} from "@radix-ui/react-icons";
 
 export interface MdxData {
   title: string;
@@ -27,17 +29,40 @@ interface BaseMdxComponentProps {
   additionalComponents?: Record<string, React.ComponentType<any>>;
 }
 
+const HeadingLink = ({className, href, children}: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+  <a href={href} className={cn("group flex items-center hover:underline underline-offset-2", className)}>
+    <span className="flex-grow">{children}</span>
+    <Link2Icon className="h-4 w-4 ml-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity"/>
+  </a>
+);
+
 const baseComponents = {
-  h1: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h1 className={cn("scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl", className)} {...props} />
-  ),
-  h2: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2
-      className={cn("scroll-m-20 border-b pt-8 pb-2 mb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0", className)} {...props} />
-  ),
-  h3: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className={cn("scroll-m-20 text-2xl py-2 font-semibold tracking-tight", className)} {...props} />
-  ),
+  h1: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => {
+    const id = slug(props.children as string);
+    return (
+      <h1 id={id}
+          className={cn("scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl", className)} {...props}>
+        <HeadingLink href={`#${id}`}>{props.children}</HeadingLink>
+      </h1>
+    );
+  },
+  h2: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => {
+    const id = slug(props.children as string);
+    return (
+      <h2 id={id}
+          className={cn("scroll-m-20 border-b pt-8 pb-2 mb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0", className)} {...props}>
+        <HeadingLink href={`#${id}`}>{props.children}</HeadingLink>
+      </h2>
+    );
+  },
+  h3: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => {
+    const id = slug(props.children as string);
+    return (
+      <h3 id={id} className={cn("scroll-m-20 text-2xl py-2 font-semibold tracking-tight", className)} {...props}>
+        <HeadingLink href={`#${id}`}>{props.children}</HeadingLink>
+      </h3>
+    );
+  },
   p: ({className, ...props}: React.HTMLAttributes<HTMLParagraphElement>) => (
     <p className={cn("leading-7 [&:not(:first-child)]:my-3", className)} {...props} />
   ),
