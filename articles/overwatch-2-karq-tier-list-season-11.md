@@ -79,7 +79,7 @@ In a nutshell, OpenTierBoy offers:
     - Capture your tier list as an image for quick sharing - _Freeze Frame_.
 - **A Focus on Privacy**: No tracking or ads, just straightforward tier list creation.
 
-## KarQ's Season 11 Tier Lists (thus far)
+## KarQ's Season 11 Tier Lists
 
 Here are the links to KarQ's rankings for Season 11, recreated with OpenTierBoy:
 <TierListItem
