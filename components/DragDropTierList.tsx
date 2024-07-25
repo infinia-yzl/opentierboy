@@ -49,7 +49,7 @@ const TierItems = memo<{
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
                   className={`
-                    m-1 rounded-md 
+                    m-0.5 rounded-md 
                     ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                   `}
                   style={{
@@ -90,7 +90,8 @@ const TierRow = memo<{
           ref={provided.innerRef}
           {...provided.draggableProps}
           className={`
-            border p-1 rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+            border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+            min-h-20
             flex items-center
             ${snapshot.isDragging ? 'shadow-lg ring-2' : ''}
           `}
@@ -102,21 +103,28 @@ const TierRow = memo<{
               : provided.draggableProps.style?.transition,
           }}
         >
-          <div className="flex-1">
+          <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
             {labelPosition === 'top' && index !== tiersLength - 1 && (
               <EditableLabel
                 text={tier.name}
                 onSave={(newText) => onSaveLabel(index, newText)}
+                className="p-1"
+                contentClassName="tracking-wide text-xl font-semibold"
+                as="h2"
               />
             )}
             <div
               className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
               {(labelPosition === 'left' || labelPosition === 'right') && (
-                <EditableLabel
-                  text={tier.name}
-                  onSave={(newText) => onSaveLabel(index, newText)}
-                  className="m-4 p-2 md:p-4 flex flex-1 min-w-16 justify-center"
-                />
+                <div className="w-18 md:w-40">
+                  <EditableLabel
+                    text={tier.name}
+                    onSave={(newText) => onSaveLabel(index, newText)}
+                    className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
+                    contentClassName="tracking-wide text-xl font-semibold"
+                    as="h2"
+                  />
+                </div>
               )}
               <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
             </div>

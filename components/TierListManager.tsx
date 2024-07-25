@@ -37,7 +37,12 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     const state = searchParams.get('state');
     if (state) {
       const decodedState = tierCortex.decodeTierStateFromURL(state);
-      if (decodedState) setTiers(decodedState);
+      if (decodedState) {
+        if (decodedState.title) {
+          setName(decodedState.title);
+        }
+        setTiers(decodedState.tiers);
+      }
     }
   }, [searchParams, tierCortex]);
 
@@ -45,8 +50,14 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     previousTiersRef.current = updatedTiers;
     setTiers(updatedTiers);
 
-    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(updatedTiers)}`, {scroll: false});
-  }, [setTiers, router, pathname]);
+    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(name, updatedTiers)}`, {scroll: false});
+  }, [setTiers, router, pathname, name]);
+
+  useEffect(() => {
+    if (name !== title) {
+      handleTiersUpdate(tiers);
+    }
+  }, [handleTiersUpdate, name, tiers, title])
 
   const handleItemsCreate = useCallback((newItems: Item[]) => {
     const updatedTiers = [...tiers];

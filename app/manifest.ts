@@ -9,39 +9,49 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     icons: [
       {
-        src: '/android-chrome-192x192.png',
+        src: '/icon192.png',
         sizes: '192x192',
         type: 'image/png',
       },
       {
-        src: '/android-chrome-512x512.png',
+        src: '/icon512.png',
         sizes: '512x512',
         type: 'image/png',
       },
       {
-        src: '/apple-touch-icon.png',
+        src: '/apple-icon.png',
         sizes: '180x180',
         type: 'image/png',
       },
       {
-        src: '/favicon-16x16.png',
+        src: '/icon16.png',
         sizes: '16x16',
         type: 'image/png',
       },
       {
-        src: '/favicon-32x32.png',
+        src: '/icon32.png',
         sizes: '32x32',
         type: 'image/png',
       },
       {
         src: '/favicon.ico',
-        sizes: 'any',
+        sizes: '48x48',
         type: 'image/x-icon',
       },
     ],
     shortcuts: [
       {
-        "name": "Create New Tier List",
+        "name": "About",
+        "url": "/about",
+        "description": "Learn more about OpenTierBoy"
+      },
+      {
+        "name": "Blog",
+        "url": "/blog",
+        "description": "Read the latest blog posts from OpenTierBoy"
+      },
+      {
+        "name": "Create New Blank Tier List",
         "url": "/rank",
         "description": "Start crafting a new tier list from a blank slate"
       },

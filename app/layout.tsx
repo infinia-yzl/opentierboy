@@ -12,6 +12,7 @@ import {Button} from "@/components/ui/button";
 import Image from "next/image";
 import {FaDiscord} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
+import {Separator} from "@/components/ui/separator";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -23,23 +24,113 @@ const fontHeading = FontHeading({
   variable: "--font-heading"
 })
 
+const getBaseUrl = () => {
+  let baseUrl = 'https://opentierboy.com';
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    try {
+      baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
+    } catch (error) {
+      console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL in the root layout');
+    }
+  }
+  return baseUrl;
+};
+
+const baseUrl = getBaseUrl();
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
   description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
-  icons: [
-    {rel: 'icon', url: '/favicon.ico'},
-    {rel: 'apple-touch-icon', url: '/apple-touch-icon.png'},
-    {rel: 'icon', url: '/favicon-32x32.png', sizes: '32x32'},
-    {rel: 'icon', url: '/favicon-16x16.png', sizes: '16x16'},
-  ],
   openGraph: {
     title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
     description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
-    url: "https://opentierboy.com",
+    url: baseUrl,
     siteName: "OpenTierBoy",
     locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'OpenTierBoy',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+    images: ['/opengraph-image.png'],
+  },
+  other: {
+    'application-name': 'OpenTierBoy',
+  },
+  authors: [{name: 'OpenTierBoy Team'}],
+  alternates: {
+    canonical: baseUrl,
+    types: {
+      'application/ld+json': JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: 'OpenTierBoy',
+        description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+        url: baseUrl,
+        applicationCategory: 'UtilitiesApplication',
+        operatingSystem: 'Web',
+        potentialAction: [
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/rank`,
+            name: 'Create New Blank Tier List',
+            description: "Start crafting a new tier list from a blank slate"
+          },
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/rank/the-finals/all`,
+            name: "Rank The Finals Equipment",
+            description: "Rank equipments and specializations from The Finals in your own tier list and share it with the community"
+          },
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/rank/wuthering-waves/c-all`,
+            name: "Rank Wuthering Waves Resonators",
+            description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
+          },
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/rank/overwatch/h-all`,
+            name: "Rank Overwatch Heroes",
+            description: "Rank Overwatch Heroes in your own tier list and share it with the community"
+          },
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/about`,
+            name: "About",
+            description: "Learn more about OpenTierBoy"
+          },
+          {
+            '@type': 'ViewAction',
+            target: `${baseUrl}/blog`,
+            name: "Blog",
+            description: "Read the latest blog posts from OpenTierBoy"
+          },
+        ],
+        sameAs: [
+          'https://github.com/infinia-yzl/opentierboy',
+          'https://discord.gg/CEtDSHV38b'
+        ],
+        author: {
+          '@type': 'Organization',
+          name: 'OpenTierBoy Team',
+          url: baseUrl
+        },
+        isAccessibleForFree: true,
+        license: 'https://www.gnu.org/licenses/agpl-3.0.en.html'
+      })
+    }
   }
 };
 
@@ -62,34 +153,52 @@ export default function RootLayout({
       disableTransitionOnChange
     >
       <header className="w-full border-b" data-html2canvas-ignore>
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
-            <a href="/" className="text-xl font-heading ">
-              <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
-            </a>
+            <div className="flex flex-row items-center space-x-6">
+              <a href="/" className="flex items-center">
+                <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
+              </a>
+              <nav className="flex space-x-2">
+                <Button asChild variant="ghost" className="text-muted-foreground">
+                  <a href="/about">
+                    About
+                  </a>
+                </Button>
+                <Button asChild variant="ghost" className="text-muted-foreground">
+                  <a href="/blog">
+                    Blog
+                  </a>
+                </Button>
+              </nav>
+            </div>
             <div className="flex justify-center space-x-1">
               <ZenToggle/>
               <span className="hide-in-zen">
-                <ThemeSelector/>
-              </span>
+          <ThemeSelector/>
+        </span>
             </div>
           </div>
         </div>
       </header>
 
       <main className="flex-grow my-2 md:my-4">
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           {children}
         </div>
       </main>
 
       <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
-        <div className="max-w-screen-lg mx-auto px-4">
+        <div className="max-w-screen-lg zen-mode:hide-in-zen mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
               <p className="text-sm text-muted-foreground">No ads, no logins, no sign-ups.</p>
-              <a href="/about" className="text-sm hover:underline">About</a>
+              <div className="flex flex-row space-x-4 h-5">
+                <a href="/about" className="text-sm hover:underline">About</a>
+                <Separator orientation="vertical"/>
+                <a href="/blog" className="text-sm hover:underline">Blog</a>
+              </div>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
               <div className="flex space-x-2">
@@ -116,7 +225,7 @@ export default function RootLayout({
                 © 2024 OpenTierBoy. All rights reserved.
               </p>
             </div>
-            <div className="flex flex-col space-y-2 lg:px-20">
+            <div className="flex flex-col space-y-2 lg:pl-48">
               <h3 className="text-sm font-semibold text-muted-foreground">Legal</h3>
               <a href="/terms" className="text-sm hover:underline">Terms of Service</a>
               <a href="/privacy" className="text-sm hover:underline">Privacy Policy</a>

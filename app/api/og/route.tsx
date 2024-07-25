@@ -4,73 +4,22 @@ import {TierCortex} from '@/lib/TierCortex';
 export const runtime = 'edge';
 
 const DefaultOGImage = () => (
-  <div
-    style={{
-      display: 'flex',
-      flexDirection: 'column',
-      width: '100%',
-      height: '100%',
-      backgroundColor: '#000',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: '20px',
-    }}
-  >
-    {/* Logo Placeholder */}
-    {/*<div*/}
-    {/*  style={{*/}
-    {/*    width: '200px',*/}
-    {/*    height: '200px',*/}
-    {/*    backgroundColor: '#333',*/}
-    {/*    borderRadius: '50%',*/}
-    {/*    display: 'flex',*/}
-    {/*    justifyContent: 'center',*/}
-    {/*    alignItems: 'center',*/}
-    {/*    marginBottom: '40px',*/}
-    {/*  }}*/}
-    {/*>*/}
-    {/*  <span style={{color: '#fff', fontSize: '24px', fontWeight: 'bold'}}>Logo</span>*/}
-    {/*</div>*/}
-
-    {/* Title */}
-    <h1
-      style={{
-        fontSize: '64px',
-        fontWeight: 'bold',
-        color: '#ffffff',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-        marginBottom: '20px',
-        textAlign: 'center',
-      }}
-    >
-      OpenTierBoy
-    </h1>
-
-    {/* Subtitle */}
-    <h2
-      style={{
-        fontSize: '36px',
-        color: '#ffffff',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-        marginBottom: '40px',
-        textAlign: 'center',
-      }}
-    >
+  <div tw="flex flex-col w-full h-full bg-black justify-between p-32">
+    <div tw="flex flex-col justify-between items-center w-full">
+      <img
+        src={new TierCortex().getAssetUrl('brand/otb-logo-wide.png')}
+        alt="OpenTierBoy"
+        width={600}
+        height={160}
+        tw="mx-auto"
+      />
+      <h1 tw="text-4xl text-white">
+        https://www.opentierboy.com
+      </h1>
+    </div>
+    <h2 tw="flex text-4xl text-white text-center justify-center">
       No ads, no logins, no sign ups. Create tier lists for free.
     </h2>
-
-    {/* Website URL */}
-    <div
-      style={{
-        position: 'absolute',
-        bottom: '20px',
-        fontSize: '24px',
-        color: '#ffffff',
-        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-      }}
-    >
-      opentierboy.com
-    </div>
   </div>
 );
 
@@ -86,124 +35,88 @@ export async function GET(request: Request) {
   }
 
   const tierCortex = new TierCortex();
-  const tiers = tierCortex.decodeTierStateFromURL(state);
+  const decodedState = tierCortex.decodeTierStateFromURL(state);
 
-  if (!tiers) {
+  if (!decodedState) {
     return new ImageResponse(<DefaultOGImage/>, {
       width: 1200,
       height: 630,
     });
   }
 
+  const {title, tiers} = decodedState;
+  tiers.pop(); // Remove uncategorized tier
+
+  const titleText = title ? `${title}` : 'OpenTierBoy';
+
   return new ImageResponse(
     (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          height: '100%',
-          backgroundColor: '#000',
-        }}
-      >
-        {/* Branding Text (replace with image later) */}
-        <div style={{
-          fontSize: '24px',
-          fontWeight: 'bold',
-          color: '#ffffff',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-          padding: '10px',
-          paddingBottom: '0',
-        }}>
-          OpenTierBoy ~ opentierboy.com
+      <div tw="flex flex-col w-full h-full bg-black">
+        <div tw="flex justify-between items-center pl-2 pr-4">
+          <div tw="text-2xl text-white">
+            {titleText}
+          </div>
+          <div tw="text-2xl text-white">
+            opentierboy.com
+          </div>
         </div>
-        <div style={{
-          fontSize: '22px',
-          color: '#ffffff',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-          padding: '10px',
-          paddingTop: '0',
-        }}>
+        <div tw="text-md text-white pl-2 pb-4">
           No ads, no logins, no sign ups. Create yours today.
         </div>
 
-        {/* Uncomment when the branding image is ready */}
-        {/* <img
-          src="/path-to-your-branding-image.png"
-          alt="OpenTierBoy"
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            width: '150px',  // Adjust
-            height: 'auto',
-          }}
-        /> */}
-
-        {tiers.map((tier, index) => (
-          <div
-            key={tier.id}
-            style={{
-              display: 'flex',
-              background: tierCortex.getOgTierGradient(index, tiers.length),
-              marginTop: '5px',
-              paddingLeft: '20px',
-              alignItems: 'center',
-            }}
-          >
-            <div style={{
-              fontSize: '28px',
-              color: '#ffffff',
-              marginRight: '10px',
-              width: '50px',
-              textAlign: 'center',
-            }}>
-              {tier.name}
-            </div>
-            <div style={{display: 'flex', flexWrap: 'wrap', gap: '5px', flex: 1}}>
-              {tier.items.slice(0, 10).map((item) => {
-                const safeItem = tierCortex.getOgSafeItem(item);
-                return (
-                  <div
-                    key={safeItem.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '64px',
-                      height: '64px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {safeItem.imageUrl && (
-                      <img
-                        src={safeItem.imageUrl}
-                        alt={safeItem.content}
-                        width="64"
-                        height="64"
-                        style={{objectFit: 'cover'}}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-              {tier.items.length > 10 && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  color: '#ffffff',
-                  fontWeight: 'bold',
-                  width: '40px',
-                  height: '40px',
-                }}>
-                  +{tier.items.length - 10}
+        <div tw="flex flex-col space-y-4 px-4 pt-6">
+          {tiers.map((tier, index) => (
+            <div
+              key={tier.id}
+              style={{
+                background: tierCortex.getOgTierGradient(index, tiers.length + 1),
+              }}
+              tw="flex items-center rounded-md min-h-[80px] overflow-hidden"
+            >
+              <div tw="w-40 h-full flex items-center justify-center">
+                <div tw="text-2xl font-semibold text-white text-center">
+                  {tier.name}
                 </div>
-              )}
+              </div>
+              <div tw="flex-1 flex flex-wrap">
+                {tier.items.slice(0, 10).map((item) => {
+                  const safeItem = tierCortex.getOgSafeItem(item);
+                  return (
+                    <div
+                      key={safeItem.id}
+                      tw="w-16 h-16 m-1 rounded-md overflow-hidden bg-gray-200 flex items-center justify-center"
+                    >
+                      {safeItem.imageUrl ? (
+                        <img
+                          src={safeItem.imageUrl}
+                          alt={safeItem.content}
+                          tw="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div tw="text-xs text-gray-600 text-center p-1">
+                          {safeItem.content}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {tier.items.length > 10 && (
+                  <div tw="w-16 h-16 m-1 rounded-md bg-gray-700 flex items-center justify-center text-white font-bold">
+                    +{tier.items.length - 10}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        <img
+          src={tierCortex.getAssetUrl('brand/otb-logo-wide.png')}
+          alt="OpenTierBoy"
+          width={300}
+          height={80}
+          tw="absolute bottom-10 right-10"
+        />
       </div>
     ),
     {

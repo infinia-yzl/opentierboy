@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
+import TierCortex from "@/lib/TierCortex";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const TierListManager = dynamic(
@@ -83,8 +84,17 @@ export async function generateMetadata(
   const [nameOrPackage, tagName] = params.slug || [];
   const itemSet = nameOrPackage && tagName ? await getItemSetData(nameOrPackage, tagName) : null;
 
-  const title = itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
+  let title = itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
   const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
+
+  // Decode the state and extract the title if available
+  if (initialState) {
+    const tierCortex = new TierCortex();
+    const decodedState = tierCortex.decodeTierStateFromURL(initialState);
+    if (decodedState && decodedState.title) {
+      title = decodedState.title;
+    }
+  }
 
   // Generate the OG image URL
   let ogImageUrl = '/api/og';
@@ -92,10 +102,12 @@ export async function generateMetadata(
     ogImageUrl += `?state=${encodeURIComponent(initialState)}`;
   }
 
+  let baseUrl = 'https://opentierboy.com';
+
   // If VERCEL_PROJECT_PRODUCTION_URL is defined and valid, prepend it to the ogImageUrl
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     try {
-      const baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
+      baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
       ogImageUrl = `${baseUrl}${ogImageUrl}`;
     } catch (error) {
       console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL, using relative path for OG image');
@@ -109,6 +121,9 @@ export async function generateMetadata(
     description: `Create and share tier lists for ${itemSet?.packageDisplayName || 'various topics'}`,
     image: ogImageUrl,
   };
+
+  const canonicalPath = params.slug ? `/${params.slug.join('/')}` : '';
+  const canonicalUrl = `${baseUrl}${canonicalPath}`;
 
   return {
     title,
@@ -125,7 +140,7 @@ export async function generateMetadata(
       'application-name': 'OpenTierBoy',
     },
     alternates: {
-      canonical: `/${params.slug?.join('/') || ''}`,
+      canonical: canonicalUrl,
       types: {
         'application/ld+json': JSON.stringify(structuredData),
       },

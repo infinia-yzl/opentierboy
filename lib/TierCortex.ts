@@ -8,6 +8,11 @@ import LZString from 'lz-string';
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
+interface EncodedState {
+  title?: string;
+  tiers: SimplifiedTier[];
+}
+
 interface SimplifiedTier {
   i: string; // id
   n: string; // name
@@ -61,7 +66,7 @@ export class TierCortex {
     }
   }
 
-  public static encodeTierStateForURL(tiers: Tier[]): string {
+  public static encodeTierStateForURL(title: string | undefined, tiers: Tier[]): string {
     const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
       i: tier.id,
       n: tier.name,
@@ -70,7 +75,13 @@ export class TierCortex {
         c: item.content
       }))
     }));
-    const jsonString = JSON.stringify(simplifiedTiers);
+    const encodedState: EncodedState = {
+      tiers: simplifiedTiers
+    };
+    if (title) {
+      encodedState.title = title;
+    }
+    const jsonString = JSON.stringify(encodedState);
     return LZString.compressToEncodedURIComponent(jsonString);
   }
 
@@ -79,18 +90,34 @@ export class TierCortex {
     return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
-  public decodeTierStateFromURL(encodedState: string): Tier[] | null {
+  public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
     try {
       const jsonString = LZString.decompressFromEncodedURIComponent(encodedState);
       if (!jsonString) throw new Error('Failed to decompress state');
 
-      const simplifiedTiers = JSON.parse(jsonString) as SimplifiedTier[];
+      const parsed = JSON.parse(jsonString);
 
-      return simplifiedTiers.map(simplifiedTier => ({
+      let title: string | undefined;
+      let simplifiedTiers: SimplifiedTier[];
+
+      if (Array.isArray(parsed)) {
+        // Old format: array of tiers
+        simplifiedTiers = parsed;
+      } else if (typeof parsed === 'object' && Array.isArray(parsed.tiers)) {
+        // New format: object with title and tiers
+        title = parsed.title;
+        simplifiedTiers = parsed.tiers;
+      } else {
+        throw new Error('Invalid state format');
+      }
+
+      const tiers = simplifiedTiers.map(simplifiedTier => ({
         id: simplifiedTier.i,
         name: simplifiedTier.n,
         items: simplifiedTier.t.map(item => this.resolveItem(item.i, item.c))
       }));
+
+      return {title, tiers};
     } catch (error) {
       console.error('Failed to decode tier state from URL:', error);
       return null;
@@ -115,7 +142,7 @@ export class TierCortex {
   public getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
     if (initialState) {
       const decodedState = this.decodeTierStateFromURL(initialState);
-      if (decodedState) return decodedState;
+      if (decodedState) return decodedState.tiers;
     }
 
     if (initialItemSet) {
@@ -158,6 +185,10 @@ export class TierCortex {
       const itemId = `${packageName}-${filename}`;
       return this.resolveItem(itemId, filename.split('.')[0]);
     });
+  }
+
+  public getAssetUrl(path: string): string {
+    return this.getAbsoluteUrl(path);
   }
 
   private initializePackageItemLookup(): PackageItemLookup {

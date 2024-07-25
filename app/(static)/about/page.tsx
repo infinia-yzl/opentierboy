@@ -1,13 +1,33 @@
 import React from 'react';
 import {Card, CardContent, CardHeader} from "@/components/ui/card";
 import {Button} from "@/components/ui/button";
-import {DiscordLogoIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import Image from "next/image";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
+import {FaDiscord} from "react-icons/fa6";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator
+} from "@/components/ui/breadcrumb";
+import {Metadata} from "next";
 
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator/>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/about">about</BreadcrumbLink>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
@@ -148,7 +168,7 @@ const AboutPage = () => {
               </Button>
               <Button variant="secondary" asChild>
                 <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2" aria-label="Discord">
-                  <DiscordLogoIcon className="h-5 w-5"/>
+                  <FaDiscord className="h-5 w-5"/>
                   <span>Join our Discord</span>
                 </a>
               </Button>
@@ -162,5 +182,76 @@ const AboutPage = () => {
     </div>
   );
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  let baseUrl = 'https://opentierboy.com';
+
+  // If VERCEL_PROJECT_PRODUCTION_URL is defined and valid, prepend it to the ogImageUrl
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    try {
+      baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
+    } catch (error) {
+      console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL in the About page');
+    }
+  }
+
+  const title = "About OpenTierBoy - Craft, Rank, and Share Your Passion";
+  const description = "OpenTierBoy is a free, open-source platform for creating and sharing tier lists. Learn about our mission, community-driven approach, and how you can contribute.";
+  const canonicalUrl = `${baseUrl}/about`;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description: description,
+    url: canonicalUrl,
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'OpenTierBoy',
+      url: baseUrl,
+    },
+    about: {
+      '@type': 'SoftwareApplication',
+      name: 'OpenTierBoy',
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Web',
+    },
+  };
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: 'OpenTierBoy',
+      type: 'website',
+      images: [
+        {
+          url: `${baseUrl}/brand/otb-logo-wide.webp`,
+          width: 600,
+          height: 190,
+          alt: 'OpenTierBoy Logo',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${baseUrl}/brand/otb-logo-wide.webp`],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      types: {
+        'application/ld+json': JSON.stringify(jsonLd),
+      },
+    },
+    other: {
+      'application-name': 'OpenTierBoy',
+    },
+  };
+}
 
 export default AboutPage;
