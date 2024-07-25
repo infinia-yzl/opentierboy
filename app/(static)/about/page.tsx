@@ -12,6 +12,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
+import {Metadata} from "next";
 
 const AboutPage = () => {
   return (
@@ -181,5 +182,76 @@ const AboutPage = () => {
     </div>
   );
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  let baseUrl = 'https://opentierboy.com';
+
+  // If VERCEL_PROJECT_PRODUCTION_URL is defined and valid, prepend it to the ogImageUrl
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    try {
+      baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
+    } catch (error) {
+      console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL in the About page');
+    }
+  }
+
+  const title = "About OpenTierBoy - Craft, Rank, and Share Your Passion";
+  const description = "OpenTierBoy is a free, open-source platform for creating and sharing tier lists. Learn about our mission, community-driven approach, and how you can contribute.";
+  const canonicalUrl = `${baseUrl}/about`;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description: description,
+    url: canonicalUrl,
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'OpenTierBoy',
+      url: baseUrl,
+    },
+    about: {
+      '@type': 'SoftwareApplication',
+      name: 'OpenTierBoy',
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Web',
+    },
+  };
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: 'OpenTierBoy',
+      type: 'website',
+      images: [
+        {
+          url: `${baseUrl}/brand/otb-logo-wide.webp`,
+          width: 600,
+          height: 190,
+          alt: 'OpenTierBoy Logo',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${baseUrl}/brand/otb-logo-wide.webp`],
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      types: {
+        'application/ld+json': JSON.stringify(jsonLd),
+      },
+    },
+    other: {
+      'application-name': 'OpenTierBoy',
+    },
+  };
+}
 
 export default AboutPage;

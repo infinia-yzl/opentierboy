@@ -36,6 +36,18 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
   // Type assertion to ensure data conforms to MdxData interface
   const mdxData = data as MdxData;
 
+  const publishDate = mdxData.date ? new Date(mdxData.date) : new Date();
+  const formattedDate = format(publishDate, "yyyy-MM-dd");
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: mdxData.title,
+    description: mdxData.description,
+    datePublished: formattedDate,
+    keywords: mdxData.tags?.join(', '),
+  };
+
   return {
     title: mdxData.title,
     description: mdxData.description,
@@ -43,7 +55,7 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
       title: mdxData.title,
       description: mdxData.description,
       type: 'article',
-      publishedTime: format(mdxData.date ?? new Date(), 'MMMM d, yyyy'),
+      publishedTime: formattedDate,
       tags: mdxData.tags,
     },
     twitter: {
@@ -51,6 +63,13 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
       title: mdxData.title,
       description: mdxData.description,
     },
+    alternates: {
+      canonical: `https://www.opentierboy.com/blog/${slug}`,
+      types: {
+        'application/ld+json': JSON.stringify(jsonLd),
+      },
+    },
+    keywords: mdxData.tags,
   };
 }
 

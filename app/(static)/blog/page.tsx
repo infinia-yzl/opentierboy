@@ -109,6 +109,6 @@ export default BlogPostList;
 export function generateMetadata() {
   return {
     title: 'Blog Posts',
-    description: 'A list of all our blog posts',
+    description: 'A list of all blog posts from OpenTierBoy',
   };
 }

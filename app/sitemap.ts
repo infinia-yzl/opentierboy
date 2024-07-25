@@ -10,6 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '',
     '/rank',
     '/about',
+    '/blog',
+    '/blog/overwatch-2-karq-tier-list-season-11#karqs-season-11-tier-lists',
     '/privacy',
     '/terms',
   ].map(route => ({

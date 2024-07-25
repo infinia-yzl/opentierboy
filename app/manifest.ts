@@ -41,7 +41,17 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
-        "name": "Create New Tier List",
+        "name": "About",
+        "url": "/about",
+        "description": "Learn more about OpenTierBoy"
+      },
+      {
+        "name": "Blog",
+        "url": "/blog",
+        "description": "Read the latest blog posts from OpenTierBoy"
+      },
+      {
+        "name": "Create New Blank Tier List",
         "url": "/rank",
         "description": "Start crafting a new tier list from a blank slate"
       },
