@@ -13,7 +13,8 @@ import {
 import {Separator} from "@/components/ui/separator";
 import {Metadata} from "next";
 import {slug} from "github-slugger";
-import {Link2Icon} from "@radix-ui/react-icons";
+import {ExternalLinkIcon, Link2Icon} from "@radix-ui/react-icons";
+import Image from "next/image";
 
 export interface MdxData {
   title: string;
@@ -35,6 +36,38 @@ const HeadingLink = ({className, href, children}: React.AnchorHTMLAttributes<HTM
     <Link2Icon className="h-4 w-4 ml-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity"/>
   </a>
 );
+
+const TierListItem = ({title, url, imageSrc}: { title: string; url: string; imageSrc: string }) => (
+  <a
+    href={url}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="block text-sm text-muted-foreground hover:underline my-4 max-w-3xl"
+  >
+    <Card className="flex flex-row-reverse overflow-hidden">
+      <div className="relative w-1/4 min-w-[120px]">
+        <Image
+          src={imageSrc}
+          alt={`${title} Preview`}
+          fill
+          style={{
+            objectFit: 'cover'
+          }}
+        />
+      </div>
+      <div className="flex-1">
+        <CardHeader>
+          <CardTitle className="text-lg line-clamp-2">{title}</CardTitle>
+          <CardDescription className="flex flex-row items-center space-x-1">
+            <ExternalLinkIcon/>
+            <span>{new URL(url).hostname}</span>
+          </CardDescription>
+        </CardHeader>
+      </div>
+    </Card>
+  </a>
+);
+
 
 const baseComponents = {
   h1: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => {
@@ -82,6 +115,7 @@ const baseComponents = {
   a: ({className, ...props}: React.HTMLAttributes<HTMLAnchorElement>) => (
     <a className={cn("font-medium text-primary underline underline-offset-4", className)} {...props} />
   ),
+  TierListItem: TierListItem,
 };
 
 export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxComponentProps) {
