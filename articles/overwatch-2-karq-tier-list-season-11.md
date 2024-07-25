@@ -62,7 +62,11 @@ for creating and sharing tier lists.
    can [start from scratch](https://www.opentierboy.com/rank) and add from the items' templates.
 2. Drag and drop heroes into their respective tiers based on KarQ's rankings.
 3. Share your tier list with others using the Share button or simply copy the URL.
-4. Review your history of changes by using your browser's back and forward buttons.
+4. When the URL is pasted into a social media platform or messaging app, it will generate a preview of the tier list. No
+   longer will you need to attach an image to share your tier list (but you can still do so if you
+   prefer). <br /> **Here's an example preview for KarQ's Tier
+   List.** <img src="/blog/og-mid-season11.webp" width="600" height="315" alt="Tier List Social Preview" />
+5. Review your history of changes by using your browser's back and forward buttons.
 
 In a nutshell, OpenTierBoy offers:
 

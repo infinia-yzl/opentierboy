@@ -3,7 +3,6 @@ import {MDXRemote} from 'next-mdx-remote/rsc';
 import matter from 'gray-matter';
 import {cn} from "@/lib/utils";
 
-// Import shadcn components
 import {
   Card,
   CardContent,
@@ -46,10 +45,11 @@ const baseComponents = {
     <ul className={cn("mb-6 ml-6 list-disc [&>li]:mt-2 [&>li]:mb-1", className)} {...props} />
   ),
   ol: ({className, ...props}: React.HTMLAttributes<HTMLOListElement>) => (
-    <ol className={cn("mb-6 ml-6 list-decimal [&>li]:mt-2", className)} {...props} />
+    <ol
+      className={cn("mb-6 ml-6 list-decimal [&>li]:mt-2 [&>li:has(img)+li]:mt-6", className)} {...props} />
   ),
   li: ({className, ...props}: React.HTMLAttributes<HTMLLIElement>) => (
-    <li className={cn("mt-1", className)} {...props} />
+    <li className={cn("mt-2 [&>img]:mt-4", className)} {...props} />
   ),
   blockquote: ({className, ...props}: React.HTMLAttributes<HTMLQuoteElement>) => (
     <blockquote className={cn("mt-6 border-l-2 pl-6 italic", className)} {...props} />
