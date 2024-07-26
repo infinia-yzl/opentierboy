@@ -13,6 +13,7 @@ import Image from "next/image";
 import {FaDiscord, FaXTwitter} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {Separator} from "@/components/ui/separator";
+import StructuredMetadata from "@/components/StructuredMetadata";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -71,68 +72,67 @@ export const metadata: Metadata = {
   authors: [{name: 'OpenTierBoy Team'}],
   alternates: {
     canonical: baseUrl,
-    types: {
-      'application/ld+json': JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebApplication',
-        name: 'OpenTierBoy',
-        description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
-        url: baseUrl,
-        applicationCategory: 'UtilitiesApplication',
-        operatingSystem: 'Web',
-        potentialAction: [
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank`,
-            name: 'Create New Blank Tier List',
-            description: "Start crafting a new tier list from a blank slate"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/the-finals/all`,
-            name: "Rank The Finals Equipment",
-            description: "Rank equipments and specializations from The Finals in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/wuthering-waves/c-all`,
-            name: "Rank Wuthering Waves Resonators",
-            description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/overwatch/h-all`,
-            name: "Rank Overwatch Heroes",
-            description: "Rank Overwatch Heroes in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/about`,
-            name: "About",
-            description: "Learn more about OpenTierBoy"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/blog`,
-            name: "Blog",
-            description: "Read the latest blog posts from OpenTierBoy"
-          },
-        ],
-        sameAs: [
-          'https://github.com/infinia-yzl/opentierboy',
-          'https://discord.gg/CEtDSHV38b'
-        ],
-        author: {
-          '@type': 'Organization',
-          name: 'OpenTierBoy Team',
-          url: baseUrl
-        },
-        isAccessibleForFree: true,
-        license: 'https://www.gnu.org/licenses/agpl-3.0.en.html'
-      })
-    }
   }
 };
+
+const STRUCTURED_METADATA = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'OpenTierBoy',
+  description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+  url: baseUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'Web',
+  potentialAction: [
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank`,
+      name: 'Create New Blank Tier List',
+      description: "Start crafting a new tier list from a blank slate"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/the-finals/all`,
+      name: "Rank The Finals Equipment",
+      description: "Rank equipments and specializations from The Finals in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/wuthering-waves/c-all`,
+      name: "Rank Wuthering Waves Resonators",
+      description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/overwatch/h-all`,
+      name: "Rank Overwatch Heroes",
+      description: "Rank Overwatch Heroes in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/about`,
+      name: "About",
+      description: "Learn more about OpenTierBoy"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/blog`,
+      name: "Blog",
+      description: "Read the latest blog posts from OpenTierBoy"
+    },
+  ],
+  sameAs: [
+    'https://github.com/infinia-yzl/opentierboy',
+    'https://discord.gg/CEtDSHV38b'
+  ],
+  author: {
+    '@type': 'Organization',
+    name: 'OpenTierBoy Team',
+    url: baseUrl
+  },
+  isAccessibleForFree: true,
+  license: 'https://www.gnu.org/licenses/agpl-3.0.en.html'
+}
 
 export default function RootLayout({
   children,
@@ -141,6 +141,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+    <StructuredMetadata data={STRUCTURED_METADATA}/>
     <body className={cn(
       "bg-background font-sans antialiased min-h-screen flex flex-col justify-between",
       fontSans.variable,

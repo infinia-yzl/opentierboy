@@ -21,6 +21,7 @@ export interface MdxData {
   description?: string;
   date?: Date;
   tags?: string[];
+  ogImage?: string;
 
   [key: string]: any;
 }

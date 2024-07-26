@@ -3,6 +3,7 @@ title: Recreating KarQ's Tier Lists (Overwatch 2, Season 11)
 description: We recreate KarQ's tier lists for Overwatch 2 Season 11 using OpenTierBoy, showcasing how OpenTierBoy's strengths offer a unique tier list ranking experience.
 date: 2024-07-25
 tags: [ overwatch, overwatch-2, karq, tier-list, season-11, opentierboy, meta, competitive, tier-maker, heroes, juno ]
+ogImage: "/blog/og-karq-s11-mid.webp"
 ---
 
 # Recreating KarQ's Tier Lists (OW2, S11)
