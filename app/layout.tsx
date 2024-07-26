@@ -7,10 +7,10 @@ import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ThemeSelector} from "@/components/ThemeSelector";
-import {EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
 import Image from "next/image";
-import {FaDiscord} from "react-icons/fa6";
+import {FaDiscord, FaXTwitter} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {Separator} from "@/components/ui/separator";
 
@@ -215,9 +215,8 @@ export default function RootLayout({
                   </a>
                 </Button>
                 <Button variant="ghost" asChild size="icon">
-                  <a href="mailto:dev@infinia.space" className="text-foreground hover:text-primary"
-                     aria-label="Contact">
-                    <EnvelopeClosedIcon className="h-5 w-5"/>
+                  <a href="https://x.com/OpenTierBoy" className="text-foreground hover:text-primary" aria-label="X.com">
+                    <FaXTwitter className="h-5 w-5"/>
                   </a>
                 </Button>
               </div>
