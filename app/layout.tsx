@@ -7,12 +7,13 @@ import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ThemeSelector} from "@/components/ThemeSelector";
-import {EnvelopeClosedIcon, GitHubLogoIcon} from "@radix-ui/react-icons";
+import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
 import Image from "next/image";
-import {FaDiscord} from "react-icons/fa6";
+import {FaDiscord, FaXTwitter} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {Separator} from "@/components/ui/separator";
+import StructuredMetadata from "@/components/StructuredMetadata";
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -71,68 +72,67 @@ export const metadata: Metadata = {
   authors: [{name: 'OpenTierBoy Team'}],
   alternates: {
     canonical: baseUrl,
-    types: {
-      'application/ld+json': JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebApplication',
-        name: 'OpenTierBoy',
-        description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
-        url: baseUrl,
-        applicationCategory: 'UtilitiesApplication',
-        operatingSystem: 'Web',
-        potentialAction: [
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank`,
-            name: 'Create New Blank Tier List',
-            description: "Start crafting a new tier list from a blank slate"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/the-finals/all`,
-            name: "Rank The Finals Equipment",
-            description: "Rank equipments and specializations from The Finals in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/wuthering-waves/c-all`,
-            name: "Rank Wuthering Waves Resonators",
-            description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/rank/overwatch/h-all`,
-            name: "Rank Overwatch Heroes",
-            description: "Rank Overwatch Heroes in your own tier list and share it with the community"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/about`,
-            name: "About",
-            description: "Learn more about OpenTierBoy"
-          },
-          {
-            '@type': 'ViewAction',
-            target: `${baseUrl}/blog`,
-            name: "Blog",
-            description: "Read the latest blog posts from OpenTierBoy"
-          },
-        ],
-        sameAs: [
-          'https://github.com/infinia-yzl/opentierboy',
-          'https://discord.gg/CEtDSHV38b'
-        ],
-        author: {
-          '@type': 'Organization',
-          name: 'OpenTierBoy Team',
-          url: baseUrl
-        },
-        isAccessibleForFree: true,
-        license: 'https://www.gnu.org/licenses/agpl-3.0.en.html'
-      })
-    }
   }
 };
+
+const STRUCTURED_METADATA = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'OpenTierBoy',
+  description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+  url: baseUrl,
+  applicationCategory: 'UtilitiesApplication',
+  operatingSystem: 'Web',
+  potentialAction: [
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank`,
+      name: 'Create New Blank Tier List',
+      description: "Start crafting a new tier list from a blank slate"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/the-finals/all`,
+      name: "Rank The Finals Equipment",
+      description: "Rank equipments and specializations from The Finals in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/wuthering-waves/c-all`,
+      name: "Rank Wuthering Waves Resonators",
+      description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/rank/overwatch/h-all`,
+      name: "Rank Overwatch Heroes",
+      description: "Rank Overwatch Heroes in your own tier list and share it with the community"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/about`,
+      name: "About",
+      description: "Learn more about OpenTierBoy"
+    },
+    {
+      '@type': 'ViewAction',
+      target: `${baseUrl}/blog`,
+      name: "Blog",
+      description: "Read the latest blog posts from OpenTierBoy"
+    },
+  ],
+  sameAs: [
+    'https://github.com/infinia-yzl/opentierboy',
+    'https://discord.gg/CEtDSHV38b'
+  ],
+  author: {
+    '@type': 'Organization',
+    name: 'OpenTierBoy Team',
+    url: baseUrl
+  },
+  isAccessibleForFree: true,
+  license: 'https://www.gnu.org/licenses/agpl-3.0.en.html'
+}
 
 export default function RootLayout({
   children,
@@ -141,6 +141,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+    <StructuredMetadata data={STRUCTURED_METADATA}/>
     <body className={cn(
       "bg-background font-sans antialiased min-h-screen flex flex-col justify-between",
       fontSans.variable,
@@ -198,6 +199,8 @@ export default function RootLayout({
                 <a href="/about" className="text-sm hover:underline">About</a>
                 <Separator orientation="vertical"/>
                 <a href="/blog" className="text-sm hover:underline">Blog</a>
+                <Separator orientation="vertical"/>
+                <a href="mailto:opentierboy@infinia.space" className="text-sm hover:underline">Email</a>
               </div>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
@@ -215,9 +218,8 @@ export default function RootLayout({
                   </a>
                 </Button>
                 <Button variant="ghost" asChild size="icon">
-                  <a href="mailto:dev@infinia.space" className="text-foreground hover:text-primary"
-                     aria-label="Contact">
-                    <EnvelopeClosedIcon className="h-5 w-5"/>
+                  <a href="https://x.com/OpenTierBoy" className="text-foreground hover:text-primary" aria-label="X.com">
+                    <FaXTwitter className="h-5 w-5"/>
                   </a>
                 </Button>
               </div>

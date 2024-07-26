@@ -1,0 +1,12 @@
+tasks:
+  - name: Install and run development server
+    init: npm install
+    command: npm run dev
+
+ports:
+  - port: 3000
+    onOpen: open-preview
+    name: Website
+    description: Website Preview
+    visibility: private
+    protocol: https

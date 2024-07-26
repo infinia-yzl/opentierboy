@@ -4,6 +4,7 @@ import matter from 'gray-matter';
 import {Metadata} from 'next';
 import {BaseMdxComponent, MdxData} from './BaseMdxComponent';
 import {format} from "date-fns";
+import StructuredMetadata from "@/components/StructuredMetadata";
 
 interface BlogPostProps {
   slug: string;
@@ -11,12 +12,33 @@ interface BlogPostProps {
 
 export function BlogPost({slug}: BlogPostProps) {
   const filePath = path.join(process.cwd(), 'articles', `${slug}.md`);
+  const fileContents = fs.readFileSync(filePath, 'utf8');
+  const {data} = matter(fileContents);
+  const mdxData = data as MdxData;
+
+  const publishDate = mdxData.date ? new Date(mdxData.date) : new Date();
+  const formattedDate = format(publishDate, "yyyy-MM-dd");
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: mdxData.title,
+    description: mdxData.description,
+    datePublished: formattedDate,
+    keywords: mdxData.tags?.join(', '),
+    image: mdxData.ogImage ? `https://www.opentierboy.com${mdxData.ogImage}` : undefined,
+  };
 
   const blogComponents = {
     // Add any blog-specific components here
   };
 
-  return <BaseMdxComponent filePath={filePath} additionalComponents={blogComponents}/>;
+  return (
+    <>
+      <StructuredMetadata data={jsonLd}/>
+      <BaseMdxComponent filePath={filePath} additionalComponents={blogComponents}/>
+    </>
+  );
 }
 
 export async function generateMetadata({params}: { params: { slug: string } }): Promise<Metadata> {
@@ -39,15 +61,6 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
   const publishDate = mdxData.date ? new Date(mdxData.date) : new Date();
   const formattedDate = format(publishDate, "yyyy-MM-dd");
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: mdxData.title,
-    description: mdxData.description,
-    datePublished: formattedDate,
-    keywords: mdxData.tags?.join(', '),
-  };
-
   return {
     title: mdxData.title,
     description: mdxData.description,
@@ -57,17 +70,30 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
       type: 'article',
       publishedTime: formattedDate,
       tags: mdxData.tags,
+      images: mdxData.ogImage ? [
+        {
+          url: `https://www.opentierboy.com${mdxData.ogImage}`,
+          width: 1200,
+          height: 630,
+          alt: mdxData.title,
+        }
+      ] : [
+        {
+          url: 'https://www.opentierboy.com/opengraph-image.png',
+          width: 1200,
+          height: 630,
+          alt: 'OpenTierBoy',
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: mdxData.title,
       description: mdxData.description,
+      images: mdxData.ogImage ? [`https://www.opentierboy.com${mdxData.ogImage}`] : undefined,
     },
     alternates: {
       canonical: `https://www.opentierboy.com/blog/${slug}`,
-      types: {
-        'application/ld+json': JSON.stringify(jsonLd),
-      },
     },
     keywords: mdxData.tags,
   };
