@@ -198,6 +198,8 @@ export default function RootLayout({
                 <a href="/about" className="text-sm hover:underline">About</a>
                 <Separator orientation="vertical"/>
                 <a href="/blog" className="text-sm hover:underline">Blog</a>
+                <Separator orientation="vertical"/>
+                <a href="mailto:opentierboy@infinia.space" className="text-sm hover:underline">Email</a>
               </div>
             </div>
             <div className="flex flex-col items-center justify-center space-y-4 p-4">
