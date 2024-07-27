@@ -197,10 +197,10 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     if (urlLength <= 2000) return null;
 
     return (
-      <Alert className="px-4 my-4 bg-parchment border-brown-200">
+      <Alert className="px-4 my-4">
         <GiScrollQuill className="h-5 w-5 animate-pulse"/>
         <AlertTitle className="font-bold text-lg underline underline-offset-2">
-          OPTIONAL QUEST UNLOCKED: THE VANISHING LINK PREVIEW
+          SIDE-QUEST UNLOCKED: THE VANISHING LINK PREVIEW
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger>
@@ -215,11 +215,10 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
             </Tooltip>
           </TooltipProvider>
         </AlertTitle>
-        <AlertDescription className="">
+        <AlertDescription>
           <p className="mb-2">
             Hark, brave adventurer! A most peculiar affliction has befallen your URL. Tis&apos; stretched
-            yon&apos; mortal
-            limits, surpassing 2000 characters in length!
+            yon&apos; mortal limits, surpassing 2000 characters in length!
           </p>
           <p className="mb-2">
             This arcane enchantment of elongation threatens to render link previews invisible to the denizens of
@@ -232,12 +231,15 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
             on this quest for the denizens, pray, consider the paths our scouts have identified:
           </p>
           <ul className="list-disc list-inside">
-            <li><GiLightBackpack className="inline h-4 w-4 mr-1"/> Use your Inventory Management skills (Remove some
+            <li>
+              <GiLightBackpack className="inline h-4 w-4 mr-1"/> Use your Inventory Management skills (Remove some
               items)
             </li>
-            <li><CameraIcon className="inline h-4 w-4 mr-1"/> Use &quot;Freeze Frame&quot;! (Share as picture)
+            <li>
+              <CameraIcon className="inline h-4 w-4 mr-1"/> Use <i>&quot;Freeze Frame&quot;</i>! (Share as picture)
             </li>
-            <li><GiCardAceSpades className="inline h-4 w-4 mr-1"/> Activate your Secret Sharing Technique (Will you
+            <li>
+              <GiCardAceSpades className="inline h-4 w-4 mr-1"/> Activate your Secret Sharing Technique (Will you
               activate your Trump Card?)
             </li>
           </ul>
