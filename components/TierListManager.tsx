@@ -9,7 +9,7 @@ import ItemManager from "@/components/ItemManager";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import ShareButton from "@/components/ShareButton";
-import {TierCortex} from "@/lib/TierCortex";
+import {TierCortex, TierWithSimplifiedItems} from "@/lib/TierCortex";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {ItemSet} from "@/models/ItemSet";
 
@@ -50,8 +50,16 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     previousTiersRef.current = updatedTiers;
     setTiers(updatedTiers);
 
-    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(name, updatedTiers)}`, {scroll: false});
-  }, [setTiers, router, pathname, name]);
+    const optimizedTiersForEncoding: TierWithSimplifiedItems[] = updatedTiers.map(tier => ({
+      ...tier,
+      items: tier.items.map(item => ({
+        i: item.id,
+        c: tierCortex.isCustomItem(item.id) ? item.content : undefined
+      }))
+    }));
+
+    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(name, optimizedTiersForEncoding)}`, {scroll: false});
+  }, [router, pathname, name, tierCortex]);
 
   useEffect(() => {
     if (name !== title) {

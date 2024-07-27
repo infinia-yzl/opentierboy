@@ -21,7 +21,11 @@ interface SimplifiedTier {
 
 interface SimplifiedItem {
   i: string; // id
-  c: string; // content
+  c?: string; // content (only for custom items)
+}
+
+export interface TierWithSimplifiedItems extends Omit<Tier, 'items'> {
+  items: SimplifiedItem[];
 }
 
 interface StoredCustomItem {
@@ -66,14 +70,11 @@ export class TierCortex {
     }
   }
 
-  public static encodeTierStateForURL(title: string | undefined, tiers: Tier[]): string {
+  public static encodeTierStateForURL(title: string | undefined, tiers: TierWithSimplifiedItems[]): string {
     const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
       i: tier.id,
       n: tier.name,
-      t: tier.items.map(item => ({
-        i: item.id,
-        c: item.content
-      }))
+      t: tier.items
     }));
     const encodedState: EncodedState = {
       tiers: simplifiedTiers
@@ -83,6 +84,10 @@ export class TierCortex {
     }
     const jsonString = JSON.stringify(encodedState);
     return LZString.compressToEncodedURIComponent(jsonString);
+  }
+
+  public isCustomItem(itemId: string): boolean {
+    return !this.packageItemLookup.hasOwnProperty(itemId);
   }
 
   public getOgTierGradient(index: number, tiersLength: number): string {
@@ -213,7 +218,7 @@ export class TierCortex {
     }
   }
 
-  private resolveItem(itemId: string, content: string): Item {
+  private resolveItem(itemId: string, content?: string): Item {
     const packageItem = this.packageItemLookup[itemId];
     if (packageItem) return packageItem;
 
@@ -222,13 +227,13 @@ export class TierCortex {
       if (customItem) {
         return {
           id: customItem.i,
-          content: content,
+          content: content || customItem.c,
           imageUrl: customItem.d,
         };
       }
     }
 
-    return this.createPlaceholderItem(itemId, content);
+    return this.createPlaceholderItem(itemId, content || '');
   }
 
   private createPlaceholderItem(itemId: string, content: string): Item {
