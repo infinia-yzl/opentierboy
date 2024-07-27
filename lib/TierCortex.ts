@@ -240,7 +240,7 @@ export class TierCortex {
     return {
       id: itemId,
       content,
-      imageUrl: this.getAbsoluteUrl('/placeholder-image.jpg'),
+      imageUrl: this.getAbsoluteUrl('/placeholder-image.png'),
     };
   }
 

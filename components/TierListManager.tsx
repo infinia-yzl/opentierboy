@@ -12,6 +12,10 @@ import ShareButton from "@/components/ShareButton";
 import {TierCortex, TierWithSimplifiedItems} from "@/lib/TierCortex";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {ItemSet} from "@/models/ItemSet";
+import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
+import {CameraIcon, QuestionMarkCircledIcon} from "@radix-ui/react-icons";
+import {GiCardAceSpades, GiLightBackpack, GiScrollQuill} from "react-icons/gi";
+import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 
 interface TierListManagerProps {
   initialItemSet?: ItemSet;
@@ -33,6 +37,8 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(tiers[0].labelPosition ?? 'left');
   const previousTiersRef = useRef<Tier[]>(tiers);
 
+  const [urlLength, setUrlLength] = useState(0);
+
   useEffect(() => {
     const state = searchParams.get('state');
     if (state) {
@@ -42,9 +48,11 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
           setName(decodedState.title);
         }
         setTiers(decodedState.tiers);
+
+        setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
       }
     }
-  }, [searchParams, tierCortex]);
+  }, [pathname.length, searchParams, tierCortex]);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     previousTiersRef.current = updatedTiers;
@@ -185,6 +193,62 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     onTemplateChange: handleTemplateChange
   };
 
+  const UrlLengthWarning: React.FC<{ urlLength: number }> = ({urlLength}) => {
+    if (urlLength <= 2000) return null;
+
+    return (
+      <Alert className="px-4 my-4 bg-parchment border-brown-200">
+        <GiScrollQuill className="h-5 w-5 animate-pulse"/>
+        <AlertTitle className="font-bold text-lg underline underline-offset-2">
+          OPTIONAL QUEST UNLOCKED: THE VANISHING LINK PREVIEW
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <QuestionMarkCircledIcon className="h-4 w-4 ml-2"/>
+              </TooltipTrigger>
+              <TooltipContent>
+                The current URL length exceeds 2000 characters.
+                This may cause link previews to fail and may also be incompatible with older browsers. Consider removing
+                some items or sharing your tier list preview using an image, or an alternative method.
+                Functionality of the tier list itself is not affected.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </AlertTitle>
+        <AlertDescription className="">
+          <p className="mb-2">
+            Hark, brave adventurer! A most peculiar affliction has befallen your URL. Tis&apos; stretched
+            yon&apos; mortal
+            limits, surpassing 2000 characters in length!
+          </p>
+          <p className="mb-2">
+            This arcane enchantment of elongation threatens to render link previews invisible to the denizens of
+            Twitter and Discord.
+            Even the ancient browsers of yore may falter before its might. Fear not, for your tier list remains
+            unscathed, its power undiminished.
+          </p>
+          <p className="mb-2">
+            Brave adventurer, the choice is yours. Your tier list shall endure regardless, but should you wish to embark
+            on this quest for the denizens, pray, consider the paths our scouts have identified:
+          </p>
+          <ul className="list-disc list-inside">
+            <li><GiLightBackpack className="inline h-4 w-4 mr-1"/> Use your Inventory Management skills (Remove some
+              items)
+            </li>
+            <li><CameraIcon className="inline h-4 w-4 mr-1"/> Use &quot;Freeze Frame&quot;! (Share as picture)
+            </li>
+            <li><GiCardAceSpades className="inline h-4 w-4 mr-1"/> Activate your Secret Sharing Technique (Will you
+              activate your Trump Card?)
+            </li>
+          </ul>
+          <blockquote className="mt-4 border-l-2 pl-6 italic">
+            &quot;In the face of adversity, true heroes forge their own paths.&quot; - Sage of the Endless URL
+          </blockquote>
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
   return (
     <TierContext.Provider value={contextValue}>
       <div className="mb-4">
@@ -214,6 +278,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
           <p className="tooltip-touch text-sm text-muted-foreground text-center">
             Long-press on any item to delete.
           </p>
+          <UrlLengthWarning urlLength={urlLength}/>
         </div>
       </div>
       <DragDropTierList
