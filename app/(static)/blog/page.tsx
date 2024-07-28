@@ -97,7 +97,9 @@ const BlogPostList: React.FC = () => {
       <Separator className="my-4"/>
       <div className="space-y-4">
         {posts.map((post) => (
-          <BlogPostCard key={post.slug} {...post} />
+          <div key={post.slug}>
+            <BlogPostCard key={post.slug} {...post} />
+          </div>
         ))}
       </div>
     </div>
