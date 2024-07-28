@@ -2,14 +2,9 @@ import fs from 'fs';
 import {MDXRemote} from 'next-mdx-remote/rsc';
 import matter from 'gray-matter';
 import {cn} from "@/lib/utils";
+import {format} from 'date-fns';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
 import {Metadata} from "next";
 import {slug} from "github-slugger";
@@ -97,6 +92,12 @@ const baseComponents = {
       </h3>
     );
   },
+  h4: ({className, ...props}: React.HTMLAttributes<HTMLHeadingElement>) => {
+    const id = slug(props.children as string);
+    return (
+      <h4 id={id} className={cn("text-xl font-semibold tracking-tight", className)} {...props} />
+    )
+  },
   p: ({className, ...props}: React.HTMLAttributes<HTMLParagraphElement>) => (
     <p className={cn("leading-7 [&:not(:first-child)]:my-3", className)} {...props} />
   ),
@@ -130,6 +131,10 @@ export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxC
       <CardHeader>
         <CardTitle>{data.title}</CardTitle>
         {data.description && <CardDescription>{data.description}</CardDescription>}
+        {data.date &&
+          <CardDescription>
+            {format(data.date, 'MMMM d, yyyy')}
+          </CardDescription>}
         <Separator/>
       </CardHeader>
       <CardContent>
