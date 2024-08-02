@@ -1,0 +1,66 @@
+name: Enforce Image Template PR Title Format
+
+on:
+  pull_request:
+    types: [ opened, edited, reopened ]
+    paths:
+      - 'package.json'
+
+jobs:
+  check-pr-title-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for image package addition and PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Check if an image package was added
+          NEW_IMAGE_PACKAGE=$(git diff origin/${{ github.base_ref }} -- package.json | grep -oP '"image-[^"]*"' | sed 's/"//g')
+          
+          if [ -z "$NEW_IMAGE_PACKAGE" ]; then
+            echo "No new image package detected. Skipping PR title check."
+            exit 0
+          fi
+
+          echo "New image package detected: $NEW_IMAGE_PACKAGE"
+
+          # Check PR title format
+          if [[ ! "$PR_TITLE" =~ ^asset\(${NEW_IMAGE_PACKAGE}\):\ Add\ [a-zA-Z0-9\ ]+\ image\ template$ ]]; then
+            echo "Error: PR title does not match the required format."
+            echo "Required format: asset($NEW_IMAGE_PACKAGE): Add Display Name image template"
+            echo "For example: asset($NEW_IMAGE_PACKAGE): Add New Image Template"
+            exit 1
+          fi
+          
+          # Extract display name from PR title
+          DISPLAY_NAME=$(echo $PR_TITLE | sed -n 's/asset('"${NEW_IMAGE_PACKAGE}"'): Add \(.*\) image template/\1/p')
+          
+          # Check if the extracted names are in the PR body
+          if [[ ! "$PR_BODY" =~ $NEW_IMAGE_PACKAGE ]] || [[ ! "$PR_BODY" =~ $DISPLAY_NAME ]]; then
+            echo "Error: PR body should include both the package name ($NEW_IMAGE_PACKAGE) and display name ($DISPLAY_NAME)."
+            exit 1
+          fi
+
+      - name: PR Check Failed
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const newPackage = process.env.NEW_IMAGE_PACKAGE;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: `Your PR does not meet the requirements for adding a new image template. Please ensure:
+              1. The PR title matches the format: \`asset(${newPackage}): Add Display Name image template\`
+              2. Both the package name (${newPackage}) and the display name are mentioned in the PR description
+            
+              For example: \`asset(${newPackage}): Add New Image Template\``
+            })

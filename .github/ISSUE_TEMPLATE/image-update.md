@@ -23,7 +23,6 @@ Please ensure all the following items are completed before submitting this issue
 
 ![CI Status](https://img.shields.io/github/workflow/status/username/repo/CI)
 ![npm version](https://img.shields.io/npm/v/package-name)
-![npm downloads](https://img.shields.io/npm/dm/package-name)
 
 ## Contribution Agreement
 
