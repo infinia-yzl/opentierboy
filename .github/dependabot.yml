@@ -18,4 +18,3 @@ updates:
       include: "scope"
     pull-request-branch-name:
       separator: "-"
-    ignore: [ ]
