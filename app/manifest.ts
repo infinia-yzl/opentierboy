@@ -3,14 +3,34 @@ import {MetadataRoute} from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'OpenTierBoy',
-    short_name: 'OTB',
-    description: "Craft, rank, and share your passion with OpenTierBoy",
+    short_name: 'OpenTierBoy',
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups. Create and share your tier lists instantly simply by copying the URL to your tier list.",
     start_url: '/',
     display: 'standalone',
     icons: [
       {
+        src: '/icon16.png',
+        sizes: '16x16',
+        type: 'image/png',
+      },
+      {
+        src: '/icon32.png',
+        sizes: '32x32',
+        type: 'image/png',
+      },
+      {
+        src: '/icon150.png',
+        sizes: '150x150',
+        type: 'image/png',
+      },
+      {
         src: '/icon192.png',
         sizes: '192x192',
+        type: 'image/png',
+      },
+      {
+        src: '/icon256.png',
+        sizes: '256x256',
         type: 'image/png',
       },
       {
@@ -24,20 +44,9 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
       {
-        src: '/icon16.png',
-        sizes: '16x16',
-        type: 'image/png',
-      },
-      {
-        src: '/icon32.png',
-        sizes: '32x32',
-        type: 'image/png',
-      },
-      {
-        src: '/favicon.ico',
-        sizes: '48x48',
-        type: 'image/x-icon',
-      },
+        src: '/safari-pinned-tab.svg',
+        purpose: 'maskable',
+      }
     ],
     shortcuts: [
       {
@@ -71,6 +80,6 @@ export default function manifest(): MetadataRoute.Manifest {
         "description": "Rank Overwatch Heroes in your own tier list and share it with the community"
       },
     ],
-    categories: ["productivity", "utilities"],
+    categories: ["productivity", "utilities", "entertainment"],
   }
 }

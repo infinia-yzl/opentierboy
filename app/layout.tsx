@@ -42,29 +42,20 @@ const baseUrl = getBaseUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
-  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups. Create and instantly share your tier lists simply by copying the URL to your tier list.",
   keywords: "tier list, maker, creator, generator, open-source, free, share, rank, community, tier maker, rank, rankings, game",
   openGraph: {
     title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
-    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups. Create and instantly share your tier lists simply by copying the URL to your tier list.",
     url: baseUrl,
     siteName: "OpenTierBoy",
     locale: 'en_US',
     type: 'website',
-    images: [
-      {
-        url: '/opengraph-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'OpenTierBoy',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: "OpenTierBoy - Craft, Rank, and Share Your Tier Lists",
-    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
-    images: ['/opengraph-image.png'],
+    description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups. Create and instantly share your tier lists simply by copying the URL to your tier list.",
   },
   other: {
     'application-name': 'OpenTierBoy',
@@ -79,7 +70,7 @@ const STRUCTURED_METADATA = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
   name: 'OpenTierBoy',
-  description: "The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups.",
+  description: "OpenTierBoy: The free, open-source tier list creator that helps you craft, rank and share your passion! No ads, no logins, no sign-ups. Create and share your tier lists instantly simply by copying the URL to your tier list.",
   url: baseUrl,
   applicationCategory: 'UtilitiesApplication',
   operatingSystem: 'Web',
@@ -195,7 +186,7 @@ export default function RootLayout({
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
               <p className="text-sm text-muted-foreground">No ads, no logins, no sign-ups.</p>
-              <div className="flex flex-row space-x-4 h-5">
+              <div className="flex flex-row space-x-4 h-5 justify-center sm:justify-start">
                 <a href="/about" className="text-sm hover:underline">About</a>
                 <Separator orientation="vertical"/>
                 <a href="/blog" className="text-sm hover:underline">Blog</a>
