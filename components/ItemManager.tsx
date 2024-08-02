@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -48,7 +48,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({
   undoReset,
   undoDelete,
 }) => {
-  const {tierCortex} = useTierContext();
+  const {tiers, tierCortex} = useTierContext();
+  const [showGradientBorder, setShowGradientBorder] = useState(false);
+
+  useEffect(() => {
+    const totalItems = tiers.reduce((sum, tier) => sum + tier.items.length, 0);
+    setShowGradientBorder(totalItems === 0);
+  }, [tiers]);
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
@@ -123,7 +129,9 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon"
+                  className={`${showGradientBorder ? 'glow-effect' : ''}`}
+          >
             <DashboardIcon className="h-4 w-4"/>
           </Button>
         </DropdownMenuTrigger>

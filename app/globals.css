@@ -229,6 +229,71 @@
   h2 {
     @apply font-heading;
   }
+
+  @keyframes rotate {
+    0% {
+      --angle: 0deg;
+    }
+    100% {
+      --angle: 360deg;
+    }
+  }
+
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  .glow-effect {
+    position: relative;
+  }
+
+  .glow-effect::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    background: conic-gradient(
+        from var(--angle),
+        #ff0000,
+        #ff7f00,
+        #ffff00,
+        #00ff00,
+        #0000ff,
+        #8b00ff,
+        #ff0000
+    );
+    border-radius: inherit;
+    animation: rotate 3s linear infinite, glow 2s ease-in-out infinite alternate;
+    z-index: -1;
+  }
+
+  .glow-effect::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: inherit;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  @keyframes glow {
+    from {
+      filter: blur(3px);
+    }
+    to {
+      filter: blur(5px);
+    }
+  }
+
+  @keyframes rotate {
+    0% {
+      --angle: 0deg;
+    }
+    100% {
+      --angle: 360deg;
+    }
+  }
 }
 
 html.zen-mode {

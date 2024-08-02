@@ -23,12 +23,14 @@ We welcome contributions to OpenTierBoy! Here's how you can help forge the legen
 
 To contribute new images or image sets to OpenTierBoy, you can either add to existing image sets or create a new one
 using our image-set template.
-Current Image Sets
+
+### Current Image Sets
+
 We currently have the following image sets that you can contribute to:
 
-- The Finals (image-reachthefinals)
-- Wuthering Waves (image-wutheringwaves)
-- Overwatch (image-overwatch)
+- The Finals (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
+- Wuthering Waves (image-wutheringwaves): https://github.com/infinia-yzl/image-wutheringwaves
+- Overwatch (image-overwatch): https://github.com/infinia-yzl/image-overwatch
 
 To contribute to these existing image sets, please follow the general contribution guidelines above and make sure to
 adhere to any specific guidelines provided in each image set's repository.
@@ -77,6 +79,12 @@ Once you've published your image set package:
     - Any relevant tags or categories for the images
 
 Our team will review your submission and integrate it into the project if it meets our guidelines.
+
+#### Example Pull Requests
+
+- https://github.com/infinia-yzl/opentierboy/pull/23
+- https://github.com/infinia-yzl/opentierboy/pull/33
+- https://github.com/infinia-yzl/opentierboy/pull/44
 
 ## Reporting Issues
 
