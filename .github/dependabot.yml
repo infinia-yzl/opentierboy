@@ -11,18 +11,11 @@ updates:
           - "*"
     labels:
       - "dependencies"
-    ignore: [ ]
+      - "npm"
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
     pull-request-branch-name:
       separator: "-"
-    ignore-labels:
-      - "skip-dependency-update"
-    custom-labels:
-      - dependency: "dependencies"
-      - images:
-          - "image-*"
-    pull-request-title:
-      format: "${{ type }}(${{ scope }}): ${{ subject }}"
+    ignore: [ ]
