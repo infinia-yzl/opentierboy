@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "eslint"
+        versions: [ "9.x" ]
+      - dependency-name: "react-day-picker"
+        versions: [ "9.x" ]
     open-pull-requests-limit: 1
     groups:
       dependencies:
