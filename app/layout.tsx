@@ -18,12 +18,12 @@ import StructuredMetadata from "@/components/StructuredMetadata";
 const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
-})
+});
 
 const fontHeading = FontHeading({
   subsets: ["latin"],
   variable: "--font-heading"
-})
+});
 
 const getBaseUrl = () => {
   let baseUrl = 'https://opentierboy.com';
