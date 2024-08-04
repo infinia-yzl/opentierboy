@@ -58,7 +58,7 @@ submitting new image sets, please see our [CONTRIBUTING](CONTRIBUTING.md) file.
 
 Found a bug or have a suggestion? Open an issue on GitHub:
 
-1. Go to the [Issues](https://github.com/yourusername/opentierboy/issues) tab.
+1. Go to the [Issues](https://github.com/infinia-yzl/opentierboy/issues) tab.
 2. Click "New Issue".
 3. Choose the appropriate template (Bug Report, Feature Request, or Image Update/Addition).
 4. Provide a clear title and detailed description.
