@@ -67,7 +67,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
                 objectFit: "cover"
               }}
               placeholder="blur"
-              blurDataURL={imageUrl}
+              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
             />
           </div>
           {showLabel && (
