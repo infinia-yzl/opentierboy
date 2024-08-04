@@ -6,11 +6,40 @@ import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
 import TierCortex from "@/lib/TierCortex";
+import {Skeleton} from "@/components/ui/skeleton";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const TierListManager = dynamic(
   () => import('@/components/TierListManager'),
-  {ssr: false}
+  {
+    loading: () => (
+      <div className="space-y-4 w-full flex flex-col items-center">
+        {/* Title */}
+        <Skeleton className="h-12 w-48"/>
+
+        {/* Buttons */}
+        <div className="flex space-x-2">
+          <Skeleton className="h-10 w-10"/>
+          <Skeleton className="h-10 w-10"/>
+          <Skeleton className="h-10 w-10"/>
+        </div>
+
+        {/* Help Text */}
+        <div className="flex flex-col space-y-1 items-center">
+          <Skeleton className="h-4 w-16"/>
+          <Skeleton className="h-4 w-28"/>
+        </div>
+
+        {/* Tier List */}
+        <Skeleton className="h-12 w-1/2"/>
+        <Skeleton className="h-12 w-1/2"/>
+        <Skeleton className="h-12 w-1/2"/>
+        <Skeleton className="h-12 w-1/2"/>
+        <Skeleton className="h-12 w-1/2"/>
+        <Skeleton className="h-12 w-1/2"/>
+      </div>
+    ),
+  }
 );
 
 export async function generateStaticParams() {
