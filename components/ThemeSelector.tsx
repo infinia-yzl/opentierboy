@@ -10,19 +10,14 @@ const colorThemes = ['classic', 'ocean', 'forest'];
 
 export function ThemeSelector() {
   const [mounted, setMounted] = useState(false);
-  const {setTheme} = useTheme();
+  const {theme, setTheme} = useTheme();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   const handleThemeChange = (newTheme: string) => {
-    const [newColorTheme, newMode] = newTheme.split('-');
-    document.documentElement.classList.remove('theme-ocean', 'theme-forest');
-    if (newColorTheme !== 'classic') {
-      document.documentElement.classList.add(`theme-${newColorTheme}`);
-    }
-    setTheme(newMode);
+    setTheme(newTheme.replace('classic-', ''));
   };
 
   if (!mounted) {
@@ -43,7 +38,7 @@ export function ThemeSelector() {
         {colorThemes.map((colorTheme) => (
           <DropdownMenuItem key={colorTheme}
                             className="flex items-center justify-between p-2"
-                            onClick={() => handleThemeChange(colorTheme)}
+                            onClick={() => handleThemeChange(`${colorTheme}-${theme && theme.includes('dark') ? 'dark' : 'light'}`)}
           >
             <span className="flex-grow pl-2 text-sm">
               {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}

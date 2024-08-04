@@ -73,7 +73,7 @@
   }
 
   /* Ocean theme */
-  .theme-ocean {
+  .ocean-light {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -108,7 +108,7 @@
     --tier-gradient-6: linear-gradient(to right, #3C6E8F, #2E8B57); /* Deepest ocean */
   }
 
-  .dark.theme-ocean {
+  .ocean-dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -143,7 +143,7 @@
   }
 
   /* Forest theme */
-  .theme-forest {
+  .forest-light {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
@@ -178,7 +178,7 @@
     --tier-gradient-6: linear-gradient(to right, #fae8cc, #f5c29e);
   }
 
-  .dark.theme-forest {
+  .forest-dark {
     --background: 20 14.3% 4.1%;
     --foreground: 0 0% 95%;
     --card: 24 9.8% 10%;
