@@ -141,6 +141,12 @@ export default function RootLayout({
     <ThemeProvider
       attribute="class"
       defaultTheme="system"
+      themes={[
+        'ocean-light', 'ocean-dark',
+        'forest-light', 'forest-dark',
+        'dark', 'light',
+        'system'
+      ]}
       enableSystem
       disableTransitionOnChange
     >
