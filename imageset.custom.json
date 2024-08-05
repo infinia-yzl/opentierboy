@@ -17,6 +17,10 @@
       "displayName": "OVERWATCH",
       "googleFont": "Russo One",
       "backgroundImage": "/splash/overwatch-bg.webp"
+    },
+    "image-webdev": {
+      "displayName": "Web Development Technologies",
+      "backgroundImage": "/splash/webdev-bg.webp"
     }
   }
 }

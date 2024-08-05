@@ -877,6 +877,16 @@
           ]
         },
         {
+          "filename": "c/sk.webp",
+          "label": "The Shorekeeper",
+          "tags": [
+            "c_att_spe",
+            "c_1_3",
+            "c_all",
+            "c_rarity_5"
+          ]
+        },
+        {
           "filename": "c/vr.webp",
           "label": "Verina",
           "tags": [
@@ -894,6 +904,16 @@
             "c_rarity_5",
             "c_att_ele",
             "c_1_2"
+          ]
+        },
+        {
+          "filename": "c/yh.webp",
+          "label": "Youhu",
+          "tags": [
+            "c_att_gla",
+            "c_1_3",
+            "c_all",
+            "c_rarity_4"
           ]
         },
         {
@@ -991,6 +1011,11 @@
         "c_att_spe": {
           "title": "Spectro Resonators",
           "description": "Spectro attribute Resonators",
+          "category": "general"
+        },
+        "c_1_3": {
+          "title": "Resonators - Version 1.3",
+          "description": "Resonators from Version 1.3",
           "category": "general"
         },
         "c_1_2": {
@@ -1409,6 +1434,472 @@
       },
       "googleFont": "Russo One",
       "backgroundImage": "/splash/overwatch-bg.webp"
+    },
+    "image-webdev": {
+      "displayName": "Web Development Technologies",
+      "images": [
+        {
+          "filename": "be/actionhero.webp",
+          "label": "ActionHero",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/adonis.webp",
+          "label": "AdonisJS",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/cassandra.webp",
+          "label": "Apache Cassandra",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/couchdb.webp",
+          "label": "CouchDB",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/django.webp",
+          "label": "Django",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/dotnet.webp",
+          "label": ".NET",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/express.webp",
+          "label": "Express.js",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/fastify.webp",
+          "label": "Fastify",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/feathers.webp",
+          "label": "Feathers",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/hapi.webp",
+          "label": "Hapi",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/hono.webp",
+          "label": "Hono",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/koa.webp",
+          "label": "Koa",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/laravel.webp",
+          "label": "Laravel",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/leveldb.webp",
+          "label": "LevelDB",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/loopback.webp",
+          "label": "LoopBack",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/mariadb.webp",
+          "label": "MariaDB",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/moleculer.webp",
+          "label": "Moleculer",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/mongodb.webp",
+          "label": "MongoDB",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/mssql.webp",
+          "label": "Microsoft SQL Server",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/mysql.webp",
+          "label": "MySQL",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/nest.webp",
+          "label": "NestJS",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/pgsql.webp",
+          "label": "PostgreSQL",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/rails.webp",
+          "label": "Ruby on Rails",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/redis.webp",
+          "label": "Redis",
+          "tags": [
+            "be",
+            "db"
+          ]
+        },
+        {
+          "filename": "be/restify.webp",
+          "label": "Restify",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/sails.webp",
+          "label": "Sails.js",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "be/spring.webp",
+          "label": "Spring",
+          "tags": [
+            "be",
+            "befw"
+          ]
+        },
+        {
+          "filename": "fe/alpine.webp",
+          "label": "Alpine.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/angular.webp",
+          "label": "Angular",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/astro.webp",
+          "label": "Astro",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/aurelia.webp",
+          "label": "Aurelia",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/cyclejs.webp",
+          "label": "Cycle.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/ember.webp",
+          "label": "Ember.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/foundation.webp",
+          "label": "Foundation",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/framework7.webp",
+          "label": "Framework7",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/gatsby.webp",
+          "label": "Gatsby",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/htmx.webp",
+          "label": "HTMX",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/ionic.webp",
+          "label": "Ionic",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/jquery.webp",
+          "label": "JQuery",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/lit.webp",
+          "label": "Lit",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/marko.webp",
+          "label": "Marko",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/mithril.webp",
+          "label": "Mithril",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/nextjs.webp",
+          "label": "Next.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/nuxt.webp",
+          "label": "Nuxt.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/preact.webp",
+          "label": "Preact",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/quasar.webp",
+          "label": "Quasar",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/qwik.webp",
+          "label": "Qwik",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/react.webp",
+          "label": "React",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/remix.webp",
+          "label": "Remix",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/riot.webp",
+          "label": "Riot.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/semantic.webp",
+          "label": "Semantic UI",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/solidjs.webp",
+          "label": "Solid.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/stencil.webp",
+          "label": "Stencil",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/stimulus.webp",
+          "label": "Stimulus",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/svelte.webp",
+          "label": "Svelte",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "fe/vue.webp",
+          "label": "Vue.js",
+          "tags": [
+            "fe"
+          ]
+        },
+        {
+          "filename": "meteor.webp",
+          "label": "Meteor",
+          "tags": [
+            "fs"
+          ]
+        },
+        {
+          "filename": "total.webp",
+          "label": "Total.js",
+          "tags": [
+            "fs"
+          ]
+        }
+      ],
+      "tags": {
+        "be": {
+          "title": "Backend Technologies",
+          "description": "A comprehensive list of tools, frameworks, and libraries used in modern backend web development. This includes server-side technologies, databases, and other tools that enable developers to build scalable and performant web applications.",
+          "category": "general"
+        },
+        "befw": {
+          "title": "Backend Frameworks",
+          "description": "Server-side frameworks used to build the core logic and structure of web applications.",
+          "category": "general"
+        },
+        "db": {
+          "title": "Databases and Persistence",
+          "description": "Systems and technologies used for storing, retrieving, and managing data in web applications.",
+          "category": "general"
+        },
+        "fe": {
+          "title": "Frontend Technologies",
+          "description": "A comprehensive list of tools, frameworks, and libraries used in modern frontend web development. This includes JavaScript frameworks, UI libraries, meta-frameworks, and other technologies that enable developers to build interactive and responsive user interfaces for web applications.",
+          "category": "general"
+        },
+        "fs": {
+          "title": "Fullstack Technologies",
+          "description": "A comprehensive list of frameworks and platforms that provide end-to-end solutions for web application development, covering both frontend and backend aspects. These technologies enable developers to build complete web applications using a single, integrated stack.",
+          "category": "general"
+        }
+      },
+      "backgroundImage": "/splash/webdev-bg.webp"
     }
   }
 }
