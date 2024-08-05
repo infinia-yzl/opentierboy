@@ -21,7 +21,7 @@ Please ensure all the following items are completed before submitting this issue
 
 <!-- Replace the placeholders in the URLs with your actual repository and package names -->
 
-![CI Status](https://img.shields.io/github/workflow/status/username/repo/CI)
+![CI Status](https://img.shields.io/github/actions/workflow/status/username/package-name/ci.yml)
 ![npm version](https://img.shields.io/npm/v/package-name)
 
 ## Contribution Agreement
@@ -41,4 +41,8 @@ After creating this issue:
 1. Fork the repository
 2. Create a new branch for your changes
 3. Add or update the images as described
-4. Open a Pull Request linking back to this issue
+    1. To add a new image set, simply run `npm run add-image-set <package-name>` where `<package-name>` is the name of
+       the npm package of your new image set
+    2. Update the new image set in `./imageset.custom.json` with a good display name and any other customizations
+4. Test your changes
+5. Open a Pull Request linking back to this issue

@@ -64,7 +64,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
               fill
               sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
               style={{
-                objectFit: "cover"
+                objectFit: "contain"
               }}
               placeholder="blur"
               blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="

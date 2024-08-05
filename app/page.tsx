@@ -22,6 +22,12 @@ const FEATURED_SETS = {
     'dps',
     'sup',
   ],
+  "image-webdev": [
+    'all',
+    'fe',
+    'be',
+    'fs',
+  ],
   // Add more packages and their featured sets here
 };
 
