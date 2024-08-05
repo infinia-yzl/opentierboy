@@ -4,7 +4,12 @@ import React, {useEffect, useState} from 'react';
 import {useTheme} from 'next-themes';
 import {MoonIcon, SunIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const colorThemes = ['classic', 'ocean', 'forest'];
 
@@ -16,42 +21,55 @@ export function ThemeSelector() {
     setMounted(true);
   }, []);
 
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme.replace('classic-', ''));
+  const handleThemeChange = (newColorTheme: string, forcedMode?: 'light' | 'dark') => {
+    const currentMode = isDarkTheme() ? 'dark' : 'light';
+    const newMode = forcedMode || currentMode;
+
+    if (newColorTheme === 'classic') {
+      setTheme(newMode);
+    } else {
+      setTheme(`${newColorTheme}-${newMode}`);
+    }
+  };
+
+  const isDarkTheme = () => {
+    return theme?.includes('dark') || theme?.endsWith('-dark');
   };
 
   if (!mounted) {
     return <Button variant="outline" size="icon"><SunIcon className="h-[1.2rem] w-[1.2rem]"/></Button>;
   }
 
+  const isCurrentDark = isDarkTheme();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon">
-          <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0"/>
+          <SunIcon
+            className={`h-[1.2rem] w-[1.2rem] transition-all ${isCurrentDark ? '-rotate-90 scale-0' : 'rotate-0 scale-100'}`}/>
           <MoonIcon
-            className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100"/>
+            className={`absolute h-[1.2rem] w-[1.2rem] transition-all ${isCurrentDark ? 'rotate-0 scale-100' : 'rotate-90 scale-0'}`}/>
           <span className="sr-only">Select theme</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-48">
         {colorThemes.map((colorTheme) => (
-          <DropdownMenuItem key={colorTheme}
-                            className="flex items-center justify-between p-2"
-                            onClick={() => handleThemeChange(`${colorTheme}-${theme && theme.includes('dark') ? 'dark' : 'light'}`)}
+          <DropdownMenuItem
+            key={colorTheme}
+            className="flex items-center justify-between p-2"
+            onClick={() => handleThemeChange(colorTheme)}
           >
             <span className="flex-grow pl-2 text-sm">
               {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
             </span>
-            <div className="flex space-x-0.5">
+            <div className="flex space-x-0.5" onClick={(e) => e.stopPropagation()}>
               <Button
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleThemeChange(`${colorTheme}-light`);
-                }}
+                onClick={() => handleThemeChange(colorTheme, 'light')}
+                aria-label={`Set ${colorTheme} light theme`}
               >
                 <SunIcon className="h-4 w-4"/>
               </Button>
@@ -59,10 +77,8 @@ export function ThemeSelector() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleThemeChange(`${colorTheme}-dark`);
-                }}
+                onClick={() => handleThemeChange(colorTheme, 'dark')}
+                aria-label={`Set ${colorTheme} dark theme`}
               >
                 <MoonIcon className="h-4 w-4"/>
               </Button>
