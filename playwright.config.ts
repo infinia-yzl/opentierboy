@@ -1,5 +1,7 @@
 import {defineConfig, devices} from '@playwright/test';
 
+type VercelSetBypassCookie = 'true' | 'samesitenone';
+
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
@@ -18,14 +20,17 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.BASE_URL || 'http://127.0.0.1:3000',
+    extraHTTPHeaders: {
+      'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET || '',
+      'x-vercel-set-bypass-cookie': 'true' as VercelSetBypassCookie
+    },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
