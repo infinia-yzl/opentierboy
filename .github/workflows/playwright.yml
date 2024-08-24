@@ -15,6 +15,10 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+      - name: List snapshot directories
+        run: |
+          ls -R tests/tierlist.spec.ts-snapshots
+          ls -R tests/opengraph.spec.ts-snapshots
       - name: Run Playwright tests
         run: npx playwright test
         env:

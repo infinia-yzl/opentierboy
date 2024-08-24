@@ -1,6 +1,6 @@
 import {defineConfig, devices} from '@playwright/test';
 
-type VercelSetBypassCookie = 'true' | 'samesitenone';
+// type VercelSetBypassCookie = 'true' | 'samesitenone';
 
 /**
  * Read environment variables from file.
@@ -27,10 +27,10 @@ export default defineConfig({
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.BASE_URL || 'http://127.0.0.1:3000',
-    extraHTTPHeaders: {
-      'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET!,
-      'x-vercel-set-bypass-cookie': 'true' as VercelSetBypassCookie
-    },
+    // extraHTTPHeaders: {
+    //   'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET!,
+    //   'x-vercel-set-bypass-cookie': 'true' as VercelSetBypassCookie
+    // },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
