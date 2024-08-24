@@ -15,17 +15,21 @@ jobs:
         run: npm ci
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
-      - name: List snapshot directories
-        run: |
-          ls -R tests/tierlist.spec.ts-snapshots
-          ls -R tests/opengraph.spec.ts-snapshots
       - name: Run Playwright tests
         run: npx playwright test
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
-      - uses: actions/upload-artifact@v4
+      - name: Upload test results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 30
+      - name: Upload snapshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshots
+          path: tests/**/*-snapshots
           retention-days: 30
