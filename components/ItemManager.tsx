@@ -174,7 +174,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
       </DropdownMenu>
 
       <Dialog open={isItemCreatorOpen} onOpenChange={setIsItemCreatorOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Add New Items</DialogTitle>
             <DialogDescription>
