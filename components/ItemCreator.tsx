@@ -74,7 +74,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col overflow-y-hidden">
         <FormField
           control={form.control}
           name="files"
@@ -100,7 +100,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 overflow-y-auto pe-6">
           {uploadedItems.map((item) => (
             <div key={item.id} className="space-y-2">
               <div className="w-28 h-28 relative">
