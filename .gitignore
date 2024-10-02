@@ -39,3 +39,7 @@ next-env.d.ts
 public/images/*
 !public/images/.gitkeep
 .prepare-images-lock
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
