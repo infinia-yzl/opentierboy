@@ -70,11 +70,21 @@
       "displayName": "THE FINALS",
       "images": [
         {
+          "filename": "50_Akimbo_Rank_1.webp",
+          "label": ".50 AKIMBO",
+          "tags": [
+            "heavy",
+            "4_0_0",
+            "weapon"
+          ]
+        },
+        {
           "filename": "93R_Rank_1.webp",
           "label": "93R",
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -84,15 +94,17 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
         {
           "filename": "APS_Turret_Rank_1.webp",
-          "label": "APS Turret",
+          "label": "APS TURRET",
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -102,6 +114,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -111,6 +124,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -120,6 +134,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -129,6 +144,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -138,6 +154,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -147,6 +164,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -156,6 +174,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -165,6 +184,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -174,6 +194,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -183,6 +204,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -192,6 +214,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -201,6 +224,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -210,6 +234,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -219,6 +244,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -228,6 +254,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -237,6 +264,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -246,6 +274,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -255,6 +284,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -266,6 +296,7 @@
             "medium",
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -277,6 +308,7 @@
             "medium",
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -288,6 +320,7 @@
             "medium",
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -297,6 +330,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -306,6 +340,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -315,6 +350,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -324,6 +360,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -335,6 +372,7 @@
             "medium",
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -344,6 +382,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -353,6 +392,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -362,6 +402,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -371,6 +412,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -380,6 +422,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -389,6 +432,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -398,6 +442,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -407,6 +452,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -416,6 +462,16 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "M26_Matter_Rank_1.webp",
+          "label": "M26 MATTER",
+          "tags": [
+            "light",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -425,6 +481,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -434,6 +491,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -443,6 +501,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -452,6 +511,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -461,7 +521,17 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
+          ]
+        },
+        {
+          "filename": "Pike-556_Rank_1.webp",
+          "label": "PIKE-556",
+          "tags": [
+            "medium",
+            "4_0_0",
+            "weapon"
           ]
         },
         {
@@ -472,6 +542,7 @@
             "medium",
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -481,6 +552,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -490,6 +562,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -499,6 +572,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -508,6 +582,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -517,6 +592,7 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -526,6 +602,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -535,6 +612,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -544,6 +622,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -553,6 +632,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -562,6 +642,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -571,6 +652,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -580,6 +662,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -589,6 +672,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -598,6 +682,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -607,6 +692,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -616,6 +702,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -625,6 +712,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -634,6 +722,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -643,6 +732,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -652,6 +742,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         },
@@ -661,6 +752,7 @@
           "tags": [
             "heavy",
             "3_0_0",
+            "4_0_0",
             "special"
           ]
         },
@@ -670,6 +762,7 @@
           "tags": [
             "light",
             "3_0_0",
+            "4_0_0",
             "weapon"
           ]
         },
@@ -679,11 +772,27 @@
           "tags": [
             "medium",
             "3_0_0",
+            "4_0_0",
             "gadgets"
           ]
         }
       ],
       "tags": {
+        "heavy": {
+          "title": "Heavy Build",
+          "description": "Equipment available to Heavy builds",
+          "category": "general"
+        },
+        "4_0_0": {
+          "title": "Season 4",
+          "description": "Everything available in Season 4",
+          "category": "general"
+        },
+        "weapon": {
+          "title": "Weapons",
+          "description": "Images of weapons",
+          "category": "general"
+        },
         "light": {
           "title": "Light Build",
           "description": "Equipment available to Light builds",
@@ -694,11 +803,6 @@
           "description": "Everything available in Season 3",
           "category": "general"
         },
-        "weapon": {
-          "title": "Weapons",
-          "description": "Images of weapons",
-          "category": "general"
-        },
         "medium": {
           "title": "Medium Build",
           "description": "Equipment available to Medium builds",
@@ -707,11 +811,6 @@
         "gadgets": {
           "title": "Gadgets",
           "description": "Images of gadgets",
-          "category": "general"
-        },
-        "heavy": {
-          "title": "Heavy Build",
-          "description": "Equipment available to Heavy builds",
           "category": "general"
         },
         "special": {
