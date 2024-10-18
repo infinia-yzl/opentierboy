@@ -60,7 +60,7 @@ const AboutPage = () => {
       <section className="py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-bold mb-12 text-center">Our Approach</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="flex flex-col md:grid md:grid-cols-3 gap-8">
             <Card className="col-span-3">
               <CardHeader>
                 <h3 className="text-2xl font-semibold">Community Driven & Open-Source</h3>
