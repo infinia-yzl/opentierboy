@@ -6,7 +6,7 @@ interface EditableLabelProps {
   text: string;
   onSave: (newText: string) => void;
   className?: string;
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
   contentClassName?: string;
   placeholder?: string;
 }
