@@ -1999,6 +1999,193 @@
         }
       },
       "backgroundImage": "/splash/webdev-bg.webp"
+    },
+    "image-supervive": {
+      "displayName": "SUPERVIVE",
+      "images": [
+        {
+          "filename": "brl.webp",
+          "label": "BRALL",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "bsh.webp",
+          "label": "BISHOP",
+          "tags": [
+            "initiator",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "cls.webp",
+          "label": "CELESTE",
+          "tags": [
+            "controller",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "ena.webp",
+          "label": "ELLUNA",
+          "tags": [
+            "protector",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "flx.webp",
+          "label": "FELIX",
+          "tags": [
+            "frontliner",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "gst.webp",
+          "label": "GHOST",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "hsn.webp",
+          "label": "HUDSON",
+          "tags": [
+            "controller",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "jin.webp",
+          "label": "JIN",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "jul.webp",
+          "label": "JOULE",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "kpn.webp",
+          "label": "KINGPIN",
+          "tags": [
+            "initiator",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "myt.webp",
+          "label": "MYTH",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "oat.webp",
+          "label": "OATH",
+          "tags": [
+            "frontliner",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "shk.webp",
+          "label": "SHRIKE",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "shv.webp",
+          "label": "SHIV",
+          "tags": [
+            "fighter",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "vod.webp",
+          "label": "VOID",
+          "tags": [
+            "controller",
+            "open_beta_launch",
+            "hunter"
+          ]
+        },
+        {
+          "filename": "zep.webp",
+          "label": "ZEPH",
+          "tags": [
+            "protector",
+            "open_beta_launch",
+            "hunter"
+          ]
+        }
+      ],
+      "tags": {
+        "fighter": {
+          "title": "Fighters",
+          "description": "Fighter Hunters",
+          "category": "general"
+        },
+        "open_beta_launch": {
+          "title": "Open Beta Launch",
+          "description": "Images from Supervive Open Beta Launch (20-11-2024)",
+          "category": "general"
+        },
+        "hunter": {
+          "title": "All Hunters",
+          "description": "Images of Hunters",
+          "category": "general"
+        },
+        "initiator": {
+          "title": "Initiators",
+          "description": "Initiator Hunters",
+          "category": "general"
+        },
+        "controller": {
+          "title": "Controllers",
+          "description": "Controller Hunters",
+          "category": "general"
+        },
+        "protector": {
+          "title": "Protectors",
+          "description": "Protector Hunters",
+          "category": "general"
+        },
+        "frontliner": {
+          "title": "Frontliners",
+          "description": "Frontliner Hunters",
+          "category": "general"
+        }
+      },
+      "backgroundImage": "/splash/supervive-keyart.webp"
     }
   }
 }

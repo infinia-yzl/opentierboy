@@ -2,6 +2,7 @@ import type {Metadata} from "next";
 import {Nunito_Sans as FontSans, Urbanist as FontHeading} from "next/font/google";
 import "./globals.css";
 import {cn} from "@/lib/utils"
+import Link from "next/link";
 
 import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
@@ -154,19 +155,19 @@ export default function RootLayout({
         <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
             <div className="flex flex-row items-center space-x-6">
-              <a href="/" className="flex items-center">
+              <Link href="/" className="flex items-center">
                 <Image src={otbLogo} alt="OpenTierBoy" height={40} priority/>
-              </a>
+              </Link>
               <nav className="flex space-x-2">
                 <Button asChild variant="ghost" className="text-muted-foreground">
-                  <a href="/about">
+                  <Link href="/about">
                     About
-                  </a>
+                  </Link>
                 </Button>
                 <Button asChild variant="ghost" className="text-muted-foreground">
-                  <a href="/blog">
+                  <Link href="/blog">
                     Blog
-                  </a>
+                  </Link>
                 </Button>
               </nav>
             </div>
@@ -193,9 +194,9 @@ export default function RootLayout({
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
               <p className="text-sm text-muted-foreground">No ads, no logins, no sign-ups.</p>
               <div className="flex flex-row space-x-4 h-5 justify-center sm:justify-start">
-                <a href="/about" className="text-sm hover:underline">About</a>
+                <Link href="/about" className="text-sm hover:underline">About</Link>
                 <Separator orientation="vertical"/>
-                <a href="/blog" className="text-sm hover:underline">Blog</a>
+                <Link href="/blog" className="text-sm hover:underline">Blog</Link>
                 <Separator orientation="vertical"/>
                 <a href="mailto:opentierboy@infinia.space" className="text-sm hover:underline">Email</a>
               </div>
@@ -226,8 +227,8 @@ export default function RootLayout({
             </div>
             <div className="flex flex-col space-y-2 lg:pl-48">
               <h3 className="text-sm font-semibold text-muted-foreground">Legal</h3>
-              <a href="/terms" className="text-sm hover:underline">Terms of Service</a>
-              <a href="/privacy" className="text-sm hover:underline">Privacy Policy</a>
+              <Link href="/terms" className="text-sm hover:underline">Terms of Service</Link>
+              <Link href="/privacy" className="text-sm hover:underline">Privacy Policy</Link>
             </div>
           </div>
         </div>

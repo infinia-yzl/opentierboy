@@ -21,6 +21,10 @@
     "image-webdev": {
       "displayName": "Web Development Technologies",
       "backgroundImage": "/splash/webdev-bg.webp"
+    },
+    "image-supervive": {
+      "displayName": "SUPERVIVE",
+      "backgroundImage": "/splash/supervive-keyart.webp"
     }
   }
 }

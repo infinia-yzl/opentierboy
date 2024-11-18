@@ -31,6 +31,8 @@ We currently have the following image sets that you can contribute to:
 - The Finals (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
 - Wuthering Waves (image-wutheringwaves): https://github.com/infinia-yzl/image-wutheringwaves
 - Overwatch (image-overwatch): https://github.com/infinia-yzl/image-overwatch
+- Webdev (image-webdev): https://github.com/infinia-yzl/image-webdev
+- Supervive (image-supervive): https://github.com/infinia-yzl/image-supervive
 
 To contribute to these existing image sets, please follow the general contribution guidelines above and make sure to
 adhere to any specific guidelines provided in each image set's repository.
