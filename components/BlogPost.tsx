@@ -70,6 +70,8 @@ export async function generateMetadata({params}: { params: { slug: string } }): 
       type: 'article',
       publishedTime: formattedDate,
       tags: mdxData.tags,
+      siteName: 'OpenTierBoy',
+      url: `https://www.opentierboy.com/blog/${slug}`,
       images: mdxData.ogImage ? [
         {
           url: `https://www.opentierboy.com${mdxData.ogImage}`,
