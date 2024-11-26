@@ -11,7 +11,7 @@ const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
 const FEATURED_SETS = {
   "image-reachthefinals": ['all', 'light', 'medium', 'heavy'],
-  "image-supervive": ['hunter', 'fighter', 'initiator', 'frontliner', 'protector', 'controller'],
+  "image-supervive": ['hunter', 'power', 'fighter', 'initiator', 'frontliner', 'protector', 'controller'],
   "image-wutheringwaves": [
     'c_all',
     'c_rarity_5',
