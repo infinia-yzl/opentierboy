@@ -25,6 +25,10 @@
     "image-supervive": {
       "displayName": "SUPERVIVE",
       "backgroundImage": "/splash/supervive-keyart.webp"
+    },
+    "image-helldivers2": {
+      "displayName": "Helldivers 2",
+      "backgroundImage": ""
     }
   }
 }
