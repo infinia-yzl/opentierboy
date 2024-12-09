@@ -40,15 +40,17 @@ const Home = () => {
         <div className="text-center">
           <h1 className="relative inline-block mb-4">
             <span className="text-4xl font-extrabold tracking-tight lg:text-5xl">
-                Free and Open-Source Tier Lists
+              Free and Open-Source Tier Lists
             </span>
             <span className="block text-xl text-muted-foreground mt-4 font-normal tracking-wide">
-                Craft, rank and share your passion with OpenTierBoy.
+              Craft, rank and share your passion with OpenTierBoy.
             </span>
           </h1>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href={"/about"}>Learn More</Link>
+          <Link href={"/about"}>
+            Learn More
+          </Link>
         </Button>
       </div>
       <div className="flex justify-center items-center w-full my-10">
@@ -60,8 +62,7 @@ const Home = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Featured sets */}
         {Object.entries(FEATURED_SETS).map(([packageName, tags]) => {
-          const packageData =
-            typedImageSetConfig.packages[packageName];
+          const packageData = typedImageSetConfig.packages[packageName];
           if (!packageData) return null;
 
           return <PackageCard key={packageName} packageData={packageData} tags={tags}/>
