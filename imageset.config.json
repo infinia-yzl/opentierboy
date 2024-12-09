@@ -2912,7 +2912,7 @@
       "backgroundImage": "/splash/supervive-keyart.webp"
     },
     "image-helldivers2": {
-      "displayName": "Helldivers 2",
+      "displayName": "HELLDIVERS 2",
       "images": [
         {
           "filename": "ac8autocannon.webp",
@@ -3781,7 +3781,9 @@
           "description": "Images of Helldivers 2 secondary weapons",
           "category": "general"
         }
-      }
+      },
+      "googleFont": "Chakra Petch",
+      "backgroundImage": "/splash/hd2-splash.webp"
     }
   }
 }

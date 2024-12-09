@@ -27,8 +27,9 @@
       "backgroundImage": "/splash/supervive-keyart.webp"
     },
     "image-helldivers2": {
-      "displayName": "Helldivers 2",
-      "backgroundImage": ""
+      "displayName": "HELLDIVERS 2",
+      "googleFont": "Chakra Petch",
+      "backgroundImage": "/splash/hd2-splash.webp"
     }
   }
 }
