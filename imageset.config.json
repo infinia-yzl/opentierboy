@@ -2910,6 +2910,880 @@
         }
       },
       "backgroundImage": "/splash/supervive-keyart.webp"
+    },
+    "image-helldivers2": {
+      "displayName": "HELLDIVERS 2",
+      "images": [
+        {
+          "filename": "ac8autocannon.webp",
+          "label": "AC-8 Autocannon",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "ad334guarddog.webp",
+          "label": "AX/AR-23 \"Guard Dog\"",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "antipersonnelminefield.webp",
+          "label": "Anti-Personnel Mines",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "antitankmines.webp",
+          "label": "Anti-Tank Mines",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "apw1antimaterielrifle.webp",
+          "label": "Anti-Materiel Rifle",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "ar23aliberatorcarbine.webp",
+          "label": "Liberator Carbine",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "ar23cliberatorconcussive.webp",
+          "label": "Liberator Concussive",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "ar23liberator.webp",
+          "label": "Liberator",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "ar23pliberatorpenetrator.webp",
+          "label": "Liberator Penetrator",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "ar61tenderizer.webp",
+          "label": "Tenderizer",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "arc12blitzer.webp",
+          "label": "Blitzer",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "arc3arcthrower.webp",
+          "label": "Arc Thrower",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "autocannonsentry.webp",
+          "label": "Autocannon Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "axlas5guarddogrover.webp",
+          "label": "AX/LAS-5 \"Guard Dog\" Rover",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "axtx13guarddogdogbreath.webp",
+          "label": "AX/TX-13 \"Guard Dog\" Dog Breath",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "b1supplypack.webp",
+          "label": "Supply Pack",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "br14adjudicator.webp",
+          "label": "Adjudicator",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "cb9explodingcrossbow.webp",
+          "label": "Exploding Crossbow",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "deadsprint.webp",
+          "label": "Dead Sprint",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "eagle110mmrocketpods.webp",
+          "label": "110mm Rocket Pods",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eagle500kgbomb.webp",
+          "label": "500kg Bomb",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eagleairstrike.webp",
+          "label": "Airstrike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eagleclusterbomb.webp",
+          "label": "Cluster Bomb",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eaglenapalmstrike.webp",
+          "label": "Napalm Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eaglesmokestrike.webp",
+          "label": "Smoke Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eaglestrafingrun.webp",
+          "label": "Strafing Run",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "eat17expendableantitank.webp",
+          "label": "Expendable Anti-Tank",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "emsmortarsentry.webp",
+          "label": "Mortar Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "exo45patriotexosuit.webp",
+          "label": "Patriot Exosuit",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "exo49emancipatorexosuit.webp",
+          "label": "Emancipator Exosuit",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "experimentalinfusion.webp",
+          "label": "Experimential Infusion",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "expertextractionpilot.webp",
+          "label": "Expert Extraction Pilot",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "faf14spear.webp",
+          "label": "Spear",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "firebombhellpods.webp",
+          "label": "Firebomb Hellpods",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "flam40flamethrower.webp",
+          "label": "Flamethrower",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "flam66torcher.webp",
+          "label": "Torcher",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "flexiblereinforcementbudget.webp",
+          "label": "Flexible Reinforcement Budget",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "g10incendiarygrenade.webp",
+          "label": "Incendiary Grenade",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g123thermitegrenade.webp",
+          "label": "Thermite",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g12highexplosivegrenade.webp",
+          "label": "High Explosive",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g13incendiaryimpact.webp",
+          "label": "Incendiary Impact",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g16impactgrenade.webp",
+          "label": "Impact",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g23stungrenade.webp",
+          "label": "Stun",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g3smokegrenade.webp",
+          "label": "Smoke",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g4gasgrenade.webp",
+          "label": "Gas",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "g6fraggrenade.webp",
+          "label": "Frag",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "gatlingsentry.webp",
+          "label": "Gatling Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "gl21grenadelauncher.webp",
+          "label": "Grenade Launcher",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "gp31grenadepistol.webp",
+          "label": "Grenade Pistol",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "gr8recoillessrifle.webp",
+          "label": "Recoilless Rifle",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "hellpodspaceoptimization.webp",
+          "label": "Hellpod Space Optimization",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "hmgemplacement.webp",
+          "label": "HMG Emplacement",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "incendiarymines.webp",
+          "label": "Incendiary Mines",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "increasedreinforcementbudget.webp",
+          "label": "Increased Reinforcement Budget",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "jar5dominator.webp",
+          "label": "Dominator",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "k2throwingknife.webp",
+          "label": "Throwing Knife",
+          "tags": [
+            "Grenades"
+          ]
+        },
+        {
+          "filename": "las16sickle.webp",
+          "label": "Sickle",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "las5scythe.webp",
+          "label": "Scythe",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "las7dagger.webp",
+          "label": "Dagger",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "las98lasercannon.webp",
+          "label": "Laser Cannon",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "las99quasarcannon.webp",
+          "label": "Quasar Cannon",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "lift850jumppack.webp",
+          "label": "Jump Pack",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "localizationconfusion.webp",
+          "label": "Localization Confusion",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "m105stalwart.webp",
+          "label": "Stalwart",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "machinegunsentry.webp",
+          "label": "Machinegun Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "mg206heavymachinegun.webp",
+          "label": "Heavy Machinegun",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "mg43machinegun.webp",
+          "label": "Machinegun",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "mls4xcommandorocketlauncher.webp",
+          "label": "Commando",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "mortarsentry.webp",
+          "label": "Mortar Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "motivationalshocks.webp",
+          "label": "Motivational Shocks",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "mp98knight.webp",
+          "label": "Knight",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "muscleenhancement.webp",
+          "label": "Muscle Enhancement",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "orbital120mmhebarrage.webp",
+          "label": "120mm HE Barrage",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbital380mmhebarrage.webp",
+          "label": "380mm HE Barrage",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalairburststrike.webp",
+          "label": "Airburst Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalemsstrike.webp",
+          "label": "EMS Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalgasstrike.webp",
+          "label": "Gas Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalgatlingbarrage.webp",
+          "label": "Gatling Barrage",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitallaser.webp",
+          "label": "Orbital Laser",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalnapalmbarrage.webp",
+          "label": "Napalm Barrage",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalprecisionstrike.webp",
+          "label": "Precision Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalrailcannonstrike.webp",
+          "label": "Railcannon Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalsmokestrike.webp",
+          "label": "Smoke Strike",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "orbitalwalkingbarrage.webp",
+          "label": "Walking Barrage",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "p113verdict.webp",
+          "label": "Verdict",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "p11stimpistol.webp",
+          "label": "Stim Pistol",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "p19redeemer.webp",
+          "label": "Redeemer",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "p2peacemaker.webp",
+          "label": "Peacemaker",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "p4senator.webp",
+          "label": "Senator",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "p72crisper.webp",
+          "label": "Crisper",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "plas101purifier.webp",
+          "label": "Purifier",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "plas15loyalist.webp",
+          "label": "Loyalist",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "plas1scorcher.webp",
+          "label": "Scorcher",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "r2124constitution.webp",
+          "label": "Constitution",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "r36eruptor.webp",
+          "label": "Eruptor",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "r63csdiligencecountersniper.webp",
+          "label": "Diligence Counter-Sniper",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "r63diligence.webp",
+          "label": "Diligence",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "rl77airburstrocketlauncher.webp",
+          "label": "Airburst Rocket Launcher",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "rocketsentry.webp",
+          "label": "Rocket Sentry",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "rs422railgun.webp",
+          "label": "Railgun",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "sg20halt.webp",
+          "label": "Halt",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg225breaker.webp",
+          "label": "Breaker",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg225iebreakerincendiary.webp",
+          "label": "Breaker Incendiary",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg225spbreakerspraynpray.webp",
+          "label": "Breaker Spray n Pray",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg22bushwhacker.webp",
+          "label": "Bushwhacker",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "sg451cookout.webp",
+          "label": "Cookout",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg8ppunisherplasma.webp",
+          "label": "Punisher Plasma",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg8punisher.webp",
+          "label": "Punisher",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sg8sslugger.webp",
+          "label": "Slugger",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sh20ballisticshieldbackpack.webp",
+          "label": "Ballistic Shield",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "sh20shieldgeneratorpack.webp",
+          "label": "Shield Generator Pack",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "shieldgeneratorrelay.webp",
+          "label": "Shield Relay",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "smg32reprimand.webp",
+          "label": "Reprimand",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "smg37defender.webp",
+          "label": "Defender",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "smg72pummeler.webp",
+          "label": "Pummeler",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "staminaenhancement.webp",
+          "label": "Stamina Enhancement",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "teslatower.webp",
+          "label": "Tesla Tower",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "tx41sterilizer.webp",
+          "label": "Sterilizer",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
+          "filename": "uavrecon.webp",
+          "label": "UAV Recon",
+          "tags": [
+            "Boosters"
+          ]
+        },
+        {
+          "filename": "vitalityenhancement.webp",
+          "label": "Vitality Enhancement",
+          "tags": [
+            "Boosters"
+          ]
+        }
+      ],
+      "tags": {
+        "Stratagems": {
+          "title": "Stratagems",
+          "description": "Images of Helldivers 2 stratagems",
+          "category": "general"
+        },
+        "Primaries": {
+          "title": "Primaries",
+          "description": "Images of Helldivers 2 primary weapons",
+          "category": "general"
+        },
+        "Boosters": {
+          "title": "Boosters",
+          "description": "Images of Helldivers 2 boosters",
+          "category": "general"
+        },
+        "Grenades": {
+          "title": "Grenades",
+          "description": "Images of Helldivers 2 grenades",
+          "category": "general"
+        },
+        "Secondaries": {
+          "title": "Secondaries",
+          "description": "Images of Helldivers 2 secondary weapons",
+          "category": "general"
+        }
+      },
+      "googleFont": "Chakra Petch",
+      "backgroundImage": "/splash/hd2-splash.webp"
     }
   }
 }

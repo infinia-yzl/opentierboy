@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from "next/link";
 import {Button} from "@/components/ui/button";
 import {Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
 import imagesetConfig from "@/imageset.config.json";
@@ -10,25 +10,26 @@ import {Separator} from "@/components/ui/separator";
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
 const FEATURED_SETS = {
-  "image-reachthefinals": ['all', 'light', 'medium', 'heavy'],
-  "image-supervive": ['hunter', 'power', 'fighter', 'initiator', 'frontliner', 'protector', 'controller'],
-  "image-wutheringwaves": [
-    'c_all',
-    'c_rarity_5',
-    'c_rarity_4',
+  "image-reachthefinals": ["all", "light", "medium", "heavy"],
+  "image-supervive": [
+    "hunter",
+    "power",
+    "fighter",
+    "initiator",
+    "frontliner",
+    "protector",
+    "controller"
   ],
-  "image-overwatch": [
-    'h_all',
-    'tank',
-    'dps',
-    'sup',
+  "image-wutheringwaves": ["c_all", "c_rarity_5", "c_rarity_4"],
+  "image-overwatch": ["h_all", "tank", "dps", "sup"],
+  "image-helldivers2": [
+    "Stratagems",
+    "Primaries",
+    "Secondaries",
+    "Grenades",
+    "Boosters"
   ],
-  "image-webdev": [
-    'all',
-    'fe',
-    'be',
-    'fs',
-  ],
+  "image-webdev": ["all", "fe", "be", "fs"],
   // Add more packages and their featured sets here
 };
 
