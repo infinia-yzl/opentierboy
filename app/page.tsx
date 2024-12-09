@@ -39,12 +39,12 @@ const Home = () => {
       <div className="text-center mb-8 md:my-8">
         <div className="text-center">
           <h1 className="relative inline-block mb-4">
-                        <span className="text-4xl font-extrabold tracking-tight lg:text-5xl">
-                            Free and Open-Source Tier Lists
-                        </span>
+            <span className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+                Free and Open-Source Tier Lists
+            </span>
             <span className="block text-xl text-muted-foreground mt-4 font-normal tracking-wide">
-                            Craft, rank and share your passion with OpenTierBoy.
-                        </span>
+                Craft, rank and share your passion with OpenTierBoy.
+            </span>
           </h1>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -64,13 +64,7 @@ const Home = () => {
             typedImageSetConfig.packages[packageName];
           if (!packageData) return null;
 
-          return (
-            <PackageCard
-              key={packageName}
-              packageData={packageData}
-              tags={tags}
-            />
-          );
+          return <PackageCard key={packageName} packageData={packageData} tags={tags}/>
         })}
 
         <Card>
