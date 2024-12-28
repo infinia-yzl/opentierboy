@@ -3041,6 +3041,20 @@
           ]
         },
         {
+          "filename": "cqc19stunlance.webp",
+          "label": "Stun Lance",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
+          "filename": "cqc30stunbaton.webp",
+          "label": "Stun Baton",
+          "tags": [
+            "Secondaries"
+          ]
+        },
+        {
           "filename": "deadsprint.webp",
           "label": "Dead Sprint",
           "tags": [
@@ -3097,6 +3111,13 @@
           ]
         },
         {
+          "filename": "eat12antitankemplacement.webp",
+          "label": "Anti-Tank Emplacement",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
           "filename": "eat17expendableantitank.webp",
           "label": "Expendable Anti-Tank",
           "tags": [
@@ -3146,6 +3167,13 @@
           ]
         },
         {
+          "filename": "fastreconvehicle.webp",
+          "label": "Fast Recon Vehicle",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
           "filename": "firebombhellpods.webp",
           "label": "Firebomb Hellpods",
           "tags": [
@@ -3164,6 +3192,13 @@
           "label": "Torcher",
           "tags": [
             "Primaries"
+          ]
+        },
+        {
+          "filename": "flamesentry.webp",
+          "label": "Flame Sentry",
+          "tags": [
+            "Stratagems"
           ]
         },
         {
@@ -3566,6 +3601,13 @@
           ]
         },
         {
+          "filename": "plas39acceleratorrifle.webp",
+          "label": "Accelerator Rifle",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
           "filename": "r2124constitution.webp",
           "label": "Constitution",
           "tags": [
@@ -3692,6 +3734,13 @@
           ]
         },
         {
+          "filename": "sh51directionalshield.webp",
+          "label": "Directional Shield",
+          "tags": [
+            "Stratagems"
+          ]
+        },
+        {
           "filename": "shieldgeneratorrelay.webp",
           "label": "Shield Relay",
           "tags": [
@@ -3715,6 +3764,20 @@
         {
           "filename": "smg72pummeler.webp",
           "label": "Pummeler",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sta11smg.webp",
+          "label": "StA-11 SMG",
+          "tags": [
+            "Primaries"
+          ]
+        },
+        {
+          "filename": "sta52assaultrifle.webp",
+          "label": "StA-52 Assault Rifle",
           "tags": [
             "Primaries"
           ]
@@ -3766,6 +3829,11 @@
           "description": "Images of Helldivers 2 primary weapons",
           "category": "general"
         },
+        "Secondaries": {
+          "title": "Secondaries",
+          "description": "Images of Helldivers 2 secondary weapons",
+          "category": "general"
+        },
         "Boosters": {
           "title": "Boosters",
           "description": "Images of Helldivers 2 boosters",
@@ -3774,11 +3842,6 @@
         "Grenades": {
           "title": "Grenades",
           "description": "Images of Helldivers 2 grenades",
-          "category": "general"
-        },
-        "Secondaries": {
-          "title": "Secondaries",
-          "description": "Images of Helldivers 2 secondary weapons",
           "category": "general"
         }
       },
