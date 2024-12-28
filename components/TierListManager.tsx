@@ -47,12 +47,17 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
         if (decodedState.title) {
           setName(decodedState.title);
         }
+        
+        decodedState.tiers.forEach(tier => {
+          tier.labelPosition = labelPosition
+        });
+        
         setTiers(decodedState.tiers);
 
         setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
       }
     }
-  }, [pathname.length, searchParams, tierCortex]);
+  }, [pathname.length, searchParams, tierCortex, labelPosition]);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
     previousTiersRef.current = updatedTiers;
