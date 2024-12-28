@@ -1238,6 +1238,15 @@
           ]
         },
         {
+          "filename": "hzd.webp",
+          "label": "Hazard",
+          "tags": [
+            "tank",
+            "h_all",
+            "h_2"
+          ]
+        },
+        {
           "filename": "ill.webp",
           "label": "Illari",
           "tags": [
