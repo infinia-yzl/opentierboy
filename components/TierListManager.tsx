@@ -49,7 +49,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
         }
         
         decodedState.tiers.forEach(tier => {
-          tier.labelPosition = labelPosition
+          tier.labelPosition = labelPosition;
         });
         
         setTiers(decodedState.tiers);
