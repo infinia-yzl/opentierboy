@@ -30,7 +30,7 @@ jobs:
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
-          approvers: ${{ github.actor }}
+          approvers: infinia-yzl
           minimum-approvals: 1
           issue-title: "Playwright Snapshot Update Required"
           issue-body: "Playwright tests failed. Would you like to update the snapshots?"
