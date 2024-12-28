@@ -150,18 +150,18 @@ export class TierCortex {
       if (decodedState) return decodedState.tiers;
     }
 
+    const initialTiers: Tier[] = JSON.parse(JSON.stringify(DEFAULT_TIER_TEMPLATE));
+
     if (initialItemSet) {
-      const initialTiers = [...DEFAULT_TIER_TEMPLATE];
       const lastTierIndex = initialTiers.length - 1;
 
       initialTiers[lastTierIndex].items = initialItemSet.images.map((filename) => {
         const itemId = `${initialItemSet.packageName}-${filename}`;
         return this.packageItemLookup[itemId] || this.createPlaceholderItem(itemId, filename);
       });
-      return initialTiers;
     }
 
-    return DEFAULT_TIER_TEMPLATE;
+    return initialTiers;
   }
 
   public getOgSafeImageUrl(url: string): string {
