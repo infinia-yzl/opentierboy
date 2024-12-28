@@ -6,6 +6,9 @@ jobs:
     if: github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success'
     timeout-minutes: 30
     runs-on: ubuntu-latest
+    permissions:
+      issues: write    # For manual-approval
+      contents: write  # For pushing snapshot updates
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,18 +25,25 @@ jobs:
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
-      - name: Wait for user input
+      - name: Wait for snapshot update approval
         if: steps.run-tests.outcome == 'failure'
         uses: trstringer/manual-approval@v1
         with:
           secret: ${{ github.TOKEN }}
           approvers: ${{ github.actor }}
           minimum-approvals: 1
-          message: 'Tests failed - Update snapshots?'
+          issue-title: "Playwright Snapshot Update Required"
+          issue-body: "Playwright tests failed. Would you like to update the snapshots?"
 
       - name: Update snapshots
         if: steps.run-tests.outcome == 'failure'
-        run: npx playwright test --update-snapshots
+        run: |
+          npx playwright test --update-snapshots
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions@github.com"
+          git add .
+          git commit -m "test: update playwright snapshots" || echo "No changes to commit"
+          git push
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
