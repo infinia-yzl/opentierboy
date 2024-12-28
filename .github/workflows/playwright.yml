@@ -11,9 +11,6 @@ jobs:
       contents: write  # For pushing snapshot updates
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.deployment.ref }}  # Checkout the actual branch
-          fetch-depth: 0  # Fetch all history
 
       - uses: actions/setup-node@v4
         with:
@@ -42,13 +39,11 @@ jobs:
       - name: Update snapshots
         if: steps.run-tests.outcome == 'failure'
         run: |
-          git checkout ${{ github.event.deployment.ref }}
           npx playwright test --update-snapshots
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-actions@github.com"
-          git add .
-          git commit -m "test: update playwright snapshots" || echo "No changes to commit"
-          git push origin ${{ github.event.deployment.ref }}
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'github-actions@github.com'
+          git commit -am "test: update playwright snapshots"
+          git push
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
