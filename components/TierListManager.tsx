@@ -41,22 +41,24 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 
   useEffect(() => {
     const state = searchParams.get('state');
-    if (state) {
-      const decodedState = tierCortex.decodeTierStateFromURL(state);
-      if (decodedState) {
-        if (decodedState.title) {
-          setName(decodedState.title);
-        }
-        
-        decodedState.tiers.forEach(tier => {
-          tier.labelPosition = labelPosition;
-        });
-        
-        setTiers(decodedState.tiers);
+    if (!state) return;
 
-        setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
-      }
+    const decodedState = tierCortex.decodeTierStateFromURL(state);
+    if (!decodedState) return;
+
+    // Update name if present
+    if (decodedState.title) {
+      setName(decodedState.title);
     }
+
+    // Updated label positions
+    const updatedTiers = decodedState.tiers.map(tier => ({
+      ...tier,
+      labelPosition
+    }));
+
+    setTiers(updatedTiers);
+    setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
   }, [pathname.length, searchParams, tierCortex, labelPosition]);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
