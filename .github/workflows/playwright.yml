@@ -38,14 +38,17 @@ jobs:
 
       - name: Update snapshots
         if: steps.run-tests.outcome == 'failure'
-        run: |
-          npx playwright test --update-snapshots
-          git config --global user.name 'GitHub Actions'
-          git config --global user.email 'github-actions@github.com'
-          git commit -am "test: update playwright snapshots"
-          git push
+        run: npx playwright test --update-snapshots
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
+
+      - uses: EndBug/add-and-commit@v9
+        if: steps.run-tests.outcome == 'failure'
+        with:
+          message: 'test: update playwright snapshots'
+          default_author: github_actions
+          pull: '--rebase --autostash'
+          add: '.'
 
       - name: Upload test results
         if: always()
