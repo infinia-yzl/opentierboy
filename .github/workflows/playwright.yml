@@ -58,7 +58,7 @@ jobs:
           message: 'test: update playwright snapshots'
           default_author: github_actions
           add: '.'
-          push: origin HEAD:${{ github.event.deployment.ref }}
+          push: origin HEAD:${{ github.head_ref }}
 
       - name: Upload test results
         if: always()
