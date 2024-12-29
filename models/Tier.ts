@@ -10,7 +10,7 @@ export default interface Tier {
   placeholder?: string;
 }
 
-export type TierTemplate = Record<string, Tier[]>;
+export type TierTemplate = Record<string, Readonly<Tier>[]>;
 
 export const tierTemplates: TierTemplate = {
   '3rows': [
