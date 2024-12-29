@@ -58,6 +58,7 @@ jobs:
           message: 'test: update playwright snapshots'
           default_author: github_actions
           add: '.'
+          pull: '--rebase --autostash'
           push: origin HEAD:${{ github.head_ref }}
 
       - name: Upload test results
