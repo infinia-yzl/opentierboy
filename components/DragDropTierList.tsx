@@ -91,6 +91,7 @@ const TierRow = memo<{
           {...provided.draggableProps}
           className={`
             border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
+            min-h-20
             flex items-center
             ${snapshot.isDragging ? 'shadow-lg ring-2' : ''}
           `}
