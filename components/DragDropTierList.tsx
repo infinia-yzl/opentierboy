@@ -39,7 +39,7 @@ const TierItems = memo<{
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`w-full flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
+          className={`w-full min-h-16 md:min-h-20 flex flex-wrap gap-1 m-0.5 p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
         >
           {tier.items.map((item, itemIndex) => (
             <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
@@ -49,7 +49,7 @@ const TierItems = memo<{
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
                   className={`
-                    m-0.5 rounded-md 
+                    rounded-md
                     ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
                   `}
                   style={{
@@ -116,7 +116,7 @@ const TierRow = memo<{
             <div
               className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
               {(labelPosition === 'left' || labelPosition === 'right') && (
-                <div className="w-18 md:w-40">
+                <div className="md:w-40">
                   <EditableLabel
                     text={tier.name}
                     onSave={(newText) => onSaveLabel(index, newText)}
