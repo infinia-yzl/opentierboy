@@ -34,7 +34,6 @@ jobs:
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
-      # Upload original test results
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -43,13 +42,15 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-      # Upload updated screenshots if tests failed
-      - name: Upload updated screenshots
+      - name: Upload actual screenshots
         if: steps.run-tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: updated-snapshots
-          path: |
-            test-results/
-            **/*.png
-          retention-days: 30
+          path: tests/**/*.spec.ts-snapshots/**/*.png
+          retention-days: 14
+
+      # Fail the workflow if tests failed
+      - name: Check test status
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
