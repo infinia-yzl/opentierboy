@@ -17,6 +17,7 @@ import { getTierGradient } from "@/lib/utils";
 
 interface DragDropTierListProps {
     tiers: Tier[];
+    setTiers: (tiers: Tier[]) => void;
     onTiersUpdate: (updatedTiers: Tier[]) => void;
 }
 
@@ -38,6 +39,10 @@ const TierItems = memo<{
     showLabels: boolean;
     onDeleteItem: (itemId: string) => void;
 }>(({ tier, showLabels, onDeleteItem }) => {
+    useEffect(() => {
+        console.log("item added");
+    }, [tier.items]);
+
     return (
         <Droppable droppableId={tier.id} direction="horizontal">
             {(provided, snapshot) => (
@@ -91,115 +96,147 @@ const TierItems = memo<{
 TierItems.displayName = "TierItems";
 
 const TierRow = memo<{
+    tiers: Tier[];
+    setTiers: (tiers: Tier[]) => void;
     tier: Tier;
     index: number;
     tiersLength: number;
     showLabels: boolean;
     onSaveLabel: (index: number, newText: string) => void;
     onDeleteItem: (itemId: string) => void;
-}>(({ tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem }) => {
-    const labelPosition = tier.labelPosition || "left";
-    const tierGradient = getTierGradient(index, tiersLength);
-    const [pastedImage, setPastedImage] = useState(null);
+}>(
+    ({
+        tier,
+        tiers,
+        setTiers,
+        index,
+        tiersLength,
+        showLabels,
+        onSaveLabel,
+        onDeleteItem
+    }) => {
+        const labelPosition = tier.labelPosition || "left";
+        const tierGradient = getTierGradient(index, tiersLength);
+        const [pastedImage, setPastedImage] = useState(null);
 
-    const onPasty = (event) => {
-        const items = event.clipboardData.items;
-        console.log(JSON.stringify(items)); // will give you the mime types
-        for (const index in items) {
-            const item = items[index];
-            if (item.kind === "file") {
-                const blob = item.getAsFile();
-                const reader = new FileReader();
-                reader.onload = function (event) {
-                    console.log(event.target.result);
-                    setPastedImage(
-                        <img src={event.target.result} alt="pasted" />
-                    );
-                }; // data url!
-                reader.readAsDataURL(blob);
+        const onPasty = (e) => {
+            const items = e.clipboardData.items;
+            for (const index in items) {
+                const item = items[index];
+                if (item.kind === "file") {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const tiersCopy = [...tiers];
+                        const updatedTiers = tiersCopy.map((t) => {
+                            if (t.id === tier.id) {
+                                return {
+                                    ...t,
+                                    items: [
+                                        ...t.items,
+                                        {
+                                            id: uuidv4(),
+                                            content: "",
+                                            imageUrl: e.target.result as string,
+                                            onDelete: onDeleteItem,
+                                            showLabel: showLabels
+                                        }
+                                    ]
+                                };
+                            }
+                            return t;
+                        });
+                        setTiers(updatedTiers);
+                        // setPastedImage(
+                        //     <img src={e.target.result} alt="pasted" />
+                        // );
+                    };
+                    reader.readAsDataURL(blob);
+                }
             }
-        }
-    };
+        };
 
-    return (
-        <Draggable draggableId={tier.id} index={index}>
-            {(provided, snapshot) => (
-                <div
-                    onPaste={(e) => onPasty(e)}
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    className={`
+        return (
+            <Draggable draggableId={tier.id} index={index}>
+                {(provided, snapshot) => (
+                    <div
+                        onPaste={(e) => onPasty(e)}
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        className={`
             border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
             min-h-20
             flex items-center
             ${snapshot.isDragging ? "shadow-lg ring-2" : ""}
           `}
-                    style={{
-                        ...provided.draggableProps.style,
-                        background: tierGradient,
-                        transition: snapshot.isDropAnimating
-                            ? "all 0.3s cubic-bezier(0.2, 0, 0, 1)"
-                            : provided.draggableProps.style?.transition
-                    }}
-                >
-                    <div
-                        className={`flex-1 ${
-                            labelPosition === "top" && "pl-2"
-                        }`}
+                        style={{
+                            ...provided.draggableProps.style,
+                            background: tierGradient,
+                            transition: snapshot.isDropAnimating
+                                ? "all 0.3s cubic-bezier(0.2, 0, 0, 1)"
+                                : provided.draggableProps.style?.transition
+                        }}
                     >
-                        {labelPosition === "top" &&
-                            index !== tiersLength - 1 && (
-                                <EditableLabel
-                                    text={tier.name}
-                                    onSave={(newText) =>
-                                        onSaveLabel(index, newText)
-                                    }
-                                    className="p-1"
-                                    contentClassName="tracking-wide text-xl font-semibold"
-                                    as="h2"
-                                />
-                            )}
                         <div
-                            className={`flex ${
-                                labelPosition === "left"
-                                    ? "flex-row"
-                                    : labelPosition === "right"
-                                    ? "flex-row-reverse"
-                                    : "flex-col"
-                            } items-center`}
+                            className={`flex-1 ${
+                                labelPosition === "top" && "pl-2"
+                            }`}
                         >
-                            {(labelPosition === "left" ||
-                                labelPosition === "right") && (
-                                <div className="w-18 md:w-40">
+                            {labelPosition === "top" &&
+                                index !== tiersLength - 1 && (
                                     <EditableLabel
                                         text={tier.name}
                                         onSave={(newText) =>
                                             onSaveLabel(index, newText)
                                         }
-                                        className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
+                                        className="p-1"
                                         contentClassName="tracking-wide text-xl font-semibold"
                                         as="h2"
                                     />
-                                </div>
-                            )}
-                            {pastedImage}
-                            <TierItems
-                                tier={tier}
-                                showLabels={showLabels}
-                                onDeleteItem={onDeleteItem}
-                            />
+                                )}
+                            <div
+                                className={`flex ${
+                                    labelPosition === "left"
+                                        ? "flex-row"
+                                        : labelPosition === "right"
+                                        ? "flex-row-reverse"
+                                        : "flex-col"
+                                } items-center`}
+                            >
+                                {(labelPosition === "left" ||
+                                    labelPosition === "right") && (
+                                    <div className="w-18 md:w-40">
+                                        <EditableLabel
+                                            text={tier.name}
+                                            onSave={(newText) =>
+                                                onSaveLabel(index, newText)
+                                            }
+                                            className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
+                                            contentClassName="tracking-wide text-xl font-semibold"
+                                            as="h2"
+                                        />
+                                    </div>
+                                )}
+                                {pastedImage}
+                                <TierItems
+                                    tier={tier}
+                                    showLabels={showLabels}
+                                    onDeleteItem={onDeleteItem}
+                                />
+                            </div>
                         </div>
+                        <RowHandle dragHandleProps={provided.dragHandleProps} />
                     </div>
-                    <RowHandle dragHandleProps={provided.dragHandleProps} />
-                </div>
-            )}
-        </Draggable>
-    );
-});
+                )}
+            </Draggable>
+        );
+    }
+);
 TierRow.displayName = "TierRow";
 
 const DragDropTierList: React.FC<DragDropTierListProps> = ({
     tiers,
+    setTiers,
     onTiersUpdate
 }) => {
     const { showLabels } = useTierContext();
@@ -345,6 +382,8 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                     >
                         {tiers.map((tier, index) => (
                             <TierRow
+                                tiers={tiers}
+                                setTiers={setTiers}
                                 key={tier.id}
                                 tier={tier}
                                 index={index}
