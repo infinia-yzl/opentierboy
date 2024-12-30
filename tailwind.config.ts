@@ -19,6 +19,10 @@ const config = {
       },
     },
     extend: {
+      spacing: {
+        "17": "4.25rem",
+        "21": "5.25rem",
+      },
       fontFamily: {
         sans: ["var(--font-sans)", ...fontFamily.sans],
         heading: ["var(--font-heading)", ...fontFamily.sans],
