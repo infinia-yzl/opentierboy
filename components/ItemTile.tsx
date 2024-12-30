@@ -54,7 +54,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className="relative w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 overflow-hidden rounded-md">
+    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md">
       {imageUrl ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
