@@ -1,4 +1,4 @@
-name: Playwright E2E Tests
+name: Playwright Tests
 on:
   deployment_status:
 jobs:
@@ -6,19 +6,10 @@ jobs:
     if: github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success'
     timeout-minutes: 30
     runs-on: ubuntu-latest
-    permissions:
-      issues: write    # For manual-approval
-      contents: write  # For pushing snapshot updates
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.deployment.ref }}
-
-      # Create a branch to work on
-      - name: Create working branch
-        run: |
-          git checkout -b snapshot-updates
-          git branch --set-upstream-to=origin/${{ github.event.deployment.payload.pull_request.head.ref }} snapshot-updates
 
       - uses: actions/setup-node@v4
         with:
@@ -37,35 +28,28 @@ jobs:
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
-      #      - name: Wait for snapshot update approval
-      #        if: steps.run-tests.outcome == 'failure'
-      #        uses: trstringer/manual-approval@v1
-      #        with:
-      #          secret: ${{ github.TOKEN }}
-      #          approvers: infinia-yzl
-      #          minimum-approvals: 1
-      #          issue-title: "Playwright Snapshot Update Required"
-      #          issue-body: "Playwright tests failed. Would you like to update the snapshots?"
-
-      - name: Update snapshots
+      - name: Update snapshots if tests fail
         if: steps.run-tests.outcome == 'failure'
         run: npx playwright test --update-snapshots
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
 
-      - uses: EndBug/add-and-commit@v9
-        if: steps.run-tests.outcome == 'failure'
-        with:
-          message: 'test: update playwright snapshots'
-          default_author: github_actions
-          add: '.'
-          pull: '--rebase --autostash'
-          push: origin HEAD:${{ github.event.deployment.payload.pull_request.head.ref }}
-
+      # Upload original test results
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
+          retention-days: 30
+
+      # Upload updated screenshots if tests failed
+      - name: Upload updated screenshots
+        if: steps.run-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-snapshots
+          path: |
+            test-results/
+            **/*.png
           retention-days: 30
