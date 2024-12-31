@@ -39,10 +39,6 @@ const TierItems = memo<{
     showLabels: boolean;
     onDeleteItem: (itemId: string) => void;
 }>(({ tier, showLabels, onDeleteItem }) => {
-    useEffect(() => {
-        console.log("item added");
-    }, [tier.items]);
-
     return (
         <Droppable droppableId={tier.id} direction="horizontal">
             {(provided, snapshot) => (
@@ -98,6 +94,8 @@ TierItems.displayName = "TierItems";
 const TierRow = memo<{
     tiers: Tier[];
     setTiers: (tiers: Tier[]) => void;
+    onTiersUpdate: (updatedTiers: Tier[]) => void;
+    onItemsCreate: (newItems: Item[]) => void;
     tier: Tier;
     index: number;
     tiersLength: number;
@@ -113,11 +111,14 @@ const TierRow = memo<{
         tiersLength,
         showLabels,
         onSaveLabel,
-        onDeleteItem
+        onDeleteItem,
+        onTiersUpdate,
+        onItemsCreate
     }) => {
         const labelPosition = tier.labelPosition || "left";
         const tierGradient = getTierGradient(index, tiersLength);
-        const [pastedImage, setPastedImage] = useState(null);
+        const generateId = () => Math.random().toString(36).slice(2, 11);
+        const { tierCortex } = useTierContext();
 
         const onPasty = (e) => {
             const items = e.clipboardData.items;
@@ -126,30 +127,26 @@ const TierRow = memo<{
                 if (item.kind === "file") {
                     const blob = item.getAsFile();
                     const reader = new FileReader();
+                    const newId = generateId();
                     reader.onload = function (e) {
-                        const tiersCopy = [...tiers];
-                        const updatedTiers = tiersCopy.map((t) => {
-                            if (t.id === tier.id) {
-                                return {
-                                    ...t,
-                                    items: [
-                                        ...t.items,
-                                        {
-                                            id: uuidv4(),
-                                            content: "",
-                                            imageUrl: e.target.result as string,
-                                            onDelete: onDeleteItem,
-                                            showLabel: showLabels
-                                        }
-                                    ]
-                                };
+                        tierCortex.addCustomItems([
+                            {
+                                id: newId,
+                                content: `Pasted Image${newId}`,
+                                imageUrl: e.target.result as string,
+                                onDelete: onDeleteItem,
+                                showLabel: showLabels
                             }
-                            return t;
-                        });
-                        setTiers(updatedTiers);
-                        // setPastedImage(
-                        //     <img src={e.target.result} alt="pasted" />
-                        // );
+                        ]);
+                        onItemsCreate([
+                            {
+                                id: newId,
+                                content: `Pasted Image${newId}`,
+                                imageUrl: e.target.result as string,
+                                onDelete: onDeleteItem,
+                                showLabel: showLabels
+                            }
+                        ]);
                     };
                     reader.readAsDataURL(blob);
                 }
@@ -217,7 +214,6 @@ const TierRow = memo<{
                                         />
                                     </div>
                                 )}
-                                {pastedImage}
                                 <TierItems
                                     tier={tier}
                                     showLabels={showLabels}
@@ -237,7 +233,8 @@ TierRow.displayName = "TierRow";
 const DragDropTierList: React.FC<DragDropTierListProps> = ({
     tiers,
     setTiers,
-    onTiersUpdate
+    onTiersUpdate,
+    onItemsCreate
 }) => {
     const { showLabels } = useTierContext();
     const tiersRef = useRef(tiers);
@@ -336,6 +333,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                         tierId: tier.id,
                         id: uuidv4()
                     };
+                    console.log(deletedItemInfo);
                     return { ...tier, items: [...tier.items] };
                 }
                 return tier;
@@ -384,6 +382,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                             <TierRow
                                 tiers={tiers}
                                 setTiers={setTiers}
+                                onTiersUpdate={onTiersUpdate}
                                 key={tier.id}
                                 tier={tier}
                                 index={index}
@@ -391,6 +390,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                                 showLabels={showLabels}
                                 onSaveLabel={handleSaveLabel}
                                 onDeleteItem={handleDeleteItem}
+                                onItemsCreate={onItemsCreate}
                             />
                         ))}
                         {provided.placeholder}

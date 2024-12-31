@@ -91,6 +91,8 @@ const TierListManager: React.FC<TierListManagerProps> = ({
                     }))
                 }));
 
+            console.log(optimizedTiersForEncoding);
+
             router.push(
                 `${pathname}?state=${TierCortex.encodeTierStateForURL(
                     name,
@@ -112,7 +114,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({
         (newItems: Item[]) => {
             const updatedTiers = [...tiers];
             const lastTier = updatedTiers[updatedTiers.length - 1];
-
             const uniqueNewItems = newItems.filter(
                 (newItem) =>
                     !updatedTiers.some((tier) =>
@@ -370,6 +371,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({
                 tiers={tiers}
                 setTiers={setTiers}
                 onTiersUpdate={handleTiersUpdate}
+                onItemsCreate={handleItemsCreate}
             />
         </TierContext.Provider>
     );
