@@ -45,7 +45,7 @@ const TierItems = memo<{
                 <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`w-full flex flex-wrap p-0 rounded-md ${
+                    className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${
                         snapshot.isDraggingOver
                             ? "ring-1 ring-accent-foreground"
                             : ""
@@ -63,7 +63,7 @@ const TierItems = memo<{
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     className={`
-                    m-0.5 rounded-md 
+                    m-0.5 rounded-md
                     ${snapshot.isDragging ? "shadow-md ring-2" : ""}
                   `}
                                     style={{
@@ -191,7 +191,7 @@ const TierRow = memo<{
                             >
                                 {(labelPosition === "left" ||
                                     labelPosition === "right") && (
-                                    <div className="w-18 md:w-40">
+                                    <div className="md:w-40">
                                         <EditableLabel
                                             text={tier.name}
                                             onSave={(newText) =>

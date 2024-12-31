@@ -143,6 +143,7 @@ export class TierCortex {
 
     public addCustomItems(items: Item[]): void {
         if (this.isServer) return;
+
         const newItems = items.map((item) => ({
             i: item.id,
             c: item.content,
@@ -164,8 +165,11 @@ export class TierCortex {
             if (decodedState) return decodedState.tiers;
         }
 
+        const initialTiers: Tier[] = JSON.parse(
+            JSON.stringify(DEFAULT_TIER_TEMPLATE)
+        );
+
         if (initialItemSet) {
-            const initialTiers = [...DEFAULT_TIER_TEMPLATE];
             const lastTierIndex = initialTiers.length - 1;
 
             initialTiers[lastTierIndex].items = initialItemSet.images.map(
@@ -177,10 +181,9 @@ export class TierCortex {
                     );
                 }
             );
-            return initialTiers;
         }
 
-        return DEFAULT_TIER_TEMPLATE;
+        return initialTiers;
     }
 
     public getOgSafeImageUrl(url: string): string {
@@ -258,6 +261,7 @@ export class TierCortex {
                 };
             }
         }
+
         return this.createPlaceholderItem(itemId, content || "");
     }
 

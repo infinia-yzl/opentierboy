@@ -8,28 +8,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.ref }}
+
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+
       - name: Install dependencies
         run: npm ci
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+
       - name: Run Playwright tests
+        id: run-tests
+        continue-on-error: true
         run: npx playwright test
         env:
           BASE_URL: ${{ github.event.deployment_status.environment_url }}
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 30
-      - name: Upload snapshots on failure
-        if: failure()
+          retention-days: 14
+
+      - name: Update snapshots if tests fail
+        if: steps.run-tests.outcome == 'failure'
+        run: npx playwright test --update-snapshots
+        env:
+          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+
+      # If the changes to screenshots are expected, you can download the screenshots from this artifact to replace the outdated images in the repository.
+      - name: Upload actual updated screenshots
+        if: steps.run-tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: test-results/
-          retention-days: 30
+          name: updated-snapshots
+          path: tests/**/*.spec.ts-snapshots/**/*.png
+          retention-days: 14
+
+      # Fail the workflow if tests failed
+      - name: Check test status
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
