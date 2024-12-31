@@ -367,7 +367,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({
             </div>
             <DragDropTierList
                 tiers={tiers}
-                setTiers={setTiers}
                 onTiersUpdate={handleTiersUpdate}
                 onItemsCreate={handleItemsCreate}
             />

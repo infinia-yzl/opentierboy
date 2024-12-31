@@ -17,7 +17,7 @@ import { getTierGradient } from "@/lib/utils";
 
 interface DragDropTierListProps {
     tiers: Tier[];
-    setTiers: (tiers: Tier[]) => void;
+    onItemsCreate: (newItems: Item[]) => void;
     onTiersUpdate: (updatedTiers: Tier[]) => void;
 }
 
@@ -93,7 +93,6 @@ TierItems.displayName = "TierItems";
 
 const TierRow = memo<{
     tiers: Tier[];
-    setTiers: (tiers: Tier[]) => void;
     onTiersUpdate: (updatedTiers: Tier[]) => void;
     onItemsCreate: (newItems: Item[]) => void;
     tier: Tier;
@@ -105,14 +104,11 @@ const TierRow = memo<{
 }>(
     ({
         tier,
-        tiers,
-        setTiers,
         index,
         tiersLength,
         showLabels,
         onSaveLabel,
         onDeleteItem,
-        onTiersUpdate,
         onItemsCreate
     }) => {
         const labelPosition = tier.labelPosition || "left";
@@ -120,35 +116,28 @@ const TierRow = memo<{
         const generateId = () => Math.random().toString(36).slice(2, 11);
         const { tierCortex } = useTierContext();
 
-        const onPasty = (e) => {
+        const onPasteItem = (e: React.ClipboardEvent<HTMLDivElement>) => {
             const items = e.clipboardData.items;
             for (const index in items) {
                 const item = items[index];
                 if (item.kind === "file") {
                     const blob = item.getAsFile();
                     const reader = new FileReader();
-                    const newId = generateId();
+                    const newItemId = generateId();
                     reader.onload = function (e) {
-                        tierCortex.addCustomItems([
-                            {
-                                id: newId,
-                                content: `Pasted Image${newId}`,
-                                imageUrl: e.target.result as string,
-                                onDelete: onDeleteItem,
-                                showLabel: showLabels
-                            }
-                        ]);
-                        onItemsCreate([
-                            {
-                                id: newId,
-                                content: `Pasted Image${newId}`,
-                                imageUrl: e.target.result as string,
-                                onDelete: onDeleteItem,
-                                showLabel: showLabels
-                            }
-                        ]);
+                        const pastedItem = {
+                            id: newItemId,
+                            content: `Pasted Image${newItemId}`,
+                            imageUrl: e.target?.result as string,
+                            onDelete: onDeleteItem,
+                            showLabel: showLabels
+                        };
+                        tierCortex.addCustomItems([pastedItem]);
+                        onItemsCreate([pastedItem]);
                     };
-                    reader.readAsDataURL(blob);
+                    if (blob) {
+                        reader.readAsDataURL(blob);
+                    }
                 }
             }
         };
@@ -157,7 +146,7 @@ const TierRow = memo<{
             <Draggable draggableId={tier.id} index={index}>
                 {(provided, snapshot) => (
                     <div
-                        onPaste={(e) => onPasty(e)}
+                        onPaste={(e) => onPasteItem(e)}
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         className={`
@@ -232,7 +221,6 @@ TierRow.displayName = "TierRow";
 
 const DragDropTierList: React.FC<DragDropTierListProps> = ({
     tiers,
-    setTiers,
     onTiersUpdate,
     onItemsCreate
 }) => {
@@ -380,7 +368,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                         {tiers.map((tier, index) => (
                             <TierRow
                                 tiers={tiers}
-                                setTiers={setTiers}
                                 onTiersUpdate={onTiersUpdate}
                                 key={tier.id}
                                 tier={tier}
