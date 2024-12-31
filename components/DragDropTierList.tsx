@@ -333,7 +333,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({
                         tierId: tier.id,
                         id: uuidv4()
                     };
-                    console.log(deletedItemInfo);
                     return { ...tier, items: [...tier.items] };
                 }
                 return tier;

@@ -143,7 +143,6 @@ export class TierCortex {
 
     public addCustomItems(items: Item[]): void {
         if (this.isServer) return;
-        console.log("addCustomItems", items);
         const newItems = items.map((item) => ({
             i: item.id,
             c: item.content,
@@ -153,7 +152,6 @@ export class TierCortex {
         newItems.forEach((item) => this.customItemsMap.set(item.i, item));
 
         const allItems = Array.from(this.customItemsMap.values());
-        console.log("allItems", allItems);
         localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(allItems));
     }
 
@@ -260,7 +258,6 @@ export class TierCortex {
                 };
             }
         }
-        console.log("placeholder item created");
         return this.createPlaceholderItem(itemId, content || "");
     }
 

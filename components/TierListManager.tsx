@@ -91,8 +91,6 @@ const TierListManager: React.FC<TierListManagerProps> = ({
                     }))
                 }));
 
-            console.log(optimizedTiersForEncoding);
-
             router.push(
                 `${pathname}?state=${TierCortex.encodeTierStateForURL(
                     name,
