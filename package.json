@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",
-    "@hookform/resolvers": "^3.9.1",
+    "@hookform/resolvers": "^3.10.0",
     "@mdx-js/loader": "^3.1.0",
     "@mdx-js/react": "^3.1.0",
     "@next/mdx": "^14.2.22",
@@ -42,7 +42,7 @@
     "gray-matter": "^4.0.3",
     "html2canvas": "^1.4.1",
     "html2canvas-pro": "^1.5.8",
-    "image-helldivers2": "4.0.0",
+    "image-helldivers2": "4.1.0",
     "image-overwatch": "^1.2.0",
     "image-reachthefinals": "^1.1.1",
     "image-set": "^2.1.0",
@@ -61,7 +61,7 @@
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "uuid": "^11.0.3",
+    "uuid": "^11.0.4",
     "zod": "^3.24.1"
   },
   "devDependencies": {
