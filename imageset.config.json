@@ -75,6 +75,8 @@
           "tags": [
             "heavy",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -85,6 +87,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -95,6 +99,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -105,7 +111,18 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
+          ]
+        },
+        {
+          "filename": "ARN-220_Rank_1.webp",
+          "label": "ARN-220",
+          "tags": [
+            "light",
+            "6_0_0",
+            "weapon"
           ]
         },
         {
@@ -115,6 +132,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -125,6 +144,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -135,6 +156,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -145,7 +168,18 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
+          ]
+        },
+        {
+          "filename": "CB-01_Repeater_Rank_1.webp",
+          "label": "CB-01 Repeater",
+          "tags": [
+            "medium",
+            "6_0_0",
+            "weapon"
           ]
         },
         {
@@ -155,6 +189,19 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "Cerberus_12GA_Rank_1.webp",
+          "label": "CERBERUS 12GA",
+          "tags": [
+            "medium",
+            "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -165,6 +212,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -175,6 +224,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -185,6 +236,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -195,6 +248,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -205,6 +260,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -215,6 +272,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -225,6 +284,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -235,6 +296,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -245,6 +308,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -253,8 +318,11 @@
           "label": "EXPLOSIVE MINE",
           "tags": [
             "medium",
+            "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -265,6 +333,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -275,6 +345,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -285,6 +357,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -297,6 +371,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -309,6 +385,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -321,6 +399,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -331,6 +411,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -341,6 +423,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -351,6 +435,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -361,6 +447,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -373,6 +461,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -383,6 +473,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -393,7 +485,21 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
+          ]
+        },
+        {
+          "filename": "Gravity_Vortex_Rank_1.webp",
+          "label": "GRAVITY VORTEX",
+          "tags": [
+            "light",
+            "3_0_0",
+            "4_0_0",
+            "5_0_0",
+            "6_0_0",
+            "gadget"
           ]
         },
         {
@@ -403,6 +509,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -413,6 +521,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -423,6 +533,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -433,6 +545,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -443,6 +557,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -453,7 +569,20 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
+          ]
+        },
+        {
+          "filename": "Lockbolt_Launcher_Rank_1.webp",
+          "label": "LOCKBOLT LAUNCHER",
+          "tags": [
+            "heavy",
+            "4_0_0",
+            "5_0_0",
+            "6_0_0",
+            "gadget"
           ]
         },
         {
@@ -463,6 +592,17 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "M134_Minigun_Rank_1.webp",
+          "label": "M134 Minigun",
+          "tags": [
+            "heavy",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -472,6 +612,8 @@
           "tags": [
             "light",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -482,6 +624,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -492,6 +636,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -502,6 +648,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -512,6 +660,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -520,8 +670,11 @@
           "label": "MOTION SENSOR",
           "tags": [
             "heavy",
+            "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -531,6 +684,8 @@
           "tags": [
             "medium",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -543,6 +698,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -553,6 +710,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -563,6 +722,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -573,6 +734,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -583,6 +746,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -593,6 +758,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -603,6 +770,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -613,6 +782,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -623,6 +794,19 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
+            "weapon"
+          ]
+        },
+        {
+          "filename": "ShAK-50_Rank_1.webp",
+          "label": "ShAK-50",
+          "tags": [
+            "heavy",
+            "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -633,6 +817,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -641,8 +827,12 @@
           "label": "SMOKE GRENADE",
           "tags": [
             "light",
+            "medium",
+            "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -653,6 +843,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -663,6 +855,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -683,6 +877,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -693,6 +889,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -703,6 +901,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -713,6 +913,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -723,6 +925,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -733,6 +937,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -743,6 +949,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         },
@@ -753,6 +961,8 @@
             "heavy",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "special"
           ]
         },
@@ -763,6 +973,8 @@
             "light",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "weapon"
           ]
         },
@@ -773,6 +985,8 @@
             "medium",
             "3_0_0",
             "4_0_0",
+            "5_0_0",
+            "6_0_0",
             "gadgets"
           ]
         }
@@ -786,6 +1000,16 @@
         "4_0_0": {
           "title": "Season 4",
           "description": "Everything available in Season 4",
+          "category": "general"
+        },
+        "5_0_0": {
+          "title": "Season 5",
+          "description": "Everything available in Season 5",
+          "category": "general"
+        },
+        "6_0_0": {
+          "title": "Season 6",
+          "description": "Everything available in Season 6",
           "category": "general"
         },
         "weapon": {
@@ -816,6 +1040,11 @@
         "special": {
           "title": "Specializations",
           "description": "Images of build specializations",
+          "category": "general"
+        },
+        "gadget": {
+          "title": "gadget",
+          "description": "Description of gadget in THE FINALS",
           "category": "general"
         }
       },
@@ -2013,6 +2242,15 @@
       "displayName": "SUPERVIVE",
       "images": [
         {
+          "filename": "bee.webp",
+          "label": "BEEBO",
+          "tags": [
+            "controller",
+            "s0",
+            "hunter"
+          ]
+        },
+        {
           "filename": "brl.webp",
           "label": "BRALL",
           "tags": [
@@ -2852,6 +3090,21 @@
         }
       ],
       "tags": {
+        "controller": {
+          "title": "Controllers",
+          "description": "Controller Hunters",
+          "category": "general"
+        },
+        "s0": {
+          "title": "Season 0",
+          "description": "Images from Supervive Season 0",
+          "category": "general"
+        },
+        "hunter": {
+          "title": "All Hunters",
+          "description": "Images of Hunters",
+          "category": "general"
+        },
         "fighter": {
           "title": "Fighters",
           "description": "Fighter Hunters",
@@ -2862,11 +3115,6 @@
           "description": "Images from Supervive Open Beta Launch (20-11-2024)",
           "category": "general"
         },
-        "hunter": {
-          "title": "All Hunters",
-          "description": "Images of Hunters",
-          "category": "general"
-        },
         "initiator": {
           "title": "Initiators",
           "description": "Initiator Hunters",
@@ -2875,11 +3123,6 @@
         "exotic": {
           "title": "Exotic Rarity",
           "description": "Exotic Rarity",
-          "category": "general"
-        },
-        "controller": {
-          "title": "Controllers",
-          "description": "Controller Hunters",
           "category": "general"
         },
         "protector": {
@@ -3005,6 +3248,13 @@
           "label": "Arc Thrower",
           "tags": [
             "Stratagems"
+          ]
+        },
+        {
+          "filename": "armedresupplypods.webp",
+          "label": "Armed Resupply Pods",
+          "tags": [
+            "Boosters"
           ]
         },
         {
@@ -3838,14 +4088,14 @@
           "description": "Images of Helldivers 2 primary weapons",
           "category": "general"
         },
-        "Secondaries": {
-          "title": "Secondaries",
-          "description": "Images of Helldivers 2 secondary weapons",
-          "category": "general"
-        },
         "Boosters": {
           "title": "Boosters",
           "description": "Images of Helldivers 2 boosters",
+          "category": "general"
+        },
+        "Secondaries": {
+          "title": "Secondaries",
+          "description": "Images of Helldivers 2 secondary weapons",
           "category": "general"
         },
         "Grenades": {
