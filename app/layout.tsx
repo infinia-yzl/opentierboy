@@ -19,11 +19,13 @@ import StructuredMetadata from "@/components/StructuredMetadata";
 const fontSans = FontSans({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 const fontHeading = FontHeading({
   subsets: ["latin"],
-  variable: "--font-heading"
+  variable: "--font-heading",
+  display: "swap",
 });
 
 const getBaseUrl = () => {
