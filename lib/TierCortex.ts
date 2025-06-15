@@ -22,6 +22,7 @@ interface SimplifiedTier {
 interface SimplifiedItem {
   i: string; // id
   c?: string; // content (only for custom items)
+  d?: string; // base64 image data (for custom items)
 }
 
 export interface TierWithSimplifiedItems extends Omit<Tier, 'items'> {
@@ -119,7 +120,7 @@ export class TierCortex {
       const tiers = simplifiedTiers.map(simplifiedTier => ({
         id: simplifiedTier.i,
         name: simplifiedTier.n,
-        items: simplifiedTier.t.map(item => this.resolveItem(item.i, item.c))
+        items: simplifiedTier.t.map(item => this.resolveItem(item.i, item.c, item.d))
       }));
 
       return {title, tiers};
@@ -218,9 +219,18 @@ export class TierCortex {
     }
   }
 
-  private resolveItem(itemId: string, content?: string): Item {
+  private resolveItem(itemId: string, content?: string, imageData?: string): Item {
     const packageItem = this.packageItemLookup[itemId];
     if (packageItem) return packageItem;
+
+    // If we have embedded image data (from shared URL), use it directly
+    if (imageData) {
+      return {
+        id: itemId,
+        content: content || itemId,
+        imageUrl: imageData, // Base64 data URL
+      };
+    }
 
     if (!this.isServer) {
       const customItem = this.customItemsMap.get(itemId);

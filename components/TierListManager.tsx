@@ -14,7 +14,7 @@ import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {ItemSet} from "@/models/ItemSet";
 import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
 import {CameraIcon, QuestionMarkCircledIcon} from "@radix-ui/react-icons";
-import {GiCardAceSpades, GiLightBackpack, GiScrollQuill} from "react-icons/gi";
+import {GiLightBackpack, GiScrollQuill} from "react-icons/gi";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 
 interface TierListManagerProps {
@@ -36,6 +36,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   const [showLabels, setShowLabels] = useState(true);
   const [labelPosition, setLabelPosition] = useState<LabelPosition>(tiers[0].labelPosition ?? 'left');
   const previousTiersRef = useRef<Tier[]>(tiers);
+  const nameChangedRef = useRef(false);
 
   const [urlLength, setUrlLength] = useState(0);
 
@@ -65,22 +66,47 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     previousTiersRef.current = updatedTiers;
     setTiers(updatedTiers);
 
+    // Check if we have Base64 images from a shared URL - if so, don't update URL automatically
+    const hasBase64Images = updatedTiers.some(tier =>
+      tier.items.some(item => 
+        tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('data:')
+      )
+    );
+
+    if (hasBase64Images) {
+      // Don't update URL - user must explicitly share to generate new URL with current state
+      console.log('🔒 Base64 images detected - URL updates disabled. Use Share button to generate new URL.');
+      return;
+    }
+
+    // Normal behavior: simple encoding without Base64 image data
     const optimizedTiersForEncoding: TierWithSimplifiedItems[] = updatedTiers.map(tier => ({
       ...tier,
       items: tier.items.map(item => ({
         i: item.id,
         c: tierCortex.isCustomItem(item.id) ? item.content : undefined
+        // No 'd' property - images stay in localStorage
       }))
     }));
 
-    router.push(`${pathname}?state=${TierCortex.encodeTierStateForURL(name, optimizedTiersForEncoding)}`, {scroll: false});
+    const newState = TierCortex.encodeTierStateForURL(name, optimizedTiersForEncoding);
+    const newUrlLength = pathname.length + newState.length + 7;
+    setUrlLength(newUrlLength);
+
+    router.push(`${pathname}?state=${newState}`, {scroll: false});
   }, [router, pathname, name, tierCortex]);
 
+  const handleNameChange = useCallback((newName: string) => {
+    nameChangedRef.current = true;
+    setName(newName);
+  }, []);
+
   useEffect(() => {
-    if (name !== title) {
+    if (nameChangedRef.current) {
+      nameChangedRef.current = false;
       handleTiersUpdate(tiers);
     }
-  }, [handleTiersUpdate, name, tiers, title])
+  }, [name, tiers, handleTiersUpdate]);
 
   const handleItemsCreate = useCallback((newItems: Item[]) => {
     const updatedTiers = [...tiers];
@@ -201,7 +227,47 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   };
 
   const UrlLengthWarning: React.FC<{ urlLength: number }> = ({urlLength}) => {
-    if (urlLength <= 2000) return null;
+    const customImageCount = tiers.flatMap(tier => tier.items).filter(item => tierCortex.isCustomItem(item.id)).length;
+    
+    // Check if we have Base64 images (from shared URL)
+    const hasBase64Images = tiers.some(tier =>
+      tier.items.some(item => 
+        tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('data:')
+      )
+    );
+
+    if (hasBase64Images) {
+      return (
+        <Alert className="px-4 my-4 border-blue-200 bg-blue-50 dark:bg-blue-950">
+          <QuestionMarkCircledIcon className="h-5 w-5 text-blue-600"/>
+          <AlertTitle className="text-blue-800 dark:text-blue-200">
+            📸 Shared Images Detected
+          </AlertTitle>
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
+            <p className="mb-2">
+              You&apos;re viewing a tier list with custom images from a shared URL. 
+              Your changes are saved locally but won&apos;t update the URL automatically.
+            </p>
+            <p>
+              <strong>To share your changes:</strong> Click the Share button to generate a new URL with your modifications.
+            </p>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (urlLength <= 2000) {
+      if (customImageCount > 0) {
+        const remainingSpace = 8192 - urlLength; // Conservative limit
+        const estimatedImagesCapacity = Math.floor(remainingSpace / 3000); // ~3KB per 100x100 WebP image
+        return (
+          <div className="text-sm text-muted-foreground text-center">
+            ✅ Link is shareable! ({customImageCount} custom images, space for ~{estimatedImagesCapacity} more)
+          </div>
+        );
+      }
+      return null;
+    }
 
     return (
       <Alert className="px-4 my-4">
@@ -225,7 +291,8 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
         <AlertDescription>
           <p className="mb-2">
             Hark, brave adventurer! A most peculiar affliction has befallen your URL. Tis&apos; stretched
-            yon&apos; mortal limits, surpassing 2000 characters in length!
+            yon&apos; mortal limits <i>(the URL is now {Math.round(urlLength / 1024)}KB, which might cause issues with
+            link previews)</i>.
           </p>
           <p className="mb-2">
             This arcane enchantment of elongation threatens to render link previews invisible to the denizens of
@@ -243,11 +310,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
               items)
             </li>
             <li>
-              <CameraIcon className="inline h-4 w-4 mr-1"/> Use <i>&quot;Freeze Frame&quot;</i>! (Share as picture)
-            </li>
-            <li>
-              <GiCardAceSpades className="inline h-4 w-4 mr-1"/> Activate your Secret Sharing Technique (Will you
-              activate your Trump Card?)
+              <CameraIcon className="inline h-4 w-4 mr-1"/> Share as image
             </li>
           </ul>
           <blockquote className="mt-4 border-l-2 pl-6 italic">
@@ -261,7 +324,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   return (
     <TierContext.Provider value={contextValue}>
       <div className="mb-4">
-        <EditableLabel as="h1" text={name} onSave={setName} placeholder="Enter title"
+        <EditableLabel as="h1" text={name} onSave={handleNameChange} placeholder="Enter title"
                        contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
       </div>
       <div className="flex flex-col items-center hide-in-zen">

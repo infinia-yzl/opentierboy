@@ -1,10 +1,10 @@
-import React, {useState, useRef, useCallback} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import html2canvas from 'html2canvas';
 import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
-import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon} from '@radix-ui/react-icons';
+import {CameraIcon, ImageIcon, QuestionMarkCircledIcon, Share1Icon} from '@radix-ui/react-icons';
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
@@ -13,6 +13,9 @@ import {FaFacebookF, FaMarkdown, FaXTwitter} from "react-icons/fa6";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {useTierContext} from "@/contexts/TierContext";
+import {TierCortex, TierWithSimplifiedItems} from "@/lib/TierCortex";
+import {usePathname} from "next/navigation";
 
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
@@ -22,10 +25,104 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
+  const {tiers, tierCortex} = useTierContext();
+  const pathname = usePathname();
+
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isGeneratingShareUrl, setIsGeneratingShareUrl] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Check if there are custom images that need Base64 encoding
+  const hasCustomImages = tiers.some(tier =>
+    tier.items.some(item => tierCortex.isCustomItem(item.id))
+  );
+
+  const generateShareUrlWithImages = useCallback(async () => {
+    if (!hasCustomImages) {
+      // No custom images, just copy current URL
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('URL copied to clipboard');
+      return;
+    }
+
+    setIsGeneratingShareUrl(true);
+    try {
+      // Convert custom images to Base64
+      const tiersWithBase64: TierWithSimplifiedItems[] = await Promise.all(
+        tiers.map(async (tier) => ({
+          ...tier,
+          items: await Promise.all(
+            tier.items.map(async (item) => {
+              if (tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('blob:')) {
+                try {
+                  // Convert blob URL to Base64
+                  const response = await fetch(item.imageUrl);
+                  const blob = await response.blob();
+
+                  // Create canvas to resize and compress
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d')!;
+                  const img = document.createElement('img');
+
+                  const base64 = await new Promise<string>((resolve, reject) => {
+                    img.onload = () => {
+                      // Resize to reasonable dimensions
+                      const maxSize = 100;
+                      const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+                      canvas.width = img.width * ratio;
+                      canvas.height = img.height * ratio;
+
+                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                      // Convert to WebP with compression
+                      const dataUrl = canvas.toDataURL('image/webp', 0.6);
+                      resolve(dataUrl);
+                    };
+                    img.onerror = reject;
+                    img.src = URL.createObjectURL(blob);
+                  });
+
+                  return {
+                    i: item.id,
+                    c: item.content,
+                    d: base64
+                  };
+                } catch (error) {
+                  console.error('Failed to convert image to Base64:', error);
+                  return {
+                    i: item.id,
+                    c: item.content
+                  };
+                }
+              } else {
+                return {
+                  i: item.id,
+                  c: tierCortex.isCustomItem(item.id) ? item.content : undefined,
+                  d: tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('data:') ? item.imageUrl : undefined
+                };
+              }
+            })
+          )
+        }))
+      );
+
+      const shareState = TierCortex.encodeTierStateForURL(title, tiersWithBase64);
+      const shareUrl = `${window.location.origin}${pathname}?state=${shareState}`;
+
+      navigator.clipboard.writeText(shareUrl);
+      toast.success('Shareable URL copied!', {
+        description: `This URL includes your custom images and works on any device. (${Math.round(shareUrl.length / 1024)}KB)`
+      });
+
+    } catch (error) {
+      console.error('Failed to generate share URL:', error);
+      toast.error('Failed to generate shareable URL');
+    } finally {
+      setIsGeneratingShareUrl(false);
+    }
+  }, [tiers, tierCortex, title, pathname, hasCustomImages]);
 
   const captureImage = useCallback(async () => {
     setIsCapturing(true);
@@ -103,9 +200,20 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const shareToSocial = (platform: SocialPlatform) => {
     const shareText = `I've just ranked "${title}" on OpenTierBoy. What do you think? 🤔`;
+    const currentUrl = hasCustomImages
+      ? 'javascript:void(0)' // Don't auto-share if custom images need processing
+      : window.location.href;
+
+    if (hasCustomImages) {
+      toast.info('Generate shareable URL first', {
+        description: 'Click "Copy Shareable URL" to create a link with your custom images.'
+      });
+      return;
+    }
+
     const url = platform === 'facebook'
-      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(shareText)}`
-      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(window.location.href)}`;
+      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}&quote=${encodeURIComponent(shareText)}`
+      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(currentUrl)}`;
 
     window.open(url, '_blank');
   };
@@ -153,19 +261,45 @@ What do you think? 🤔
                         <QuestionMarkCircledIcon className="h-4 w-4"/>
                       </TooltipTrigger>
                       <TooltipContent>
-                        Consider using URL shorteners for ease of sharing.
-                        Images added from your device will be replaced with placeholders.
+                        {hasCustomImages
+                          ? "Custom images will be encoded for sharing across devices"
+                          : "Consider using URL shorteners for ease of sharing"
+                        }
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </CardTitle>
                 <CardDescription className="text-sm text-muted-foreground">
-                  You may also copy the URL directly from your browser address bar to share your tier
-                  list. <br/>
-                  <i>Copy-jutsu!</i>
+                  {hasCustomImages ? (
+                    <>
+                      <strong>📸 Custom images detected!</strong><br/>
+                      Generate a shareable URL that includes your custom images.
+                    </>
+                  ) : (
+                    <>
+                      You may also copy the URL directly from your browser address bar to share your tier
+                      list. <br/>
+                      <i>Copy-jutsu!</i>
+                    </>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={generateShareUrlWithImages}
+                    disabled={isGeneratingShareUrl}
+                  >
+                    {isGeneratingShareUrl ? (
+                      'Generating...'
+                    ) : hasCustomImages ? (
+                      '🔗 Copy Shareable URL'
+                    ) : (
+                      '🔗 Copy URL'
+                    )}
+                  </Button>
+                </div>
                 <div className="flex justify-center">
                   <Button variant="outline" onClick={copyAsMarkdown}>
                     <FaMarkdown className="mr-2"/> Copy Markdown

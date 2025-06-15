@@ -1,5 +1,5 @@
-import React, {useCallback, useEffect, useRef, memo} from 'react';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import React, {memo, useCallback, useEffect, useRef} from 'react';
+import {DragDropContext, Draggable, Droppable, DropResult} from '@hello-pangea/dnd';
 import {toast} from "sonner";
 import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
@@ -172,6 +172,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({tiers, onTiersUpdate
       }
     }
 
+    // Back to normal: always update URL on drag end
     onTiersUpdate(newTiers);
   }, [tiers, onTiersUpdate]);
 
