@@ -15,6 +15,7 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {useTierContext} from "@/contexts/TierContext";
 import {TierCortex, TierWithSimplifiedItems} from "@/lib/TierCortex";
+import {SmartImageCompressor} from "@/lib/SmartImageCompression";
 import {usePathname} from "next/navigation";
 
 type SocialPlatform = 'facebook' | 'twitter';
@@ -39,6 +40,27 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     tier.items.some(item => tierCortex.isCustomItem(item.id))
   );
 
+  // Count total custom images for compression strategy estimation
+  const customImageCount = tiers.reduce((count, tier) =>
+    count + tier.items.filter(item => tierCortex.isCustomItem(item.id)).length, 0
+  );
+
+  // Estimate URL shareability
+  const getShareabilityInfo = () => {
+    if (customImageCount <= 3) {
+      return { level: 'good', message: 'Works everywhere' };
+    } else if (customImageCount <= 5) {
+      return { level: 'limited', message: 'Limited compatibility' };
+    } else {
+      return { 
+        level: 'challenging', 
+        message: 'May break' 
+      };
+    }
+  };
+
+  const shareabilityInfo = getShareabilityInfo();
+
   const generateShareUrlWithImages = useCallback(async () => {
     if (!hasCustomImages) {
       // No custom images, just copy current URL
@@ -49,6 +71,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
     setIsGeneratingShareUrl(true);
     try {
+      // Calculate custom image count at runtime to avoid closure issues
+      const currentCustomImageCount = tiers.reduce((count, tier) =>
+        count + tier.items.filter(item => tierCortex.isCustomItem(item.id)).length, 0
+      );
+
       // Convert custom images to Base64
       const tiersWithBase64: TierWithSimplifiedItems[] = await Promise.all(
         tiers.map(async (tier) => ({
@@ -67,18 +94,50 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
                   const img = document.createElement('img');
 
                   const base64 = await new Promise<string>((resolve, reject) => {
-                    img.onload = () => {
-                      // Resize to reasonable dimensions
-                      const maxSize = 100;
-                      const ratio = Math.min(maxSize / img.width, maxSize / img.height);
-                      canvas.width = img.width * ratio;
-                      canvas.height = img.height * ratio;
+                    img.onload = async () => {
+                      // Create a canvas with the original image
+                      canvas.width = img.width;
+                      canvas.height = img.height;
+                      ctx.drawImage(img, 0, 0);
 
-                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                      try {
+                        // Use the locally calculated count
+                        let compressionSettings;
+                        if (currentCustomImageCount <= 5) {
+                          // Standard compression for 5 or fewer images
+                          compressionSettings = {
+                            targetSize: 6144,  // 6KB
+                            maxDimension: 80,
+                            forUrlSharing: true
+                          };
+                        } else {
+                          // Aggressive compression for 6+ images
+                          compressionSettings = {
+                            targetSize: Math.max(2048, Math.floor(20480 / currentCustomImageCount)), // Dynamic budget
+                            maxDimension: Math.max(48, Math.floor(320 / Math.sqrt(currentCustomImageCount))), // Dynamic size
+                            forUrlSharing: true
+                          };
+                        }
 
-                      // Convert to WebP with compression
-                      const dataUrl = canvas.toDataURL('image/webp', 0.6);
-                      resolve(dataUrl);
+                        const compressionResult = await SmartImageCompressor.compressToTargetSize(
+                          canvas,
+                          compressionSettings.targetSize,
+                          compressionSettings.maxDimension,
+                          compressionSettings.forUrlSharing
+                        );
+
+                        resolve(compressionResult.dataUrl);
+                      } catch (error) {
+                        // Simple fallback compression - use local count
+                        const maxSize = currentCustomImageCount > 5 ? 48 : 80;
+                        const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+                        const fallbackCanvas = document.createElement('canvas');
+                        const fallbackCtx = fallbackCanvas.getContext('2d')!;
+                        fallbackCanvas.width = img.width * ratio;
+                        fallbackCanvas.height = img.height * ratio;
+                        fallbackCtx.drawImage(img, 0, 0, fallbackCanvas.width, fallbackCanvas.height);
+                        resolve(fallbackCanvas.toDataURL('image/webp', currentCustomImageCount > 5 ? 0.3 : 0.6));
+                      }
                     };
                     img.onerror = reject;
                     img.src = URL.createObjectURL(blob);
@@ -108,13 +167,31 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         }))
       );
 
+      // Calculate final URL and estimate shareability
       const shareState = TierCortex.encodeTierStateForURL(title, tiersWithBase64);
       const shareUrl = `${window.location.origin}${pathname}?state=${shareState}`;
 
+      const urlSizeKB = Math.round(shareUrl.length / 1024);
+      const sharedImageCount = tiersWithBase64.reduce((count, tier) =>
+        count + tier.items.filter(item => item.d).length, 0
+      );
+
       navigator.clipboard.writeText(shareUrl);
-      toast.success('Shareable URL copied!', {
-        description: `This URL includes your custom images and works on any device. (${Math.round(shareUrl.length / 1024)}KB)`
-      });
+
+      // Provide user feedback based on URL size and shareability
+      if (urlSizeKB <= 10) {
+        toast.success('URL copied!', {
+          description: `${sharedImageCount} images, ${urlSizeKB}KB`
+        });
+      } else if (urlSizeKB <= 20) {
+        toast.success('URL copied', {
+          description: `${sharedImageCount} images, ${urlSizeKB}KB - limited compatibility`
+        });
+      } else {
+        toast.warning('Large URL copied', {
+          description: `${sharedImageCount} images, ${urlSizeKB}KB - may break`
+        });
+      }
 
     } catch (error) {
       console.error('Failed to generate share URL:', error);
@@ -272,13 +349,25 @@ What do you think? 🤔
                 <CardDescription className="text-sm text-muted-foreground">
                   {hasCustomImages ? (
                     <>
-                      <strong>📸 Custom images detected!</strong><br/>
-                      Generate a shareable URL that includes your custom images.
+                      <strong>📸 {customImageCount} custom image{customImageCount !== 1 ? 's' : ''}</strong><br/>
+                      {customImageCount > 5 && (
+                        <span className="text-orange-600 dark:text-orange-400">
+                          Ultra-aggressive compression will be applied
+                        </span>
+                      )}
+                      <br/>
+                      <span className={
+                        shareabilityInfo.level === 'good' ? 'text-blue-600 dark:text-blue-400' :
+                        shareabilityInfo.level === 'limited' ? 'text-orange-600 dark:text-orange-400' :
+                        'text-red-600 dark:text-red-400'
+                      }>
+                        🔗 {shareabilityInfo.message}
+                      </span>
                     </>
                   ) : (
                     <>
-                      You may also copy the URL directly from your browser address bar to share your tier
-                      list. <br/>
+                      <span className="text-emerald-600 dark:text-emerald-400">🔗 Perfect for sharing everywhere</span><br/>
+                      You can also copy the URL directly from your browser address bar. <br/>
                       <i>Copy-jutsu!</i>
                     </>
                   )}

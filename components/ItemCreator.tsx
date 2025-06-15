@@ -28,10 +28,34 @@ interface UploadedItem {
 const generateId = () => Math.random().toString(36).slice(2, 11);
 
 const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
-  const {tierCortex} = useTierContext();
+  const {tierCortex, tiers} = useTierContext();
 
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate current and projected custom image count for sharing warnings
+  const currentCustomImageCount = tiers.reduce((count, tier) => 
+    count + tier.items.filter(item => tierCortex.isCustomItem(item.id)).length, 0
+  );
+  const projectedCustomImageCount = currentCustomImageCount + uploadedItems.length;
+
+  // Get sharing warning info
+  const getSharingWarning = () => {
+    if (projectedCustomImageCount === 0) {
+      return null;
+    } else if (projectedCustomImageCount <= 3) {
+      return { level: 'info', message: `${projectedCustomImageCount} custom images - good for sharing` };
+    } else if (projectedCustomImageCount <= 5) {
+      return { level: 'warning', message: `${projectedCustomImageCount} custom images - limited compatibility` };
+    } else {
+      return { 
+        level: 'error', 
+        message: `${projectedCustomImageCount} custom images - URLs may break` 
+      };
+    }
+  };
+
+  const sharingWarning = getSharingWarning();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -96,6 +120,24 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
               <FormDescription>
                 Choose multiple image files to create new items.
               </FormDescription>
+              {sharingWarning && (
+                <div className={`p-3 rounded-lg text-sm mt-2 border ${
+                  sharingWarning.level === 'info' ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' :
+                  sharingWarning.level === 'warning' ? 'bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' :
+                  'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                }`}>
+                  <div className="flex items-start space-x-2">
+                    <span className="text-base">
+                      {sharingWarning.level === 'info' ? 'ℹ️' :
+                       sharingWarning.level === 'warning' ? '⚠️' : '🚨'}
+                    </span>
+                    <div className="flex-1">
+                      <div className="font-medium">Sharing Impact</div>
+                      <div className="mt-1">{sharingWarning.message}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               <FormMessage/>
             </FormItem>
           )}

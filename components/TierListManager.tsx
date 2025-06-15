@@ -44,22 +44,26 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
     const state = searchParams.get('state');
     if (!state) return;
 
-    const decodedState = tierCortex.decodeTierStateFromURL(state);
-    if (!decodedState) return;
+    const processUrlState = async () => {
+      const decodedState = await tierCortex.decodeTierStateFromURL(state);
+      if (!decodedState) return;
 
-    // Update name if present
-    if (decodedState.title) {
-      setName(decodedState.title);
-    }
+      // Update name if present
+      if (decodedState.title) {
+        setName(decodedState.title);
+      }
 
-    // Updated label positions
-    const updatedTiers = decodedState.tiers.map(tier => ({
-      ...tier,
-      labelPosition
-    }));
+      // Updated label positions
+      const updatedTiers = decodedState.tiers.map(tier => ({
+        ...tier,
+        labelPosition
+      }));
 
-    setTiers(updatedTiers);
-    setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
+      setTiers(updatedTiers);
+      setUrlLength(pathname.length + state.length + 7); // 7 is the length of "?state="
+    };
+
+    processUrlState();
   }, [pathname.length, searchParams, tierCortex, labelPosition]);
 
   const handleTiersUpdate = useCallback((updatedTiers: Tier[]) => {
@@ -68,7 +72,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 
     // Check if we have Base64 images from a shared URL - if so, don't update URL automatically
     const hasBase64Images = updatedTiers.some(tier =>
-      tier.items.some(item => 
+      tier.items.some(item =>
         tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('data:')
       )
     );
@@ -227,11 +231,9 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   };
 
   const UrlLengthWarning: React.FC<{ urlLength: number }> = ({urlLength}) => {
-    const customImageCount = tiers.flatMap(tier => tier.items).filter(item => tierCortex.isCustomItem(item.id)).length;
-    
     // Check if we have Base64 images (from shared URL)
     const hasBase64Images = tiers.some(tier =>
-      tier.items.some(item => 
+      tier.items.some(item =>
         tierCortex.isCustomItem(item.id) && item.imageUrl?.startsWith('data:')
       )
     );
@@ -245,11 +247,12 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
           </AlertTitle>
           <AlertDescription className="text-blue-700 dark:text-blue-300">
             <p className="mb-2">
-              You&apos;re viewing a tier list with custom images from a shared URL. 
+              You&apos;re viewing a tier list with custom images from a shared URL.
               Your changes are saved locally but won&apos;t update the URL automatically.
             </p>
             <p>
-              <strong>To share your changes:</strong> Click the Share button to generate a new URL with your modifications.
+              <strong>To share your changes:</strong> Click the Share button to generate a new URL with your
+              modifications.
             </p>
           </AlertDescription>
         </Alert>
