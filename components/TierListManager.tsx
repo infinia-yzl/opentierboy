@@ -238,8 +238,8 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 
     if (hasBase64Images) {
       return (
-        <Alert className="px-4 my-4 border-blue-200 bg-blue-50 dark:bg-blue-950">
-          <QuestionMarkCircledIcon className="h-5 w-5 text-blue-600"/>
+        <Alert className="px-4 my-4 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+          <QuestionMarkCircledIcon className="h-5 w-5 text-blue-600 dark:text-blue-400"/>
           <AlertTitle className="text-blue-800 dark:text-blue-200">
             📸 Shared Images Detected
           </AlertTitle>
@@ -256,16 +256,8 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
       );
     }
 
+    // Remove the "Link is shareable!" message since sharing now requires explicit button click
     if (urlLength <= 2000) {
-      if (customImageCount > 0) {
-        const remainingSpace = 8192 - urlLength; // Conservative limit
-        const estimatedImagesCapacity = Math.floor(remainingSpace / 3000); // ~3KB per 100x100 WebP image
-        return (
-          <div className="text-sm text-muted-foreground text-center">
-            ✅ Link is shareable! ({customImageCount} custom images, space for ~{estimatedImagesCapacity} more)
-          </div>
-        );
-      }
       return null;
     }
 
