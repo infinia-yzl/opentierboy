@@ -1,13 +1,31 @@
 import {ImageResponse} from 'next/og';
 import {TierCortex} from '@/lib/TierCortex';
+import {inlineLocalImages} from './local-images';
 
 export const runtime = 'edge';
 
-const DefaultOGImage = () => (
+const LOGO = 'brand/otb-logo-wide.png';
+
+// Previews use Noto Sans, the default font of next/og up to Next.js 15. Next.js 16 changed
+// the default to Geist, so the route passes the same font file itself to keep previews
+// unchanged. fonts/OFL.txt holds the font's licence.
+const notoSans = fetch(new URL('./fonts/noto-sans-v27-latin-regular.ttf', import.meta.url))
+  .then((response) => response.arrayBuffer());
+
+async function imageOptions() {
+  return {
+    width: 1200,
+    height: 630,
+    // The name and weight that next/og 15 gave its default font.
+    fonts: [{name: 'sans serif', data: await notoSans, weight: 700 as const, style: 'normal' as const}],
+  };
+}
+
+const DefaultOGImage = ({logoSrc}: {logoSrc: string}) => (
   <div tw="flex flex-col w-full h-full bg-black justify-between p-32">
     <div tw="flex flex-col justify-between items-center w-full">
       <img
-        src={new TierCortex().getAssetUrl('brand/otb-logo-wide.png')}
+        src={logoSrc}
         alt="OpenTierBoy"
         width={600}
         height={160}
@@ -23,29 +41,35 @@ const DefaultOGImage = () => (
   </div>
 );
 
+async function defaultImageResponse() {
+  const logoUrl = new TierCortex().getAssetUrl(LOGO);
+  const imageSrc = await inlineLocalImages([logoUrl]);
+  return new ImageResponse(<DefaultOGImage logoSrc={imageSrc(logoUrl)}/>, await imageOptions());
+}
+
 export async function GET(request: Request) {
   const {searchParams} = new URL(request.url);
   const state = searchParams.get('state');
 
   if (!state) {
-    return new ImageResponse(<DefaultOGImage/>, {
-      width: 1200,
-      height: 630,
-    });
+    return defaultImageResponse();
   }
 
   const tierCortex = new TierCortex();
   const decodedState = tierCortex.decodeTierStateFromURL(state);
 
   if (!decodedState) {
-    return new ImageResponse(<DefaultOGImage/>, {
-      width: 1200,
-      height: 630,
-    });
+    return defaultImageResponse();
   }
 
   const {title, tiers} = decodedState;
   tiers.pop(); // Remove uncategorized tier
+
+  const logoUrl = tierCortex.getAssetUrl(LOGO);
+  const imageSrc = await inlineLocalImages([
+    logoUrl,
+    ...tiers.flatMap((tier) => tier.items.slice(0, 10).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
+  ]);
 
   const titleText = title ? `${title}` : 'OpenTierBoy';
 
@@ -88,7 +112,7 @@ export async function GET(request: Request) {
                     >
                       {safeItem.imageUrl ? (
                         <img
-                          src={safeItem.imageUrl}
+                          src={imageSrc(safeItem.imageUrl)}
                           alt={safeItem.content}
                           tw="w-full h-full object-cover"
                         />
@@ -111,7 +135,7 @@ export async function GET(request: Request) {
         </div>
 
         <img
-          src={tierCortex.getAssetUrl('brand/otb-logo-wide.png')}
+          src={imageSrc(logoUrl)}
           alt="OpenTierBoy"
           width={300}
           height={80}
@@ -119,9 +143,6 @@ export async function GET(request: Request) {
         />
       </div>
     ),
-    {
-      width: 1200,
-      height: 630,
-    }
+    await imageOptions()
   );
 }
