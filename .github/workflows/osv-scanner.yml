@@ -30,7 +30,7 @@ jobs:
       security-events: write
       actions: read
       contents: read
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@ef6dfdf01765802d5a8dbc3c39852a6128b00af0 # v2.7.0
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
       scan-args: |-
         --recursive
@@ -43,7 +43,7 @@ jobs:
       security-events: write
       actions: read
       contents: read
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@ef6dfdf01765802d5a8dbc3c39852a6128b00af0 # v2.7.0
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
       scan-args: |-
         --recursive
