@@ -20,8 +20,8 @@
  * edits count. Default base: $FIXTURES_BASE_REF, else the first ref that exists of
  * test/playwright-pom, origin/main, main.
  *
- * In CI: check out with `fetch-depth: 0` and pass `--base origin/${{ github.base_ref }}` on pull
- * requests (on a push, `--base ${{ github.event.before }}`).
+ * In CI (.github/workflows/ci.yml): check out with `fetch-depth: 0` and set FIXTURES_BASE_REF
+ * through `env:` to `origin/<base branch>` on pull requests and to the previous commit on pushes.
  *
  * Exit codes: 0 ok, 1 an entry changed or disappeared, 2 the base could not be read.
  */
@@ -51,17 +51,18 @@ function refExists(ref) {
   }
 }
 
+/** The base ref, and where it came from (for error messages). */
 function parseArgs(argv) {
   const baseIndex = argv.indexOf('--base');
   if (baseIndex !== -1) {
     const base = argv[baseIndex + 1];
     if (!base || base.startsWith('--')) fail('Pass a git ref after --base, for example --base origin/main.', 2);
-    return base;
+    return {base, source: '--base'};
   }
-  if (process.env.FIXTURES_BASE_REF) return process.env.FIXTURES_BASE_REF;
+  if (process.env.FIXTURES_BASE_REF) return {base: process.env.FIXTURES_BASE_REF, source: 'FIXTURES_BASE_REF'};
   const found = DEFAULT_BASES.find(refExists);
-  if (!found) fail(`None of ${DEFAULT_BASES.join(', ')} exists. Pass --base <ref>.`, 2);
-  return found;
+  if (!found) fail(`None of ${DEFAULT_BASES.join(', ')} exists. Pass --base <ref> or set FIXTURES_BASE_REF.`, 2);
+  return {base: found, source: 'default'};
 }
 
 const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -114,9 +115,16 @@ function main() {
     fail('Run this inside the git repository.', 2);
   }
 
-  const base = parseArgs(process.argv.slice(2));
+  const {base, source} = parseArgs(process.argv.slice(2));
+  if (/^0+$/.test(base)) {
+    fail(`The base ref from ${source} is the all-zero commit, so there is no previous commit to compare with. Pass --base <ref>.`, 2);
+  }
   if (!refExists(base)) {
-    fail(`Cannot find the base ref "${base}". In CI, check out with fetch-depth: 0 so the base branch is available.`, 2);
+    fail([
+      `Cannot find the base ref "${base}" (from ${source}).`,
+      'In CI, check out with fetch-depth: 0 so the base branch and earlier commits are available.',
+      'A force-push can also remove the previous commit. Then pass --base <ref> by hand.',
+    ].join('\n'), 2);
   }
   let mergeBase;
   try {

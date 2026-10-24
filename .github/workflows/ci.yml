@@ -37,11 +37,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Type check, lint and unit tests. Every new check goes into this one npm script.
+      # Type check, lint, unit tests, item ids and append-only fixtures. Every new check goes
+      # into this one npm script. check:fixtures compares the fixtures with FIXTURES_BASE_REF:
+      # the base branch of a pull request, or the previous commit of a push to main.
       - name: Run checks
         run: npm run check
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          FIXTURES_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
 
   e2e:
     name: e2e (${{ matrix.project }})

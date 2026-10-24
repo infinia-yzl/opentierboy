@@ -29,12 +29,14 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     git('add', '-A');
     git('commit', '-q', '-m', message);
   };
-  const check = (...args: string[]) => {
+  const checkWithBaseEnv = (baseRef: string | undefined, ...args: string[]) => {
     const env = {...process.env};
     delete env.FIXTURES_BASE_REF;
+    if (baseRef !== undefined) env.FIXTURES_BASE_REF = baseRef;
     const result = spawnSync(process.execPath, [script, ...args], {cwd: repo, encoding: 'utf8', env});
     return {status: result.status, output: `${result.stdout}${result.stderr}`};
   };
+  const check = (...args: string[]) => checkWithBaseEnv(undefined, ...args);
 
   beforeEach(() => {
     repo = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-append-only-'));
@@ -123,6 +125,24 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
   it('exits with 2 when the base ref is missing, as in a shallow CI checkout', () => {
     const result = check('--base', 'origin/does-not-exist');
     expect(result.status).toBe(2);
+    expect(result.output).toContain('Cannot find the base ref "origin/does-not-exist" (from --base)');
     expect(result.output).toContain('fetch-depth: 0');
+  });
+
+  it('takes the base ref from FIXTURES_BASE_REF, as CI sets it', () => {
+    write('tests/fixtures/shared-links.json', [LINKS[0]]);
+    const result = checkWithBaseEnv(git('rev-parse', 'main').trim());
+    expect(result.status).toBe(1);
+    expect(result.output).toContain('entry link-002 (#2) was removed');
+
+    const missing = checkWithBaseEnv('origin/does-not-exist');
+    expect(missing.status).toBe(2);
+    expect(missing.output).toContain('Cannot find the base ref "origin/does-not-exist" (from FIXTURES_BASE_REF)');
+  });
+
+  it('exits with 2 when the base is the all-zero commit of a new branch push', () => {
+    const result = checkWithBaseEnv('0000000000000000000000000000000000000000');
+    expect(result.status).toBe(2);
+    expect(result.output).toContain('all-zero commit');
   });
 });
