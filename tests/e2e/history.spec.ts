@@ -51,3 +51,23 @@ test.describe('Browser history', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
 });
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite stays green while the bug exists. See items.spec.ts for the convention.
+ */
+test.describe('Known bugs', () => {
+  test('Back to a template page without a link shows the template again', async ({tierList, page}) => {
+    test.fail(true, 'The plain template address has no state, so the app keeps the list on screen.');
+    await tierList.goto(TANKS);
+    await tierList.dragItemToTier('Mauga', 'S');
+    await tierList.dragItemToTier('Winston', 'A');
+
+    await page.goBack();
+    await page.goBack();
+
+    await expect(page).toHaveURL(/\/rank\/overwatch\/tank$/);
+    await expect(tierList.itemsIn('S')).toHaveCount(0, {timeout: 3_000});
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(13, {timeout: 3_000});
+  });
+});
