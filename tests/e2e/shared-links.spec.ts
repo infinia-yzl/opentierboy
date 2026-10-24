@@ -1,4 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
+import {rawState} from '../support/links';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -43,3 +44,33 @@ test.describe('Link previews', () => {
 function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite stays green while the bug exists. When a fix lands, the test starts to pass,
+ * Playwright reports "Expected to fail, but passed", and the marker must be removed.
+ */
+test.describe('Known bugs', () => {
+  // Names that every JavaScript object has. A link may hold them as item ids.
+  for (const id of ['constructor', 'toString', '__proto__']) {
+    test(`an item with the id "${id}" shows its label like any unknown item`, async ({tierList, openAsVisitor}) => {
+      test.fail(true, 'TierCortex looks up item ids in a plain object, so these ids resolve to built-in members: the tile loses its label, and the next save drops the id.');
+      await tierList.goto('/rank/overwatch/tank', rawState({
+        title: 'Odd item ids',
+        tiers: [
+          {i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: id, c: 'Mystery'}, {i: 'k3j9x0a1b', c: 'my cat'}]},
+          {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]},
+        ],
+      }));
+
+      // Short timeout: this assertion is expected to fail until the bug is fixed.
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Mystery', 'my cat'], {timeout: 3_000});
+
+      // The rest of the list works, and the next saved link keeps the item.
+      await tierList.renameTier('S', 'Top');
+      const visitor = await openAsVisitor(await tierList.shareLink());
+      await expect(visitor.itemsIn('Top')).toHaveText(['Mauga', 'Mystery', 'my cat'], {timeout: 3_000});
+      await expect(visitor.itemsIn(visitor.unranked)).toHaveText(['Winston'], {timeout: 3_000});
+    });
+  }
+});

@@ -27,6 +27,8 @@ const MALFORMED = [
   lz('[{"i":"a","n":"b"}]'), lz('[{"i":"a","n":"b","t":"x"}]'), lz('[{"i":"a","n":"b","t":[null]}]'),
   lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7}'),
   lz('{"tiers":[],"title":""}'), lz('{"tiers":[],"title":null}'), lz('[{"i":"a","n":"b","t":[{"i":"c","c":""}]}]'),
+  // Known bug (tests/e2e/shared-links.spec.ts): ids named like Object.prototype members resolve
+  // to those members. The fix (Phase 5a) changes this result on purpose: move the input out then.
   lz('{"tiers":[{"i":"a","n":"b","t":[{"i":"__proto__"},{"i":"toString","c":"x"},{"i":"hasOwnProperty"}]}]}'),
 ];
 
