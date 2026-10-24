@@ -12,10 +12,9 @@ updates:
       # Shared links are lz-string output. A new version could change how old links decode.
       # Update it only by hand, after the golden link fixtures pass.
       - dependency-name: "lz-string"
+      # eslint-config-next's React, import and jsx-a11y plugins support ESLint 9 only.
       - dependency-name: "eslint"
-        versions: ["9.x"]
-      - dependency-name: "react-day-picker"
-        versions: ["9.x"]
+        versions: [">=10"]
     # Wait 7 days after a release before proposing it. Most malicious releases are caught
     # and pulled within days.
     # The image-* packages are the owner's own, so they skip the wait.
