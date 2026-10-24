@@ -1,7 +1,9 @@
 import {expect, expectTierList, test} from '../support/test';
-import {rankingState} from '../support/links';
+import {rankingState, templateItemCount} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
+// Official sets grow with new versions, so counts come from imageset.config.json.
+const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
 test.describe('Ranking items', () => {
   test('drag an item from Unranked into a tier', async ({tierList}) => {
@@ -10,7 +12,7 @@ test.describe('Ranking items', () => {
     await tierList.dragItemToTier('Mauga', 'S');
 
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(12);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
     await expect(tierList.unranked.getByRole('button', {name: 'Mauga'})).toHaveCount(0);
   });
 
@@ -34,7 +36,7 @@ test.describe('Ranking items', () => {
     await expect(friend.title).toHaveText('OVERWATCH - Tank');
     await expect(friend.itemsIn('S')).toHaveText(['Mauga']);
     await expect(friend.itemsIn('A')).toHaveText(['Winston']);
-    await expect(friend.itemsIn(friend.unranked)).toHaveCount(11);
+    await expect(friend.itemsIn(friend.unranked)).toHaveCount(TANK_COUNT - 2);
   });
 
   test('drag an item onto another item in the same tier to reorder it', async ({tierList}) => {
@@ -71,7 +73,7 @@ test.describe('Ranking with the keyboard', () => {
     await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
 
     await expect(tierList.itemsIn('F')).toHaveText(['Mauga']);
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(12);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
   });
 
   test('reorder items inside a tier', async ({tierList}) => {

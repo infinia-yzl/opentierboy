@@ -1,9 +1,10 @@
 import path from 'node:path';
 import {expect, test} from '../support/test';
-import {rankingState} from '../support/links';
+import {rankingState, templateItemCount} from '../support/links';
 import {TierListPage} from '../pages/TierListPage';
 
 const TANKS = '/rank/overwatch/tank';
+const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 const IMAGES = path.join(__dirname, '..', 'fixtures', 'images');
 
 test.describe('Managing items', () => {
@@ -24,7 +25,7 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
 
     await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(13);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
 
     await tierList.undoFromToast('Items Added');
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
@@ -35,7 +36,7 @@ test.describe('Managing items', () => {
 
     await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
 
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(13);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
   });
 
   test('upload images from the device', async ({tierList}) => {
