@@ -125,7 +125,9 @@ node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <u
 `generated.json` comes from the historical encoders of the three legacy formats (v0, v1, v2),
 run from git history by `node scripts/generate-legacy-fixtures.mjs` (see the comment at its
 top). The unit tests in `tests/unit/state/` decode every entry of both fixture files.
-The same rule applies: append, never edit.
+The same rule applies: append, never edit. `npm run check:fixtures` fails when an existing
+entry of a fixture file, `image-registry.lock.json` or `image-aliases.json` changed or
+disappeared compared with the base branch (pass `-- --base <ref>` to choose the branch).
 
 ## Product rules
 
