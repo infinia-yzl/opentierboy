@@ -60,7 +60,7 @@ export function ThemeSelector() {
             className="flex items-center justify-between p-2"
             onClick={() => handleThemeChange(colorTheme)}
           >
-            <span className="flex-grow pl-2 text-sm">
+            <span className="grow pl-2 text-sm">
               {colorTheme.charAt(0).toUpperCase() + colorTheme.slice(1)}
             </span>
             <div className="flex space-x-0.5" onClick={(e) => e.stopPropagation()}>

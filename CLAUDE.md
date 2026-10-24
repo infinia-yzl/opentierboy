@@ -37,7 +37,7 @@ When unsure, stop and ask. Explain the change and its risk in plain words.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind CSS 3 + shadcn/ui ·
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind CSS 4 + shadcn/ui ·
 `@hello-pangea/dnd` (drag and drop) · `lz-string` (link compression) · `html2canvas-pro`
 (screenshots) · Playwright (end-to-end tests) · Vitest (unit tests) · hosted on Vercel.
 
@@ -61,7 +61,8 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 - Playwright runs against the production build. Rebuild before e2e tests after any change
   to `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`, `public/`,
   `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.mjs`,
-  `tailwind.config.ts`, `postcss.config.mjs`).
+  `postcss.config.mjs`). Tailwind 4 has no config file: the theme lives in
+  `app/globals.css`.
 - `npm run build` first runs the `prebuild` script: it copies the image sets from
   `node_modules/image-*` into `public/images/` (with their PNG copies for link previews) and
   runs `check:images`, so a lost item id stops the build. Always build with `npm run build`.
