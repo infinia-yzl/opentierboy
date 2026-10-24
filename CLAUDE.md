@@ -49,15 +49,20 @@ npm run dev               # prepare images, then the dev server on :3000
 npm run build             # production build (prepares images on the first build)
 npm run check             # type check + lint + unit tests (CI runs this)
 npm run test:unit         # Vitest only
+npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 ```
 
 - Run `npm run check` before every commit. CI runs the same script.
-- Rebuild before e2e tests after any change in `app/`, `components/`, `lib/` or `models/`.
-  Playwright runs against the production build.
-- `npm run build` copies image sets from `node_modules/image-*` into `public/images/` once.
-  Delete `.next` and `.prepare-images-lock` to force a clean build.
+- Playwright runs against the production build. Rebuild before e2e tests after any change
+  to `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`, `public/`,
+  `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.mjs`,
+  `tailwind.config.ts`, `postcss.config.mjs`).
+- `npm run build` copies image sets from `node_modules/image-*` into `public/images/` only
+  once (then writes `.prepare-images-lock`). After changing `imageset.custom.json` or an
+  `image-*` package, delete `.next` and `.prepare-images-lock` before building.
+- Browsers already installed elsewhere: see `tests/README.md` (`PLAYWRIGHT_BROWSERS_PATH`).
 - Link preview tests (`og-image.api.spec.ts`) need the server on port 3000. They skip
   themselves on other ports.
 
