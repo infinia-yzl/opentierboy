@@ -5,6 +5,11 @@ import {expect, SHARED_LINKS, test} from '../support/test';
  * These tests call the API directly, so they run once and need no browser.
  */
 test.describe('Link preview images', () => {
+  // The preview route loads item images from http://localhost:3000 when it runs outside
+  // Vercel (TierCortex.baseUrl). A local server on any other port cannot draw a ranking.
+  test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
+    'Preview images need the local server on port 3000, see TierCortex.baseUrl.');
+
   let defaultImage: Buffer;
 
   test.beforeAll(async ({request}) => {
@@ -33,6 +38,13 @@ test.describe('Link preview images', () => {
     });
   }
 });
+
+function isLocalServerNotOnPort3000(baseURL: string | undefined) {
+  if (!baseURL) return false;
+  const url = new URL(baseURL);
+  const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  return isLocal && url.port !== '3000';
+}
 
 /** Reads the width and height from a PNG header. */
 function pngSize(png: Buffer) {
