@@ -1,5 +1,5 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
-import {stateFromJson} from '../support/links';
+import {LEGACY_SETS, legacyItems, packageItemId, stateFromJson} from '../support/links';
 
 /**
  * The preview image that chat apps and social sites show for a shared link.
@@ -38,6 +38,26 @@ test.describe('Link preview images', () => {
       expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
     });
   }
+
+  test('a link with items from the legacy sets draws their images', async ({request}) => {
+    // Legacy images are committed in public/images/<package>/; the build makes the PNG copies the preview loads.
+    const ids = LEGACY_SETS.flatMap((set) => legacyItems(set.packageName).slice(0, 2).map((label) => packageItemId(set.packageName, label)));
+    const preview = async (itemIds: string[]) => {
+      const json = {title: 'Legacy sets', tiers: [{i: 'tier-s', n: 'S', t: itemIds.map((i) => ({i}))}, {i: 'uncategorized', n: '', t: []}]};
+      const response = await request.get(`/api/og?state=${encodeURIComponent(stateFromJson(json))}`);
+      expect(response.status()).toBe(200);
+      expect(response.headers()['content-type']).toBe('image/png');
+      return response.body();
+    };
+
+    const image = await preview(ids);
+    expect(pngSize(image)).toEqual({width: 1200, height: 630});
+    expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
+    // The same items in reverse order give a different picture only if the tiles show their
+    // own images. Missing images would all be drawn as the same empty tile.
+    const reversed = await preview([...ids].reverse());
+    expect(image.equals(reversed), 'tiles should show the item images').toBe(false);
+  });
 
   /**
    * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
