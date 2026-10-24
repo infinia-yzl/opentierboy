@@ -9,6 +9,9 @@
 # Item id registry and renames (ids are permanent).
 /image-registry.lock.json    @infinia-yzl
 /image-aliases.json          @infinia-yzl
+# Frozen legacy image sets: their config entries (append-only) and committed images.
+/imageset.legacy.json        @infinia-yzl
+/public/images/              @infinia-yzl
 # The checks and tests that guard these contracts. CI runs a pull request's own copy of them.
 /scripts/check-fixtures-append-only.mjs          @infinia-yzl
 /scripts/check-image-registry.mjs                @infinia-yzl

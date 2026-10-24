@@ -64,7 +64,8 @@
           "description": "Images from Version 1.1",
           "category": "general"
         }
-      }
+      },
+      "legacy": true
     },
     "image-reachthefinals": {
       "displayName": "THE FINALS",
@@ -1353,7 +1354,8 @@
         }
       },
       "googleFont": "Cinzel",
-      "backgroundImage": "/splash/wuwa-bg-1.webp"
+      "backgroundImage": "/splash/wuwa-bg-1.webp",
+      "legacy": true
     },
     "image-overwatch": {
       "displayName": "OVERWATCH",
@@ -2236,7 +2238,8 @@
           "category": "general"
         }
       },
-      "backgroundImage": "/splash/webdev-bg.webp"
+      "backgroundImage": "/splash/webdev-bg.webp",
+      "legacy": true
     },
     "image-supervive": {
       "displayName": "SUPERVIVE",
@@ -3161,7 +3164,8 @@
           "category": "general"
         }
       },
-      "backgroundImage": "/splash/supervive-keyart.webp"
+      "backgroundImage": "/splash/supervive-keyart.webp",
+      "legacy": true
     },
     "image-helldivers2": {
       "displayName": "HELLDIVERS 2",
@@ -4105,7 +4109,8 @@
         }
       },
       "googleFont": "Chakra Petch",
-      "backgroundImage": "/splash/hd2-splash.webp"
+      "backgroundImage": "/splash/hd2-splash.webp",
+      "legacy": true
     }
   }
 }

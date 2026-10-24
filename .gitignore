@@ -35,9 +35,17 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Ignore all symlinks in public/images
+# public/images: scripts/prepareImages.js copies or symlinks the official image sets here.
+# The legacy sets are frozen: their WebP images are committed (imageset.legacy.json).
+# prepareImages makes the PNG copies for link previews of every set; they are never committed.
 public/images/*
 !public/images/.gitkeep
+!public/images/image-set/
+!public/images/image-wutheringwaves/
+!public/images/image-webdev/
+!public/images/image-supervive/
+!public/images/image-helldivers2/
+/public/images/**/*.png
 /test-results/
 /playwright-report/
 /blob-report/

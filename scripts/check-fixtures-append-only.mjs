@@ -9,6 +9,8 @@
  *   image-registry.lock.json    every item id ever shipped. JSON object: existing keys keep
  *                               their value, new keys may be added.
  *   image-aliases.json          renamed item ids. Same rule as the registry.
+ *   imageset.legacy.json        frozen config entries of the legacy image sets, keyed by package
+ *                               name. Same rule: a legacy set never changes; sets may be added.
  * Formatting and key order inside an entry do not matter; the JSON values are compared.
  *
  * Usage:
@@ -29,7 +31,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
 
-const APPEND_ONLY_PATHS = ['tests/fixtures', 'image-registry.lock.json', 'image-aliases.json'];
+const APPEND_ONLY_PATHS = ['tests/fixtures', 'image-registry.lock.json', 'image-aliases.json', 'imageset.legacy.json'];
 const DEFAULT_BASES = ['origin/main', 'main'];
 
 function fail(message, code) {

@@ -1,11 +1,20 @@
 /**
- * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`):
- * copies (or, in development, symlinks) the images of each image-* package into
- * public/images/<package>/, makes a PNG copy of every WebP image for link previews, and writes
- * imageset.config.json.
+ * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`)
+ * and writes imageset.config.json.
+ *
+ * Official sets (imageset.custom.json entries without "legacy"): copies (or, in development,
+ * symlinks) the images of each npm package into public/images/<package>/ and makes a PNG copy
+ * of every WebP image for link previews.
+ *
+ * Legacy sets ({"legacy": true} in imageset.custom.json): frozen. Their config entries come
+ * from imageset.legacy.json, and their images are committed in public/images/<package>/.
+ * This script checks that every committed image is there and makes the PNG copy of every
+ * WebP image next to it, as for the official sets. The PNG copies are git-ignored.
+ *
+ * imageset.config.json lists the sets in the order of imageset.custom.json.
  *
  * It stops with exit code 1, and leaves imageset.config.json as it was, when a package is
- * missing, has no images, or an image or its PNG copy did not reach public/images/. It never
+ * missing, has no images, or an image or its PNG copy is not in public/images/. It never
  * deletes a folder that holds committed files.
  */
 const fs = require('fs').promises;
@@ -17,6 +26,10 @@ const sharp = require('sharp');
 const ROOT = path.join(__dirname, '..');
 const CONFIG_PATH = path.join(ROOT, 'imageset.config.json');
 const CUSTOM_CONFIG_PATH = path.join(ROOT, 'imageset.custom.json');
+const LEGACY_CONFIG_PATH = path.join(ROOT, 'imageset.legacy.json');
+
+/** Pure helpers shared with the tests and the image-set-update workflow (an ES module). */
+const imageSets = import('./lib/image-sets.mjs');
 
 async function callPackageFunction(packageName, functionName, ...args) {
   const packageModule = await import(packageName);
@@ -64,6 +77,15 @@ async function createCustomConfig() {
   await fs.writeFile(CUSTOM_CONFIG_PATH, JSON.stringify(customConfig, null, 2));
   console.log(`Custom configuration created with packages: ${packages.join(', ')}`);
   return customConfig;
+}
+
+async function getLegacyConfig() {
+  try {
+    return JSON.parse(await fs.readFile(LEGACY_CONFIG_PATH, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw new Error(`Cannot read imageset.legacy.json: ${error.message}`);
+  }
 }
 
 async function logImageSetContents(dir, level = 0) {
@@ -227,6 +249,29 @@ function assertNotCommitted(targetDir) {
   }
 }
 
+/**
+ * Checks that every committed image of a legacy set is in public/images/<package>/, then makes
+ * the PNG copy of each WebP image next to it for link previews (git-ignored, never committed).
+ */
+async function prepareLegacySet(packageName, entry) {
+  const {legacyFiles} = await imageSets;
+  const dir = path.join(ROOT, 'public', 'images', packageName);
+  const stats = await fs.lstat(dir).catch(() => null);
+  if (stats?.isSymbolicLink()) {
+    throw new Error(`${relative(dir)} is a symbolic link left by an older \`npm run dev\`. Delete it, then restore the committed images: git checkout -- ${relative(dir)}`);
+  }
+  const images = entry.images.map(({filename}) => filename);
+  await verifyFiles(dir, images, `Legacy set ${packageName} (committed images; restore them with git)`);
+  for (const image of images.filter((file) => /\.webp$/i.test(file))) {
+    const pngPath = path.join(dir, image.replace(/\.webp$/i, '.png'));
+    // Remove an older copy first, so a failed conversion shows up as a missing file below.
+    await fs.rm(pngPath, {force: true});
+    await convertWebpToPng(path.join(dir, image), pngPath);
+  }
+  await verifyFiles(dir, legacyFiles(entry), `Legacy set ${packageName} (PNG copies for link previews)`);
+  console.log(`Legacy set ${packageName}: ${images.length} committed images, PNG copies made`);
+}
+
 async function processPackage(packageName, customConfig, shouldCopy) {
   try {
     const sourceDir = await findImageDirectory(packageName);
@@ -285,65 +330,23 @@ async function processPackage(packageName, customConfig, shouldCopy) {
   }
 }
 
-async function updateConfigs(packagesData, customConfig) {
-  const config = {
-    packages: {}
-  };
-
-  // Process package data
+async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
+  const {buildPackageEntry, mergeConfig} = await imageSets;
+  const officialEntries = {};
   for (const {packageName, displayName, images} of packagesData) {
-    const packageTags = {};
-    // Use the dynamic function call for getImageMetadata
     const metadata = await callPackageFunction(packageName, 'getImageMetadata');
-    const packageImages = images.map(image => {
-      const imageMetadata = metadata.find(m => m.filename === image);
-      const imageTags = imageMetadata?.tags || [];
-      imageTags.forEach(tag => {
-        if (!packageTags[tag.name]) {
-          packageTags[tag.name] = {
-            title: tag.title || `${tag.name} for ${displayName}`,
-            description: tag.description || `Description of ${tag.name} in ${displayName}`,
-            category: tag.category || 'general'
-          };
-        }
-      });
-      return {
-        filename: image,
-        label: imageMetadata?.label || image,
-        tags: imageTags.map(tag => tag.name)
-      };
-    });
-
-    config.packages[packageName] = {
+    officialEntries[packageName] = buildPackageEntry({
+      packageName,
       displayName,
-      images: packageImages,
-      tags: packageTags,
-      // Only include googleFont and backgroundImage if they exist in customConfig
-      ...(customConfig.packages[packageName]?.googleFont && {googleFont: customConfig.packages[packageName].googleFont}),
-      ...(customConfig.packages[packageName]?.backgroundImage && {backgroundImage: customConfig.packages[packageName].backgroundImage})
-    };
+      images,
+      metadata,
+      custom: customConfig.packages[packageName],
+    });
   }
 
+  const config = mergeConfig(order, officialEntries, legacyConfig);
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
   console.log('Config updated at', CONFIG_PATH);
-
-  // Update custom config (if needed)
-  let customConfigUpdated = false;
-  Object.keys(config.packages).forEach(packageName => {
-    if (!customConfig.packages[packageName]) {
-      customConfig.packages[packageName] = {
-        displayName: config.packages[packageName].displayName,
-        googleFont: config.packages[packageName].googleFont,
-        backgroundImage: config.packages[packageName].backgroundImage
-      };
-      customConfigUpdated = true;
-    }
-  });
-
-  if (customConfigUpdated) {
-    await fs.writeFile(CUSTOM_CONFIG_PATH, JSON.stringify(customConfig, null, 2));
-    console.log('Custom config updated at', CUSTOM_CONFIG_PATH);
-  }
 }
 
 async function main() {
@@ -353,14 +356,21 @@ async function main() {
   const isProduction = process.argv.includes('--copy') || process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
+  const {splitPackages, legacyEntry} = await imageSets;
   const customConfig = await getCustomConfig();
-  const packages = Object.keys(customConfig.packages);
-  const results = await Promise.allSettled(packages.map(pkg => processPackage(pkg, customConfig, isProduction)));
-  const failed = packages.filter((pkg, index) => results[index].status === 'rejected');
+  const legacyConfig = await getLegacyConfig();
+  const {order, official, legacy} = splitPackages(customConfig, legacyConfig);
+
+  for (const packageName of legacy) {
+    await prepareLegacySet(packageName, legacyEntry(packageName, legacyConfig[packageName]));
+  }
+
+  const results = await Promise.allSettled(official.map(pkg => processPackage(pkg, customConfig, isProduction)));
+  const failed = official.filter((pkg, index) => results[index].status === 'rejected');
   if (failed.length > 0) {
     throw new Error(`Could not prepare ${failed.join(', ')} (see the errors above).`);
   }
-  await updateConfigs(results.map(result => result.value), customConfig);
+  await updateConfigs(results.map(result => result.value), customConfig, order, legacyConfig);
 }
 
 main().catch((error) => {
