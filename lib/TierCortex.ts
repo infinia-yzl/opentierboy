@@ -1,5 +1,5 @@
 import Tier, {DEFAULT_TIER_TEMPLATE} from "@/models/Tier";
-import Item from "@/models/Item";
+import Item, {DEFAULT_ITEM_SHAPE, isItemShape, ItemShape} from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
@@ -16,6 +16,8 @@ export type ItemAliases = Readonly<Record<string, string>>;
 export interface TierCortexOptions {
   /** Replaces image-aliases.json (for tests). */
   aliases?: ItemAliases;
+  /** Replaces imageset.config.json (for tests). */
+  imageSetConfig?: ImageSetConfig;
 }
 
 interface SimplifiedItem {
@@ -53,11 +55,13 @@ export class TierCortex {
   private customItemsMap: Map<string, StoredCustomItem>;
   private readonly isServer: boolean;
   private readonly aliases: ItemAliases;
+  private readonly imageSetConfig: ImageSetConfig;
   private baseUrl: string;
 
 
   constructor(options: TierCortexOptions = {}) {
     this.aliases = options.aliases ?? (imageAliases as ItemAliases);
+    this.imageSetConfig = options.imageSetConfig ?? typedImageSetConfig;
     this.isServer = typeof window === 'undefined';
     this.baseUrl = this.isServer ? process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -179,15 +183,31 @@ export class TierCortex {
     return this.getAbsoluteUrl(path);
   }
 
+  /**
+   * The tile shape that an image set declares for a category (tag): square when it declares
+   * none, and for unknown sets and tags. Item shapes come with the items (itemShape()).
+   */
+  public getCategoryShape(packageName: string, tagName: string): ItemShape {
+    const packages = this.imageSetConfig.packages;
+    if (!Object.prototype.hasOwnProperty.call(packages, packageName)) return DEFAULT_ITEM_SHAPE;
+    const tags = packages[packageName].tags;
+    if (!Object.prototype.hasOwnProperty.call(tags, tagName)) return DEFAULT_ITEM_SHAPE;
+    const shape = tags[tagName].shape;
+    return isItemShape(shape) ? shape : DEFAULT_ITEM_SHAPE;
+  }
+
   private initializePackageItemLookup(): PackageItemLookup {
     let packageItemLookup: PackageItemLookup = {};
-    for (const [packageName, packageData] of Object.entries(typedImageSetConfig.packages)) {
+    for (const [packageName, packageData] of Object.entries(this.imageSetConfig.packages)) {
       for (const image of packageData.images) {
         const id = `${packageName}-${image.filename}`;
+        // Square is the default, so only other shapes are stored on the item.
+        const shape = isItemShape(image.shape) && image.shape !== DEFAULT_ITEM_SHAPE ? image.shape : undefined;
         packageItemLookup[id] = {
           id,
           content: image.label || image.filename.split('.')[0],
           imageUrl: `/images/${packageName}/${image.filename}`,
+          ...(shape && {shape}),
         };
       }
     }

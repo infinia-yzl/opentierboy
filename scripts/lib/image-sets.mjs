@@ -13,11 +13,19 @@
  *                         the legacy entries, merged in the order of imageset.custom.json.
  */
 
+/** Tile shapes. Images and categories (tags) without a shape are square. */
+export const SHAPES = Object.freeze(['square', 'landscape', 'portrait']);
+export const DEFAULT_SHAPE = 'square';
+
 /** npm package names of image sets: image-<lowercase letters, digits and single dashes>. */
 export const PACKAGE_NAME = /^image-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+export function isShape(value) {
+  return typeof value === 'string' && SHAPES.includes(value);
+}
 
 /**
  * Splits imageset.custom.json into official and legacy package names, in order, and checks
@@ -92,9 +100,39 @@ export function legacyFiles(entry) {
 }
 
 /**
+ * The shape of a tag (category) as written to imageset.config.json: its declared shape, or
+ * undefined for square and for tags without a shape. Throws on an unknown shape.
+ */
+export function tagShape(packageName, tag) {
+  if (!isPlainObject(tag) || tag.shape === undefined) return undefined;
+  if (!isShape(tag.shape)) throw new Error(`${packageName}: tag "${tag.name}" has the unknown shape ${JSON.stringify(tag.shape)} (allowed: ${SHAPES.join(', ')}).`);
+  return tag.shape === DEFAULT_SHAPE ? undefined : tag.shape;
+}
+
+/**
+ * The shape of an image as written to imageset.config.json, or undefined for square.
+ * image-set 2.2.0 and later resolve it per image (`shape`). Older packages have no shapes;
+ * for them, the first of the image's tags that declares a shape counts, as in image-set.
+ * Throws on an unknown shape.
+ */
+export function imageShape(packageName, metadata) {
+  if (!isPlainObject(metadata)) return undefined;
+  if (metadata.shape !== undefined) {
+    if (!isShape(metadata.shape)) {
+      throw new Error(`${packageName}: image "${metadata.filename}" has the unknown shape ${JSON.stringify(metadata.shape)} (allowed: ${SHAPES.join(', ')}).`);
+    }
+    return metadata.shape === DEFAULT_SHAPE ? undefined : metadata.shape;
+  }
+  for (const tag of Array.isArray(metadata.tags) ? metadata.tags : []) {
+    if (isPlainObject(tag) && tag.shape !== undefined) return tagShape(packageName, tag);
+  }
+  return undefined;
+}
+
+/**
  * Builds the imageset.config.json entry of an official set from what its package returns:
  * `images` from getImageList(), `metadata` from getImageMetadata(). The key order and the
- * defaults are the ones the app has always written.
+ * defaults are the ones the app has always written; `shape` appears only when not square.
  */
 export function buildPackageEntry({packageName, displayName, images, metadata, custom = {}}) {
   if (!Array.isArray(images) || images.length === 0) {
@@ -107,17 +145,21 @@ export function buildPackageEntry({packageName, displayName, images, metadata, c
     const imageTags = Array.isArray(imageMetadata?.tags) ? imageMetadata.tags : [];
     imageTags.forEach((tag) => {
       if (!packageTags[tag.name]) {
+        const shape = tagShape(packageName, tag);
         packageTags[tag.name] = {
           title: tag.title || `${tag.name} for ${displayName}`,
           description: tag.description || `Description of ${tag.name} in ${displayName}`,
           category: tag.category || 'general',
+          ...(shape && {shape}),
         };
       }
     });
+    const shape = imageShape(packageName, imageMetadata);
     return {
       filename,
       label: imageMetadata?.label || filename,
       tags: imageTags.map((tag) => tag.name),
+      ...(shape && {shape}),
     };
   });
 
