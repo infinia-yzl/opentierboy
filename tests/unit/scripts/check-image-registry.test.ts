@@ -142,6 +142,42 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(check.output).toContain(message);
   });
 
+  it('rejects two old ids that lead to the same new id, but allows a chain of renames', () => {
+    run(root, '--update');
+    write('imageset.config.json', config({'image-a': ['merged.webp'], 'image-b': ['three.webp']}));
+    write('image-registry.lock.json', {
+      ...read('image-registry.lock.json'),
+      'image-a-merged.webp': {package: 'image-a', filename: 'merged.webp', label: 'MERGED'},
+    });
+
+    // one.webp and sub/two.webp shipped side by side: one list may hold both.
+    write('image-aliases.json', {'image-a-one.webp': 'image-a-merged.webp', 'image-a-sub/two.webp': 'image-a-merged.webp'});
+    const direct = run(root);
+    expect(direct.status).toBe(1);
+    expect(direct.output).toContain('Aliases image-a-one.webp and image-a-sub/two.webp both lead to image-a-merged.webp');
+
+    // Two chains that meet at the end are the same problem.
+    write('image-registry.lock.json', {
+      ...read('image-registry.lock.json'),
+      'image-a-two-v2.webp': {package: 'image-a', filename: 'two-v2.webp', label: 'TWO'},
+    });
+    write('image-aliases.json', {
+      'image-a-one.webp': 'image-a-merged.webp',
+      'image-a-sub/two.webp': 'image-a-two-v2.webp',
+      'image-a-two-v2.webp': 'image-a-merged.webp',
+    });
+    const converging = run(root);
+    expect(converging.status).toBe(1);
+    expect(converging.output).toContain('Aliases image-a-one.webp and image-a-sub/two.webp both lead to image-a-merged.webp');
+    expect(converging.output).toContain('Aliases image-a-one.webp and image-a-two-v2.webp both lead to image-a-merged.webp');
+    expect(converging.output).not.toContain('Aliases image-a-sub/two.webp and image-a-two-v2.webp');
+
+    // A chain alone (sub/two -> two-v2 -> merged, one.webp kept) is fine.
+    write('imageset.config.json', config({'image-a': ['one.webp', 'merged.webp'], 'image-b': ['three.webp']}));
+    write('image-aliases.json', {'image-a-sub/two.webp': 'image-a-two-v2.webp', 'image-a-two-v2.webp': 'image-a-merged.webp'});
+    expect(run(root).status).toBe(0);
+  });
+
   it('rejects a lock entry that does not describe its own id', () => {
     run(root, '--update');
     write('image-registry.lock.json', {

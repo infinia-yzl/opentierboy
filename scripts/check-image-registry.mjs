@@ -15,7 +15,8 @@
  *   - an image in imageset.config.json is not registered yet (run with --update),
  *   - a registered id is no longer shipped and has no alias to a shipped id,
  *   - an alias is broken: its old id was never registered or is still shipped, it loops, or it
- *     does not end at a shipped id.
+ *     does not end at a shipped id,
+ *   - two old ids lead to the same shipped id without one being renamed into the other.
  *
  * Usage:
  *   npm run check:images                 check only
@@ -117,18 +118,32 @@ if (errors.length === 0) {
       const next = aliases[current];
       if (typeof next !== 'string') return {error: `maps ${current} to a value that is not an id`};
       if (seen.includes(next)) return {error: `loops (${[...seen, next].join(' -> ')})`};
-      if (shipped.has(next)) return {target: next};
+      if (shipped.has(next)) return {target: next, chain: [...seen, next]};
       seen.push(next);
       current = next;
     }
     return {error: `takes more than ${MAX_ALIAS_STEPS} steps`};
   };
 
+  const resolved = [];
   for (const oldId of Object.keys(aliases)) {
     if (!has(lock, oldId)) errors.push(`Alias ${oldId} is not a registered id. Aliases only rename ids that shipped.`);
     if (shipped.has(oldId)) errors.push(`Alias ${oldId} is still shipped, so the alias would never be used. Remove the image or the alias.`);
-    const {error} = resolveAlias(oldId);
+    const {error, target, chain} = resolveAlias(oldId);
     if (error) errors.push(`Alias ${oldId} ${error}.`);
+    else resolved.push({oldId, target, chain});
+  }
+
+  // Two old ids may lead to the same image only when one was renamed into the other
+  // (a chain such as v1 -> v2 -> v3). Otherwise a list holding both old ids would show the
+  // same item twice, with the same id (duplicate drag ids).
+  for (let first = 0; first < resolved.length; first++) {
+    for (let second = first + 1; second < resolved.length; second++) {
+      const a = resolved[first];
+      const b = resolved[second];
+      if (a.target !== b.target || a.chain.includes(b.oldId) || b.chain.includes(a.oldId)) continue;
+      errors.push(`Aliases ${a.oldId} and ${b.oldId} both lead to ${a.target}. A list holding both would show the same item twice. Give each old id its own new id.`);
+    }
   }
 
   // Registered ids that are gone must have an alias.
