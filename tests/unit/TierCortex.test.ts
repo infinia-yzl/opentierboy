@@ -176,3 +176,28 @@ describe('TierCortex follows image-aliases.json for renamed images', () => {
       .toBe('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp"}]}]}');
   });
 });
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `it.fails`, so the suite
+ * stays green while the bug exists. When a fix lands, Vitest reports the test as failing:
+ * then change `it.fails` to `it` and move the test next to the others.
+ */
+describe('Known bugs', () => {
+  // Links are compressed, so a short link can hold a huge list: the review found a 5,760-character
+  // link that holds a 5-million-character tier name (it blocked /api/og and every other request
+  // to `next start` for over a minute), and a 12 KB link that expands to 10 MB of JSON. Never
+  // send such a link to a server in a test. Phase 5a adds limits at this boundary (TierCortex,
+  // never the frozen legacy decoder); this modest case keeps the test fast.
+  it.fails('rejects a link whose decoded list is far larger than any real list', () => {
+    const hugeName = 'x'.repeat(300_000);
+    const state = lz(JSON.stringify({tiers: [{i: 'tier-s', n: hugeName, t: []}, {i: 'uncategorized', n: '', t: []}]}));
+    expect(state.length).toBeLessThan(2_000);
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      expect(new TierCortex().decodeTierStateFromURL(state)).toBeNull();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});

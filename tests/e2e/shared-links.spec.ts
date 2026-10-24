@@ -1,5 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {rawState} from '../support/links';
+import {rawState, stateFromJson} from '../support/links';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -54,7 +54,7 @@ test.describe('Known bugs', () => {
   // Names that every JavaScript object has. A link may hold them as item ids.
   for (const id of ['constructor', 'toString', '__proto__']) {
     test(`an item with the id "${id}" shows its label like any unknown item`, async ({tierList, openAsVisitor}) => {
-      test.fail(true, 'TierCortex looks up item ids in a plain object, so these ids resolve to built-in members: the tile loses its label, and the next save drops the id.');
+      test.fail(true, 'TierCortex looks up item ids in a plain object, so these ids resolve to built-in members: the tile loses its label and its drag id (data-rfd-draggable-id), the next save drops the id, and /api/og aborts the response for the link (og-image.api.spec.ts).');
       await tierList.goto('/rank/overwatch/tank', rawState({
         title: 'Odd item ids',
         tiers: [
@@ -71,6 +71,32 @@ test.describe('Known bugs', () => {
       const visitor = await openAsVisitor(await tierList.shareLink());
       await expect(visitor.itemsIn('Top')).toHaveText(['Mauga', 'Mystery', 'my cat'], {timeout: 3_000});
       await expect(visitor.itemsIn(visitor.unranked)).toHaveText(['Winston'], {timeout: 3_000});
+    });
+  }
+
+  // Links that decode but hold data the app never writes. The page should still work: fall
+  // back to the template, or show the list without the bad field.
+  const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
+  const badLinks = [
+    {
+      name: 'a tier name that is an object',
+      json: {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, unranked]},
+    },
+    {
+      name: 'a title that is an object',
+      json: {title: {text: 'Bad title'}, tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}]}, unranked]},
+    },
+    {name: 'no tiers at all', json: {tiers: []}},
+  ];
+  for (const link of badLinks) {
+    test(`a link with ${link.name} still opens a tier list`, async ({tierList}) => {
+      test.fail(true, 'The editor assumes every decoded field has the right type and that there is at least one tier, so the page crashes with "Application error" (a tier name that is an object also aborts /api/og).');
+      await tierList.gotoAndSettle('/rank/overwatch/tank', stateFromJson(link.json));
+
+      // Short timeouts: these assertions are expected to fail until the bug is fixed.
+      await expect(tierList.crashMessage).toBeHidden({timeout: 3_000});
+      await expect(tierList.title).toBeVisible({timeout: 3_000});
+      await expect(tierList.tiers.first()).toBeVisible({timeout: 3_000});
     });
   }
 });
