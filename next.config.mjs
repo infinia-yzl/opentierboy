@@ -6,6 +6,10 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  // `next dev` would otherwise append its own block to AGENTS.md (a symlink to CLAUDE.md)
+  // whenever it detects a coding agent. CLAUDE.md is the owner's file.
+  agentRules: false,
+
   transpilePackages: ['next-mdx-remote'],
 
   images: {
