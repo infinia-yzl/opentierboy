@@ -102,6 +102,8 @@ describe('decodeState', () => {
         title: 7,
         tiers: [{id: 1, name: 2, items: [{id: undefined}, {id: 'x', content: null}]}],
       });
+      expect(decodeState(lz('{"tiers":[],"title":""}'))).toStrictEqual({version: 1, title: '', tiers: []});
+      expect(decodeState(lz('{"tiers":[],"title":null}'))).toStrictEqual({version: 1, title: null, tiers: []});
       expect(decodeState(lz('[]'))).toEqual({version: 0, tiers: []});
       expect(decodeState(lz('{"tiers":[]}'))).toEqual({version: 1, tiers: []});
     });

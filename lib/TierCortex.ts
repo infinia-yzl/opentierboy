@@ -3,21 +3,10 @@ import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
-import LZString from 'lz-string';
+import {type CanonicalItem, decodeState, encodeState} from "@/lib/state";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
-
-interface EncodedState {
-  title?: string;
-  tiers: SimplifiedTier[];
-}
-
-interface SimplifiedTier {
-  i: string; // id
-  n: string; // name
-  t: SimplifiedItem[]; // items
-}
 
 interface SimplifiedItem {
   i: string; // id
@@ -70,20 +59,16 @@ export class TierCortex {
     }
   }
 
+  // The link format lives in lib/state. This writes exactly the bytes it always wrote.
   public static encodeTierStateForURL(title: string | undefined, tiers: TierWithSimplifiedItems[]): string {
-    const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
-      i: tier.id,
-      n: tier.name,
-      t: tier.items
-    }));
-    const encodedState: EncodedState = {
-      tiers: simplifiedTiers
-    };
-    if (title) {
-      encodedState.title = title;
-    }
-    const jsonString = JSON.stringify(encodedState);
-    return LZString.compressToEncodedURIComponent(jsonString);
+    return encodeState({
+      title,
+      tiers: tiers.map(tier => ({
+        id: tier.id,
+        name: tier.name,
+        items: tier.items.map(toCanonicalItem),
+      })),
+    });
   }
 
   public isCustomItem(itemId: string): boolean {
@@ -95,36 +80,22 @@ export class TierCortex {
     return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
+  // lib/state decodes every link format; TierCortex turns the stored item ids into items.
   public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
+    const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
+    const state = decodeState(encodedState, {onError: logError});
+    if (!state) return null;
+
     try {
-      const jsonString = LZString.decompressFromEncodedURIComponent(encodedState);
-      if (!jsonString) throw new Error('Failed to decompress state');
-
-      const parsed = JSON.parse(jsonString);
-
-      let title: string | undefined;
-      let simplifiedTiers: SimplifiedTier[];
-
-      if (Array.isArray(parsed)) {
-        // Old format: array of tiers
-        simplifiedTiers = parsed;
-      } else if (typeof parsed === 'object' && Array.isArray(parsed.tiers)) {
-        // New format: object with title and tiers
-        title = parsed.title;
-        simplifiedTiers = parsed.tiers;
-      } else {
-        throw new Error('Invalid state format');
-      }
-
-      const tiers = simplifiedTiers.map(simplifiedTier => ({
-        id: simplifiedTier.i,
-        name: simplifiedTier.n,
-        items: simplifiedTier.t.map(item => this.resolveItem(item.i, item.c))
+      const tiers = state.tiers.map(tier => ({
+        id: tier.id,
+        name: tier.name,
+        items: tier.items.map(item => this.resolveItem(item.id, item.content))
       }));
 
-      return {title, tiers};
+      return {title: state.title, tiers};
     } catch (error) {
-      console.error('Failed to decode tier state from URL:', error);
+      logError(error);
       return null;
     }
   }
@@ -260,6 +231,10 @@ export class TierCortex {
   private getAbsoluteUrl(path: string): string {
     return new URL(path, this.baseUrl).toString();
   }
+}
+
+function toCanonicalItem(item: SimplifiedItem): CanonicalItem {
+  return item.c === undefined ? {id: item.i} : {id: item.i, content: item.c};
 }
 
 export default TierCortex;
