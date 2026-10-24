@@ -2,6 +2,7 @@ import fs from 'fs';
 import {MDXRemote} from 'next-mdx-remote/rsc';
 import matter from 'gray-matter';
 import {cn} from "@/lib/utils";
+import {MDX_OPTIONS} from "@/lib/mdx";
 import {format} from 'date-fns';
 
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
@@ -141,6 +142,7 @@ export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxC
         <MDXRemote
           source={content}
           components={allComponents}
+          options={MDX_OPTIONS}
         />
       </CardContent>
     </Card>

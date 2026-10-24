@@ -37,7 +37,7 @@ When unsure, stop and ask. Explain the change and its risk in plain words.
 
 ## Stack
 
-Next.js 14 (App Router) · React 18 · TypeScript (strict) · Tailwind CSS 3 + shadcn/ui ·
+Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 3 + shadcn/ui ·
 `@hello-pangea/dnd` (drag and drop) · `lz-string` (link compression) · `html2canvas-pro`
 (screenshots) · Playwright (end-to-end tests) · Vitest (unit tests) · hosted on Vercel.
 
@@ -78,6 +78,7 @@ contexts/TierContext.tsx   editor settings (label position, show labels)
 lib/TierCortex.ts     item lookup and aliases, custom items, preview helpers
 lib/state/            link format: decodeState (all formats), encodeState (v2); lz-string only
 lib/utils.ts          slugs for /rank URLs, tier gradients
+lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
 scripts/prepareImages.js   builds imageset.config.json and public/images from image-* packages
 scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
@@ -146,8 +147,8 @@ A later phase adds `trusted-image-sites.json`.
 
 ## Code conventions
 
-- TypeScript strict. `tsconfig` has no `target`: avoid `for…of` over `Map`/`Set`
-  iterators or `.entries()`; use `Array.from` or index loops.
+- TypeScript strict. `tsconfig.json` targets ES2017: Next.js adds that target on build when
+  it is missing, so keep it.
 - `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts`, `lib/state/`)
   must not use Node APIs (`fs`, `path`) or browser APIs (`window`, `localStorage`) at import
   time. ESLint enforces this for `lib/state/` and `app/api/og/`.
