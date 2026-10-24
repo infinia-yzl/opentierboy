@@ -12,10 +12,14 @@
 # Frozen legacy image sets: their config entries (append-only) and committed images.
 /imageset.legacy.json        @infinia-yzl
 /public/images/              @infinia-yzl
+# The official image sets (image-set-update.yml accepts updates of these only).
+/imageset.custom.json        @infinia-yzl
 # The checks and tests that guard these contracts. CI runs a pull request's own copy of them.
 /scripts/check-fixtures-append-only.mjs          @infinia-yzl
 /scripts/check-image-registry.mjs                @infinia-yzl
 /scripts/generate-legacy-fixtures.mjs            @infinia-yzl
+/scripts/image-set-update.mjs                    @infinia-yzl
+/scripts/lib/image-sets.mjs                      @infinia-yzl
 /tests/unit/state/                               @infinia-yzl
 /tests/unit/support/TierCortex.pre-refactor.ts   @infinia-yzl
 # Sites whose images load without asking.

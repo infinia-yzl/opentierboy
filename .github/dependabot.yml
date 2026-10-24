@@ -3,7 +3,7 @@ version: 2
 updates:
   # Dependabot allows one schedule per ecosystem and folder, and groups share the schedule
   # of their entry. So both npm groups below run weekly. Image set updates arrive first
-  # through the image-set-update workflow (added later); this group is the fallback.
+  # through the image-set-update workflow; this group is the fallback.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
