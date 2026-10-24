@@ -61,7 +61,8 @@ tests/
   e2e/            specs, one file per user journey (ranking, editing, sharing, history...)
   pages/          page objects: TierListPage (the editor at /rank/...), SitePage
   support/        test.ts (fixtures and assertions), links.ts (build a ranking link)
-  fixtures/       shared-links.json (golden links), images/ (files to upload)
+  fixtures/       shared-links.json (golden links), state/ (golden link states), images/ (files to upload)
+  unit/           Vitest unit tests (*.test.ts), for example the link format in lib/state
 ```
 
 ## Writing tests
@@ -119,6 +120,12 @@ To add links, append them with the capture script:
 ```bash
 node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <url-or-path> [...]
 ```
+
+`tests/fixtures/state/` holds link states with the exact list each one must decode to.
+`generated.json` comes from the historical encoders of the three legacy formats (v0, v1, v2),
+run from git history by `node scripts/generate-legacy-fixtures.mjs` (see the comment at its
+top). The unit tests in `tests/unit/state/` decode every entry of both fixture files.
+The same rule applies: append, never edit.
 
 ## Product rules
 
