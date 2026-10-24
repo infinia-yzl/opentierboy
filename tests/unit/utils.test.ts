@@ -7,19 +7,33 @@ import {createSEOFriendlyTagSlug, getTierGradient, slugify} from '@/lib/utils';
  * Shared links and search engines point at these URLs, so their output must not change.
  */
 
-describe('slugify', () => {
-  it('turns every image set display name into the slug used in /rank links', () => {
-    const slugs = Object.values(imagesetConfig.packages).map((set) => slugify(set.displayName));
+/**
+ * The /rank/<slug>/... path of every image set that has shipped. These URLs are public,
+ * so a shipped set keeps its slug. Add new sets here; never change or remove an entry.
+ */
+const SHIPPED_SET_SLUGS: Record<string, string> = {
+  'image-set': 'example-items-template',
+  'image-reachthefinals': 'the-finals',
+  'image-wutheringwaves': 'wuthering-waves',
+  'image-overwatch': 'overwatch',
+  'image-webdev': 'web-development-technologies',
+  'image-supervive': 'supervive',
+  'image-helldivers2': 'helldivers-2',
+};
 
-    expect(slugs).toEqual([
-      'example-items-template',
-      'the-finals',
-      'wuthering-waves',
-      'overwatch',
-      'web-development-technologies',
-      'supervive',
-      'helldivers-2',
-    ]);
+describe('slugify', () => {
+  const packages: Record<string, {displayName: string}> = imagesetConfig.packages;
+
+  for (const [packageName, slug] of Object.entries(SHIPPED_SET_SLUGS)) {
+    it(`keeps the /rank/${slug} path for ${packageName}`, () => {
+      expect(packages[packageName], `${packageName} is in imageset.config.json`).toBeDefined();
+      expect(slugify(packages[packageName].displayName)).toBe(slug);
+    });
+  }
+
+  it('gives every image set its own slug', () => {
+    const slugs = Object.values(packages).map((set) => slugify(set.displayName));
+    expect(new Set(slugs).size).toBe(slugs.length);
   });
 
   it('collapses spaces and dashes and trims them from both ends', () => {
