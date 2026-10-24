@@ -17,6 +17,9 @@ type VersionedDecoder = (payload: string) => CanonicalState;
  *
  * Version 3 is reserved for the next link format (Phase 5b adds its decoder here). Until a
  * version has a decoder, its values go to the legacy decoder, which rejects them.
+ * A decoder receives the payload after the dot exactly as it came from the URL, so it must
+ * read ' ' as '+' (lz-string's decompressFromEncodedURIComponent does) and ignore characters
+ * after the end of its data, as the legacy decoder does.
  */
 const VERSIONED_DECODERS: Readonly<Record<string, VersionedDecoder>> = {};
 
