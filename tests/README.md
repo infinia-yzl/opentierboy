@@ -1,0 +1,126 @@
+# End-to-end tests
+
+These Playwright tests check OpenTierBoy the way people use it: they open links, drag items,
+rename tiers and share lists. They follow the
+[Playwright best practices](https://playwright.dev/docs/best-practices) and the
+[page object model](https://playwright.dev/docs/pom).
+
+## Running the tests
+
+Against a local production build (Playwright starts `npm run start` itself):
+
+```bash
+npx playwright install        # once, to download the browsers
+npm run build
+npm run test:e2e              # all projects
+npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
+npm run test:e2e:ui           # interactive UI mode
+```
+
+Against a deployed site (no local server is started):
+
+```bash
+BASE_URL=https://your-preview.vercel.app npm run test:e2e
+```
+
+Set `PORT` to run the local server on another port than 3000. The link preview tests in
+`og-image.api.spec.ts` skip themselves on a local server that is not on port 3000, because
+the preview route loads item images from `http://localhost:3000` outside Vercel.
+
+Rebuild after every change under `app/`, `components/`, `lib/` or `models/`: the tests run
+against the production build, not the dev server.
+
+Projects (see `playwright.config.ts`):
+
+| Project | Runs |
+| --- | --- |
+| `api` | `*.api.spec.ts` only, without a browser |
+| `chromium`, `firefox`, `webkit` | every browser test |
+| `mobile-chrome`, `mobile-safari` | only tests tagged `@mobile` |
+
+## Layout
+
+```
+tests/
+  e2e/            specs, one file per user journey (ranking, editing, sharing, history...)
+  pages/          page objects: TierListPage (the editor at /rank/...), SitePage
+  support/        test.ts (fixtures and assertions), links.ts (build a ranking link)
+  fixtures/       shared-links.json (golden links), images/ (files to upload)
+```
+
+## Writing tests
+
+- **Import `test` and `expect` from `tests/support/test.ts`.** It provides the `tierList`,
+  `site` and `openAsVisitor` fixtures (the last one opens a link in a fresh browser, like a
+  friend who receives it).
+- **Describe what the user does and sees.** Test names read as behaviour ("drag an item from
+  Unranked into a tier"), not as implementation.
+- **Put page knowledge in the page objects.** Specs call `tierList.dragItemToTier('Mauga', 'S')`
+  and never touch selectors directly. Add a method to the page object when a spec needs a
+  new action.
+- **Locate by role and accessible name**, the way assistive technology sees the page: a tier
+  row is a `group` named after its label (the unnamed last row is `Unranked`, a row whose
+  label was cleared is `Tier <n>`), an item is a `button` named after its label, a row
+  handle is a `button` named `Move tier <label>`. If an element has no accessible name, add
+  one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
+- **Never sleep.** No `waitForTimeout` and no fixed delays. Wait for what the user would
+  see: web-first assertions such as `toHaveText`, the drag announcer for drag and drop, and
+  the address bar for saved changes. Page object methods that change the list return only
+  after the new link is in the address bar.
+- **Arrange state through the URL.** Use `rankingState()` from `tests/support/links.ts` to
+  open a list with items already ranked, instead of dragging items into place first:
+
+  ```ts
+  await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+  ```
+
+- **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
+  right-clicks do not apply to touch screens.
+- **Run a new test under load before you commit it**, for example
+  `npx playwright test --workers=4 --repeat-each=5 path/to.spec.ts`.
+
+### Drag and drop
+
+The app uses `@hello-pangea/dnd`. The drag library measures every row and item when a drag
+starts, moves other elements out of the way during the drag, and auto-scrolls the page near
+the window edges. `TierListPage.dragWithMouse` therefore measures the drop point once,
+before the drag starts, in page coordinates, and then keeps the pointer on that page point
+until the page stops scrolling. Do not re-measure the drop target during a drag: it has
+already moved out of the way.
+
+## Golden shared links
+
+`tests/fixtures/shared-links.json` holds real links that people have shared, together with
+what a visitor must see when opening them. `shared-links.spec.ts` checks that every link
+still opens exactly as captured, and `og-image.api.spec.ts` checks their preview images.
+
+The entries are a contract: links that are already out in the world must keep working. If
+one of these tests fails, the app broke existing links. Fix the app. **Never edit, reorder or
+remove an existing entry.**
+
+To add links, append them with the capture script:
+
+```bash
+node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <url-or-path> [...]
+```
+
+## Product rules
+
+- **The browser history is the undo feature.** Every change to the list adds a history
+  entry, and the Back button steps back to the previous version of the list, one change at a
+  time (`history.spec.ts`). This is intended behaviour, not a bug.
+- **Moving a row keeps the labels in place.** Dropping row S on A's position moves the
+  contents; the labels stay S, A, B... from top to bottom.
+
+## Known bugs
+
+A test for a confirmed bug describes the correct behaviour and goes in a `Known bugs`
+describe block, marked with `test.fail(true, '<one-line reason>')`. Add an `issue`
+annotation when there is a GitHub issue. The suite stays green while the bug exists. When a
+fix lands, Playwright reports "Expected to fail, but passed": remove the marker then and move
+the test next to the other tests of that feature.
+
+Assertions in known-bug tests use short timeouts (`{timeout: 3_000}`), so they fail fast and
+never run into the test timeout, which would not count as the expected failure.
+
+Do not use `test.fail` for behaviour you are unsure about. Ask, or leave the test out.
