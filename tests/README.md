@@ -23,6 +23,12 @@ Against a deployed site (no local server is started):
 BASE_URL=https://your-preview.vercel.app npm run test:e2e
 ```
 
+For a deployment behind Vercel Deployment Protection, also set
+`VERCEL_AUTOMATION_BYPASS_SECRET`. The tests send it only to the site under test: browser
+tests add it to requests for the `BASE_URL` origin (`tests/support/vercel-bypass.ts`), and
+API tests send it with every request because they only call that site. Images from other
+sites never receive it.
+
 Set `PORT` to run the local server on another port than 3000. The link preview tests in
 `og-image.api.spec.ts` skip themselves on a local server that is not on port 3000, because
 the preview route loads item images from `http://localhost:3000` outside Vercel.

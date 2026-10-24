@@ -1,4 +1,5 @@
 import {defineConfig, devices} from '@playwright/test';
+import {BYPASS_HEADER, bypassSecret} from './tests/support/vercel-bypass';
 
 /**
  * Two ways to run the suite:
@@ -14,6 +15,14 @@ const isCI = !!process.env.CI;
 const port = Number(process.env.PORT || 3000);
 const baseURL = process.env.BASE_URL || `http://127.0.0.1:${port}`;
 const useLocalServer = !process.env.BASE_URL;
+
+// Sent with every request: hides the Vercel toolbar on preview deployments.
+const sharedHeaders = {'x-vercel-skip-toolbar': '1'};
+// The Vercel bypass secret must reach only the site under test. Browser tests add it per
+// request in tests/support/test.ts (pages also load images from other sites). API tests
+// only call the site under test, so their requests carry it directly.
+const secret = bypassSecret();
+const apiHeaders = secret ? {...sharedHeaders, [BYPASS_HEADER]: secret} : sharedHeaders;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -34,17 +43,12 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    extraHTTPHeaders: {
-      'x-vercel-skip-toolbar': '1',
-      ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
-        ? {'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET}
-        : {}),
-    },
+    extraHTTPHeaders: sharedHeaders,
   },
 
   projects: [
     // API tests (*.api.spec.ts) need no browser, so they run once.
-    {name: 'api', testMatch: /\.api\.spec\.ts$/},
+    {name: 'api', testMatch: /\.api\.spec\.ts$/, use: {extraHTTPHeaders: apiHeaders}},
     {name: 'chromium', use: {...devices['Desktop Chrome']}, testIgnore: /\.api\.spec\.ts$/},
     {name: 'firefox', use: {...devices['Desktop Firefox']}, testIgnore: /\.api\.spec\.ts$/},
     {name: 'webkit', use: {...devices['Desktop Safari']}, testIgnore: /\.api\.spec\.ts$/},
