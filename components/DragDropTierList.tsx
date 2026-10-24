@@ -83,8 +83,10 @@ const TierRow = memo<{
 }>(({tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem}) => {
   const labelPosition = tier.labelPosition || 'left';
   const tierGradient = getTierGradient(index, tiersLength);
-  // Accessible name for the row; the unnamed last row holds unranked items.
-  const tierLabel = tier.name.trim() || 'Unranked';
+  // Accessible name for the row. The unnamed last row holds unranked items; any other
+  // row whose label was cleared is named after its position.
+  const isLastRow = index === tiersLength - 1;
+  const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${index + 1}`);
 
   return (
     <Draggable draggableId={tier.id} index={index}>
