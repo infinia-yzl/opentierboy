@@ -17,8 +17,7 @@
  *
  * The comparison point is the merge base of the base ref and HEAD, so a branch that is behind
  * its base does not fail. The current files are read from the working tree, so uncommitted
- * edits count. Default base: $FIXTURES_BASE_REF, else the first ref that exists of
- * test/playwright-pom, origin/main, main.
+ * edits count. Base: --base <ref>, else $FIXTURES_BASE_REF, else origin/main, else main.
  *
  * In CI (.github/workflows/ci.yml): check out with `fetch-depth: 0` and set FIXTURES_BASE_REF
  * through `env:` to `origin/<base branch>` on pull requests and to the previous commit on pushes.
@@ -31,7 +30,7 @@ import path from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
 
 const APPEND_ONLY_PATHS = ['tests/fixtures', 'image-registry.lock.json', 'image-aliases.json'];
-const DEFAULT_BASES = ['test/playwright-pom', 'origin/main', 'main'];
+const DEFAULT_BASES = ['origin/main', 'main'];
 
 function fail(message, code) {
   console.error(message);
