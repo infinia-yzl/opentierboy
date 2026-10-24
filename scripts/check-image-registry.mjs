@@ -11,6 +11,13 @@
  *   image-aliases.json        {"<old id>": "<new id>"} for renamed images. TierCortex.resolveItem
  *                             follows these, so old links show the renamed image.
  *
+ * An alias target must be a new id, added in the same change that removes the old id. Never
+ * point an alias at an id that already shipped: merging two ids that shipped together would
+ * show the merged image twice, with duplicate drag ids, in an old list holding both. This
+ * script sees only the current files, so it cannot tell when an id shipped;
+ * scripts/image-set-update.mjs enforces the rule for automated image set updates, and reviews
+ * enforce it for hand-made changes.
+ *
  * The check fails when:
  *   - an image in imageset.config.json is not registered yet (run with --update),
  *   - a registered id is no longer shipped and has no alias to a shipped id,
