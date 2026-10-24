@@ -37,14 +37,18 @@ jobs:
   review:
     name: review
     needs: gate
-    # Skip without failing when the secret is missing, for forks, for Dependabot and for
-    # drafts (the plugin skips drafts too; this saves the runner). Marking a draft
+    # Skip without failing when the secret is missing, for forks, for drafts (the plugin
+    # skips drafts too; this saves the runner) and for bots. The action fails the run for
+    # any bot that is not in its allowed_bots list, so pull requests opened or updated by
+    # a bot (Dependabot, the image pipeline bot) skip here. Marking a draft
     # "ready for review" starts a review.
     if: >-
       needs.gate.outputs.has_token == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       !github.event.pull_request.head.repo.fork &&
       github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.user.type != 'Bot' &&
+      !endsWith(github.actor, '[bot]') &&
       !github.event.pull_request.draft
     runs-on: ubuntu-latest
     timeout-minutes: 30
