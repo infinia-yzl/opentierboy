@@ -12,6 +12,14 @@ name: E2E on deployment
 # fork's pull request would run the fork's copy of this file with access to the
 # "vercel-e2e" environment secrets. Keep Vercel's Git Fork Protection on and never approve
 # a fork deployment without reading it first (docs/setup-checklist.md).
+# The job runs only for deployment statuses created by Vercel's GitHub App
+# ("vercel[bot]", the creator on this repository's real deployments).
+#
+# Owner option, not used yet: Vercel also sends a repository_dispatch event
+# ("vercel.deployment.success", URL in github.event.client_payload.url). GitHub always
+# runs repository_dispatch workflows from the default branch's file, so a fork cannot
+# change the workflow that receives the secret. Switching means changing the trigger
+# and the BASE_URL line. See https://vercel.com/docs/git/vercel-for-github.
 
 on:
   deployment_status:
@@ -28,6 +36,7 @@ jobs:
     name: e2e (deployed)
     if: >-
       github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.creator.login == 'vercel[bot]' &&
       startsWith(github.event.deployment_status.environment_url, 'https://')
     runs-on: ubuntu-latest
     timeout-minutes: 30
