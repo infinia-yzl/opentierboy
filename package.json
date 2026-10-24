@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "vitest run",
-    "check": "tsc --noEmit -p . && next lint && vitest run && npm run check:images && npm run check:fixtures"
+    "check": "tsc --noEmit -p . && next lint && vitest run && npm run check:images && npm run check:fixtures && node scripts/generate-legacy-fixtures.mjs --check"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

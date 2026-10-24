@@ -30,6 +30,7 @@
  * Usage:
  *   node scripts/generate-legacy-fixtures.mjs          append entries that are not in the file
  *   node scripts/generate-legacy-fixtures.mjs --check  regenerate and compare, write nothing
+ *                                                      (npm run check runs this, so CI does too)
  *
  * Needs the full git history (a shallow clone lacks the historical commits).
  * The fixtures are append-only: an entry that is already in the file is never rewritten. If a
