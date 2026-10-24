@@ -11,7 +11,8 @@ import {defineConfig, devices} from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration.
  */
 const isCI = !!process.env.CI;
-const baseURL = process.env.BASE_URL || 'http://127.0.0.1:3000';
+const port = Number(process.env.PORT || 3000);
+const baseURL = process.env.BASE_URL || `http://127.0.0.1:${port}`;
 const useLocalServer = !process.env.BASE_URL;
 
 export default defineConfig({
@@ -55,7 +56,7 @@ export default defineConfig({
 
   webServer: useLocalServer
     ? {
-      command: 'npm run start',
+      command: `npm run start -- -p ${port}`,
       url: baseURL,
       reuseExistingServer: !isCI,
       timeout: 120_000,
