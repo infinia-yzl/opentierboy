@@ -1,23 +1,29 @@
+/**
+ * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`):
+ * copies (or, in development, symlinks) the images of each image-* package into
+ * public/images/<package>/, makes a PNG copy of every WebP image for link previews, and writes
+ * imageset.config.json.
+ *
+ * It stops with exit code 1, and leaves imageset.config.json as it was, when a package is
+ * missing, has no images, or an image or its PNG copy did not reach public/images/. It never
+ * deletes a folder that holds committed files.
+ */
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
+const {execFileSync} = require('child_process');
 const sharp = require('sharp');
 
-const CONFIG_PATH = path.join(__dirname, '..', 'imageset.config.json');
-const CUSTOM_CONFIG_PATH = path.join(__dirname, '..', 'imageset.custom.json');
+const ROOT = path.join(__dirname, '..');
+const CONFIG_PATH = path.join(ROOT, 'imageset.config.json');
+const CUSTOM_CONFIG_PATH = path.join(ROOT, 'imageset.custom.json');
 
 async function callPackageFunction(packageName, functionName, ...args) {
-  try {
-    const packageModule = await import(packageName);
-    if (typeof packageModule[functionName] === 'function') {
-      return packageModule[functionName](...args);
-    } else {
-      throw new Error(`Function ${functionName} not found in package ${packageName}`);
-    }
-  } catch (error) {
-    console.error(`Error calling ${functionName} from ${packageName}:`, error);
-    return null;
+  const packageModule = await import(packageName);
+  if (typeof packageModule[functionName] !== 'function') {
+    throw new Error(`Function ${functionName} not found in package ${packageName}`);
   }
+  return packageModule[functionName](...args);
 }
 
 async function getCustomConfig() {
@@ -178,6 +184,49 @@ async function copyImagesRecursively(sourceDir, targetDir) {
   }
 }
 
+const relative = (file) => path.relative(ROOT, file).split(path.sep).join('/');
+
+/** The files an image set needs in public/images/<package>/: each image and the PNG copy of each WebP image. */
+function expectedFiles(images) {
+  return images.flatMap((image) => /\.webp$/i.test(image) ? [image, image.replace(/\.webp$/i, '.png')] : [image]);
+}
+
+/** Throws when one of `files` is not in `dir`. copyFile and convertWebpToPng only log their errors. */
+async function verifyFiles(dir, files, what) {
+  const missing = [];
+  for (const file of files) {
+    try {
+      await fs.access(path.join(dir, file));
+    } catch {
+      missing.push(file);
+    }
+  }
+  if (missing.length > 0) {
+    const shown = missing.slice(0, 10).join(', ') + (missing.length > 10 ? ', ...' : '');
+    throw new Error(`${what}: ${missing.length} file(s) missing in ${relative(dir)}: ${shown}`);
+  }
+}
+
+/**
+ * Refuses to replace a folder that holds files committed to git: committed images are never
+ * deleted. Without git (some build machines have no .git folder) this check is skipped.
+ */
+function assertNotCommitted(targetDir) {
+  let tracked;
+  try {
+    tracked = execFileSync('git', ['ls-files', '-z', '--', relative(targetDir)], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return;
+  }
+  if (tracked !== '') {
+    throw new Error(`${relative(targetDir)} holds files committed to git. prepareImages never deletes a committed folder.`);
+  }
+}
+
 async function processPackage(packageName, customConfig, shouldCopy) {
   try {
     const sourceDir = await findImageDirectory(packageName);
@@ -186,6 +235,8 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     console.log(`Processing package: ${packageName}`);
     console.log(`Source directory: ${sourceDir}`);
     console.log(`Target directory: ${targetDir}`);
+
+    assertNotCommitted(targetDir);
 
     // Remove existing symlink or directory
     try {
@@ -215,7 +266,11 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     }
 
     const images = await callPackageFunction(packageName, 'getImageList', sourceDir);
+    if (!Array.isArray(images) || images.length === 0) {
+      throw new Error(`${packageName} has no images. Check that the installed version is complete.`);
+    }
     console.log(`Found ${images.length} images in ${packageName}`);
+    await verifyFiles(targetDir, expectedFiles(images), packageName);
 
     // Get display name from custom config or fallback to package name
     const displayName = customConfig.packages[packageName]?.displayName || packageName;
@@ -224,8 +279,9 @@ async function processPackage(packageName, customConfig, shouldCopy) {
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
     console.log(`Logging contents of ${packageName} package due to error:`);
-    await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName));
-    return {packageName, displayName: packageName, images: []};
+    await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName))
+      .catch((logError) => console.error(`Cannot list node_modules/${packageName}:`, logError.message));
+    throw error;
   }
 }
 
@@ -299,8 +355,16 @@ async function main() {
 
   const customConfig = await getCustomConfig();
   const packages = Object.keys(customConfig.packages);
-  const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, customConfig, isProduction)));
-  await updateConfigs(packagesData, customConfig);
+  const results = await Promise.allSettled(packages.map(pkg => processPackage(pkg, customConfig, isProduction)));
+  const failed = packages.filter((pkg, index) => results[index].status === 'rejected');
+  if (failed.length > 0) {
+    throw new Error(`Could not prepare ${failed.join(', ')} (see the errors above).`);
+  }
+  await updateConfigs(results.map(result => result.value), customConfig);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  console.error('prepareImages failed: imageset.config.json was not updated.');
+  process.exitCode = 1;
+});
