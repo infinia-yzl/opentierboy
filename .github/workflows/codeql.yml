@@ -1,7 +1,9 @@
 name: CodeQL
 
-# CodeQL advanced setup. GitHub ignores this file while CodeQL "default setup" is on:
-# switch the repository to advanced setup first (docs/setup-checklist.md).
+# CodeQL advanced setup. While CodeQL "default setup" is on, GitHub rejects the results
+# this workflow uploads ("Upload with CodeQL results rejected due to default setup") and
+# the run fails. Switch the repository to advanced setup before merging this file
+# (docs/setup-checklist.md).
 
 on:
   pull_request:

@@ -2,8 +2,9 @@
 
 These are the GitHub, Vercel and npm settings that only the repository owner can change.
 The workflow files in `.github/` do nothing until these are in place.
-Do sections 1 to 5 after the pull request with these files is merged. Sections 6 and 7
-belong to later phases. Each step says where the setting is and what to choose.
+Do step 5 of section 3 (CodeQL) **before** you merge the pull request that adds these files.
+Do the rest of sections 1 to 6 after it is merged. Sections 7 and 8 belong to later phases.
+Each step says where the setting is and what to choose.
 
 ## Names at a glance
 
@@ -63,20 +64,35 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
    `.github/dependabot.yml` and need no switch.
 3. **Secret Protection** (secret scanning): Enable.
 4. **Push protection**: Enable. GitHub then blocks pushes that contain a known secret format.
-5. **CodeQL analysis**: this repository uses the advanced setup in `codeql.yml`.
-   - If it shows **Default** setup, open the **⋯** menu, click **Switch to advanced**, then
-     **Disable CodeQL**. This turns off the default setup only. `codeql.yml` takes over.
+5. **CodeQL analysis** (do this before merging): this repository uses the advanced setup
+   in `codeql.yml`. While default setup is on, GitHub rejects the results `codeql.yml`
+   uploads, and its runs fail.
+   - If the **⋯** menu next to "CodeQL analysis" shows **Switch to advanced**, default
+     setup is on. Click **Switch to advanced**, then **Disable CodeQL**. This turns off the
+     default setup only. `codeql.yml` takes over once it is merged.
    - If it shows **Set up**, do nothing. `codeql.yml` starts once it is on `main`.
 6. **Copilot Autofix**: On. It suggests fixes on CodeQL alerts in pull requests. It is free
    for public repositories.
 7. OpenSSF Scorecard (`scorecard.yml`) and OSV-Scanner (`osv-scanner.yml`) need no setting.
    Their results appear under **Security → Code scanning** after the first run on `main`.
+   The weekly OSV-Scanner run only reports. The pull request scan fails when a pull
+   request adds a new known vulnerability.
+8. Dependabot version updates (`.github/dependabot.yml`) run weekly. The `image-sets`
+   group (all `image-*` packages) also runs weekly: Dependabot cannot give one group its
+   own daily schedule. The main path for image set updates is the image-set-update
+   workflow from Phase 4, which opens a pull request when a new version is published.
+   Dependabot is the fallback.
 
 ## 4. Claude review on pull requests
 
 `claude-review.yml` asks Claude to review each pull request and comment on bugs, security
 problems and broken project rules. It uses your Claude subscription. It skips itself, without
-failing, while the secret below is missing. It also skips drafts, Dependabot and forks.
+failing, while the secret below is missing. It also skips drafts, forks, and pull requests
+opened or updated by bots (Dependabot, the image pipeline bot).
+
+Claude reviews a pull request once. The code-review plugin skips a pull request that already
+has a comment from Claude, so later pushes are not reviewed again. To get a new review,
+delete Claude's comment, then push again or re-run the "Claude review" job.
 
 1. Install the Claude GitHub App: https://github.com/apps/claude → **Install** → choose
    **Only select repositories** → `opentierboy`.
@@ -85,9 +101,18 @@ failing, while the secret below is missing. It also skips drafts, Dependabot and
    Name: `CLAUDE_CODE_OAUTH_TOKEN`. Value: the token from step 2.
 4. To pause the reviews, delete the secret. The workflow then skips itself.
 
-## 5. Tests against Vercel deployments
+## 5. Labels
 
-`playwright.yml` runs the end-to-end tests against every successful Vercel deployment.
+GitHub: **Issues → Labels → New label**. GitHub and Dependabot skip labels that do not exist,
+so create any of these that are missing:
+
+- `agent-task`: added by the "Agent task" issue form.
+- `dependencies`, `npm`, `github-actions`: added to Dependabot pull requests.
+
+## 6. Tests against Vercel deployments
+
+`playwright.yml` runs the end-to-end tests against every successful Vercel deployment. It runs
+only for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
 
 1. Vercel: **Project → Settings → Git**. Keep **deployment_status Events** on. The workflow
    starts from these events.
@@ -104,8 +129,12 @@ failing, while the secret below is missing. It also skips drafts, Dependabot and
 6. **Never approve a Vercel deployment of a fork's pull request without reading its changes
    first.** A deployment runs `playwright.yml` from the fork's code, and that run can read
    the `vercel-e2e` secret.
+7. Optional, safer: Vercel also sends a `vercel.deployment.success` event
+   (`repository_dispatch`). GitHub always runs that kind of workflow from the file on `main`,
+   so a fork cannot change it. Switching needs a small change to `playwright.yml`; ask for it
+   if you want it.
 
-## 6. Later: bot app for the image pipeline (Phase 4)
+## 7. Later: bot app for the image pipeline (Phase 4)
 
 The image pipeline opens pull requests when a new image set version is published. It
 needs its own GitHub App. Do this when the Phase 4 pull request is ready.
@@ -127,7 +156,7 @@ needs its own GitHub App. Do this when the Phase 4 pull request is ready.
 5. Delete the `.pem` file from your computer after adding it everywhere.
 6. Pull requests from the bot never merge on their own. You review and merge each one.
 
-## 7. Later: npm trusted publishing for image sets (Phase 4)
+## 8. Later: npm trusted publishing for image sets (Phase 4)
 
 Image set packages publish from GitHub Actions with npm trusted publishing (no npm token).
 
