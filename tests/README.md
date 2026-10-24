@@ -36,10 +36,8 @@ the preview route loads item images from `http://localhost:3000` outside Vercel.
 The tests run against the production build, not the dev server. Rebuild after every change
 to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
 `public/`, `imageset.config.json`, `imageset.custom.json` and the config files
-(`next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`). The build prepares image
-sets only once and then writes `.prepare-images-lock`. After a change to
-`imageset.custom.json` or an `image-*` package, delete `.next` and `.prepare-images-lock`
-first.
+(`next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`). `npm run build` copies the
+image sets into `public/images/` before every build (the `prebuild` script).
 
 `npx playwright install` downloads the browsers once per machine. If the browsers are already
 installed in a shared folder (for example in a container image), set

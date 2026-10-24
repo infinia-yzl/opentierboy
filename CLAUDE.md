@@ -37,7 +37,7 @@ When unsure, stop and ask. Explain the change and its risk in plain words.
 
 ## Stack
 
-Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 3 + shadcn/ui ·
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind CSS 3 + shadcn/ui ·
 `@hello-pangea/dnd` (drag and drop) · `lz-string` (link compression) · `html2canvas-pro`
 (screenshots) · Playwright (end-to-end tests) · Vitest (unit tests) · hosted on Vercel.
 
@@ -46,8 +46,9 @@ Next.js 15 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 3 + s
 ```bash
 npm ci                    # install exactly what package-lock.json says
 npm run dev               # prepare images, then the dev server on :3000
-npm run build             # production build (prepares images on the first build)
+npm run build             # prepare images, check item ids, then the production build
 npm run check             # type check, lint, unit tests, item ids, fixtures (CI runs this)
+npm run lint              # ESLint (`eslint .`, config in eslint.config.mjs)
 npm run test:unit         # Vitest only
 npm run check:images      # every shipped item id is registered (`-- --update` adds new ids)
 npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
@@ -61,9 +62,10 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
   to `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`, `public/`,
   `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.mjs`,
   `tailwind.config.ts`, `postcss.config.mjs`).
-- `npm run build` copies image sets from `node_modules/image-*` into `public/images/` only
-  once (then writes `.prepare-images-lock`). After changing `imageset.custom.json` or an
-  `image-*` package, delete `.next` and `.prepare-images-lock` before building.
+- `npm run build` first runs the `prebuild` script: it copies the image sets from
+  `node_modules/image-*` into `public/images/` (with their PNG copies for link previews) and
+  runs `check:images`, so a lost item id stops the build. Always build with `npm run build`.
+  A plain `next build` skips the images.
 - Browsers already installed elsewhere: see `tests/README.md` (`PLAYWRIGHT_BROWSERS_PATH`).
 - Link preview tests (`og-image.api.spec.ts`) need the server on port 3000. They skip
   themselves on other ports.
