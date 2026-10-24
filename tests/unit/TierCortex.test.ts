@@ -119,3 +119,58 @@ describe('TierCortex after moving the link format to lib/state', () => {
     }
   });
 });
+
+describe('TierCortex follows image-aliases.json for renamed images', () => {
+  const MAUGA = {id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'};
+  const link = (...itemIds: string[]) =>
+    lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: itemIds.map(id => ({i: id, c: `stored ${id}`}))}]}));
+  const itemsOf = (cortex: TierCortex, state: string) => cortex.decodeTierStateFromURL(state)!.tiers[0].items;
+  const placeholder = (id: string) => ({id, content: `stored ${id}`, imageUrl: 'http://localhost:3000/placeholder-image.png'});
+
+  it('ships with no aliases', async () => {
+    expect((await import('@/image-aliases.json')).default).toEqual({});
+  });
+
+  it('shows the renamed image for an old id', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-old-mauga.webp': 'image-overwatch-mau.webp'}});
+    expect(itemsOf(cortex, link('image-overwatch-old-mauga.webp'))).toEqual([MAUGA]);
+    expect(cortex.resolveItemsFromPackage('image-overwatch', ['old-mauga.webp'])).toEqual([MAUGA]);
+  });
+
+  it('follows a chain of renames', () => {
+    const cortex = new TierCortex({aliases: {
+      'image-overwatch-mauga-v1.webp': 'image-overwatch-mauga-v2.webp',
+      'image-overwatch-mauga-v2.webp': 'image-overwatch-mau.webp',
+    }});
+    expect(itemsOf(cortex, link('image-overwatch-mauga-v1.webp', 'image-overwatch-mauga-v2.webp'))).toEqual([MAUGA, MAUGA]);
+  });
+
+  it('falls back to a placeholder when an alias loops or leads nowhere', () => {
+    const cortex = new TierCortex({aliases: {
+      'image-a-loop1.webp': 'image-a-loop2.webp',
+      'image-a-loop2.webp': 'image-a-loop1.webp',
+      'image-a-gone.webp': 'image-a-also-gone.webp',
+      'image-a-proto.webp': 'toString',
+    }});
+    const ids = ['image-a-loop1.webp', 'image-a-gone.webp', 'image-a-proto.webp'];
+    expect(itemsOf(cortex, link(...ids))).toEqual(ids.map(placeholder));
+  });
+
+  it('prefers a shipped id over an alias for it', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-mau.webp': 'image-overwatch-win.webp'}});
+    expect(itemsOf(cortex, link('image-overwatch-mau.webp'))).toEqual([MAUGA]);
+  });
+
+  it('writes the new id the next time the list is saved', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-old-mauga.webp': 'image-overwatch-mau.webp'}});
+    const tiers = cortex.decodeTierStateFromURL(link('image-overwatch-old-mauga.webp'))!.tiers;
+    // What TierListManager.handleTiersUpdate hands to the encoder.
+    const forEncoding = tiers.map(tier => ({
+      ...tier,
+      items: tier.items.map(item => ({i: item.id, c: cortex.isCustomItem(item.id) ? item.content : undefined})),
+    }));
+    const saved = TierCortex.encodeTierStateForURL(undefined, forEncoding);
+    expect(LZString.decompressFromEncodedURIComponent(saved))
+      .toBe('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp"}]}]}');
+  });
+});

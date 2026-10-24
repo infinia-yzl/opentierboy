@@ -1,12 +1,22 @@
 import Tier, {DEFAULT_TIER_TEMPLATE} from "@/models/Tier";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
+import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
 import {type CanonicalItem, decodeState, encodeState} from "@/lib/state";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
+const MAX_ALIAS_STEPS = 10;
+
+/** Old item id -> new item id, for renamed images (image-aliases.json). */
+export type ItemAliases = Readonly<Record<string, string>>;
+
+export interface TierCortexOptions {
+  /** Replaces image-aliases.json (for tests). */
+  aliases?: ItemAliases;
+}
 
 interface SimplifiedItem {
   i: string; // id
@@ -42,10 +52,12 @@ export class TierCortex {
   private readonly packageItemLookup: PackageItemLookup;
   private customItemsMap: Map<string, StoredCustomItem>;
   private readonly isServer: boolean;
+  private readonly aliases: ItemAliases;
   private baseUrl: string;
 
 
-  constructor() {
+  constructor(options: TierCortexOptions = {}) {
+    this.aliases = options.aliases ?? (imageAliases as ItemAliases);
     this.isServer = typeof window === 'undefined';
     this.baseUrl = this.isServer ? process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -193,6 +205,9 @@ export class TierCortex {
     const packageItem = this.packageItemLookup[itemId];
     if (packageItem) return packageItem;
 
+    const renamedItem = this.resolveAlias(itemId);
+    if (renamedItem) return renamedItem;
+
     if (!this.isServer) {
       const customItem = this.customItemsMap.get(itemId);
       if (customItem) {
@@ -205,6 +220,22 @@ export class TierCortex {
     }
 
     return this.createPlaceholderItem(itemId, content || '');
+  }
+
+  /**
+   * Follows image-aliases.json from the id of a renamed image to the package item that
+   * replaced it, so links made before the rename keep showing the image.
+   */
+  private resolveAlias(itemId: string): Item | undefined {
+    let currentId = itemId;
+    for (let step = 0; step < MAX_ALIAS_STEPS; step++) {
+      if (!Object.prototype.hasOwnProperty.call(this.aliases, currentId)) return undefined;
+      const nextId = this.aliases[currentId];
+      if (typeof nextId !== 'string') return undefined;
+      if (Object.prototype.hasOwnProperty.call(this.packageItemLookup, nextId)) return this.packageItemLookup[nextId];
+      currentId = nextId;
+    }
+    return undefined;
   }
 
   private createPlaceholderItem(itemId: string, content: string): Item {
