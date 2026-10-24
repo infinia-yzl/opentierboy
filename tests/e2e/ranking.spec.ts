@@ -37,6 +37,14 @@ test.describe('Ranking items', () => {
     await expect(friend.itemsIn(friend.unranked)).toHaveCount(11);
   });
 
+  test('drag an item onto another item in the same tier to reorder it', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
+
+    await tierList.dragItemOnto('Sigma', 'Mauga');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
+  });
+
   test('moving a row moves its items, and the labels stay in order', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
@@ -72,5 +80,15 @@ test.describe('Ranking with the keyboard', () => {
     await tierList.moveItemWithKeyboard('Sigma', ['ArrowLeft', 'ArrowLeft']);
 
     await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
+  });
+
+  test('move a row down by its handle, and the labels stay in order', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+
+    await tierList.moveTierWithKeyboard('S', ['ArrowDown']);
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+    await expect(tierList.tiers.first()).toHaveAccessibleName('S');
   });
 });

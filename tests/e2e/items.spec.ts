@@ -107,12 +107,14 @@ test.describe('Known bugs', () => {
     test.fail(true, 'TierListManager.handleTiersUpdate overwrites the saved ranking that Undo needs.');
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.removeAllItems();
-    // Work around the frozen page (next test), so that this test checks Undo alone.
+    // Work around the frozen page (next test), so that this test checks Undo alone:
+    // Escape closes the menu that blocks the page.
     await expect(page.getByRole('alertdialog')).toBeHidden();
     await page.keyboard.press('Escape');
-    await tierList.shareButton.click({trial: true});
 
-    await tierList.undoFromToast('All Items Deleted');
+    // The toast closes by itself after a few seconds, so a slow click must fail here and
+    // not run into the test timeout, which would not count as the expected failure.
+    await tierList.undoFromToast('All Items Deleted', {timeout: 3_000});
 
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga'], {timeout: 3_000});
   });

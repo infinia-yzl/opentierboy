@@ -24,6 +24,33 @@ test.describe('Editing labels', () => {
   });
 });
 
+test.describe('Editing labels, other ways', () => {
+  test('clicking away from a tier label keeps the new name', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+
+    await tierList.typeTierName('S', 'Must pick');
+    await tierList.page.getByText('Drag to reorder.').click();
+
+    await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
+    await expect(tierList.tier('Must pick').getByRole('textbox')).toHaveCount(0);
+  });
+
+  test('clearing a tier label keeps the row and its items, also in the shared link', async ({
+    tierList,
+    openAsVisitor,
+  }) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {A: ['Winston']}));
+
+    await tierList.renameTier('A', '', 'Tier 2');
+
+    await expectTierNames(tierList, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
+    await expect(tierList.itemsIn('Tier 2')).toHaveText(['Winston']);
+    const friend = await openAsVisitor(await tierList.shareLink());
+    await expectTierNames(friend, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
+    await expect(friend.itemsIn('Tier 2')).toHaveText(['Winston']);
+  });
+});
+
 test.describe('Row settings', () => {
   test('switching to 3 rows moves items from removed rows into Unranked', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], F: ['Sigma']}));
@@ -65,5 +92,22 @@ test.describe('Row settings', () => {
     const label = await tierList.tier('S').getByRole('heading', {name: 'S'}).boundingBox();
     const item = await tierList.item('Mauga').boundingBox();
     expect(label && item && label.y + label.height <= item.y).toBe(true);
+  });
+});
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite stays green while the bug exists. See items.spec.ts for the convention.
+ */
+test.describe('Known bugs', () => {
+  test('Escape cancels renaming a tier', async ({tierList}) => {
+    test.fail(true, 'EditableLabel ignores Escape: the editor stays open and the next click saves the typed name.');
+    await tierList.goto(TANKS);
+
+    const input = await tierList.typeTierName('S', 'Changed my mind');
+    await input.press('Escape');
+
+    await expect(tierList.main.getByRole('textbox')).toHaveCount(0, {timeout: 3_000});
+    await expect(tierList.tiers.first()).toHaveAccessibleName('S', {timeout: 3_000});
   });
 });
