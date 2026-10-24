@@ -1,0 +1,18 @@
+# Changes to these paths ask for a review from the owner. They hold the contracts that keep
+# old shared links and item ids working, and the repository's automation.
+# Some paths do not exist yet; later phases add them.
+
+# Link format: encoders and decoders for the ?state= value.
+/lib/state/                  @infinia-yzl
+# Golden shared links and state fixtures (append-only).
+/tests/fixtures/             @infinia-yzl
+# Item id registry and renames (ids are permanent).
+/image-registry.lock.json    @infinia-yzl
+/image-aliases.json          @infinia-yzl
+# Sites whose images load without asking.
+/trusted-image-sites.json    @infinia-yzl
+# Workflows, Dependabot, issue templates and this file.
+/.github/                    @infinia-yzl
+# Instructions for agents (AGENTS.md is a link to it).
+/CLAUDE.md                   @infinia-yzl
+/AGENTS.md                   @infinia-yzl
