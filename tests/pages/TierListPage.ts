@@ -2,6 +2,23 @@ import {expect, type Locator, type Page} from '@playwright/test';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
+/** The capture methods offered under "Options" in the Image tab of the share panel. */
+export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
+
+/** What a test can check about the image that "Capture Preview" made. */
+export interface CapturedImage {
+  /** Size of the image in pixels. */
+  width: number;
+  height: number;
+  /** Width and height of the page in CSS pixels, and the device pixel ratio. */
+  pageWidth: number;
+  pageHeight: number;
+  devicePixelRatio: number;
+  /** Number of different colours in a 64 x 64 copy of the image. A blank image has 1. */
+  distinctColors: number;
+  /** Brightness (0 to 255) of the top-left corner, where the page background shows. */
+  cornerBrightness: number;
+}
 
 /**
  * Page object for the tier list editor at /rank/...
@@ -339,6 +356,71 @@ export class TierListPage {
 
   async clipboardText(): Promise<string> {
     return this.page.evaluate(() => navigator.clipboard.readText());
+  }
+
+  /** The preview that "Capture Preview" (Freeze Frame) shows in the share panel. */
+  get capturedImage(): Locator {
+    return this.sharePanel.getByRole('img', {name: 'Captured tier list'});
+  }
+
+  /**
+   * Captures the page as an image from the Image tab of the share panel ("Freeze Frame"),
+   * and waits until the app reports the result in a toast. Without a method, the app's
+   * default method is used.
+   */
+  async capturePreview(method?: CaptureMethod) {
+    await this.openSharePanel();
+    await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
+    if (method) {
+      await this.sharePanel.getByRole('button', {name: 'Options'}).click();
+      const methodSelect = this.sharePanel.getByRole('combobox');
+      await methodSelect.click();
+      await this.page.getByRole('option', {name: method, exact: true}).click();
+      await expect(methodSelect).toHaveText(method);
+    }
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await expect(this.toast(/Image captured successfully|Failed to capture image/)).toBeVisible();
+  }
+
+  /** Waits for the captured preview image to load, then measures it. */
+  async capturedImageDetails(): Promise<CapturedImage> {
+    await expect(this.capturedImage).toBeVisible();
+    let details: CapturedImage | null = null;
+    // The preview can reload while the share panel re-renders, so measure it once it has
+    // finished loading.
+    await expect(async () => {
+      details = await this.capturedImage.evaluate((img: HTMLImageElement) => {
+        if (!img.complete || img.naturalWidth === 0) return null;
+        const size = 64;
+        const small = document.createElement('canvas');
+        small.width = size;
+        small.height = size;
+        const smallContext = small.getContext('2d')!;
+        smallContext.drawImage(img, 0, 0, size, size);
+        const pixels = smallContext.getImageData(0, 0, size, size).data;
+        const colors = new Set<string>();
+        for (let index = 0; index < pixels.length; index += 4) {
+          colors.add(`${pixels[index]},${pixels[index + 1]},${pixels[index + 2]},${pixels[index + 3]}`);
+        }
+        const full = document.createElement('canvas');
+        full.width = img.naturalWidth;
+        full.height = img.naturalHeight;
+        const fullContext = full.getContext('2d')!;
+        fullContext.drawImage(img, 0, 0);
+        const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
+        return {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          pageWidth: document.documentElement.clientWidth,
+          pageHeight: document.documentElement.scrollHeight,
+          devicePixelRatio: window.devicePixelRatio,
+          distinctColors: colors.size,
+          cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
+        };
+      });
+      expect(details, 'the captured image should finish loading').not.toBeNull();
+    }).toPass();
+    return details!;
   }
 
   // ---- Zen mode --------------------------------------------------------------------------

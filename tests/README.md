@@ -69,7 +69,8 @@ tests/
 
 - **Import `test` and `expect` from `tests/support/test.ts`.** It provides the `tierList`,
   `site` and `openAsVisitor` fixtures (the last one opens a link in a fresh browser, like a
-  friend who receives it).
+  friend who receives it), and `consoleErrors`: the errors the page logged to the browser
+  console during the test.
 - **Describe what the user does and sees.** Test names read as behaviour ("drag an item from
   Unranked into a tier"), not as implementation.
 - **Put page knowledge in the page objects.** Specs call `tierList.dragItemToTier('Mauga', 'S')`

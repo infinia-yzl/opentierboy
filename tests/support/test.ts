@@ -24,6 +24,8 @@ type Fixtures = {
   site: SitePage;
   /** Opens a link in a fresh browser context, as a friend who receives the link would. */
   openAsVisitor: (link: string) => Promise<TierListPage>;
+  /** Errors that the page logged to the browser console or threw, collected during the test. */
+  consoleErrors: string[];
 };
 
 export const test = base.extend<Fixtures>({
@@ -49,6 +51,14 @@ export const test = base.extend<Fixtures>({
       return visitor;
     });
     await Promise.all(contexts.map((context) => context.close()));
+  },
+  consoleErrors: async ({page}, use) => {
+    const errors: string[] = [];
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
+    page.on('pageerror', (error) => errors.push(error.message));
+    await use(errors);
   },
 });
 
