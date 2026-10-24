@@ -42,6 +42,17 @@ function git(args, options = {}) {
   return execFileSync('git', args, {encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'], ...options});
 }
 
+/** Lists paths NUL-separated (-z), so names with non-ASCII characters, quotes or backslashes stay unquoted. */
+function listPaths(args) {
+  return git(args, {cwd: gitRoot()}).split('\0').filter((file) => file !== '');
+}
+
+let cachedRoot;
+function gitRoot() {
+  if (cachedRoot === undefined) cachedRoot = git(['rev-parse', '--show-toplevel']).trim();
+  return cachedRoot;
+}
+
 function refExists(ref) {
   try {
     git(['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
@@ -110,7 +121,7 @@ function compare(base, current) {
 function main() {
   let root;
   try {
-    root = git(['rev-parse', '--show-toplevel']).trim();
+    root = gitRoot();
   } catch {
     fail('Run this inside the git repository.', 2);
   }
@@ -133,8 +144,7 @@ function main() {
     fail(`Cannot find a common ancestor of "${base}" and HEAD. In CI, check out with fetch-depth: 0.`, 2);
   }
 
-  const baseFiles = git(['ls-tree', '-r', '--name-only', mergeBase, '--', ...APPEND_ONLY_PATHS], {cwd: root})
-    .split('\n')
+  const baseFiles = listPaths(['ls-tree', '-r', '-z', '--name-only', mergeBase, '--', ...APPEND_ONLY_PATHS])
     .filter((file) => file.endsWith('.json'));
 
   let failed = false;
@@ -171,8 +181,7 @@ function main() {
     }
   }
 
-  const currentFiles = git(['ls-files', '--cached', '--others', '--exclude-standard', '--', ...APPEND_ONLY_PATHS], {cwd: root})
-    .split('\n')
+  const currentFiles = listPaths(['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...APPEND_ONLY_PATHS])
     .filter((file) => file.endsWith('.json') && !baseFiles.includes(file) && fs.existsSync(path.join(root, file)));
   for (const file of currentFiles) console.log(`  + ${file}: new file`);
   if (baseFiles.length === 0 && currentFiles.length === 0) console.log('  (no append-only files)');

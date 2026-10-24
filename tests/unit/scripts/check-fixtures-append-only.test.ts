@@ -107,6 +107,35 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(committed.output).toContain(message);
   });
 
+  it.each([
+    ['non-ASCII characters', 'tests/fixtures/état.json'],
+    ['a space, quotes and a backslash', 'tests/fixtures/state/odd "name" \\ x.json'],
+  ])('checks fixture files whose names have %s', (_name, file) => {
+    write(file, LINKS);
+    commitAll('odd file name');
+    git('branch', '-f', 'main');
+
+    const unchanged = check('--base', 'main');
+    expect(unchanged.status).toBe(0);
+    expect(unchanged.output).toContain(`${file}: 2 kept, 0 added`);
+
+    write(file, [LINKS[0], {...LINKS[1], state: 'edited'}]);
+    const edited = check('--base', 'main');
+    expect(edited.status).toBe(1);
+    expect(edited.output).toContain(`${file}:`);
+    expect(edited.output).toContain('entry link-002 (#2) was changed or removed');
+
+    fs.rmSync(path.join(repo, file));
+    const deleted = check('--base', 'main');
+    expect(deleted.status).toBe(1);
+    expect(deleted.output).toContain(`${file}: the file was deleted or moved`);
+  });
+
+  it('lists new fixture files with odd names', () => {
+    write('tests/fixtures/nouveau-ñ.json', LINKS);
+    expect(check('--base', 'main').output).toContain('+ tests/fixtures/nouveau-ñ.json: new file');
+  });
+
   it('compares with the merge base, so a branch behind its base passes', () => {
     git('checkout', '-q', 'main');
     write('tests/fixtures/shared-links.json', [...LINKS, {id: 'link-003'}]);
