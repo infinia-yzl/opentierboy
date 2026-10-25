@@ -46,7 +46,14 @@ const TierItems = memo<{
 }>(({tier, showLabels, onDeleteItem}) => {
   const images = useCustomImages();
   const descriptionIds = useId();
+  // A link image names its site in the item's description, next to the drag instructions. The
+  // descriptions sit in a hidden list after the row, so they stay out of the items' text.
+  const sources = tier.items.map((item, itemIndex) => {
+    const domain = images.linkImage(item)?.domain;
+    return domain ? {id: `${descriptionIds}-${itemIndex}`, domain} : null;
+  });
   return (
+    <>
     <Droppable droppableId={rowDropId(tier.id)} direction="horizontal">
       {(provided, snapshot) => (
         <div
@@ -55,9 +62,7 @@ const TierItems = memo<{
           className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
         >
           {tier.items.map((item, itemIndex) => {
-            // A link image names its site in the item's description, next to the drag instructions.
-            const domain = images.linkImage(item)?.domain;
-            const sourceId = domain ? `${descriptionIds}-${itemIndex}` : undefined;
+            const sourceId = sources[itemIndex]?.id;
             return (
             <Draggable key={item.id} draggableId={itemDragId(item.id)} index={itemIndex}>
               {(provided, snapshot) => (
@@ -79,7 +84,6 @@ const TierItems = memo<{
                   }}
                 >
                   <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
-                  {sourceId && <span id={sourceId} className="sr-only">Image from {domain}</span>}
                 </div>
               )}
             </Draggable>
@@ -89,6 +93,12 @@ const TierItems = memo<{
         </div>
       )}
     </Droppable>
+    {sources.some(Boolean) && (
+      <div hidden>
+        {sources.map((source) => source && <span key={source.id} id={source.id}>Image from {source.domain}</span>)}
+      </div>
+    )}
+    </>
   );
 });
 TierItems.displayName = 'TierItems';
