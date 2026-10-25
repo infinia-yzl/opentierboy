@@ -194,8 +194,9 @@ const stateImportRules = (depth) =>
 
 export default defineConfig([
   // Generated files: Playwright reports and traces, Vercel output, the image sets that the
-  // build copies into public/images.
-  globalIgnores(['playwright-report/', 'test-results/', 'blob-report/', '.vercel/', 'public/images/']),
+  // build copies into public/images. packages/ holds vendored libraries (docs/dnd-fork.md):
+  // they keep their upstream code style and are checked by their own build.
+  globalIgnores(['playwright-report/', 'test-results/', 'blob-report/', '.vercel/', 'public/images/', 'packages/']),
   // Next.js rules (React, hooks, accessibility, imports, Core Web Vitals). They also ignore
   // .next/, out/, build/ and next-env.d.ts.
   ...nextCoreWebVitals,
