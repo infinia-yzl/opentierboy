@@ -110,6 +110,25 @@ export class TierListPage {
     return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
   }
 
+  /**
+   * The colour at the centre of an item's image as red, green and blue (0 to 255), or null
+   * while the image has not loaded. Scrolls the item into view first (images load lazily).
+   */
+  async itemImageCenterColor(name: string): Promise<[number, number, number] | null> {
+    const image = this.item(name).getByRole('img');
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => {
+      if (!img.complete || img.naturalWidth === 0) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const context = canvas.getContext('2d')!;
+      context.drawImage(img, 0, 0);
+      const [red, green, blue] = context.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data;
+      return [red, green, blue] as [number, number, number];
+    });
+  }
+
   rowHandle(tierName: string): Locator {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
   }

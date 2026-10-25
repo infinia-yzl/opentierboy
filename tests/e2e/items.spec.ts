@@ -117,9 +117,15 @@ test.describe('Known bugs', () => {
 
     const image = reopened.item('red-square').getByRole('img');
     await expect(image).toBeVisible();
-    await expect.poll(() => imageHasLoaded(image), {timeout: 3_000}).toBe(true);
+    // The tile must show the uploaded red square. Checking only that an image loaded is not
+    // enough: an item the app cannot find shows the placeholder image, which loads too.
+    await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square')), {timeout: 3_000}).toBe(true);
   });
+
 });
+function isRed(color: [number, number, number] | null) {
+  return color !== null && color[0] > 200 && color[1] < 60 && color[2] < 60;
+}
 
 /** True when the browser decoded the image, so a broken image counts as not loaded. */
 async function imageHasLoaded(image: import('@playwright/test').Locator) {
