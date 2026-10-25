@@ -2,6 +2,15 @@
   "name": "opentierboy",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "packages/dnd-kit/abstract",
+    "packages/dnd-kit/collision",
+    "packages/dnd-kit/dom",
+    "packages/dnd-kit/geometry",
+    "packages/dnd-kit/helpers",
+    "packages/dnd-kit/react",
+    "packages/dnd-kit/state"
+  ],
   "scripts": {
     "dev": "npm run prepare-images && next dev",
     "prebuild": "node scripts/prepareImages.js --copy && npm run check:images -- --files",
@@ -18,6 +27,9 @@
     "check": "tsc --noEmit -p . && eslint . && vitest run && npm run check:images && npm run check:trusted-sites && npm run check:fixtures && node scripts/generate-legacy-fixtures.mjs --check"
   },
   "dependencies": {
+    "@dnd-kit/abstract": "0.5.1",
+    "@dnd-kit/dom": "0.5.1",
+    "@dnd-kit/react": "0.5.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.9.2",
     "@radix-ui/react-alert-dialog": "^1.2.1",
