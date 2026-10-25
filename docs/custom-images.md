@@ -114,6 +114,8 @@ To move the pin to a newer list:
 - Every image is decoded once before it is kept, and refused when it is wider or taller than
   8,192 pixels or larger than 32 megapixels. The size in the file's header is checked first,
   so a small file that declares a huge picture is refused without decoding it.
+- When the browser itself has no room left, the editor removes the least recently used images
+  that are not in the list on screen and tries once more.
 - Limits: 5 MB per image, 100 MB and 2,000 images in total. When a new image does not fit,
   the images used least recently are removed first. Images of the list on screen can be
   protected with the `keep` option.

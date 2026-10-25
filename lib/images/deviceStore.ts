@@ -15,7 +15,9 @@
  * - Limits: 5 MB per image, 100 MB and 2,000 images in total by default. When a new image
  *   does not fit, the least recently used images are removed first ("evict the oldest").
  *   `put` reports the removed ids. Ids passed in `keep` (for example the images of the list
- *   on screen) are never removed.
+ *   on screen) are never removed. When the browser runs out of room below these limits
+ *   (QuotaExceededError), `put` removes least recently used images (never those in `keep`)
+ *   that free at least the new image's size, and tries once more.
  * - Without IndexedDB (server rendering, blocked storage, some private modes, a database
  *   that does not open in time) `openDeviceStore` returns an in-memory store with the same
  *   API and `persistent: false`. Its images last until the page closes.
@@ -447,12 +449,31 @@ class IndexedDbDeviceStore implements DeviceStore {
     if ('ok' in prepared) return prepared;
     const {id, type, data, keep} = prepared;
     const size = data.byteLength;
+    const first = await this.write(id, type, data, keep, false);
+    // The browser ran out of room below our limits: make room for this image once, and retry.
+    if (first.ok || first.reason !== 'quota') return first.ok ? first : {ok: false, reason: first.reason};
+    const second = await this.write(id, type, data, keep, true);
+    return second.ok ? second : {ok: false, reason: second.reason === 'quota' ? 'storage-full' : second.reason};
+  }
+
+  /**
+   * One attempt to store an image. With `freeRoom`, also removes least recently used images
+   * (not in `keep`) that add up to at least the image's size.
+   */
+  private async write(id: string, type: DeviceImageType, data: ArrayBuffer, keep: ReadonlySet<string>, freeRoom: boolean)
+    : Promise<DevicePutResult | {ok: false; reason: 'quota'}> {
+    const size = data.byteLength;
     try {
-      return await transact<DevicePutResult>(this.db, 'readwrite', ({images, meta, setResult, abortWith}) => {
+      return await transact<DevicePutResult | {ok: false; reason: 'quota'}>(this.db, 'readwrite', ({images, meta, setResult, abortWith}) => {
         const all = meta.getAll();
         all.onsuccess = () => {
           const entries = (all.result as unknown[]).filter(isMetaRecord);
-          const evicted = planEviction(entries, {id, size}, this.limits, keep);
+          let limits: DeviceStoreLimits = this.limits;
+          if (freeRoom) {
+            const othersTotal = entries.reduce((sum, entry) => sum + (entry.id === id ? 0 : entry.size), 0);
+            limits = {...this.limits, maxTotalBytes: Math.max(size, Math.min(this.limits.maxTotalBytes, othersTotal))};
+          }
+          const evicted = planEviction(entries, {id, size}, limits, keep);
           if (!evicted) {
             setResult({ok: false, reason: 'storage-full'});
             return;
@@ -468,12 +489,12 @@ class IndexedDbDeviceStore implements DeviceStore {
             setResult({ok: true, id, type, size, evicted});
           } catch (error) {
             // Nothing is removed when the new image cannot be written.
-            abortWith({ok: false, reason: isQuotaError(error) ? 'storage-full' : 'storage-error'});
+            abortWith({ok: false, reason: isQuotaError(error) ? 'quota' : 'storage-error'});
           }
         };
       });
     } catch (error) {
-      return {ok: false, reason: isQuotaError(error) ? 'storage-full' : 'storage-error'};
+      return {ok: false, reason: isQuotaError(error) ? 'quota' : 'storage-error'};
     }
   }
 

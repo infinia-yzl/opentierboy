@@ -350,18 +350,18 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await rawRecords(factory, 'images')).toEqual([]);
   });
 
-  it('reports a full browser quota as storage-full, and removes nothing then', async () => {
-    const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
-    await store.put(image(40));
-    await store.put(image(40));
+  /**
+   * Makes the browser report QuotaExceededError for the next `times` writes, the way a full disk
+   * fails a write request and aborts the transaction. fake-indexeddb runs each write through its
+   * internal _rawObjectStore.storeRecord; the first write of each attempt fails once, and the
+   * rollback after the abort uses the normal method again.
+   */
+  function failNextWrites(times: number) {
     const originalPut = IDBObjectStore.prototype.put;
-    // A full disk fails the write request, and the transaction aborts with QuotaExceededError.
-    // fake-indexeddb runs each write through its internal _rawObjectStore.storeRecord: make
-    // the first write fail once. The rollback after the abort uses the normal method again.
-    let failed = false;
+    let remaining = times;
     vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
-      if (!failed) {
-        failed = true;
+      if (remaining > 0 && this.name === 'images') {
+        remaining--;
         const raw = (this as unknown as {_rawObjectStore: {storeRecord?: () => never}})._rawObjectStore;
         raw.storeRecord = () => {
           delete raw.storeRecord;
@@ -370,6 +370,24 @@ describe('openDeviceStore with IndexedDB', () => {
       }
       return originalPut.apply(this, args);
     });
+  }
+
+  it('on a full browser quota, removes least recently used images that are not kept, and tries once more', async () => {
+    const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
+    await store.put(image(40)); // img-00000001, the oldest
+    await store.put(image(40)); // img-00000002
+    await store.put(image(40)); // img-00000003
+    failNextWrites(1);
+    // Our limits leave room, but the browser has none. The oldest image that is not kept goes.
+    expect(await store.put(image(40), {keep: ['img-00000001']})).toMatchObject({ok: true, id: 'img-00000004', evicted: ['img-00000002']});
+    expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000003', 'img-00000004']);
+  });
+
+  it('reports storage-full when the retry fails too, and removes nothing then', async () => {
+    const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
+    await store.put(image(40));
+    await store.put(image(40));
+    failNextWrites(2);
     expect(await store.put(image(40))).toEqual({ok: false, reason: 'storage-full'});
     // The oldest image would have made room. It is still there.
     expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000002']);

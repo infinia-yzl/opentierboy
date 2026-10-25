@@ -41,7 +41,7 @@ export const DEVICE_IMAGE_REFUSAL_MESSAGES: Readonly<Record<DevicePutRefusal | '
   'too-many-pixels': 'The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.',
   'unsupported-type': 'This file type is not supported. Use a PNG, JPEG, WebP, GIF or AVIF image.',
   'invalid-id': 'The image could not be saved.',
-  'storage-full': 'Your browser has no room left for more images. Remove some items with images first.',
+  'storage-full': 'Your browser has no room left to keep this image.',
   'storage-error': 'Your browser could not save the image.',
   unreadable: 'This file could not be read as an image.',
 };
