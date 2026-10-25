@@ -177,7 +177,7 @@ export function sniffImageType(bytes: Uint8Array): DeviceImageType | null {
     const boxSize = ((bytes[0] << 24) >>> 0) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3];
     const end = Math.min(boxSize, bytes.length, 64);
     for (let offset = 8; offset + 4 <= end; offset += 4) {
-      if (offset === 12) continue; // minor version, not a brand
+      if (offset === 12) continue; // bytes 12-15 hold the minor version
       const brand = ascii(bytes, offset, 4);
       if (brand === 'avif' || brand === 'avis') return 'image/avif';
     }

@@ -219,7 +219,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(JSON.stringify([imageRecord, metaRecord])).not.toContain('blob:');
   });
 
-  it('takes the type from the bytes, not from the type the browser reports', async () => {
+  it('takes the type from the bytes and ignores the type the browser reports', async () => {
     const store = await open();
     expect(await store.put(image(32, 'png', 'text/html'))).toMatchObject({ok: true, type: 'image/png'});
     expect(await store.put(image(32, 'gif', ''))).toMatchObject({ok: true, type: 'image/gif'});
@@ -246,7 +246,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
-  it('checks the bytes it read, not only the reported size', async () => {
+  it('checks the size of the bytes it read as well as the reported size', async () => {
     const store = await open({limits: {maxImageBytes: 100, maxTotalBytes: 1000}});
     const lying = {size: 10, arrayBuffer: async () => bytes(HEADERS.png, 500).buffer};
     expect(await store.put(lying as unknown as Blob)).toEqual({ok: false, reason: 'too-large'});

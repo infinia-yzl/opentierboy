@@ -9,7 +9,7 @@
  * visitor is looking at.
  *
  * Every failure comes with label-fallback data: the text and domain to show on a label
- * tile instead of the picture. The OG preview route can use `labelFallback` too: it is pure
+ * tile in place of the picture. The OG preview route can use `labelFallback` too: it is pure
  * and only uses the standard URL class.
  *
  * `checkImage` touches no browser API when the module is imported. Tests inject an Image

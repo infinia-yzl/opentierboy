@@ -19,8 +19,8 @@
  * letters from other alphabets cannot imitate a familiar site.
  *
  * Limits of a check in the browser: a public name can still point at a private address in
- * DNS. The browser loads the image, not our server, and images from sites outside
- * trusted-image-sites.json only load after the visitor agrees, so this is acceptable.
+ * DNS. This is acceptable: the visitor's browser loads the image (our server never does),
+ * and images from sites outside trusted-image-sites.json only load after the visitor agrees.
  *
  * Pure code: it uses only the standard `URL` class, at call time. It runs in the browser,
  * on the server and in the edge runtime.
@@ -114,7 +114,7 @@ const RESERVED_TOP_LEVEL_NAMES = new Set([
 /**
  * Public services that answer any name with an IP address written inside the name, for
  * example `127.0.0.1.nip.io` or `10-0-0-1.sslip.io`, and DNS rebinding test services. This
- * list is a safety net, not a complete list: see the comment at the top of this file.
+ * list is a safety net and is incomplete: see the comment at the top of this file.
  */
 const IP_ECHO_DOMAINS = [
   '1u.ms',
