@@ -95,8 +95,11 @@ describe('v3 link length (docs/link-format-v3.md)', () => {
 });
 
 describe('golden shared links (tests/fixtures/shared-links.json)', () => {
-  it('cover every legacy format', () => {
-    expect(Array.from(new Set(sharedLinks.map(link => link.format))).sort()).toEqual(['v0', 'v1', 'v2']);
+  it('cover every legacy format, and hold only known formats', () => {
+    // v3 links (written since Phase 5b) may join the captured links later (A25).
+    const formats = new Set(sharedLinks.map(link => link.format));
+    for (const format of ['v0', 'v1', 'v2']) expect(formats).toContain(format);
+    for (const format of formats) expect(['v0', 'v1', 'v2', 'v3']).toContain(format);
   });
 
   for (const link of sharedLinks) {
@@ -128,6 +131,12 @@ describe('golden shared links (tests/fixtures/shared-links.json)', () => {
       if (link.format === 'v1' || link.format === 'v2') {
         it('encodes back to the same bytes', () => {
           expect(encodeV2(decodeState(link.state)!)).toBe(withPlus(link.state));
+        });
+      }
+
+      if (link.format === 'v3') {
+        it('encodes back to the same text', () => {
+          expect(encodeV3(decodeState(link.state)!)).toBe(withPlus(link.state));
         });
       }
     });

@@ -7,7 +7,7 @@ import {sendBypassOnlyToSite} from './vercel-bypass';
 export interface SharedLinkFixture {
   id: string;
   source: string;
-  format: 'v0' | 'v1' | 'v2';
+  format: 'v0' | 'v1' | 'v2' | 'v3';
   path: string;
   state: string;
   expected: {
