@@ -28,6 +28,31 @@ test.describe('Legacy image files', () => {
   }
 });
 
+test.describe('App shortcuts and search data', () => {
+  test('the app manifest offers the official image sets and no legacy set', async ({request}) => {
+    const response = await request.get('/manifest.webmanifest');
+    expect(response.status()).toBe(200);
+    const manifest = await response.json() as {shortcuts: {url: string}[]};
+
+    expect(manifest.shortcuts.map(({url}) => url)).toEqual(['/about', '/blog', '/rank', '/rank/the-finals/all', '/rank/overwatch/h-all']);
+  });
+
+  test('the structured data for search engines offers the official image sets and no legacy set', async ({request}) => {
+    const response = await request.get('/');
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+    // The layout's JSON-LD (potentialAction) travels in the page payload, with absolute URLs.
+    const rankTargets = [...html.matchAll(/https?:\/\/[^"\\\s]+?(\/rank[^"\\\s]*)/g)].map((match) => match[1]);
+
+    expect(html).toContain('potentialAction');
+    expect([...new Set(rankTargets)].sort()).toEqual(['/rank', '/rank/overwatch/h-all', '/rank/the-finals/all']);
+    for (const set of LEGACY_SETS) {
+      expect(html, set.displayName).not.toContain(`/rank/${set.slug}`);
+      expect(html, set.displayName).not.toContain(`/rank/${set.packageName}/`);
+    }
+  });
+});
+
 test.describe('Sitemap', () => {
   test('lists the official image sets and leaves the legacy sets out', async ({request}) => {
     const response = await request.get('/sitemap.xml');

@@ -159,8 +159,9 @@ A later phase adds `trusted-image-sites.json`.
   Technologies and the example template (`image-set`). Their entries live in
   `imageset.legacy.json` and their WebP images are committed in `public/images/<package>/`
   (prepareImages makes their PNG copies at build time). Never edit, move or delete them. They are hidden from the template
-  picker, the landing page and the sitemap (`lib/imageSets.ts`), but their `/rank` pages, old
-  links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
+  picker, the landing page and the sitemap (`lib/imageSets.ts`), the app shortcuts
+  (`app/manifest.ts`) and the search engine data (`app/layout.tsx`), but their `/rank` pages,
+  old links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
 - **Shapes**: an image set may declare `shape` (`square`, `landscape` or `portrait`) per image
   and per category. `imageset.config.json` stores it only when it is not square, and
   `TierCortex` puts it on items (`itemShape()`). Tiles still render square until the drag and
