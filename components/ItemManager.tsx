@@ -29,6 +29,7 @@ import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
+import {itemsToAdd} from "@/lib/tierListReducer";
 
 const ItemManager: React.FC = () => {
   const {tiers, tierCortex, addItems, removeItems, resetRankings, removeAllItems, restoreTiers} = useTierContext();
@@ -69,6 +70,8 @@ const ItemManager: React.FC = () => {
 
   // Each Undo below is a new change to the list, so it adds a history entry (A6).
   const handleCreateItems = (newItems: Item[]) => {
+    // Undo removes only the items this really added: the list may hold some of them already.
+    const addedIds = itemsToAdd(tiers, newItems).map(item => item.id);
     addItems(newItems);
     setIsItemCreatorOpen(false);
     setIsItemSetSelectorOpen(false);
@@ -76,7 +79,7 @@ const ItemManager: React.FC = () => {
       description: `${newItems.length} item(s) have been added.`,
       action: {
         label: 'Undo',
-        onClick: () => removeItems(newItems.map(item => item.id)),
+        onClick: () => removeItems(addedIds),
       },
     });
   };

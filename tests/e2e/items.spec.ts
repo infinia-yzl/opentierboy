@@ -78,6 +78,17 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
   });
 
+  test('undo after adding a set keeps the items that were in the list before', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
+
+    await tierList.undoFromToast('Items Added');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+  });
+
   test('undo after Remove All brings the items back', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.removeAllItems();

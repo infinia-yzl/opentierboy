@@ -8,6 +8,7 @@ import {
   createTierListReducer,
   findItemToDelete,
   initialTierListState,
+  itemsToAdd,
   loadList,
   stateParam,
   type TierListAction,
@@ -301,14 +302,27 @@ describe('list changes', () => {
     expect(findItemToDelete(store.state.tiers, 'missing')).toBeNull();
   });
 
-  it('adding items leaves out items the list holds (same id or label), and Undo removes the added ids', () => {
+  it('adding items leaves out items the list holds (same id or label), and Undo removes only the added ones', () => {
     const cortex = new TierCortex();
     const store = setup(fiveRowLink({S: [MAU]}), cortex);
-    const added = [...cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp', 'win.webp']), {id: 'k3j9x0a1b', content: 'Mauga'}];
-    store.dispatch({type: 'itemsAdded', items: added});
+    const newItems = [...cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp', 'win.webp']), {id: 'k3j9x0a1b', content: 'Mauga'}];
+    const added = itemsToAdd(store.state.tiers, newItems);
+    expect(added.map(item => item.content)).toEqual(['Winston']);
+
+    store.dispatch({type: 'itemsAdded', items: newItems});
     expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
+    // Undo from the toast: Mauga was ranked before the add, so it stays.
     store.dispatch({type: 'itemsRemoved', itemIds: added.map(item => item.id)});
-    expect(store.contents().flat()).toEqual([]);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], [], []]);
+  });
+
+  it('adding only items the list holds changes nothing', () => {
+    const cortex = new TierCortex();
+    const store = setup(fiveRowLink({S: [MAU]}), cortex);
+    const before = store.state;
+    store.dispatch({type: 'itemsAdded', items: cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp'])});
+    expect(store.state).toBe(before);
+    expect(itemsToAdd(store.state.tiers, cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp']))).toEqual([]);
   });
 
   it('switching row templates keeps items in tiers with the same id and moves the rest to Unranked', () => {

@@ -264,16 +264,22 @@ function deleteItem(tiers: Tier[], itemId: string): Tier[] {
 }
 
 /**
- * Adds items at the end of the last tier (Unranked). An item is left out when the list
- * already holds an item with its id or its label.
+ * The items that adding `newItems` really adds: those the list does not hold yet, by id or by
+ * label. Toast Undo removes only these, so items that were in the list before stay.
  */
-function addItems(tiers: Tier[], newItems: Item[]): Tier[] {
-  if (tiers.length === 0) return tiers;
-  const uniqueNewItems = newItems.filter(newItem =>
+export function itemsToAdd(tiers: Tier[], newItems: Item[]): Item[] {
+  if (tiers.length === 0) return [];
+  return newItems.filter(newItem =>
     !tiers.some(tier => tier.items.some(item => item.id === newItem.id || item.content === newItem.content))
   );
+}
+
+/** Adds items at the end of the last tier (Unranked), leaving out items the list holds. */
+function addItems(tiers: Tier[], newItems: Item[]): Tier[] {
+  const added = itemsToAdd(tiers, newItems);
+  if (added.length === 0) return tiers;
   const lastIndex = tiers.length - 1;
-  return tiers.map((tier, index) => (index === lastIndex ? {...tier, items: [...tier.items, ...uniqueNewItems]} : tier));
+  return tiers.map((tier, index) => (index === lastIndex ? {...tier, items: [...tier.items, ...added]} : tier));
 }
 
 /**
