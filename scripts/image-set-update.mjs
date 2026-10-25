@@ -14,26 +14,37 @@
  *     downgrades). Writes package=, version= and same= (true when package.json already has
  *     that version: nothing to do) to $GITHUB_OUTPUT when that is set.
  *
- *   PACKAGE=... VERSION=... node scripts/image-set-update.mjs gate [--body <file>]
+ *   PACKAGE=... VERSION=... node scripts/image-set-update.mjs gate --registry <file> [--body <file>]
  *     Compares the staged changes (the git index) with HEAD and fails unless they are exactly
- *     an update of that package to that version:
+ *     an update of that package to that version. --registry is the answer of
+ *     `npm view <PACKAGE>@<VERSION> dist.integrity scripts bin dependencies gypfile --json`:
+ *     registry data, fetched without running the package's code (parseRegistry checks it).
  *     - package.json: only dependencies.<PACKAGE>, raised to VERSION;
  *     - package-lock.json: the root's dependency on PACKAGE and the node_modules/<PACKAGE>
- *       entry (VERSION from registry.npmjs.org, sha512 integrity, no install script, no bin);
- *       other entries may only disappear (dependencies nothing needs any more) or change their
- *       dev/optional flags (npm recomputes them when such a dependency leaves);
+ *       entry: only the keys version, resolved, integrity, license, engines, dependencies,
+ *       funding; the registry tarball of exactly that version; the registry's integrity and
+ *       dependencies; and the published version has no install script, gypfile or bin. Other
+ *       entries may only disappear (dependencies nothing needs any more) or change their
+ *       dev/optional flags (npm recomputes them when such a dependency leaves; listed in the
+ *       pull request), except the app's direct dependencies, which keep theirs;
  *     - imageset.config.json: only the entry of PACKAGE; the other sets stay identical. The
  *       entry has exactly the keys buildPackageEntry writes; displayName, googleFont and
  *       backgroundImage equal what imageset.custom.json at HEAD gives (displayFields); no
- *       duplicate filename; only known shapes, never "square" (the default is not stored);
+ *       duplicate filename, no new filename that differs from another only in letter case,
+ *       at most 2,000 new images; only known shapes, never "square" (the default is not
+ *       stored); tag names of letters, digits, "_" and "-" (not all, __proto__, constructor or
+ *       prototype); labels (at most 100 characters) and tag texts (at most 200) without control
+ *       or invisible formatting characters and without leading or trailing spaces;
  *     - image-registry.lock.json: only new ids of images that PACKAGE adds (append-only);
  *     - image-aliases.json: only new aliases from an id that this update removes to an id that
  *       this update adds (A32: an alias target must be a new id added in the same change);
  *     - nothing else: no other path (no file in public/images/: official sets are copied at
  *       build time and never committed), no deletion, no symbolic link, no executable file.
  *     Then it runs HEAD's scripts/check-image-registry.mjs on the staged registry files, and
- *     writes the pull request text to --body: added ids, changed labels, items that changed
- *     categories, new, removed or changed categories, and new aliases.
+ *     writes the pull request text to --body: added ids with their labels, changed labels,
+ *     items that changed categories, new, removed or changed categories, new aliases and
+ *     install flag changes. Text that a code span cannot show faithfully (other scripts,
+ *     look-alike letters, backticks, space runs) is followed by its exact escaped form.
  *
  * The workflow's second job applies the patch with `git apply --cached`, so the working tree
  * keeps HEAD's files and this script (from HEAD) is the code that runs. It uses only Node
@@ -62,18 +73,76 @@ export const VERSION_PATTERN = /^(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1
 const MAX_PACKAGE_LENGTH = 64;
 /** Filenames of new images: folders and names of letters, digits, ".", "_" and "-". */
 const NEW_FILENAME = /^(?:[A-Za-z0-9_][A-Za-z0-9._-]*\/)*[A-Za-z0-9_][A-Za-z0-9._-]*\.webp$/;
-const ALLOWED_FILES = ['package.json', 'package-lock.json', 'imageset.config.json', 'image-registry.lock.json', 'image-aliases.json'];
+const ALLOWED_FILES = new Set(['package.json', 'package-lock.json', 'imageset.config.json', 'image-registry.lock.json', 'image-aliases.json']);
 const LIST_LIMIT = 100;
+const MAX_NEW_IMAGES = 2000;
+const MAX_LABEL = 100;
+const MAX_TAG_TEXT = 200;
+/** Tag (category) names appear in /rank/<set>/<tag> URLs and as object keys. */
+export const TAG_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+const RESERVED_TAGS = new Set(['all', '__proto__', 'constructor', 'prototype']);
+/** Unicode control (Cc) and format (Cf) characters: bidi controls, zero-width characters... */
+const HIDDEN_CHARACTERS = /[\p{Cc}\p{Cf}]/u;
+const SHA512 = /^sha512-[A-Za-z0-9+/]{86}==$/;
+/** Keys the lockfile entry of an image set may have. */
+const LOCK_ENTRY_KEYS = ['version', 'resolved', 'integrity', 'license', 'engines', 'dependencies', 'funding'];
+/** npm runs these scripts of a dependency on install. */
+const INSTALL_SCRIPTS = ['preinstall', 'install', 'postinstall'];
+/** The fields the workflow asks `npm view` for, and the largest answer it accepts. */
+export const REGISTRY_FIELDS = ['dist.integrity', 'scripts', 'bin', 'dependencies', 'gypfile'];
+const MAX_REGISTRY_BYTES = 256 * 1024;
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const has = (object, key) => object !== null && typeof object === 'object' && Object.prototype.hasOwnProperty.call(object, key);
 const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
+const isText = (value) => typeof value === 'string' && value !== '';
+const unknownKeys = (object, allowed) => Object.keys(object).filter((key) => !allowed.includes(key));
 
 /** A short, single-line, quoted form of untrusted text for messages and logs. */
 function quote(value) {
   const text = String(value);
   return JSON.stringify(text.length > 64 ? `${text.slice(0, 64)}...` : text);
+}
+
+/**
+ * An exact, ASCII-only form of untrusted text: JSON with every character outside printable
+ * ASCII, every backtick and every space next to another space written as \uXXXX.
+ */
+export function escapedText(value) {
+  return JSON.stringify(String(value))
+    .replace(/[^\x20-\x7e]|`/g, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`)
+    .replace(/ {2,}/g, (spaces) => '\\u0020'.repeat(spaces.length));
+}
+
+const isStringMap = (value) => isPlainObject(value) && Object.values(value).every((item) => typeof item === 'string');
+
+/**
+ * Reads the answer of `npm view <package>@<version> dist.integrity scripts bin dependencies
+ * gypfile --json`: registry data about the published version, fetched without running any of
+ * its code. Returns {integrity, scripts, bin, dependencies, gypfile}, or throws.
+ */
+export function parseRegistry(text) {
+  if (typeof text !== 'string' || text.trim() === '') throw new Error('npm view gave no answer.');
+  if (Buffer.byteLength(text) > MAX_REGISTRY_BYTES) throw new Error(`The npm view answer is larger than ${MAX_REGISTRY_BYTES} bytes.`);
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('The npm view answer is not JSON.');
+  }
+  // When only one of the fields exists, npm view prints its bare value.
+  if (typeof data === 'string') data = {'dist.integrity': data};
+  if (!isPlainObject(data)) throw new Error('The npm view answer is not an object.');
+  const extra = unknownKeys(data, REGISTRY_FIELDS);
+  if (extra.length > 0) throw new Error(`The npm view answer has unexpected fields ${extra.map(quote).join(', ')}.`);
+  const integrity = data['dist.integrity'];
+  if (typeof integrity !== 'string' || !SHA512.test(integrity)) throw new Error('The npm view answer has no sha512 dist.integrity.');
+  if (data.scripts !== undefined && !isStringMap(data.scripts)) throw new Error('The npm view answer has malformed scripts.');
+  if (data.dependencies !== undefined && !isStringMap(data.dependencies)) throw new Error('The npm view answer has malformed dependencies.');
+  if (data.bin !== undefined && typeof data.bin !== 'string' && !isStringMap(data.bin)) throw new Error('The npm view answer has a malformed bin.');
+  if (data.gypfile !== undefined && typeof data.gypfile !== 'boolean') throw new Error('The npm view answer has a malformed gypfile.');
+  return {integrity, scripts: data.scripts ?? {}, bin: data.bin, dependencies: data.dependencies ?? {}, gypfile: data.gypfile === true};
 }
 
 /** Compares two x.y.z versions: negative, zero or positive. */
@@ -171,7 +240,14 @@ function withoutFlags(entry) {
   return copy;
 }
 
-function checkPackageLock(before, after, packageName, version, errors) {
+const flagsOf = (entry) => INSTALL_FLAGS.filter((flag) => isPlainObject(entry) && entry[flag] === true);
+
+/**
+ * Checks package-lock.json. The lockfile entry of the package was written in job 1, where the
+ * package's code ran, so it is compared with `published`, the registry's data (parseRegistry).
+ * Returns the removed entries and the entries whose install flags changed.
+ */
+function checkPackageLock(before, after, packageName, version, published, errors) {
   const withoutPackages = (value) => {
     const copy = clone(value) ?? {};
     delete copy.packages;
@@ -201,35 +277,78 @@ function checkPackageLock(before, after, packageName, version, errors) {
     errors.push(`package-lock.json: ${key} is missing.`);
   } else {
     const tarball = `https://registry.npmjs.org/${packageName}/-/${packageName}-${version}.tgz`;
+    // Exact keys: no hasInstallScript, bin, os, cpu, link or dev/optional flags on the package.
+    const extra = unknownKeys(entry, LOCK_ENTRY_KEYS);
+    if (extra.length > 0) {
+      errors.push(`package-lock.json: ${key} has keys an image set must not have: ${extra.map(quote).join(', ')} (allowed: ${LOCK_ENTRY_KEYS.join(', ')}).`);
+    }
     if (entry.version !== version) errors.push(`package-lock.json: ${key} must be version ${version}.`);
     if (entry.resolved !== tarball) errors.push(`package-lock.json: ${key} must come from ${tarball}.`);
-    if (typeof entry.integrity !== 'string' || !/^sha512-[A-Za-z0-9+/]{86}==$/.test(entry.integrity)) {
+    if (typeof entry.integrity !== 'string' || !SHA512.test(entry.integrity)) {
       errors.push(`package-lock.json: ${key} needs a sha512 integrity.`);
     }
-    for (const field of ['hasInstallScript', 'bin', 'link', 'dev', 'optional', 'peer']) {
-      if (has(entry, field)) errors.push(`package-lock.json: ${key} has "${field}", which an image set must not have.`);
+    if (entry.license !== undefined && !isText(entry.license)) errors.push(`package-lock.json: ${key} has a malformed license.`);
+    if (entry.engines !== undefined && !isStringMap(entry.engines)) errors.push(`package-lock.json: ${key} has malformed engines.`);
+    if (entry.dependencies !== undefined && !isStringMap(entry.dependencies)) errors.push(`package-lock.json: ${key} has malformed dependencies.`);
+
+    // The registry's data about the published version, not job 1's word for it.
+    if (!published) {
+      errors.push('No registry data about the published version (npm view, --registry).');
+    } else {
+      if (entry.integrity !== published.integrity) {
+        errors.push(`package-lock.json: ${key} has another integrity than the registry gives for ${packageName}@${version} (npm view dist.integrity).`);
+      }
+      for (const script of INSTALL_SCRIPTS) {
+        if (has(published.scripts, script)) errors.push(`The published ${packageName}@${version} has a "${script}" script. An image set must not run code on install.`);
+      }
+      if (published.gypfile) errors.push(`The published ${packageName}@${version} has a gypfile (npm would build native code on install).`);
+      if (published.bin !== undefined && (typeof published.bin === 'string' ? published.bin !== '' : Object.keys(published.bin).length > 0)) {
+        errors.push(`The published ${packageName}@${version} has a bin. An image set must not install commands.`);
+      }
+      if (!isDeepStrictEqual(entry.dependencies ?? {}, published.dependencies)) {
+        errors.push(`package-lock.json: the dependencies of ${key} differ from the ones the registry gives for ${packageName}@${version}.`);
+      }
     }
   }
 
   const root = beforePackages[''] ?? {};
   const direct = new Set(Object.keys({...root.dependencies, ...root.devDependencies, ...root.optionalDependencies, ...root.peerDependencies}));
+  const isDirect = (name) => direct.has(name.replace(/^node_modules\//, ''));
   const removed = [];
+  const flagChanges = [];
   for (const name of new Set([...Object.keys(beforePackages), ...Object.keys(afterPackages)])) {
     if (name === '' || name === key) continue;
     if (!has(afterPackages, name)) {
-      if (direct.has(name.replace(/^node_modules\//, ''))) errors.push(`package-lock.json: removes ${name}, a direct dependency.`);
+      if (isDirect(name)) errors.push(`package-lock.json: removes ${name}, a direct dependency.`);
       else removed.push(name);
     } else if (!has(beforePackages, name)) {
       errors.push(`package-lock.json: adds ${name}. An image set update may not bring other packages.`);
     } else if (!isDeepStrictEqual(withoutFlags(beforePackages[name]), withoutFlags(afterPackages[name]))) {
       errors.push(`package-lock.json: changes ${name}. An image set update may not change other packages.`);
+    } else if (!isDeepStrictEqual(beforePackages[name], afterPackages[name])) {
+      // Only the install flags changed. npm recomputes them for packages that only the removed
+      // dependencies shared; a direct dependency of the app keeps its flags.
+      if (isDirect(name)) errors.push(`package-lock.json: changes the dev/optional flags of ${name}, a direct dependency.`);
+      else flagChanges.push({name, before: flagsOf(beforePackages[name]), after: flagsOf(afterPackages[name])});
     }
   }
-  return removed;
+  return {removed, flagChanges};
 }
 
-const isText = (value) => typeof value === 'string' && value !== '';
-const unknownKeys = (object, allowed) => Object.keys(object).filter((key) => !allowed.includes(key));
+/**
+ * Labels and tag texts show in the app and in the pull request. They must be visible text: no
+ * control or format characters (bidi controls, zero-width characters), no leading or trailing
+ * space, and at most `max` characters. Accents and other scripts are fine.
+ */
+function checkText(where, value, max, errors) {
+  if (!isText(value)) {
+    errors.push(`${where} must be a non-empty string.`);
+    return;
+  }
+  if (HIDDEN_CHARACTERS.test(value)) errors.push(`${where} has a control or invisible formatting character: ${escapedText(value)}.`);
+  if (/^\s|\s$/u.test(value)) errors.push(`${where} starts or ends with a space: ${escapedText(value)}.`);
+  if ([...value].length > max) errors.push(`${where} is longer than ${max} characters.`);
+}
 
 function checkShape(where, shape, errors) {
   if (shape === undefined) return;
@@ -266,15 +385,16 @@ export function checkPackageEntry(packageName, entry, custom, errors) {
   if (!isPlainObject(entry.tags)) errors.push(`${where}: tags must be an object.`);
   for (const [name, tag] of Object.entries(tags)) {
     const tagWhere = `${where}: tag ${quote(name)}`;
+    if (!TAG_NAME.test(name) || RESERVED_TAGS.has(name)) {
+      errors.push(`${tagWhere}: a tag name is 1 to 64 letters, digits, "_" or "-", and not ${[...RESERVED_TAGS].join(', ')}.`);
+    }
     if (!isPlainObject(tag)) {
       errors.push(`${tagWhere} must be an object.`);
       continue;
     }
     const tagExtra = unknownKeys(tag, TAG_KEYS);
     if (tagExtra.length > 0) errors.push(`${tagWhere} has unknown keys ${tagExtra.map(quote).join(', ')} (allowed: ${TAG_KEYS.join(', ')}).`);
-    for (const key of ['title', 'description', 'category']) {
-      if (!isText(tag[key])) errors.push(`${tagWhere}: ${key} must be a non-empty string.`);
-    }
+    for (const key of ['title', 'description', 'category']) checkText(`${tagWhere}: ${key}`, tag[key], MAX_TAG_TEXT, errors);
     checkShape(tagWhere, tag.shape, errors);
   }
 
@@ -299,7 +419,7 @@ export function checkPackageEntry(packageName, entry, custom, errors) {
     } else {
       filenames.add(image.filename);
     }
-    if (!isText(image.label)) errors.push(`${imageWhere}: label must be a non-empty string.`);
+    checkText(`${imageWhere}: label`, image.label, MAX_LABEL, errors);
     if (!Array.isArray(image.tags) || !image.tags.every(isText)) {
       errors.push(`${imageWhere}: tags must be a list of tag names.`);
     } else {
@@ -362,9 +482,10 @@ function tagChangesOf(before, after) {
 
 /**
  * Checks staged changes against HEAD. `read(file, side)` returns the text of a file at 'HEAD'
- * or in the 'index' (undefined when missing). Returns {errors, report}.
+ * or in the 'index' (undefined when missing). `published` is the registry's data about the
+ * published version (parseRegistry). Returns {errors, report}.
  */
-export function checkUpdate({packageName, version, changes, read}) {
+export function checkUpdate({packageName, version, changes, read, published}) {
   const errors = [];
   const json = (file, side) => {
     const text = read(file, side);
@@ -386,7 +507,7 @@ export function checkUpdate({packageName, version, changes, read}) {
       errors.push(`${file}: change type ${change.status} is not allowed (only added or modified files).`);
     } else if (change.newMode !== '100644') {
       errors.push(`${file}: mode ${change.newMode} is not allowed (only regular files that are not executable).`);
-    } else if (!ALLOWED_FILES.includes(file)) {
+    } else if (!ALLOWED_FILES.has(file)) {
       errors.push(`${file}: an image set update may not change this file.`);
     } else if (change.status !== 'M' && file !== 'image-aliases.json') {
       errors.push(`${file}: may only be modified, not created.`);
@@ -409,13 +530,18 @@ export function checkUpdate({packageName, version, changes, read}) {
   const customAtHead = json('imageset.custom.json', 'HEAD');
 
   checkPackageJson(packageBefore, packageAfter, packageName, version, errors);
-  const removedLockEntries = checkPackageLock(lockBefore, lockAfter, packageName, version, errors);
+  const {removed: removedLockEntries, flagChanges} = checkPackageLock(lockBefore, lockAfter, packageName, version, published, errors);
   checkConfig(configBefore, configAfter, packageName, customAtHead?.packages?.[packageName], errors);
 
   const imagesBefore = packageImages(configBefore, packageName);
   const imagesAfter = packageImages(configAfter, packageName);
   const added = [...imagesAfter.keys()].filter((id) => !imagesBefore.has(id));
   const removed = [...imagesBefore.keys()].filter((id) => !imagesAfter.has(id));
+  const addedIds = new Set(added);
+  const removedIds = new Set(removed);
+  if (added.length > MAX_NEW_IMAGES) {
+    errors.push(`imageset.config.json: this update adds ${added.length} images; at most ${MAX_NEW_IMAGES} new images per update are accepted. Publish them in smaller versions.`);
+  }
   const kept = [...imagesAfter.keys()].filter((id) => imagesBefore.has(id));
   const relabelled = kept
     .filter((id) => labelOf(imagesBefore.get(id)) !== labelOf(imagesAfter.get(id)))
@@ -425,9 +551,20 @@ export function checkUpdate({packageName, version, changes, read}) {
     .filter((id) => !isDeepStrictEqual(sortedTags(imagesBefore.get(id)), sortedTags(imagesAfter.get(id))))
     .map((id) => ({id, before: sortedTags(imagesBefore.get(id)), after: sortedTags(imagesAfter.get(id))}));
   const tagChanges = tagChangesOf(configBefore?.packages?.[packageName], configAfter?.packages?.[packageName]);
+  // Filenames that differ only in letter case clash on case-insensitive file systems.
+  const byLowerCase = new Map();
+  for (const image of imagesAfter.values()) {
+    const lower = image.filename.toLowerCase();
+    byLowerCase.set(lower, [...(byLowerCase.get(lower) ?? []), image.filename]);
+  }
   for (const id of added) {
-    if (!NEW_FILENAME.test(imagesAfter.get(id).filename)) {
-      errors.push(`imageset.config.json: new image ${quote(imagesAfter.get(id).filename)} needs a plain .webp filename (letters, digits, ".", "_", "-", "/").`);
+    const {filename} = imagesAfter.get(id);
+    if (!NEW_FILENAME.test(filename)) {
+      errors.push(`imageset.config.json: new image ${quote(filename)} needs a plain .webp filename (letters, digits, ".", "_", "-", "/").`);
+    }
+    const clashes = byLowerCase.get(filename.toLowerCase()).filter((other) => other !== filename);
+    if (clashes.length > 0) {
+      errors.push(`imageset.config.json: new image ${quote(filename)} differs only in letter case from ${clashes.map(quote).join(', ')}.`);
     }
   }
 
@@ -437,7 +574,7 @@ export function checkUpdate({packageName, version, changes, read}) {
     else if (!isDeepStrictEqual(registryBefore[id], registryAfter[id])) errors.push(`image-registry.lock.json: ${id} was changed.`);
   }
   for (const id of Object.keys(registryAfter)) {
-    if (!has(registryBefore, id) && !added.includes(id)) errors.push(`image-registry.lock.json: ${id} was registered, but this update does not add it.`);
+    if (!has(registryBefore, id) && !addedIds.has(id)) errors.push(`image-registry.lock.json: ${id} was registered, but this update does not add it.`);
   }
 
   // image-aliases.json is append-only. A32: a new alias goes from an id this update removes to
@@ -449,8 +586,8 @@ export function checkUpdate({packageName, version, changes, read}) {
   for (const [id, target] of Object.entries(aliasesAfter)) {
     if (has(aliasesBefore, id)) continue;
     newAliases.push({id, target});
-    if (!removed.includes(id)) errors.push(`image-aliases.json: ${id} gets an alias, but this update does not remove it.`);
-    if (!added.includes(target)) errors.push(`image-aliases.json: ${id} points to ${quote(target)}, which this update does not add. An alias target must be a new id added in the same change.`);
+    if (!removedIds.has(id)) errors.push(`image-aliases.json: ${id} gets an alias, but this update does not remove it.`);
+    if (!addedIds.has(target)) errors.push(`image-aliases.json: ${id} points to ${quote(target)}, which this update does not add. An alias target must be a new id added in the same change.`);
   }
 
   const entry = configAfter?.packages?.[packageName];
@@ -459,7 +596,8 @@ export function checkUpdate({packageName, version, changes, read}) {
     ...Object.entries(isPlainObject(entry?.tags) ? entry.tags : {}).filter(([, tag]) => tag?.shape !== undefined && tag.shape !== DEFAULT_SHAPE).map(([tag, data]) => `tag ${tag}: ${data.shape}`),
   ];
 
-  return {errors, report: {packageName, version, added, removed, relabelled, retagged, tagChanges, newAliases, shapes, removedLockEntries}};
+  const addedItems = added.map((id) => ({id, label: labelOf(imagesAfter.get(id))}));
+  return {errors, report: {packageName, version, added: addedItems, removed, relabelled, retagged, tagChanges, newAliases, shapes, removedLockEntries, flagChanges}};
 }
 
 /** Runs HEAD's check-image-registry.mjs on the staged registry files, in a temporary folder. */
@@ -491,23 +629,52 @@ function list(items, format) {
 }
 
 const shownValue = (value) => (value === undefined ? 'none' : code(value));
-const tagNames = (tags) => (tags.length === 0 ? 'none' : tags.map(code).join(', '));
+const names = (items) => (items.length === 0 ? 'none' : items.map(code).join(', '));
+
+/** The exact, ASCII-only form of untrusted text in a code span (escapedText). */
+function exactCode(value) {
+  if (value === undefined) return 'none';
+  const exact = escapedText(value);
+  return `\`${exact.length > 1000 ? `${exact.slice(0, 1000)}...` : exact}\``;
+}
+
+/** True when a code span would not show the text faithfully: other than printable ASCII (look-alike letters), backticks, or runs of spaces. */
+const needsExact = (value) => typeof value === 'string' && /[^\x20-\x7e]|`| {2,}|^ | $/.test(value);
+
+/** One untrusted text, with its exact form when the code span is not faithful. */
+const shownText = (value) => (needsExact(value) ? `${code(value)} (exact: ${exactCode(value)})` : shownValue(value));
+
+/**
+ * A change from `before` to `after`. When both look the same in code spans, or either is not
+ * plain ASCII (a Cyrillic "а" looks like a Latin "a"), the exact forms follow, so the owner sees
+ * what changed.
+ */
+function shownChange(before, after) {
+  const plain = `${shownValue(before)} → ${shownValue(after)}`;
+  if (shownValue(before) !== shownValue(after) && !needsExact(before) && !needsExact(after)) return plain;
+  return `${plain} (exact: ${exactCode(before)} → ${exactCode(after)})`;
+}
 
 function formatTagChange(change) {
-  if (change.kind === 'added') return `${code(change.tag)}: new, ${shownValue(change.title)}`;
-  if (change.kind === 'removed') return `${code(change.tag)}: removed (was ${shownValue(change.title)})`;
-  return `${code(change.tag)}: ${change.fields.map(({key, before, after}) => `${key} ${shownValue(before)} → ${shownValue(after)}`).join('; ')}`;
+  if (change.kind === 'added') return `${code(change.tag)}: new, ${shownText(change.title)}`;
+  if (change.kind === 'removed') return `${code(change.tag)}: removed (was ${shownText(change.title)})`;
+  return `${code(change.tag)}: ${change.fields.map(({key, before, after}) => `${key} ${shownChange(before, after)}`).join('; ')}`;
+}
+
+function formatAdded(item) {
+  const {id, label} = typeof item === 'string' ? {id: item} : item;
+  return label === undefined ? code(id) : `${code(id)}: ${shownText(label)}`;
 }
 
 export function pullRequestBody(report) {
-  const {packageName, version, added, removed, relabelled, retagged = [], tagChanges = [], newAliases, shapes, removedLockEntries} = report;
+  const {packageName, version, added, removed, relabelled, retagged = [], tagChanges = [], newAliases, shapes, removedLockEntries, flagChanges = []} = report;
   let body = `Updates the official image set \`${packageName}\` to \`${version}\`, published on npm.\n\n`;
   body += 'Prepared by the image-set-update workflow. Nothing merges on its own: review the lists below, then merge or close.\n\n';
-  body += `### Added item ids (${added.length})\n\n${list(added, code)}\n`;
+  body += `### Added item ids (${added.length})\n\n${list(added, formatAdded)}\n`;
   body += `### Changed labels (${relabelled.length})\n\nOld links show the new label for these items.\n\n`;
-  body += `${list(relabelled, ({id, before, after}) => `${code(id)}: ${code(before)} → ${code(after)}`)}\n`;
+  body += `${list(relabelled, ({id, before, after}) => `${code(id)}: ${shownChange(before, after)}`)}\n`;
   body += `### Items that changed categories (${retagged.length})\n\nThey keep their ids; templates list them under their new categories.\n\n`;
-  body += `${list(retagged, ({id, before, after}) => `${code(id)}: ${tagNames(before)} → ${tagNames(after)}`)}\n`;
+  body += `${list(retagged, ({id, before, after}) => `${code(id)}: ${names(before)} → ${names(after)}`)}\n`;
   body += `### New, removed or changed categories (${tagChanges.length})\n\n${list(tagChanges, formatTagChange)}\n`;
   body += `### New aliases (${newAliases.length})\n\n${list(newAliases, ({id, target}) => `${code(id)} → ${code(target)}`)}\n`;
   if (removed.length > 0) {
@@ -521,6 +688,11 @@ export function pullRequestBody(report) {
   if (removedLockEntries.length > 0) {
     body += `### Packages removed from package-lock.json (${removedLockEntries.length})\n\nNothing depends on them any more.\n\n${list(removedLockEntries, code)}\n`;
   }
+  if (flagChanges.length > 0) {
+    body += `### Install flags changed in package-lock.json (${flagChanges.length})\n\n`;
+    body += 'npm recomputed these flags after a dependency left. They only decide what `npm ci --omit` skips; direct dependencies of the app keep theirs.\n\n';
+    body += `${list(flagChanges, ({name, before, after}) => `${code(name)}: ${names(before)} → ${names(after)}`)}\n`;
+  }
   body += '### Checks\n\n';
   body += `- The first job installed \`${packageName}@${version}\` with \`--ignore-scripts\`, prepared the images, registered new ids (\`check:images -- --update\`), and ran \`npm run check\`, the build and the Playwright tests (Chromium and API).\n`;
   body += '- The second job checked the patch with `scripts/image-set-update.mjs` from the base branch: only this package, its lockfile entry, its config entry, new ids and aliases to new ids may change. The display name, font and background image come from `imageset.custom.json` and did not change.\n';
@@ -528,7 +700,20 @@ export function pullRequestBody(report) {
   return body;
 }
 
-function gate(packageName, version, bodyFile) {
+function readRegistry(registryFile) {
+  if (!registryFile) throw new Error('Pass the npm view answer with --registry <file>.');
+  if (fs.statSync(registryFile).size > MAX_REGISTRY_BYTES) throw new Error(`The npm view answer is larger than ${MAX_REGISTRY_BYTES} bytes.`);
+  return parseRegistry(fs.readFileSync(registryFile, 'utf8'));
+}
+
+function gate(packageName, version, bodyFile, registryFile) {
+  let published;
+  try {
+    published = readRegistry(registryFile);
+  } catch (error) {
+    console.error(`refused: ${error.message}`);
+    process.exit(1);
+  }
   const changes = parseRaw(git(['diff', '--cached', '--raw', '-z', '--no-renames', 'HEAD']));
   const read = (file, side = 'index') => {
     try {
@@ -537,7 +722,7 @@ function gate(packageName, version, bodyFile) {
       return undefined;
     }
   };
-  const {errors, report} = checkUpdate({packageName, version, changes, read});
+  const {errors, report} = checkUpdate({packageName, version, changes, read, published});
   if (errors.length === 0) {
     const registry = checkRegistry(read);
     if (!registry.ok) errors.push(`check-image-registry.mjs refused the staged files:\n${registry.output}`);
@@ -556,7 +741,7 @@ function gate(packageName, version, bodyFile) {
 function main() {
   const [command, ...rest] = process.argv.slice(2);
   if (command !== 'validate' && command !== 'gate') {
-    console.error('Usage: PACKAGE=<image-set> VERSION=<x.y.z> node scripts/image-set-update.mjs validate | gate [--body <file>]');
+    console.error('Usage: PACKAGE=<image-set> VERSION=<x.y.z> node scripts/image-set-update.mjs validate | gate --registry <file> [--body <file>]');
     process.exit(2);
   }
   let input;
@@ -579,8 +764,8 @@ function main() {
       : `Update request: ${input.packageName} ${input.version}`);
     return;
   }
-  const bodyIndex = rest.indexOf('--body');
-  gate(input.packageName, input.version, bodyIndex === -1 ? undefined : rest[bodyIndex + 1]);
+  const option = (name) => (rest.includes(name) ? rest[rest.indexOf(name) + 1] : undefined);
+  gate(input.packageName, input.version, option('--body'), option('--registry'));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

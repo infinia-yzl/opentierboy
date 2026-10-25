@@ -5,7 +5,7 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import customConfig from '@/imageset.custom.json';
 import imagesetConfig from '@/imageset.config.json';
-import {checkPackageEntry, compareVersions, pullRequestBody, validateInput, VERSION_PATTERN} from '@/scripts/image-set-update.mjs';
+import {checkPackageEntry, compareVersions, escapedText, parseRegistry, pullRequestBody, TAG_NAME, validateInput, VERSION_PATTERN} from '@/scripts/image-set-update.mjs';
 
 const script = path.resolve(__dirname, '../../../scripts/image-set-update.mjs');
 
@@ -92,6 +92,8 @@ const LOCK_BASE = {
   },
 };
 const image = (filename: string, label: string, tags: string[] = ['heroes']) => ({filename, label, tags});
+/** What `npm view image-ow@1.1.0 dist.integrity scripts bin dependencies gypfile --json` answers. */
+const REGISTRY = {'dist.integrity': INTEGRITY('f'), scripts: {test: 'jest'}};
 const CONFIG_BASE = {
   packages: {
     'image-old': {displayName: 'Old', images: [image('x.webp', 'X')], tags: {heroes: {title: 'Heroes', description: 'Heroes', category: 'general'}}, legacy: true},
@@ -120,7 +122,25 @@ describe('scripts/image-set-update.mjs', () => {
     const result = spawnSync(process.execPath, [script, command, ...args], {cwd: repo, encoding: 'utf8', env: {...process.env, ...env, GITHUB_OUTPUT: path.join(repo, '.output')}});
     return {status: result.status, output: `${result.stdout}${result.stderr}`};
   };
-  const gate = (version = '1.1.0') => run('gate', {PACKAGE: 'image-ow', VERSION: version}, '--body', path.join(repo, '.body.md'));
+  /** The npm view answer the next gate() call gets; a scenario may replace it. */
+  let registryAnswer: unknown;
+  const gate = (version = '1.1.0', registry: unknown = registryAnswer) => {
+    write('.registry.json', typeof registry === 'string' ? registry : JSON.stringify(registry));
+    return run('gate', {PACKAGE: 'image-ow', VERSION: version}, '--registry', path.join(repo, '.registry.json'), '--body', path.join(repo, '.body.md'));
+  };
+  /** Changes the staged lockfile entry of image-ow (after stageUpdate). */
+  const editLockEntry = (edit: (entry: Record<string, any>) => void) => {
+    const lock = JSON.parse(fs.readFileSync(path.join(repo, 'package-lock.json'), 'utf8'));
+    edit(lock.packages['node_modules/image-ow']);
+    write('package-lock.json', lock);
+    git('add', 'package-lock.json');
+  };
+  /** Renames the tag "heroes" of image-ow in the staged config (after stageUpdate). */
+  const renameTag = (name: string) => editEntry((entry) => {
+    Object.defineProperty(entry.tags, name, {value: entry.tags.heroes, enumerable: true, configurable: true, writable: true});
+    delete entry.tags.heroes;
+    for (const img of entry.images) img.tags = img.tags.map((tag: string) => (tag === 'heroes' ? name : tag));
+  });
 
   /** Stages what `npm install image-ow@1.1.0` and prepareImages would change: one new image, one new label. */
   const stageUpdate = (change: {config?: typeof CONFIG_BASE; lock?: typeof LOCK_BASE} = {}) => {
@@ -155,6 +175,7 @@ describe('scripts/image-set-update.mjs', () => {
   };
 
   beforeEach(() => {
+    registryAnswer = structuredClone(REGISTRY);
     repo = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-image-set-update-'));
     git('init', '-q', '-b', 'main');
     write('package.json', {name: 'app', version: '1.0.0', dependencies: {'image-ow': '1.0.0', 'lz-string': '1.5.0'}, devDependencies: {eslint: '9.0.0'}});
@@ -222,6 +243,62 @@ describe('scripts/image-set-update.mjs', () => {
       expect(body).toContain('### New aliases (0)\n\n- none');
       expect(body).toContain('### Packages removed from package-lock.json (1)');
       expect(body).not.toContain('Shapes other than square');
+      // New items with their labels; install flags that npm recomputed.
+      expect(body).toContain('- `image-ow-heroes/wuyang.webp`: `Wuyang`\n');
+      expect(body).toContain('### Install flags changed in package-lock.json (1)');
+      expect(body).toContain('- `node_modules/chalk`: none → `dev`');
+    });
+
+    it('shows look-alike letters and accents in their exact form in the pull request', () => {
+      const config = structuredClone(CONFIG_BASE);
+      config.packages['image-ow'].images[0].label = '\u0410na'; // Cyrillic А, looks like "Ana"
+      config.packages['image-ow'].images.push(image('lucio.webp', 'Lúcio'));
+      stageUpdate({config});
+      const result = gate();
+      expect(result.output).toContain('changes nothing else');
+      expect(result.status).toBe(0);
+      const body = fs.readFileSync(path.join(repo, '.body.md'), 'utf8');
+      expect(body).toContain('- `image-ow-ana.webp`: `Ana` → `\u0410na` (exact: `"Ana"` → `"\\u0410na"`)');
+      expect(body).toContain('- `image-ow-lucio.webp`: `Lúcio` (exact: `"L\\u00facio"`)');
+    });
+
+    it('accepts license, engines and funding in the lockfile entry', () => {
+      stageUpdate();
+      editLockEntry((entry) => {
+        entry.license = 'CC-BY-SA-4.0';
+        entry.engines = {node: '>=18'};
+        entry.funding = {url: 'https://example.com/fund'};
+      });
+      const result = gate();
+      expect(result.output).toContain('changes nothing else');
+      expect(result.status).toBe(0);
+    });
+
+    it('accepts the bare integrity that npm view prints when no other field exists', () => {
+      stageUpdate();
+      const result = gate('1.1.0', JSON.stringify(INTEGRITY('f')));
+      expect(result.output).toContain('changes nothing else');
+      expect(result.status).toBe(0);
+    });
+
+    it.each([
+      ['no answer at all', '', 'npm view gave no answer'],
+      ['an answer that is not JSON', 'npm error 404', 'The npm view answer is not JSON'],
+      ['the error object of npm view --json', JSON.stringify({error: {code: 'E404'}}), 'unexpected fields "error"'],
+      ['an answer without integrity', JSON.stringify({scripts: {}}), 'no sha512 dist.integrity'],
+      ['a huge answer', JSON.stringify({...REGISTRY, scripts: {test: 'x'.repeat(300 * 1024)}}), 'larger than 262144 bytes'],
+    ])('refuses %s from npm view', (_name, answer, message) => {
+      stageUpdate();
+      const result = gate('1.1.0', answer);
+      expect(result.output).toContain(message);
+      expect(result.status).toBe(1);
+    });
+
+    it('refuses to run without the npm view answer', () => {
+      stageUpdate();
+      const result = run('gate', {PACKAGE: 'image-ow', VERSION: '1.1.0'}, '--body', path.join(repo, '.body.md'));
+      expect(result.output).toContain('Pass the npm view answer with --registry <file>');
+      expect(result.status).toBe(1);
     });
 
     it('accepts an alias from an id it removes to an id it adds (A32)', () => {
@@ -289,7 +366,7 @@ describe('scripts/image-set-update.mjs', () => {
         lock.packages['node_modules/image-ow'].hasInstallScript = true;
         write('package-lock.json', lock);
         git('add', 'package-lock.json');
-      }, 'has "hasInstallScript"'],
+      }, 'node_modules/image-ow has keys an image set must not have: "hasInstallScript"'],
       ['a change to another image set', () => {
         const config = JSON.parse(fs.readFileSync(path.join(repo, 'imageset.config.json'), 'utf8'));
         config.packages['image-old'].images[0].label = 'Changed';
@@ -358,6 +435,79 @@ describe('scripts/image-set-update.mjs', () => {
       ['a tag title that is not text', () => editEntry((entry) => {
         entry.tags.heroes.title = {html: '<b>Heroes</b>'};
       }), 'tag "heroes": title must be a non-empty string'],
+      // The lockfile entry against the registry (job 1 ran the package's code and wrote it).
+      ['a lockfile integrity that the registry does not give', () => {
+        registryAnswer = {...REGISTRY, 'dist.integrity': INTEGRITY('g')};
+      }, 'package-lock.json: node_modules/image-ow has another integrity than the registry gives for image-ow@1.1.0'],
+      ...['preinstall', 'install', 'postinstall'].map((script): [string, () => void, string] => [`a published ${script} script that the lockfile hides`, () => {
+        registryAnswer = {...REGISTRY, scripts: {test: 'jest', [script]: 'node steal.js'}};
+      }, `The published image-ow@1.1.0 has a "${script}" script`]),
+      ['a published gypfile', () => {
+        registryAnswer = {...REGISTRY, gypfile: true};
+      }, 'The published image-ow@1.1.0 has a gypfile'],
+      ['a published bin', () => {
+        registryAnswer = {...REGISTRY, bin: {'image-ow': 'cli.js'}};
+      }, 'The published image-ow@1.1.0 has a bin'],
+      ['lockfile dependencies that the registry does not give', () => editLockEntry((entry) => {
+        entry.dependencies = {chalk: '^4'};
+      }), 'package-lock.json: the dependencies of node_modules/image-ow differ from the ones the registry gives for image-ow@1.1.0'],
+      ['published dependencies that the lockfile entry leaves out', () => {
+        registryAnswer = {...REGISTRY, dependencies: {chalk: '^4'}};
+      }, 'the dependencies of node_modules/image-ow differ from the ones the registry gives'],
+      ['an "os" key in the lockfile entry', () => editLockEntry((entry) => {
+        entry.os = ['linux'];
+      }), 'node_modules/image-ow has keys an image set must not have: "os"'],
+      ['a "bin" key in the lockfile entry', () => editLockEntry((entry) => {
+        entry.bin = {x: 'x.js'};
+      }), 'node_modules/image-ow has keys an image set must not have: "bin"'],
+      ['an own "__proto__" key in the lockfile entry', () => {
+        const text = fs.readFileSync(path.join(repo, 'package-lock.json'), 'utf8')
+          .replace('"node_modules/image-ow": {', '"node_modules/image-ow": {"__proto__": {"hasInstallScript": true},');
+        write('package-lock.json', text);
+        git('add', 'package-lock.json');
+      }, 'node_modules/image-ow has keys an image set must not have: "__proto__"'],
+      ['a changed dev flag on a direct dependency', () => {
+        const lock = JSON.parse(fs.readFileSync(path.join(repo, 'package-lock.json'), 'utf8'));
+        lock.packages['node_modules/lz-string'].dev = true;
+        write('package-lock.json', lock);
+        git('add', 'package-lock.json');
+      }, 'package-lock.json: changes the dev/optional flags of node_modules/lz-string, a direct dependency'],
+      ['a dev flag on the package itself', () => editLockEntry((entry) => {
+        entry.optional = true;
+      }), 'node_modules/image-ow has keys an image set must not have: "optional"'],
+      // Labels and tag texts.
+      ['a bidi control in a label', () => editEntry((entry) => {
+        entry.images[0].label = 'Ana\u202Egnp.exe';
+      }), 'image "ana.webp": label has a control or invisible formatting character: "Ana\\u202egnp.exe"'],
+      ['a zero-width space in a tag title', () => editEntry((entry) => {
+        entry.tags.heroes.title = 'Her\u200Boes';
+      }), 'tag "heroes": title has a control or invisible formatting character'],
+      ['a trailing space in a label', () => editEntry((entry) => {
+        entry.images[0].label = 'Ana ';
+      }), 'image "ana.webp": label starts or ends with a space'],
+      ['a leading space in a tag category', () => editEntry((entry) => {
+        entry.tags.heroes.category = ' general';
+      }), 'tag "heroes": category starts or ends with a space'],
+      ['a label longer than 100 characters', () => editEntry((entry) => {
+        entry.images[0].label = 'A'.repeat(101);
+      }), 'image "ana.webp": label is longer than 100 characters'],
+      ['a tag description longer than 200 characters', () => editEntry((entry) => {
+        entry.tags.heroes.description = 'é'.repeat(201);
+      }), 'tag "heroes": description is longer than 200 characters'],
+      // Tag names.
+      ...['all', '__proto__', 'constructor', 'prototype', 'two words', 'x'.repeat(65), 'héroes'].map((name): [string, () => void, string] => [`a tag named ${JSON.stringify(name.length > 20 ? `${name.slice(0, 8)}... (${name.length})` : name)}`, () => renameTag(name),
+        `tag ${JSON.stringify(name.length > 64 ? `${name.slice(0, 64)}...` : name)}: a tag name is 1 to 64 letters, digits, "_" or "-"`]),
+      // Filenames.
+      ['a new filename that differs from an old one only in letter case', () => editEntry((entry) => {
+        entry.images.push(image('Ana.webp', 'Ana again'));
+      }), 'new image "Ana.webp" differs only in letter case from "ana.webp"'],
+      ['two new filenames that differ only in letter case', () => editEntry((entry) => {
+        entry.images.push(image('x/one.webp', 'One'), image('X/One.webp', 'One again'));
+      }), 'new image "X/One.webp" differs only in letter case from "x/one.webp"'],
+      // Size.
+      ['more than 2,000 new images', () => editEntry((entry) => {
+        for (let index = 0; index < 2001; index++) entry.images.push(image(`bulk/${index}.webp`, `Bulk ${index}`));
+      }), 'this update adds 2002 images; at most 2000 new images per update are accepted'],
       ['an image in the set\'s folder (official sets are never committed)', () => {
         write('public/images/image-ow/x.png', Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'));
         git('add', '-f', 'public');
@@ -454,12 +604,62 @@ describe('scripts/image-set-update.mjs', () => {
   });
 });
 
+describe('parseRegistry (the npm view answer)', () => {
+  it('reads the fields the workflow asks for', () => {
+    expect(parseRegistry(JSON.stringify({'dist.integrity': INTEGRITY('a'), scripts: {test: 'jest'}, dependencies: {'@inquirer/prompts': '^5.1.2'}}))).toEqual({
+      integrity: INTEGRITY('a'), scripts: {test: 'jest'}, bin: undefined, dependencies: {'@inquirer/prompts': '^5.1.2'}, gypfile: false,
+    });
+    expect(parseRegistry(JSON.stringify(INTEGRITY('b'))).integrity).toBe(INTEGRITY('b'));
+  });
+
+  it.each([
+    ['an array', '[]', 'not an object'],
+    ['a number', '42', 'not an object'],
+    ['a sha1 integrity', JSON.stringify({'dist.integrity': 'sha1-abc'}), 'no sha512 dist.integrity'],
+    ['scripts that are not text', JSON.stringify({'dist.integrity': INTEGRITY('a'), scripts: {postinstall: {cmd: 'x'}}}), 'malformed scripts'],
+    ['dependencies that are not text', JSON.stringify({'dist.integrity': INTEGRITY('a'), dependencies: {x: 1}}), 'malformed dependencies'],
+    ['a gypfile that is not a boolean', JSON.stringify({'dist.integrity': INTEGRITY('a'), gypfile: 'yes'}), 'malformed gypfile'],
+    ['a malformed bin', JSON.stringify({'dist.integrity': INTEGRITY('a'), bin: 3}), 'malformed bin'],
+  ])('refuses %s', (_name, text, message) => {
+    expect(() => parseRegistry(text)).toThrow(message);
+  });
+});
+
+describe('labels in the pull request', () => {
+  const report = (relabelled: object[], added: object[] = []) => ({
+    packageName: 'image-ow', version: '1.1.0', added, removed: [], newAliases: [], shapes: [], removedLockEntries: [], relabelled,
+  });
+
+  it('shows the exact forms when two labels look the same in code spans', () => {
+    const body = pullRequestBody(report([{id: 'image-ow-a.webp', before: 'A B', after: 'A  B'}, {id: 'image-ow-b.webp', before: 'A`B', after: 'A B'}]));
+    expect(body).toContain('- `image-ow-a.webp`: `A B` → `A B` (exact: `"A B"` → `"A\\u0020\\u0020B"`)');
+    expect(body).toContain('- `image-ow-b.webp`: `A B` → `A B` (exact: `"A\\u0060B"` → `"A B"`)');
+  });
+
+  it('shows plain ASCII changes without the exact forms', () => {
+    const body = pullRequestBody(report([{id: 'image-ow-a.webp', before: 'Mei', after: 'Mei-Ling'}], [{id: 'image-ow-b.webp', label: 'Kiriko'}]));
+    expect(body).toContain('- `image-ow-a.webp`: `Mei` → `Mei-Ling`\n');
+    expect(body).toContain('- `image-ow-b.webp`: `Kiriko`\n');
+  });
+
+  it('escapes everything outside printable ASCII', () => {
+    expect(escapedText('Torbjörn')).toBe('"Torbj\\u00f6rn"');
+    expect(escapedText('\u202Eabc\u200B')).toBe('"\\u202eabc\\u200b"');
+    expect(escapedText('😀')).toBe('"\\ud83d\\ude00"');
+  });
+});
+
 describe('checkPackageEntry (the config entry of an updated official set)', () => {
   type Config = {packages: Record<string, unknown>};
   const official = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
 
   it('accepts the entries that prepareImages wrote for the official sets', () => {
     expect(official.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
+    for (const [name] of official) {
+      const tags = Object.keys(((imagesetConfig as Config).packages[name] as {tags: object}).tags);
+      expect(tags.length, name).toBeGreaterThan(0);
+      expect(tags.filter((tag) => !TAG_NAME.test(tag) || ['all', '__proto__', 'constructor', 'prototype'].includes(tag)), name).toEqual([]);
+    }
     for (const [name, custom] of official) {
       const errors: string[] = [];
       checkPackageEntry(name, (imagesetConfig as Config).packages[name], custom, errors);
@@ -479,7 +679,7 @@ describe('checkPackageEntry (the config entry of an updated official set)', () =
   });
 
   it('uses the package name as the display name when imageset.custom.json has none, like buildPackageEntry', () => {
-    const entry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['all']}], tags: {all: {title: 'All', description: 'All', category: 'general'}}};
+    const entry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['everything']}], tags: {everything: {title: 'All', description: 'All', category: 'general'}}};
     const errors: string[] = [];
     checkPackageEntry('image-new', entry, {}, errors);
     expect(errors).toEqual([]);

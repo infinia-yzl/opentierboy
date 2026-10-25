@@ -141,8 +141,10 @@ jobs:
             echo "::warning::Files outside the patch changed during the update; they are not part of it."
             printf '%s\n' "$other"
           fi
-          # Early feedback only. Job 2 runs this check again with main's copy of the script.
-          node scripts/image-set-update.mjs gate --body "$RUNNER_TEMP/update/pull-request.md"
+          # Early feedback only. Job 2 runs this check again with main's copy of the script and
+          # its own registry data.
+          npm view --prefer-online "${PACKAGE}@${VERSION}" dist.integrity scripts bin dependencies gypfile --json > "$RUNNER_TEMP/registry.json"
+          node scripts/image-set-update.mjs gate --registry "$RUNNER_TEMP/registry.json" --body "$RUNNER_TEMP/update/pull-request.md"
           cat "$RUNNER_TEMP/update/pull-request.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Type check, lint, unit tests, item ids and fixtures
@@ -251,7 +253,9 @@ jobs:
 
       # Job 1 ran the package's code, so its outputs and the patch are untrusted. This step takes
       # the package and version from the event again, and runs only main's scripts: the patch
-      # goes into the git index with --cached, and the working tree keeps main's files.
+      # goes into the git index with --cached, and the working tree keeps main's files. The gate
+      # compares the package's lockfile entry with registry data that this job fetches itself:
+      # npm view reads the registry and runs none of the package's code.
       - name: Apply the patch to the index and check it
         if: steps.gate.outputs.ready == 'true'
         id: apply
@@ -259,10 +263,12 @@ jobs:
           PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
           VERSION: ${{ github.event.client_payload.version || inputs.version }}
         run: |
+          # validate stops the step unless PACKAGE is an official set and VERSION is x.y.z.
           node scripts/image-set-update.mjs validate
+          npm view --prefer-online "${PACKAGE}@${VERSION}" dist.integrity scripts bin dependencies gypfile --json > "$RUNNER_TEMP/registry.json"
           git apply --cached --check -- "$RUNNER_TEMP/update/changes.patch"
           git apply --cached -- "$RUNNER_TEMP/update/changes.patch"
-          node scripts/image-set-update.mjs gate --body "$RUNNER_TEMP/pull-request.md"
+          node scripts/image-set-update.mjs gate --registry "$RUNNER_TEMP/registry.json" --body "$RUNNER_TEMP/pull-request.md"
 
       - name: Push the branch
         if: steps.gate.outputs.ready == 'true'
