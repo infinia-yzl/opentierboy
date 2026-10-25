@@ -9,8 +9,8 @@ v0, v1 and v2. It adds what the older formats could not hold:
 - images from a web address ("link images");
 - images from a device, by their local id ("device images").
 
-Status: the code can read and write v3, and `decodeState` reads v3 links. The app still writes
-v2 links. The Phase 5b wiring step switches the app to v3 (see "Switching the app to v3").
+Status: the app writes v3 links since the Phase 5b wiring step, and reads every format (see
+"How the app uses v3").
 
 Old links keep working. v0, v1 and v2 links decode exactly as before, and their decoder
 (`lib/state/decoders/legacy.ts`) is unchanged.
@@ -211,9 +211,13 @@ the `3.` prefix):
 | all 430 items of every image set, 7 rows, with a title | 6,744 | 6,381 | 5% shorter |
 | typical list: 20 Overwatch heroes, 5 rows, with a title | 507 | 392 | 23% shorter |
 
-The v3 links also carry the row template, which v2 cannot store. Most of the saving comes from
-writing image-set items as plain strings and leaving out tier ids. Long lists save less,
-because lz-string already compresses the repeated parts of v2 well.
+The 17 real shared links in `tests/fixtures/shared-links.json` (16 to 67 items), written again
+by the app: v2 between 479 and 1,617 characters, v3 11% to 23% shorter (for example 952 → 811,
+1,617 → 1,439). Over all 25 golden lists the total goes from 26,571 to 23,419 characters.
+
+The v3 links also carry the row template and the layout settings, which v2 cannot store. Most
+of the saving comes from writing image-set items as plain strings and leaving out tier ids.
+Long lists save less, because lz-string already compresses the repeated parts of v2 well.
 `tests/unit/state/fixtures.test.ts` checks these numbers (fixtures `v3-all-items-every-package`
 and `v3-typical-20-items`).
 
@@ -239,34 +243,68 @@ item in this form). Link images are `{kind: 'link', id, url, content}`: a link i
 id, so the decoder uses its address as its id. Device images are
 `{kind: 'device', id, content}`, where `id` is the local id.
 
-## Switching the app to v3
+## How the app uses v3
 
-`encodeState` writes v2 until `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` changes to 3.
-Before that change:
+The app writes every change as a v3 link (`DEFAULT_WRITE_FORMAT` 3 in `lib/state/encode.ts`).
+Changing it to 2 makes the app write v2 links exactly as before; the layout settings then stay
+out of links.
 
-- The editor passes the row template, label position and label visibility to the encoder.
-- The editor marks custom items as device items (`{kind: 'device', id, content}`). Items
-  without `kind` are written as image-set ids, and their label is dropped.
-- Uploads from before Phase 5c have ids from `Math.random().toString(36).slice(2, 11)`, which
-  are usually 9 characters but can be shorter. An id that breaks the device id rule gets a new
-  id when the image moves to the device store, or the v3 link will not decode.
-- `TierCortex` resolves link and device items.
-- `TierCortex` makes duplicate tier ids unique (A38, Phase 5a). The decoder keeps them as
-  they are. A legacy list with an empty tier id also needs a new id before it is written as
-  v3, because the v3 decoder refuses empty ids.
-- **5a's A1 fix has landed.** Until it lands, the title effect in `TierListManager` re-encodes
-  a list when it opens: opening a titled v3 link would write it again as v2 and push a new
-  history entry.
-- **Label position and label visibility** write the link with `router.replace`, so they add
-  no Back step, as today (A3). Row template changes keep using `router.push`. This is an owner
-  decision: flag it in the pull request so the owner can reverse it.
+**Writing** (`TierCortex.encodeListForURL`):
 
-`encodeState(list, {format: 3})` writes v3 without changing the default.
+- The row template is the row count without Unranked, as the "Number of Rows" menu shows it:
+  3, 5 or 7 rows, else custom.
+- Image-set items are written as their id. An image-set id from a v3 link that the image sets
+  do not know (any more) shows as a placeholder and is written back as the same id.
+- Uploads (custom items) are written as device images by their device image id. Uploads made
+  before Phase 5c have ids from `Math.random().toString(36).slice(2, 11)`, which can be shorter
+  than 8 characters. Such an id is written as `legacy-<id>`, which is always valid (A42,
+  `deviceImageIdForUpload` in `lib/state/deviceId.ts`). Phase 5c uses the same mapping when it
+  moves uploads to the device image store. An unknown id from a legacy link that no prefix
+  makes valid (for example a removed image-set id with a dot) is written as a plain id; its
+  stored label is then dropped, because v3 keeps labels only for link and device images.
+- Link images are written with their address and label.
 
-At restack onto 5a: 5a changes the placeholder tile to a relative URL
-(`/placeholder-image.png`). The v3 tests in `tests/unit/TierCortex.test.ts` expect the
-absolute placeholder URL (`http://localhost:3000/placeholder-image.png`,
-`https://opentierboy.com/placeholder-image.png`) and need that update.
+**Reading** (`TierCortex.decodeTierStateFromURL`):
+
+- Link images show as label tiles: the label, and no image. Nothing loads their address. Phase
+  5c adds safe link images.
+- Device images show this browser's upload, found by their id or by the id before the
+  `legacy-` prefix. Without one, the label shows on the placeholder image, as for a legacy
+  upload in someone else's browser.
+- Link previews (`/api/og`) draw link and device images as label tiles. Their addresses never
+  reach the local image inliner (A8, A36).
+- `TierCortex` gives a row with a repeated tier id its own id (A38, Phase 5a), and an empty
+  tier id a new id (`tier~1`, ...), so a list opened from any legacy link writes a v3 link that
+  opens again.
+
+**Layout settings (A3).** The label position and label visibility travel in v3 links.
+
+- A change to them replaces the current history entry (`router.replace`), so it adds no Back
+  step, as before v3. Row template changes push a new entry, like every change to the list.
+  **Owner's decision, 2026-10-25**: option (a), replace. The one place for this choice is
+  `LAYOUT_LINK_WRITE` in `lib/tierListReducer.ts`; its other options are `'push'` (a Back step
+  per layout change) and `'next-edit'` (the next change to the list writes the layout along).
+- A link's layout settings apply when the link is opened fresh: when the editor starts with it.
+  That is the first load of the page, a reload, or arriving at the editor from another page
+  (also by Back or Forward from another page). Back and Forward between versions of the list
+  inside the editor keep the settings on screen, as before (owner, 2026-10-25). So Back after
+  "labels on Top" keeps them on Top, while the older history entry's link still holds the older
+  settings.
+- On a template page without a link, a layout change writes a `?state=` link into the address,
+  in place of the current entry.
+- Share uses the newest link of the store (`pendingLink`), so it carries the layout too.
+
+**Opening a link writes nothing** (A1, the store from Phase 5a): opening any link leaves the
+address and the history as they are, also when the app would write that list differently
+(every v0, v1 and v2 link, and v3 links with defaults written out).
+
+**Known issue** (recorded as a known-bug test in `tests/e2e/items.spec.ts`): right after a page
+load, an upload kept in this browser shows the placeholder image. The server renders the list
+without this browser's uploads, and React keeps the server's image address when the page starts
+in the browser; the tile shows the upload once it renders again. Today uploads are `blob:` URLs
+that do not survive a page load anyway (#86). Phase 5c loads uploads in an effect.
+
+`encodeState(list, {format: 2})` and `TierCortex.encodeTierStateForURL` still write v2.
 
 ## Fixtures
 

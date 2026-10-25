@@ -85,7 +85,8 @@ tests/
   the address bar for saved changes. Page object methods that change the list return only
   after the new link is in the address bar.
 - **Arrange state through the URL.** Use `rankingState()` from `tests/support/links.ts` to
-  open a list with items already ranked, instead of dragging items into place first:
+  open a list with items already ranked (a v2 link), and `v3State()` for a v3 link with layout
+  settings or link and device images, instead of dragging items into place first:
 
   ```ts
   await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
@@ -138,6 +139,10 @@ disappeared compared with the base branch (pass `-- --base <ref>` to choose the 
   time (`history.spec.ts`). This is intended behaviour, not a bug.
 - **Moving a row keeps the labels in place.** Dropping row S on A's position moves the
   contents; the labels stay S, A, B... from top to bottom.
+- **Label settings travel in the link without a Back step.** The label position and label
+  visibility are part of v3 links, written in place of the current history entry (owner's
+  decision, 2026-10-25). Back and Forward inside the editor keep the settings on screen; a link
+  opened fresh shows its own. The page object waits for the address after each setting.
 
 ## Known bugs
 
