@@ -160,7 +160,7 @@ licence, notice and the packages.
    keep the `@dnd-kit/*` names and install them from git. Renamed packages need the internal
    imports renamed too, because the packages import each other by name.
 4. In OpenTierBoy, remove `packages/dnd-kit` and the `workspaces` entries, depend on the
-   published packages, and point the ESLint pattern (`dndKitOnlyInLibDnd`) and `lib/dnd` at
+   published packages, and point the ESLint pattern (`DND_KIT_ONLY_IN_LIB_DND`) and `lib/dnd` at
    the new names. `lib/dnd` is the only code that imports dnd-kit, so nothing else changes.
 5. Keep the check from `tests/unit/dnd/workspace.test.ts` in some form: one copy of each
    package and of `@preact/signals-core`.
@@ -191,9 +191,12 @@ Upstream details worth knowing:
 ## lib/dnd: the adapter
 
 `lib/dnd` is the only module that may import dnd-kit. ESLint enforces this
-(`no-restricted-imports` with the `dndKitOnlyInLibDnd` pattern); only `lib/dnd/**` and its
-tests in `tests/unit/dnd/` may import `@dnd-kit/*`. Inside `lib/dnd`, only `dndKit.ts` imports
-dnd-kit; the other files are pure functions (no React, no DOM), checked by
+(`no-restricted-imports` with the `DND_KIT_ONLY_IN_LIB_DND` pattern); only `lib/dnd/**` and its
+tests in `tests/unit/dnd/` may import `@dnd-kit/*`. Every `no-restricted-imports` setting in
+`eslint.config.mjs` comes from `restrictImports()`, which always adds the rules that apply
+everywhere (IndexedDB, zod, dnd-kit), so a later config block cannot drop the dnd-kit pattern.
+`tests/unit/lint/dnd-kit-imports.test.ts` checks it. Inside `lib/dnd`, only `dndKit.ts`
+imports dnd-kit; the other files are pure functions (no React, no DOM), checked by
 `tests/unit/dnd/purity.test.ts`.
 
 | File | What it does |
@@ -278,4 +281,9 @@ useTierItem({itemId, tierId, index}): {ref, isDragging, isDropping}
   change), then add end-to-end tests for inserting into a wrapping row, mixed shapes,
   add/remove tier and touch with the long-press menu.
 - Measure dragging with 200 tiles (a trace).
+- Add a unit test that `MAX_TIER_ROWS <= V3_LIMITS.maxRows` (the row cap of the v3 link
+  decoder from 5b), so a list with added rows always fits in a link.
+- The moves assume unique tier ids and unique item ids. 5a makes duplicate tier ids unique in
+  TierCortex (A38) and drops duplicate item ids (A32); check both still hold where the editor
+  hands its list to `lib/dnd`.
 - Update `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop section).
