@@ -244,7 +244,7 @@ describe('v3 link format', () => {
     it('ignores keys it does not know, and accepts defaults written out (forward compatible)', () => {
       const json = '{"t":"T","x":1,"tp":5,"lp":"left","sl":true,"future":{"a":[1,2]},' +
         '"r":[["tier-s","S",["image-overwatch-ana.webp",{"u":"https://x.test/a.png","c":"","z":true}]],' +
-        '["A",[{"d":"abc","c":"cat","w":2}]]]}';
+        '["A",[{"d":"abcdefgh","c":"cat","w":2}]]]}';
       const decoded = decodeState(v3(json));
       expect(decoded).toEqual({
         version: 3,
@@ -254,12 +254,12 @@ describe('v3 link format', () => {
         showLabels: true,
         tiers: [
           {id: 'tier-s', name: 'S', items: [{id: 'image-overwatch-ana.webp'}, {kind: 'link', id: 'https://x.test/a.png', url: 'https://x.test/a.png', content: ''}]},
-          {id: 'tier-a', name: 'A', items: [{kind: 'device', id: 'abc', content: 'cat'}]},
+          {id: 'tier-a', name: 'A', items: [{kind: 'device', id: 'abcdefgh', content: 'cat'}]},
         ],
       });
       // Encoding the result writes the short form, which is a fixed point.
       const encoded = encodeV3(decoded!);
-      expect(jsonOf(encoded)).toBe('{"t":"T","tp":5,"r":[["S",["image-overwatch-ana.webp",{"u":"https://x.test/a.png"}]],["A",[{"d":"abc","c":"cat"}]]]}');
+      expect(jsonOf(encoded)).toBe('{"t":"T","tp":5,"r":[["S",["image-overwatch-ana.webp",{"u":"https://x.test/a.png"}]],["A",[{"d":"abcdefgh","c":"cat"}]]]}');
       expect(encodeV3(decodeState(encoded)!)).toBe(encoded);
     });
   });
@@ -287,8 +287,11 @@ describe('v3 link format', () => {
     });
 
     it('settles any list in one step, also lists in legacy form', () => {
-      // Legacy-shaped input: labels on image-set items, empty titles, no layout fields.
-      const states = randomAppStates(500, 77).map(toCanonical).filter(state => state.tiers.length > 0);
+      // Legacy-shaped input: labels on image-set items, empty titles, no layout fields. v3 has
+      // no place for a list without rows or with an empty tier id (see the test below).
+      const states = randomAppStates(500, 77).map(toCanonical)
+        .filter(state => state.tiers.length > 0 && state.tiers.every(tier => tier.id !== ''));
+      expect(states.length).toBeGreaterThan(300);
       for (let index = 0; index < states.length; index++) {
         const once = encodeV3(states[index]);
         const decoded = decodeState(once);
@@ -296,6 +299,11 @@ describe('v3 link format', () => {
         expect(encodeV3(decoded!), `random state #${index}`).toBe(once);
         expect(decoded!.tiers.map(tier => tier.id)).toEqual(states[index].tiers.map(tier => tier.id));
       }
+    });
+
+    it('cannot hold a legacy list with an empty tier id: the app must give it an id first', () => {
+      const legacy = {tiers: [{id: '', name: 'S', items: []}, {id: 'uncategorized', name: '', items: []}]};
+      expect(decodeState(encodeV3(legacy))).toBeNull();
     });
 
     it('never throws on random text after "3."', () => {
@@ -338,15 +346,36 @@ describe('v3 limits (A29)', () => {
       ['tier name', n => ({r: [row([], 'n'.repeat(n))]}), L.maxTierNameLength],
       ['tier id', n => ({r: [row([], '', 'i'.repeat(n))]}), L.maxIdLength],
       ['package item id', n => ({r: [row(['p'.repeat(n)])]}), L.maxIdLength],
-      ['device id', n => ({r: [row([{d: 'd'.repeat(n)}])]}), L.maxIdLength],
       ['link label', n => ({r: [row([{u: 'https://x.test/a.png', c: 'c'.repeat(n)}])]}), L.maxLabelLength],
-      ['device label', n => ({r: [row([{d: 'abc', c: 'c'.repeat(n)}])]}), L.maxLabelLength],
+      ['device label', n => ({r: [row([{d: 'abcdefgh', c: 'c'.repeat(n)}])]}), L.maxLabelLength],
       ['url', n => ({r: [row([{u: `https://x.test/${'u'.repeat(n - 15)}`}])]}), L.maxUrlLength],
     ];
     for (const [name, build, cap] of cases) {
       expect(decodeState(linkWith(build(cap))), `${name} at the cap`).not.toBeNull();
       expect(decodeState(linkWith(build(cap + 1))), `${name} over the cap`).toBeNull();
     }
+  });
+
+  it('accept device image ids of 8 to 64 URL-safe characters (deviceId.ts, A40)', () => {
+    const withDevice = (d: unknown) => reasonOf(JSON.stringify({r: [row([{d, c: 'label'}])]}));
+    expect(withDevice('a'.repeat(8))).toBe('ok');
+    expect(withDevice('A-_09zZx'.repeat(8))).toBe('ok');
+    expect(withDevice('a'.repeat(7))).toBe('bad-device-id');
+    expect(withDevice('a'.repeat(65))).toBe('bad-device-id');
+    for (const d of ['', 'abcd efgh', 'abcd/efgh', 'abcd.efgh', 'blob:https://x', 'abcdéfgh', '__proto__', 'constructor', 'toString', 'hasOwnProperty', 12345678, null, ['abcdefgh']]) {
+      expect(withDevice(d), JSON.stringify(d)).toBe('bad-device-id');
+    }
+  });
+
+  it('refuse empty tier ids, item ids and image addresses', () => {
+    expect(reasonOf('{"r":[["","",[""]]]}')).toBe('bad-tier-id');
+    expect(reasonOf('{"r":[["","",[]]]}')).toBe('bad-tier-id');
+    expect(reasonOf('{"r":[["x","",[""]]]}')).toBe('bad-item');
+    expect(reasonOf('{"r":[["x","",[{"u":""}]]]}')).toBe('bad-item');
+    expect(reasonOf('{"r":[["x","",[{"u":"","c":"label"}]]]}')).toBe('bad-item');
+    expect(reasonOf('{"r":[["x","",[{"d":""}]]]}')).toBe('bad-device-id');
+    // Names and labels may be empty.
+    expect(reasonOf('{"t":"","r":[["x","",["a",{"u":"https://x.test/a.png","c":""}]]]}')).toBe('ok');
   });
 
   it('counts string lengths in UTF-16 code units', () => {
@@ -363,7 +392,7 @@ describe('v3 limits (A29)', () => {
   });
 
   it('accept up to 5,000 items over all rows', () => {
-    const rows = (count: number) => [row(Array(count - 1000).fill('a')), row(Array(600).fill({d: 'b'})), row(Array(400).fill('c'))];
+    const rows = (count: number) => [row(Array(count - 1000).fill('a')), row(Array(600).fill({d: 'device-b'})), row(Array(400).fill('c'))];
     expect(reasonOf(JSON.stringify({r: rows(L.maxItems)}))).toBe('ok');
     expect(reasonOf(JSON.stringify({r: rows(L.maxItems + 1)}))).toBe('too-many-items');
   });
@@ -456,7 +485,7 @@ describe('hostile v3 input', () => {
       ['{"r":[["x","",[1]]]}', 'bad-item'], ['{"r":[["x","",[null]]]}', 'bad-item'], ['{"r":[["x","",[true]]]}', 'bad-item'],
       ['{"r":[["x","",[[]]]]}', 'bad-item'], ['{"r":[["x","",[["a"]]]]}', 'bad-item'], ['{"r":[["x","",[{}]]]}', 'bad-item'],
       ['{"r":[["x","",[{"c":"label"}]]]}', 'bad-item'], ['{"r":[["x","",[{"u":1}]]]}', 'bad-item'],
-      ['{"r":[["x","",[{"u":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"d":["a"]}]]]}', 'bad-item'],
+      ['{"r":[["x","",[{"u":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"d":["a"]}]]]}', 'bad-device-id'],
       ['{"r":[["x","",[{"u":"a","d":"b"}]]]}', 'bad-item'], ['{"r":[["x","",[{"u":"a","c":1}]]]}', 'bad-item'],
       ['{"r":[["x","",[{"d":"a","c":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"i":"a"}]]]}', 'bad-item'],
     ];
@@ -471,8 +500,11 @@ describe('hostile v3 input', () => {
     expect(reasonOf('{"r":[["x","",[{"__proto__":{"u":"https://x.test/a.png"}}]]]}')).toBe('bad-item');
     expect(reasonOf('{"r":[["x","",[{"constructor":"x"}]]]}')).toBe('bad-item');
     expect(reasonOf('{"r":[["x","",[{"toString":"x","valueOf":"y","hasOwnProperty":"z"}]]]}')).toBe('bad-item');
+    // Device image ids named like Object.prototype members are refused (deviceId.ts).
+    expect(reasonOf('{"r":[["x","",[{"d":"__proto__","c":"hasOwnProperty"}]]]}')).toBe('bad-device-id');
+    expect(reasonOf('{"r":[["x","",[{"d":"constructor"}]]]}')).toBe('bad-device-id');
     const decoded = decodeState(v3('{"__proto__":{"t":"evil","polluted":true},"constructor":{"prototype":{"polluted":true}},' +
-      '"r":[["__proto__","constructor",["__proto__","constructor","toString",{"d":"__proto__","c":"hasOwnProperty"}]]]}'));
+      '"r":[["__proto__","constructor",["__proto__","constructor","toString",{"d":"hasOwnPropertyX","c":"hasOwnProperty"}]]]}'));
     expect(decoded).toEqual({
       version: 3,
       rowTemplate: 'custom',
@@ -481,7 +513,7 @@ describe('hostile v3 input', () => {
       tiers: [{
         id: '__proto__',
         name: 'constructor',
-        items: [{id: '__proto__'}, {id: 'constructor'}, {id: 'toString'}, {kind: 'device', id: '__proto__', content: 'hasOwnProperty'}],
+        items: [{id: '__proto__'}, {id: 'constructor'}, {id: 'toString'}, {kind: 'device', id: 'hasOwnPropertyX', content: 'hasOwnProperty'}],
       }],
     });
     expect(Object.getPrototypeOf(decoded)).toBe(Object.prototype);

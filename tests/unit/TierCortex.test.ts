@@ -385,10 +385,10 @@ describe('TierCortex with v3 links, before the wiring step', () => {
     const stored = JSON.stringify([{i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'}]);
     vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
     vi.stubGlobal('localStorage', {getItem: (key: string) => (key === 'customItems' ? stored : null), setItem: () => undefined});
-    const items = new TierCortex().decodeTierStateFromURL(v3('{"r":[["x","",[{"d":"k3j9x0a1b","c":"my cat"},{"d":"gone"}]]]}'))!.tiers[0].items;
+    const items = new TierCortex().decodeTierStateFromURL(v3('{"r":[["x","",[{"d":"k3j9x0a1b","c":"my cat"},{"d":"gone-image"}]]]}'))!.tiers[0].items;
     expect(items).toEqual([
       {id: 'k3j9x0a1b', content: 'my cat', imageUrl: 'data:image/png;base64,AAAA'},
-      {id: 'gone', content: '', imageUrl: '/placeholder-image.png'},
+      {id: 'gone-image', content: '', imageUrl: '/placeholder-image.png'},
     ]);
   });
 

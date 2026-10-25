@@ -5,6 +5,7 @@
  */
 export {decodeState} from './decode';
 export {decodeV3Payload, readV3Payload} from './decoders/v3';
+export {isDeviceImageId} from './deviceId';
 export type {V3DecodeReason, V3DecodeResult} from './decoders/v3';
 export {DEFAULT_WRITE_FORMAT, encodeState, encodeV2} from './encode';
 export type {EncodeOptions, WriteFormat} from './encode';

@@ -25,7 +25,7 @@ export const V3_LIMITS = Object.freeze({
   maxTierNameLength: 500,
   /** An item label (`c`). */
   maxLabelLength: 500,
-  /** A tier id, a package item id or a device image id. */
+  /** A tier id or an image-set item id. Device image ids follow the rule in deviceId.ts (8 to 64 characters). */
   maxIdLength: 500,
   /** A link image address (`u`). The same cap as the app's link image check. */
   maxUrlLength: 2_000,

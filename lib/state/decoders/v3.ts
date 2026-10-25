@@ -16,10 +16,13 @@
  *         {"d": localId, "c": label}     an image from a device ("c" left out when empty)
  *
  * Validation is strict about types and sizes (limits.ts) and ignores keys it does not know,
- * so a later version can add keys that this decoder skips. It checks nothing else: an image
- * address is not checked here (the app must check it before use, and the server must never
- * fetch it), and duplicate ids are kept. Anything invalid gives null, never an exception.
+ * so a later version can add keys that this decoder skips. Tier ids, item ids and image
+ * addresses must not be empty, and a device image id must follow the device id rule
+ * (deviceId.ts). It checks nothing else: an image address is not checked here (the app must
+ * check it before use, and the server must never fetch it), and duplicate ids are kept.
+ * Anything invalid gives null, never an exception.
  */
+import {isDeviceImageId} from '../deviceId';
 import {V3_LIMITS} from '../limits';
 import {decompressFromEncodedURIComponentCapped} from '../lz';
 import {defaultTierId, rowTemplateFromTp} from '../templates';
@@ -44,6 +47,7 @@ export type V3DecodeReason =
   | 'bad-items'
   | 'too-many-items'
   | 'bad-item'
+  | 'bad-device-id'
   | 'unexpected';
 
 export type V3DecodeResult =
@@ -69,6 +73,11 @@ function has(object: JsonObject, key: string): boolean {
 
 function isStringWithin(value: unknown, maxLength: number): value is string {
   return typeof value === 'string' && value.length <= maxLength;
+}
+
+/** For ids and addresses: an empty one names nothing. */
+function isNonEmptyStringWithin(value: unknown, maxLength: number): value is string {
+  return isStringWithin(value, maxLength) && value !== '';
 }
 
 /**
@@ -151,7 +160,7 @@ function read(payload: string): V3DecodeResult {
     const name: unknown = idOmitted ? row[0] : row[1];
     const items: unknown = idOmitted ? row[1] : row[2];
     if (idOmitted && id === undefined) return fail('missing-tier-id');
-    if (!isStringWithin(id, V3_LIMITS.maxIdLength)) return fail('bad-tier-id');
+    if (!isNonEmptyStringWithin(id, V3_LIMITS.maxIdLength)) return fail('bad-tier-id');
     if (!isStringWithin(name, V3_LIMITS.maxTierNameLength)) return fail('bad-tier-name');
     if (!Array.isArray(items)) return fail('bad-items');
 
@@ -162,7 +171,7 @@ function read(payload: string): V3DecodeResult {
     const tierItems: CanonicalItem[] = [];
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = readItem(items[itemIndex]);
-      if (item === null) return fail('bad-item');
+      if (typeof item === 'string') return fail(item);
       tierItems.push(item);
     }
     tiers.push({id, name, items: tierItems});
@@ -175,29 +184,30 @@ function read(payload: string): V3DecodeResult {
   return {ok: true, state};
 }
 
-function readItem(item: unknown): CanonicalItem | null {
+/** The item, or the reason it is invalid. */
+function readItem(item: unknown): CanonicalItem | 'bad-item' | 'bad-device-id' {
   if (typeof item === 'string') {
-    return item.length <= V3_LIMITS.maxIdLength ? {id: item} : null;
+    return isNonEmptyStringWithin(item, V3_LIMITS.maxIdLength) ? {id: item} : 'bad-item';
   }
-  if (!isObject(item)) return null;
+  if (!isObject(item)) return 'bad-item';
 
   const isLink = has(item, 'u');
   const isDevice = has(item, 'd');
-  if (isLink === isDevice) return null; // exactly one of "u" and "d"
+  if (isLink === isDevice) return 'bad-item'; // exactly one of "u" and "d"
 
   let content = '';
   if (has(item, 'c')) {
     const label = item.c;
-    if (!isStringWithin(label, V3_LIMITS.maxLabelLength)) return null;
+    if (!isStringWithin(label, V3_LIMITS.maxLabelLength)) return 'bad-item';
     content = label;
   }
 
   if (isLink) {
     const url = item.u;
-    if (!isStringWithin(url, V3_LIMITS.maxUrlLength)) return null;
+    if (!isNonEmptyStringWithin(url, V3_LIMITS.maxUrlLength)) return 'bad-item';
     return {kind: 'link', id: url, url, content};
   }
   const localId = item.d;
-  if (!isStringWithin(localId, V3_LIMITS.maxIdLength)) return null;
+  if (!isDeviceImageId(localId)) return 'bad-device-id';
   return {kind: 'device', id: localId, content};
 }

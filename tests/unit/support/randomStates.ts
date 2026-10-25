@@ -133,7 +133,7 @@ const URL_PARTS = [
   'https://cdn.deadlock.wiki/hero%20name.webp',
   'http://localhost:3000/secret.png',
   'javascript:alert(1)',
-  '',
+  ' ',
 ];
 
 function randomUrl(random: () => number): string {
@@ -141,15 +141,25 @@ function randomUrl(random: () => number): string {
   return random() < 0.3 ? `${base}${randomText(random, 2)}` : base;
 }
 
+const DEVICE_ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+/** An id that follows the device id rule (lib/state/deviceId.ts): 8 to 64 URL-safe characters. */
+function randomDeviceId(random: () => number): string {
+  const length = random() < 0.5 ? 16 : 8 + Math.floor(random() * 57);
+  let id = '';
+  for (let index = 0; index < length; index++) id += DEVICE_ID_ALPHABET[Math.floor(random() * DEVICE_ID_ALPHABET.length)];
+  return id;
+}
+
 function randomV3Item(random: () => number): CanonicalItem {
   const roll = random();
   if (roll < 0.6) return {id: pick(random, PACKAGE_ITEM_IDS)};
-  if (roll < 0.65) return {id: randomText(random, 3)};
+  if (roll < 0.65) return {id: randomText(random, 3) || 'odd-id'};
   if (roll < 0.82) {
     const url = randomUrl(random);
     return {kind: 'link', id: url, url, content: random() < 0.2 ? '' : randomText(random, 4)};
   }
-  return {kind: 'device', id: randomCustomId(random), content: random() < 0.2 ? '' : randomText(random, 4)};
+  return {kind: 'device', id: randomDeviceId(random), content: random() < 0.2 ? '' : randomText(random, 4)};
 }
 
 function randomTierId(random: () => number, template: RowTemplate, index: number): string {
@@ -157,13 +167,14 @@ function randomTierId(random: () => number, template: RowTemplate, index: number
   const roll = random();
   if (fallback !== undefined && roll < 0.7) return fallback;
   if (roll < 0.9) return pick(random, TIER_IDS);
-  return randomText(random, 2);
+  return randomText(random, 2) || 'tier-x';
 }
 
 /**
  * Seeded random lists in the form decodeState gives for v3 links: every layout field set, no
- * empty title, image-set items without `content`, link items whose id is their URL. Decoding
- * what encodeV3 writes for one of them gives it back unchanged.
+ * empty title, image-set items without `content`, link items whose id is their URL, no empty
+ * ids or addresses, device ids that follow the device id rule. Decoding what encodeV3 writes
+ * for one of them gives it back unchanged.
  */
 export function randomV3States(count: number, seed: number): CanonicalState[] {
   const random = seededRandom(seed);

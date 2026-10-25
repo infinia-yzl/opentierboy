@@ -63,7 +63,10 @@ export interface CanonicalLinkItem {
 /** v3: an image stored in the browser of the person who added it. */
 export interface CanonicalDeviceItem {
   kind: 'device';
-  /** The image's local id: its key in the browser's image store. */
+  /**
+   * The image's local id: its key in the browser's image store. v3 links accept only ids
+   * that follow the device id rule (deviceId.ts: isDeviceImageId).
+   */
   id: string;
   /** The label. Empty when the link stored none. */
   content: string;

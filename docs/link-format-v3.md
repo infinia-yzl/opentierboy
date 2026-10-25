@@ -47,6 +47,12 @@ An item is one of:
 `c` is left out when the label is empty. An image-set item never stores a label: the image set
 holds it.
 
+Tier ids, item ids and image addresses are never empty. A device image's local id follows the
+device id rule (A40): 8 to 64 characters from `A-Z`, `a-z`, `0-9`, `-` and `_`, and never the
+name of an `Object.prototype` member such as `__proto__` or `constructor`. The device image
+store (Phase 5c) creates ids of 16 such characters. `lib/state/deviceId.ts`
+(`isDeviceImageId`) holds the rule.
+
 ### Example
 
 A 5-row list with a title, tier labels on top, rows S and B swapped (so those two rows write
@@ -129,6 +135,8 @@ The decoder is strict about types and sizes:
   or false;
 - each row must have 2 or 3 entries, each item must be a string or an object with exactly one
   of `u` and `d`;
+- tier ids, item ids and image addresses must not be empty;
+- a device image id must follow the device id rule (code `bad-device-id` when it does not);
 - every limit below must hold.
 
 Anything else gives `null` (the app then treats the link like any broken link). The decoder
@@ -141,7 +149,8 @@ The decoder does **not** check:
   check every address before it loads the image (Phase 5c, `lib/images/linkImage.ts`), and the
   server must never fetch it (A8, A36).
 - **Duplicates.** The same item or the same tier id twice stays twice. The app removes
-  duplicate items when it builds the list (A32).
+  duplicate items when it builds the list (A32), and `TierCortex` makes duplicate tier ids
+  unique (A38, Phase 5a).
 - **Content of strings.** Titles and labels can hold any text. The app must show them as
   plain text.
 
@@ -173,8 +182,9 @@ JSON and a 6,381-character link. Lengths count UTF-16 code units (an emoji often
 | title | 1,000 |
 | tier name | 500 |
 | item label | 500 |
-| tier id, item id, device image id | 500 |
-| link image address | 2,000 |
+| tier id, item id | 1 to 500 |
+| device image id | 8 to 64, URL-safe characters only (device id rule) |
+| link image address | 1 to 2,000 |
 
 The limits live in `lib/state/limits.ts` (`V3_LIMITS`). Raising a limit is safe. Lowering one
 can break links people already shared, so never lower a limit.
@@ -186,8 +196,9 @@ and lz-string builds the whole text before it returns. `lib/state/lz.ts` therefo
 the decompressed length first, without building the text, and stops at the cap. Only a value
 within the cap reaches lz-string. The tests include such a link.
 
-The encoder writes whatever it is given. A list beyond the limits gives a link that does not
-decode. `decodeState(encodeV3(list)) !== null` checks whether a list fits.
+The encoder writes whatever it is given. A list beyond the limits, or with an empty id or a
+device image id that breaks the rule, gives a link that does not decode.
+`decodeState(encodeV3(list)) !== null` checks whether a list fits.
 
 ## Link length compared with v2
 
@@ -217,6 +228,7 @@ in the edge OG route):
 | `encoders/v3.ts` | `encodeV3`, `V3_PREFIX` |
 | `templates.ts` | the template tier ids and the omission rule |
 | `limits.ts` | `V3_LIMITS` |
+| `deviceId.ts` | `isDeviceImageId`: the device id rule |
 | `lz.ts` | lz-string decompression with a length cap |
 | `decode.ts` | `decodeState`: sends `3.` values to the v3 decoder |
 | `encode.ts` | `encodeState` (v2 by default), `DEFAULT_WRITE_FORMAT` |
