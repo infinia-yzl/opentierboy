@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {isDeviceImageId} from '@/lib/state';
+import {deviceImageIdForUpload, isDeviceImageId, LEGACY_UPLOAD_ID_PREFIX} from '@/lib/state';
 
 /**
  * The one device image id rule (A40). The cases below are those of
@@ -35,5 +35,34 @@ describe('isDeviceImageId', () => {
     for (const id of ['abcdefg\n', 'abcdefgh\n', '\nabcdefgh', 'abcdéfgh', 'abcdefgh ', 'abcd+efgh', 'abcd%2Fef', 'abcdеfgh' /* Cyrillic е */]) {
       expect(isDeviceImageId(id), JSON.stringify(id)).toBe(false);
     }
+  });
+});
+
+describe('deviceImageIdForUpload (A42)', () => {
+  it('keeps an id that follows the rule', () => {
+    for (const id of ['k3j9x0a1b', 'abcdefgh', 'Zm9vYmFyYmF6cXV4', 'a'.repeat(64)]) expect(deviceImageIdForUpload(id)).toBe(id);
+  });
+
+  it('gives every legacy upload id a valid device image id, the same one every time', () => {
+    // ItemCreator before Phase 5c: Math.random().toString(36).slice(2, 11), 1 to 9 characters.
+    for (const id of ['a', '5', 'ab3c9', 'abcdefg', '0000000']) {
+      expect(deviceImageIdForUpload(id)).toBe(`legacy-${id}`);
+      expect(isDeviceImageId(deviceImageIdForUpload(id))).toBe(true);
+    }
+    for (let index = 0; index < 2000; index++) {
+      const id = Math.random().toString(36).slice(2, 11);
+      const deviceId = deviceImageIdForUpload(id);
+      expect(isDeviceImageId(deviceId), id).toBe(true);
+      expect(deviceImageIdForUpload(id)).toBe(deviceId);
+    }
+    expect(LEGACY_UPLOAD_ID_PREFIX).toBe('legacy-');
+  });
+
+  it('returns null for an id that no prefix makes valid', () => {
+    for (const id of ['', 'image-overwatch-ana.webp', 'has space', 'a'.repeat(65), 'blob:https://x']) {
+      expect(deviceImageIdForUpload(id), id).toBeNull();
+    }
+    // A name of an Object.prototype member gets the prefix like any other short id.
+    expect(deviceImageIdForUpload('constructor')).toBe('legacy-constructor');
   });
 });
