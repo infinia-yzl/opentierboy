@@ -25,8 +25,12 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     while another file is still opening are ignored.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
-    An image this browser already holds under the file's own id is used as it is: the file was
-    made here, so the link stays the file's own (a file that reuses such an id on purpose can
+    The images go into the device store one call at a time with "From your device", with the
+    same protection: nothing the list on screen shows, or that was just added, is removed to
+    make room. AVIF and HEIC images in the file get the refusal of "From your device" (in the
+    "Some images could not be added" message) and are never stored or decoded; their items
+    show their names. An image this browser already holds under the file's own id is used as
+    it is: the file was made here, so the link stays the file's own (a file that reuses such an id on purpose can
     only show the visitor's own picture). Any other image is drawn again (at most 512 pixels)
     and stored under a content-addressed id (`snap-` and a SHA-256 prefix of the drawn bytes),
     and the list's `{d}` items follow. Opening the same file again stores nothing new and gives
@@ -84,7 +88,11 @@ JSON, for example:
   item). It follows the device id rule (`isDeviceImageId` in `lib/state/deviceId.ts`): 8 to 64
   characters from `A-Z a-z 0-9 - _`, and never a name such as `__proto__` or `constructor`.
   `dataUrl` is a base64 data URL of a PNG, JPEG, WebP or GIF picture. The first bytes must
-  match the declared type. SVG is never accepted, because SVG can carry scripts.
+  match the declared type. SVG is never accepted, because SVG can carry scripts. An AVIF or
+  HEIC image (declared `image/avif`, `image/heic` or `image/heif`, or bytes that start with an
+  ISO base media `ftyp` box whatever the declared type) passes the payload check without being
+  read, so that opening the file can refuse it by name (`isAvifOrHeicDataUrl`). The app never
+  writes one: `buildSnapshotPayload` refuses it.
 - Only the first bytes of an image are checked. So the app re-encodes every image through a
   canvas before it stores or shows it: when it writes a snapshot, and again when it opens one.
 - Unknown fields are ignored. A later version can add fields, and version 1 readers skip them.
