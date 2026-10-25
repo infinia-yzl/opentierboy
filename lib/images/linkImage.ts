@@ -118,6 +118,9 @@ const RESERVED_TOP_LEVEL_NAMES = new Set([
  */
 const IP_ECHO_DOMAINS = [
   '1u.ms',
+  'fuf.me',
+  'local.gd',
+  'localho.st',
   'localhost.direct',
   'localtest.me',
   'lvh.me',

@@ -268,6 +268,12 @@ describe('checkLinkImageUrl: refused addresses', () => {
       'https://anything.localtest.me/a.png',
       'https://lvh.me/a.png',
       'https://7f000001.c0a80001.rbndr.us/a.png',
+      'https://localho.st/a.png',
+      'https://app.localho.st/a.png',
+      'https://fuf.me/a.png',
+      'https://anything.fuf.me/a.png',
+      'https://local.gd/a.png',
+      'https://sub.local.gd/a.png',
     ], 'private-name');
   });
 

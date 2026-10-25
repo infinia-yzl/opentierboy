@@ -92,8 +92,14 @@ export interface CheckImageOptions {
 
 const BLOB_URL = /^blob:https?:\/\/[^\s]+$/i;
 
+/**
+ * Bidirectional embedding, override and isolate controls (U+202A–U+202E, U+2066–U+2069).
+ * They can make "gnp.exe" display as "exe.png", so labels never keep them.
+ */
+const BIDI_CONTROLS = /[\u202a-\u202e\u2066-\u2069]/g;
+
 function shorten(text: string): string {
-  const collapsed = text.replace(/\s+/g, ' ').trim();
+  const collapsed = text.replace(BIDI_CONTROLS, '').replace(/\s+/g, ' ').trim();
   const characters = Array.from(collapsed);
   return characters.length > MAX_FALLBACK_TEXT_LENGTH ? characters.slice(0, MAX_FALLBACK_TEXT_LENGTH).join('').trimEnd() : collapsed;
 }

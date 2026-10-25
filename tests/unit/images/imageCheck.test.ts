@@ -260,6 +260,17 @@ describe('labelFallback', () => {
     expect(labelFallback('javascript:alert(1)')).toEqual({text: '', domain: ''});
   });
 
+  it('strips bidirectional controls, which could disguise a file name', () => {
+    // U+202E (right-to-left override) would show "gnp.exe" as "exe.png".
+    expect(labelFallback('https://i.imgur.com/%E2%80%AEgnp.exe')).toEqual({text: 'gnp', domain: 'i.imgur.com'});
+    expect(labelFallback('https://i.imgur.com/a.png', 'Cat\u202egnp.exe\u202c and \u2066dog\u2069')).toEqual({text: 'Catgnp.exe and dog', domain: 'i.imgur.com'});
+    for (const control of ['\u202a', '\u202b', '\u202c', '\u202d', '\u202e', '\u2066', '\u2067', '\u2068', '\u2069']) {
+      expect(labelFallback('blob:https://opentierboy.com/x', `a${control}b`).text).toBe('ab');
+    }
+    // A label made only of controls falls back to the file name.
+    expect(labelFallback('https://i.imgur.com/cat.png', '\u202e\u2066').text).toBe('cat');
+  });
+
   it('caps the text length without splitting characters', () => {
     const long = '😀'.repeat(MAX_FALLBACK_TEXT_LENGTH + 10);
     const {text} = labelFallback('https://i.imgur.com/a.png', long);
