@@ -2,8 +2,11 @@ import {defineConfig, globalIgnores} from 'eslint/config';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import prettier from 'eslint-config-prettier/flat';
 
-// Import rules (amendments A12 and A31). For one file, ESLint uses the options of the last
-// matching block that sets a rule, so every block below lists all groups for its files.
+// Import rules (amendments A12, A31 and A41). For one file, ESLint uses the options of the last
+// matching block that sets a rule. So every block builds its list with restrictImports(), which
+// always adds the rules that hold everywhere (SHARED_IMPORT_RULES): a later block can never drop
+// them. A rule for every file goes into SHARED_IMPORT_RULES, and the files it does not apply to
+// go into the "Everywhere" block's ignores.
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
@@ -37,11 +40,16 @@ function stateEscape(depth) {
   };
 }
 
-const stateImportRules = (depth) => ({
-  'no-restricted-imports': ['error', {
-    patterns: [STATE_FRAMEWORKS, NODE_BUILT_INS, INDEXED_DB_LIBRARIES, STATE_ROUNDABOUT_PATH, stateEscape(depth)],
-  }],
+/** Rules for every file (with the exceptions in the "Everywhere" block's ignores). */
+const SHARED_IMPORT_RULES = [INDEXED_DB_LIBRARIES];
+
+/** The no-restricted-imports setting for a block: its own patterns plus SHARED_IMPORT_RULES. */
+const restrictImports = (...patterns) => ({
+  'no-restricted-imports': ['error', {patterns: [...SHARED_IMPORT_RULES, ...patterns]}],
 });
+
+const stateImportRules = (depth) =>
+  restrictImports(STATE_FRAMEWORKS, NODE_BUILT_INS, STATE_ROUNDABOUT_PATH, stateEscape(depth));
 
 export default defineConfig([
   // Generated files: Playwright reports and traces, Vercel output, the image sets that the
@@ -64,9 +72,7 @@ export default defineConfig([
   {
     files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     ignores: ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {patterns: [INDEXED_DB_LIBRARIES]}],
-    },
+    rules: restrictImports(),
   },
   // lib/state: pure code for the browser, the server and the edge runtime.
   {
@@ -82,9 +88,7 @@ export default defineConfig([
   // The edge OG route, and TierCortex, which it imports.
   {
     files: ['app/api/og/**/*.{ts,tsx}', 'lib/TierCortex.ts'],
-    rules: {
-      'no-restricted-imports': ['error', {patterns: [NODE_BUILT_INS, INDEXED_DB_LIBRARIES]}],
-    },
+    rules: restrictImports(NODE_BUILT_INS),
   },
   {
     files: ['app/api/og/**/*.{ts,tsx}'],
