@@ -35,9 +35,11 @@ interface StoredCustomItem {
   d: string; // imageData
 }
 
-export interface PackageItemLookup {
-  [key: string]: Item;
-}
+/**
+ * Package items by id. A Map, so that an id from a link such as `constructor` or `__proto__`
+ * finds nothing, like any other unknown id (a plain object would return its built-in members).
+ */
+export type PackageItemLookup = ReadonlyMap<string, Item>;
 
 const OG_TIER_GRADIENTS = [
   'linear-gradient(to right, #d21203, #c40a01)',
@@ -88,7 +90,7 @@ export class TierCortex {
   }
 
   public isCustomItem(itemId: string): boolean {
-    return !this.packageItemLookup.hasOwnProperty(itemId);
+    return !this.packageItemLookup.has(itemId);
   }
 
   public getOgTierGradient(index: number, tiersLength: number): string {
@@ -144,7 +146,7 @@ export class TierCortex {
 
       initialTiers[lastTierIndex].items = initialItemSet.images.map((filename) => {
         const itemId = `${initialItemSet.packageName}-${filename}`;
-        return this.packageItemLookup[itemId] || this.createPlaceholderItem(itemId, filename);
+        return this.packageItemLookup.get(itemId) ?? this.createPlaceholderItem(itemId, filename);
       });
     }
 
@@ -197,18 +199,18 @@ export class TierCortex {
   }
 
   private initializePackageItemLookup(): PackageItemLookup {
-    let packageItemLookup: PackageItemLookup = {};
+    const packageItemLookup = new Map<string, Item>();
     for (const [packageName, packageData] of Object.entries(this.imageSetConfig.packages)) {
       for (const image of packageData.images) {
         const id = `${packageName}-${image.filename}`;
         // Square is the default, so only other shapes are stored on the item.
         const shape = isItemShape(image.shape) && image.shape !== DEFAULT_ITEM_SHAPE ? image.shape : undefined;
-        packageItemLookup[id] = {
+        packageItemLookup.set(id, {
           id,
           content: image.label || image.filename.split('.')[0],
           imageUrl: `/images/${packageName}/${image.filename}`,
           ...(shape && {shape}),
-        };
+        });
       }
     }
     return packageItemLookup;
@@ -222,7 +224,7 @@ export class TierCortex {
   }
 
   private resolveItem(itemId: string, content?: string): Item {
-    const packageItem = this.packageItemLookup[itemId];
+    const packageItem = this.packageItemLookup.get(itemId);
     if (packageItem) return packageItem;
 
     const renamedItem = this.resolveAlias(itemId);
@@ -252,7 +254,8 @@ export class TierCortex {
       if (!Object.prototype.hasOwnProperty.call(this.aliases, currentId)) return undefined;
       const nextId = this.aliases[currentId];
       if (typeof nextId !== 'string') return undefined;
-      if (Object.prototype.hasOwnProperty.call(this.packageItemLookup, nextId)) return this.packageItemLookup[nextId];
+      const renamedItem = this.packageItemLookup.get(nextId);
+      if (renamedItem) return renamedItem;
       currentId = nextId;
     }
     return undefined;

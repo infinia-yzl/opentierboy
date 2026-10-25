@@ -27,9 +27,6 @@ const MALFORMED = [
   lz('[{"i":"a","n":"b"}]'), lz('[{"i":"a","n":"b","t":"x"}]'), lz('[{"i":"a","n":"b","t":[null]}]'),
   lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7}'),
   lz('{"tiers":[],"title":""}'), lz('{"tiers":[],"title":null}'), lz('[{"i":"a","n":"b","t":[{"i":"c","c":""}]}]'),
-  // Known bug (tests/e2e/shared-links.spec.ts): ids named like Object.prototype members resolve
-  // to those members. The fix (Phase 5a) changes this result on purpose: move the input out then.
-  lz('{"tiers":[{"i":"a","n":"b","t":[{"i":"__proto__"},{"i":"toString","c":"x"},{"i":"hasOwnProperty"}]}]}'),
 ];
 
 function randomGarbage(count: number): string[] {
@@ -118,6 +115,36 @@ describe('TierCortex after moving the link format to lib/state', () => {
       expect(new TierCortex().getInitialTiers(state, undefined))
         .toStrictEqual(new PreRefactorTierCortex().getInitialTiers(state, undefined));
       errorSpy.mockRestore();
+    }
+  });
+});
+
+describe('TierCortex with item ids named like built-in object members', () => {
+  // Phase 5a fixed this on purpose (A27): the frozen copy resolves these ids to Object.prototype
+  // members, so they are compared with an unknown id here instead of with the frozen copy.
+  const ODD_IDS = ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf'];
+  const listWith = (id: string) => lz(JSON.stringify({tiers: [{i: 'a', n: 'b', t: [{i: id, c: 'Mystery'}, {i: 'image-overwatch-mau.webp'}]}]}));
+
+  it('resolves them like an unknown id: a placeholder with the stored label', () => {
+    const cortex = new TierCortex();
+    const unknown = cortex.decodeTierStateFromURL(listWith('unknown-item-x'))!.tiers[0].items;
+    for (const id of ODD_IDS) {
+      const items = cortex.decodeTierStateFromURL(listWith(id))!.tiers[0].items;
+      expect(items, id).toEqual([{...unknown[0], id}, unknown[1]]);
+      expect(cortex.isCustomItem(id), id).toBe(true);
+    }
+  });
+
+  it('keeps them in the next saved link, with their label', () => {
+    const cortex = new TierCortex();
+    for (const id of ODD_IDS) {
+      const tiers = cortex.decodeTierStateFromURL(listWith(id))!.tiers;
+      const saved = TierCortex.encodeTierStateForURL(undefined, tiers.map(tier => ({
+        ...tier,
+        items: tier.items.map(item => ({i: item.id, c: cortex.isCustomItem(item.id) ? item.content : undefined})),
+      })));
+      expect(LZString.decompressFromEncodedURIComponent(saved), id)
+        .toBe(`{"tiers":[{"i":"a","n":"b","t":[{"i":${JSON.stringify(id)},"c":"Mystery"},{"i":"image-overwatch-mau.webp"}]}]}`);
     }
   });
 });

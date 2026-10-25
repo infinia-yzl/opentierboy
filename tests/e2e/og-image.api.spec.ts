@@ -59,11 +59,6 @@ test.describe('Link preview images', () => {
     expect(image.equals(reversed), 'tiles should show the item images').toBe(false);
   });
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
-   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
-   */
   test('a link with an unknown item id gets a preview with a placeholder tile', async ({request}) => {
     const response = await request.get(previewPath(oddIdLink('unknown-item-x')));
 
@@ -74,24 +69,23 @@ test.describe('Link preview images', () => {
     expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
   });
 
+  // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
+  for (const id of ['constructor', 'toString', '__proto__']) {
+    test(`a link with an item with the id "${id}" gets the same preview as an unknown item`, async ({request}) => {
+      const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
+      const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
+
+      expect(odd.status()).toBe(200);
+      expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
+    });
+  }
+
   /**
    * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
    * suite stays green while the bug exists. When a fix lands, the test starts to pass,
    * Playwright reports "Expected to fail, but passed", and the marker must be removed.
    */
   test.describe('Known bugs', () => {
-    // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
-    for (const id of ['constructor', 'toString', '__proto__']) {
-      test(`a link with an item with the id "${id}" gets the same preview as an unknown item`, async ({request}) => {
-        test.fail(true, 'TierCortex resolves the id to a built-in object member without imageUrl, so the tile points at the site root, an HTML page. Locally the route draws a blank tile instead of the placeholder; on Vercel next/og fetches the HTML itself and aborts the response.');
-        const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
-        const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
-
-        expect(odd.status()).toBe(200);
-        expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
-      });
-    }
-
     test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
       test.fail(true, 'The route draws the tier name as text, and an object there aborts the response.');
       const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
