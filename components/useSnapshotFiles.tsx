@@ -17,28 +17,45 @@ import {useTierContext} from '@/contexts/TierContext';
 import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImagesContext';
 import {useAddItemsWithUndo} from '@/components/useAddItems';
 import {recordRecentLink} from '@/components/useRecentLinks';
+import {sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
 import {readSnapshotFile, SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot';
 import {imageBytesFromDataUrl} from '@/lib/snapshot/dataUrl';
 import {
   SNAPSHOT_MESSAGES,
   snapshotLinkAfterImport,
+  snapshotLinkTooLong,
   snapshotOpenOutcome,
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
+import {stateParam} from '@/lib/tierListReducer';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const NOT_A_PICTURE = 'This file is not a PNG, JPEG, WebP, GIF or AVIF picture.';
+
+/** Where files come from. Chosen and dropped files must be pictures by their bytes; pastes keep 5c's own check. */
+export type FileSource = 'open' | 'drop' | 'paste';
 
 type FileCheck =
   | {kind: 'snapshot'; snapshot: SnapshotToOpen}
   | {kind: 'image'}
   | {kind: 'message'; message: string};
 
+/** True when the file's first bytes are a PNG, JPEG, WebP, GIF or AVIF picture (snapshot files are PNGs). */
+async function isPictureFile(file: File): Promise<boolean> {
+  try {
+    return sniffImageType(new Uint8Array(await file.slice(0, 64).arrayBuffer())) !== null;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Looks for a list in a file. The file is untrusted: a file over the snapshot size limit is never
  * read as a snapshot, only files that start like a PNG are read, and the reader checks the PNG,
- * caps the text and checks the payload with zod (lib/snapshot).
+ * caps the text, checks the payload with zod (images by their declared size too) and refuses a
+ * link too long to open (lib/snapshot).
  */
 async function checkFile(file: File): Promise<FileCheck> {
   try {
@@ -65,22 +82,31 @@ function snapshotImages(snapshot: SnapshotToOpen): SnapshotDeviceImage[] {
   });
 }
 
+/** True when the address already shows this list: opening it again changes nothing. */
+function addressShows(path: string, state: string): boolean {
+  return window.location.pathname === path && stateParam(new URLSearchParams(window.location.search).get('state')) === state;
+}
+
 export interface UseSnapshotFiles {
   /**
    * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
-   * asks whether to open the list; pictures become items; other files show a message.
+   * asks whether to open the list; pictures become items; other files show a message. Files that
+   * arrive while an earlier file is still opening are ignored.
    */
-  openFiles: (files: File[]) => void;
+  openFiles: (files: File[], source: FileSource) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
   dialog: React.ReactNode;
+  /** The Open file button: focus returns to it when the dialog closes. */
+  openFileButtonRef: React.RefObject<HTMLButtonElement | null>;
 }
 
 /**
  * Files in the editor: snapshot files (a Freeze Frame download with the list inside) and pictures.
  *
  * Opening a snapshot asks first. Then its images are drawn again (A10) and stored in the device
- * store (new ids when another image has the same id, and the list's `{d}` items follow), and the
- * editor goes to the list with one router.push: the list on screen before stays one Back step away.
+ * store under content-addressed ids (the list's `{d}` items follow), and the editor goes to the
+ * list with one router.push: the list on screen before stays one Back step away. Opening the same
+ * file again stores nothing new, and when the address already shows the list nothing changes.
  */
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
@@ -88,6 +114,11 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
+  const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
+  /** True while a file is being read, added or opened, and while the dialog asks. */
+  const busy = useRef(false);
+  /** True from Open list until the list has opened. */
+  const openingRef = useRef(false);
 
   // The handlers below run after awaits: read the latest list and helpers through refs.
   const latest = useRef({tiers, addDeviceImages, addItemsWithUndo});
@@ -109,37 +140,73 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
   }, []);
 
-  const openFiles = useCallback((files: File[]) => {
-    if (files.length === 0) return;
+  const openFiles = useCallback((files: File[], source: FileSource) => {
+    if (files.length === 0 || busy.current) return;
+    busy.current = true;
     void (async () => {
-      if (files.length === 1) {
-        const check = await checkFile(files[0]);
-        if (check.kind === 'snapshot') {
-          setPending(check.snapshot);
-          return;
+      let asking = false;
+      try {
+        let pictures = files;
+        if (source !== 'paste') {
+          const checks = await Promise.all(files.map(isPictureFile));
+          pictures = files.filter((_, index) => checks[index]);
+          const refused = files.filter((_, index) => !checks[index]);
+          if (refused.length > 0) {
+            toast.error(refused.length === files.length ? 'Could not open the file' : 'Some files could not be opened', {
+              description: refused.map((file) => `${file.name}: ${NOT_A_PICTURE}`).join(' '),
+            });
+          }
+          if (pictures.length === 0) return;
         }
-        if (check.kind === 'message') {
-          toast.error('Could not open the file', {description: check.message});
-          return;
+        if (pictures.length === 1) {
+          const check = await checkFile(pictures[0]);
+          if (check.kind === 'snapshot') {
+            asking = true;
+            setPending(check.snapshot);
+            return;
+          }
+          if (check.kind === 'message') {
+            toast.error('Could not open the file', {description: check.message});
+            return;
+          }
         }
+        await addAsItems(pictures);
+      } finally {
+        if (!asking) busy.current = false;
       }
-      await addAsItems(files);
     })();
   }, [addAsItems]);
 
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
-    const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
-    const state = snapshotLinkAfterImport(snapshot, ids);
-    router.push(`${snapshot.path}?state=${state}`);
-    recordRecentLink({path: snapshot.path, state, title: snapshot.list.title ?? ''});
-    if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
+    const loading = toast.loading('Opening the list…');
+    try {
+      const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
+      const state = snapshotLinkAfterImport(snapshot, ids);
+      if (snapshotLinkTooLong(state)) {
+        toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.tooLarge});
+        return;
+      }
+      if (!addressShows(snapshot.path, state)) router.push(`${snapshot.path}?state=${state}`);
+      recordRecentLink({path: snapshot.path, state, title: snapshot.list.title ?? ''});
+      if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
+    } finally {
+      toast.dismiss(loading);
+      busy.current = false;
+    }
   }, [importDeviceImages, router]);
 
   const dialog = (
     <AlertDialog open={pending !== null} onOpenChange={(open) => {
-      if (!open) setPending(null);
+      if (open) return;
+      setPending(null);
+      // Cancel ends the wait here; Open list ends it when the list has opened (openPending).
+      if (!openingRef.current) busy.current = false;
     }}>
-      <AlertDialogContent>
+      <AlertDialogContent onCloseAutoFocus={(event) => {
+        // The dialog has no trigger of its own: give focus back to the Open file button.
+        event.preventDefault();
+        openFileButtonRef.current?.focus();
+      }}>
         <AlertDialogHeader>
           <AlertDialogTitle>Open the list in this file?</AlertDialogTitle>
           <AlertDialogDescription>Your current list stays one Back step away.</AlertDialogDescription>
@@ -147,7 +214,11 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={() => {
-            if (pending) void openPending(pending);
+            if (!pending) return;
+            openingRef.current = true;
+            void openPending(pending).finally(() => {
+              openingRef.current = false;
+            });
           }}>
             Open list
           </AlertDialogAction>
@@ -156,7 +227,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     </AlertDialog>
   );
 
-  return {openFiles, dialog};
+  return {openFiles, dialog, openFileButtonRef};
 }
 
 /** True for a drag or drop that carries files (not text or a link). */
@@ -164,27 +235,34 @@ function carriesFiles(event: DragEvent): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files');
 }
 
-/** Leaves drops on fields and dialogs alone: the file input of "From your device" takes its own drops. */
-function inFieldOrDialog(event: Event): boolean {
+/** A file input (for example in "From your device") takes its own drops. */
+function onFileInput(event: Event): boolean {
   const target = event.target instanceof Element ? event.target : null;
-  return Boolean(target?.closest('input, textarea, [contenteditable=""], [contenteditable="true"], [role="dialog"], [role="alertdialog"]'));
+  return Boolean(target?.closest('input[type="file"]'));
+}
+
+/** True while a dialog, an alert dialog or the share panel is open: drops then do nothing. */
+function dialogOpen(): boolean {
+  return document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null;
 }
 
 /**
  * Dropping files anywhere on the editor page opens them (useSnapshotFiles). Without this, the
- * browser would leave the page to show the dropped file.
+ * browser would leave the page to show the dropped file. While a dialog is open, drops anywhere
+ * (also on its overlay) do nothing, except on a file input.
  */
-export function useFileDrop(openFiles: (files: File[]) => void) {
+export function useFileDrop(openFiles: (files: File[], source: FileSource) => void) {
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
-      if (!carriesFiles(event) || inFieldOrDialog(event)) return;
+      if (!carriesFiles(event) || onFileInput(event)) return;
       event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      if (event.dataTransfer) event.dataTransfer.dropEffect = dialogOpen() ? 'none' : 'copy';
     };
     const onDrop = (event: DragEvent) => {
-      if (!carriesFiles(event) || inFieldOrDialog(event)) return;
+      if (!carriesFiles(event) || onFileInput(event)) return;
       event.preventDefault();
-      openFiles(Array.from(event.dataTransfer?.files ?? []));
+      if (dialogOpen()) return;
+      openFiles(Array.from(event.dataTransfer?.files ?? []), 'drop');
     };
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);

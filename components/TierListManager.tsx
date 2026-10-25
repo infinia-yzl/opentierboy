@@ -36,7 +36,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog} = useSnapshotFiles();
+  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
   usePasteImages(openFiles);
   useFileDrop(openFiles);
 
@@ -51,7 +51,7 @@ const TierListEditor: React.FC = () => {
           <TierTemplateSelector/>
           <ItemManager/>
           <ShareButton title={title}/>
-          <OpenFileButton onFiles={openFiles}/>
+          <OpenFileButton onFiles={openFiles} buttonRef={openFileButtonRef}/>
         </div>
         <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
