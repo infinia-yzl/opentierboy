@@ -30,9 +30,7 @@ test.describe('Images from a link (#107)', () => {
 
     const link = await tierList.shareLink();
     expect(JSON.stringify(v3LinkJson(link))).toContain('{"u":"https://i.imgur.com/red.png","c":"Red square"}');
-    const friend = await openAsVisitor(link);
-    await serveImageSite(friend.page, TRUSTED);
-    await friend.page.reload();
+    const friend = await openAsVisitor(link, {beforeOpen: (context) => serveImageSite(context, TRUSTED)});
     await expect(friend.itemsIn(friend.unranked)).toHaveText(['Red square']);
     await expect.poll(() => friend.itemImageHasLoaded('Red square')).toBe(true);
     await expect(friend.imageSitesNotice).toHaveCount(0);

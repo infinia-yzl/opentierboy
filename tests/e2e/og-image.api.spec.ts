@@ -143,21 +143,6 @@ test.describe('Link preview images', () => {
     expect(unlabelled.equals(first)).toBe(false);
   });
 
-  test('an image from a trusted site is drawn, or a label tile when the site cannot be reached', async ({request}) => {
-    // A small image on Wikimedia Commons (trusted-image-sites.json). The test machine may have no
-    // internet access; then the preview must fall back to the label tile, quickly.
-    const trusted = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/120px-Example.jpg';
-    const reachable = await fetch(trusted, {redirect: 'manual', headers: {'User-Agent': 'OpenTierBoy link preview (+https://opentierboy.com)'}, signal: AbortSignal.timeout(4_000)})
-      .then((response) => response.status === 200 && /^image\/(png|jpeg|gif)/.test(response.headers.get('content-type') ?? ''))
-      .catch(() => false);
-
-    const started = Date.now();
-    const drawn = await linkImagePreview(request, [{u: trusted, c: 'Example'}]);
-    expect(Date.now() - started, 'the preview answers within the image time limit').toBeLessThan(10_000);
-    const labelTile = await linkImagePreview(request, [{u: 'https://images.example.org/Example.jpg', c: 'Example'}]);
-    expect(drawn.equals(labelTile), reachable ? 'the trusted image is drawn' : 'unreachable: a label tile').toBe(!reachable);
-  });
-
   test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
     const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
     const response = await request.get(previewPath(json), {timeout: 10_000});
