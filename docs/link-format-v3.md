@@ -241,14 +241,31 @@ id, so the decoder uses its address as its id. Device images are
 ## Switching the app to v3
 
 `encodeState` writes v2 until `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` changes to 3.
-Before that change, the editor must:
+Before that change:
 
-- pass the row template, label position and label visibility to the encoder;
-- mark custom items as device items (`{kind: 'device', id, content}`). Items without `kind`
-  are written as image-set ids, and their label is dropped;
-- resolve link and device items in `TierCortex`.
+- The editor passes the row template, label position and label visibility to the encoder.
+- The editor marks custom items as device items (`{kind: 'device', id, content}`). Items
+  without `kind` are written as image-set ids, and their label is dropped.
+- Uploads from before Phase 5c have ids from `Math.random().toString(36).slice(2, 11)`, which
+  are usually 9 characters but can be shorter. An id that breaks the device id rule gets a new
+  id when the image moves to the device store, or the v3 link will not decode.
+- `TierCortex` resolves link and device items.
+- `TierCortex` makes duplicate tier ids unique (A38, Phase 5a). The decoder keeps them as
+  they are. A legacy list with an empty tier id also needs a new id before it is written as
+  v3, because the v3 decoder refuses empty ids.
+- **5a's A1 fix has landed.** Until it lands, the title effect in `TierListManager` re-encodes
+  a list when it opens: opening a titled v3 link would write it again as v2 and push a new
+  history entry.
+- **Label position and label visibility** write the link with `router.replace`, so they add
+  no Back step, as today (A3). Row template changes keep using `router.push`. This is an owner
+  decision: flag it in the pull request so the owner can reverse it.
 
 `encodeState(list, {format: 3})` writes v3 without changing the default.
+
+At restack onto 5a: 5a changes the placeholder tile to a relative URL
+(`/placeholder-image.png`). The v3 tests in `tests/unit/TierCortex.test.ts` expect the
+absolute placeholder URL (`http://localhost:3000/placeholder-image.png`,
+`https://opentierboy.com/placeholder-image.png`) and need that update.
 
 ## Fixtures
 
