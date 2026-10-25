@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
 import customConfig from '@/imageset.custom.json';
-import {compareVersions, pullRequestBody, validateInput, VERSION_PATTERN} from '@/scripts/image-set-update.mjs';
+import imagesetConfig from '@/imageset.config.json';
+import {checkPackageEntry, compareVersions, pullRequestBody, validateInput, VERSION_PATTERN} from '@/scripts/image-set-update.mjs';
 
 const script = path.resolve(__dirname, '../../../scripts/image-set-update.mjs');
 
@@ -98,6 +99,8 @@ const CONFIG_BASE = {
       displayName: 'OW',
       images: [image('ana.webp', 'Ana'), image('mei.webp', 'Mei')],
       tags: {heroes: {title: 'Heroes', description: 'Heroes', category: 'general'}},
+      googleFont: 'Saira',
+      backgroundImage: '/splash/ow-bg.webp',
     },
   },
 };
@@ -143,12 +146,20 @@ describe('scripts/image-set-update.mjs', () => {
     git('add', '-A', '--', 'package.json', 'package-lock.json', 'imageset.config.json', 'image-registry.lock.json', 'image-aliases.json');
   };
 
+  /** Changes the staged imageset.config.json entry of image-ow (after stageUpdate). */
+  const editEntry = (edit: (entry: Record<string, any>) => void) => {
+    const config = JSON.parse(fs.readFileSync(path.join(repo, 'imageset.config.json'), 'utf8'));
+    edit(config.packages['image-ow']);
+    write('imageset.config.json', JSON.stringify(config, null, 2));
+    git('add', 'imageset.config.json');
+  };
+
   beforeEach(() => {
     repo = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-image-set-update-'));
     git('init', '-q', '-b', 'main');
     write('package.json', {name: 'app', version: '1.0.0', dependencies: {'image-ow': '1.0.0', 'lz-string': '1.5.0'}, devDependencies: {eslint: '9.0.0'}});
     write('package-lock.json', LOCK_BASE);
-    write('imageset.custom.json', {packages: {'image-old': {legacy: true}, 'image-ow': {displayName: 'OW'}}});
+    write('imageset.custom.json', {packages: {'image-old': {legacy: true}, 'image-ow': {displayName: 'OW', googleFont: 'Saira', backgroundImage: '/splash/ow-bg.webp'}}});
     write('imageset.legacy.json', {'image-old': CONFIG_BASE.packages['image-old']});
     write('imageset.config.json', JSON.stringify(CONFIG_BASE, null, 2));
     write('image-registry.lock.json', registry(CONFIG_BASE));
@@ -299,6 +310,58 @@ describe('scripts/image-set-update.mjs', () => {
         fs.symlinkSync('/etc/passwd', path.join(repo, 'public-link'));
         git('add', 'public-link');
       }, 'public-link: mode 120000 is not allowed'],
+      ['a background image from another site (it loads on the landing page)', () => editEntry((entry) => {
+        entry.backgroundImage = 'https://tracker.example/pixel.gif';
+      }), 'imageset.config.json: image-ow: backgroundImage is "https://tracker.example/pixel.gif", but imageset.custom.json at HEAD gives "/splash/ow-bg.webp"'],
+      ['a changed display name (the URL slug of shared links)', () => editEntry((entry) => {
+        entry.displayName = 'Overwatch 2';
+      }), 'imageset.config.json: image-ow: displayName is "Overwatch 2", but imageset.custom.json at HEAD gives "OW"'],
+      ['a changed font', () => editEntry((entry) => {
+        entry.googleFont = 'Comic Neue';
+      }), 'imageset.config.json: image-ow: googleFont is "Comic Neue", but imageset.custom.json at HEAD gives "Saira"'],
+      ['a removed font', () => editEntry((entry) => {
+        delete entry.googleFont;
+      }), 'imageset.config.json: image-ow: googleFont is nothing, but imageset.custom.json at HEAD gives "Saira"'],
+      ['an unknown key in the entry', () => editEntry((entry) => {
+        entry.homepage = 'https://evil.example';
+      }), 'imageset.config.json: image-ow has unknown keys "homepage"'],
+      ['an unknown key in an image', () => editEntry((entry) => {
+        entry.images[0].href = 'https://evil.example';
+      }), 'imageset.config.json: image-ow: image "ana.webp" has unknown keys "href"'],
+      ['an unknown key in a tag', () => editEntry((entry) => {
+        entry.tags.heroes.link = 'https://evil.example';
+      }), 'imageset.config.json: image-ow: tag "heroes" has unknown keys "link"'],
+      ['the legacy flag', () => editEntry((entry) => {
+        entry.legacy = true;
+      }), 'imageset.config.json: image-ow must not be marked legacy'],
+      ['a duplicate image (duplicate drag ids)', () => editEntry((entry) => {
+        entry.images.push({...entry.images[0]});
+      }), 'imageset.config.json: image-ow: image "ana.webp" is listed twice'],
+      ['an unknown image shape', () => editEntry((entry) => {
+        entry.images[0].shape = 'circle';
+      }), 'imageset.config.json: image-ow: image "ana.webp": unknown shape "circle" (allowed: square, landscape, portrait)'],
+      ['an unknown tag shape', () => editEntry((entry) => {
+        entry.tags.heroes.shape = 'hexagon';
+      }), 'imageset.config.json: image-ow: tag "heroes": unknown shape "hexagon"'],
+      ['a stored square shape (the default is never stored)', () => editEntry((entry) => {
+        entry.images[0].shape = 'square';
+      }), 'image "ana.webp": shape "square" is the default and is never stored'],
+      ['an image tag that the set does not list', () => editEntry((entry) => {
+        entry.images[0].tags = ['heroes', 'ghost'];
+      }), 'image "ana.webp": tag "ghost" is not in the tags of image-ow'],
+      ['a tag without images', () => editEntry((entry) => {
+        entry.tags.empty = {title: 'Empty', description: 'Empty', category: 'general'};
+      }), 'imageset.config.json: image-ow: tag "empty" has no images'],
+      ['an empty label', () => editEntry((entry) => {
+        entry.images[0].label = '';
+      }), 'image "ana.webp": label must be a non-empty string'],
+      ['a tag title that is not text', () => editEntry((entry) => {
+        entry.tags.heroes.title = {html: '<b>Heroes</b>'};
+      }), 'tag "heroes": title must be a non-empty string'],
+      ['an image in the set\'s folder (official sets are never committed)', () => {
+        write('public/images/image-ow/x.png', Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'));
+        git('add', '-f', 'public');
+      }, 'public/images/image-ow/x.png: an image set update may not change this file'],
     ];
     it.each(refusals)('refuses %s', (_name, change, message) => {
       stageUpdate();
@@ -308,16 +371,34 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(1);
     });
 
-    it('refuses an image file that is not what its name says, in a committed image folder', () => {
+    it('refuses image files even when the set\'s folder is committed', () => {
       write('public/images/image-ow/ana.webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 '));
       git('add', '-f', 'public');
       git('commit', '-q', '-m', 'commit the image folder');
       stageUpdate();
-      write('public/images/image-ow/new.webp', '#!/bin/sh\necho not an image\n');
+      write('public/images/image-ow/new.webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 '));
       git('add', '-f', 'public');
       const result = gate();
-      expect(result.output).toContain('public/images/image-ow/new.webp: the file is not the image its name says');
+      expect(result.output).toContain('public/images/image-ow/new.webp: an image set update may not change this file');
       expect(result.status).toBe(1);
+    });
+
+    it('accepts items that change categories, and lists them and the changed categories in the pull request', () => {
+      const config = structuredClone(CONFIG_BASE);
+      const entry = config.packages['image-ow'] as Record<string, any>;
+      entry.images[0].tags = ['support'];
+      entry.tags.heroes.title = 'All heroes';
+      entry.tags.support = {title: 'Support', description: 'Support heroes', category: 'role'};
+      stageUpdate({config});
+      const result = gate();
+      expect(result.output).toContain('changes nothing else');
+      expect(result.status).toBe(0);
+      const body = fs.readFileSync(path.join(repo, '.body.md'), 'utf8');
+      expect(body).toContain('### Items that changed categories (1)');
+      expect(body).toContain('- `image-ow-ana.webp`: `heroes` → `support`');
+      expect(body).toContain('### New, removed or changed categories (2)');
+      expect(body).toContain('- `support`: new, `Support`');
+      expect(body).toContain('- `heroes`: title `Heroes` → `All heroes`');
     });
 
     it('refuses a removed id without an alias (check-image-registry.mjs)', () => {
@@ -353,5 +434,56 @@ describe('scripts/image-set-update.mjs', () => {
     });
     expect(body).toContain('`image-ow-a.webp`: `A` → `x ## @everyone [click](https://evil.example)`');
     expect(body).not.toContain('\n## @everyone');
+  });
+
+  it('lists removed and changed categories in the pull request, untrusted text in code spans', () => {
+    const body = pullRequestBody({
+      packageName: 'image-ow', version: '1.1.0', added: [], removed: [], relabelled: [], newAliases: [], shapes: [], removedLockEntries: [],
+      retagged: [{id: 'image-ow-a.webp', before: ['old'], after: []}],
+      tagChanges: [
+        {tag: 'old', kind: 'removed', title: 'Old'},
+        {tag: 'roles', kind: 'changed', fields: [{key: 'category', before: 'general', after: 'role'}, {key: 'shape', before: undefined, after: 'portrait'}]},
+        {tag: 'x', kind: 'added', title: 'X`\n# @everyone'},
+      ],
+    });
+    expect(body).toContain('- `image-ow-a.webp`: `old` → none');
+    expect(body).toContain('- `old`: removed (was `Old`)');
+    expect(body).toContain('- `roles`: category `general` → `role`; shape none → `portrait`');
+    expect(body).toContain('- `x`: new, `X # @everyone`');
+    expect(body).not.toContain('\n# @everyone');
+  });
+});
+
+describe('checkPackageEntry (the config entry of an updated official set)', () => {
+  type Config = {packages: Record<string, unknown>};
+  const official = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
+
+  it('accepts the entries that prepareImages wrote for the official sets', () => {
+    expect(official.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
+    for (const [name, custom] of official) {
+      const errors: string[] = [];
+      checkPackageEntry(name, (imagesetConfig as Config).packages[name], custom, errors);
+      expect(errors, name).toEqual([]);
+    }
+  });
+
+  it('refuses a display name, font or background image that imageset.custom.json does not give', () => {
+    const [name, custom] = official[0];
+    const entry = structuredClone((imagesetConfig as Config).packages[name]) as Record<string, unknown>;
+    entry.displayName = 'Renamed';
+    entry.googleFont = 'Comic Neue';
+    entry.backgroundImage = 'https://tracker.example/p.gif';
+    const errors: string[] = [];
+    checkPackageEntry(name, entry, custom, errors);
+    expect(errors.map((error) => error.split(':')[2]?.trim().split(' ')[0])).toEqual(['displayName', 'googleFont', 'backgroundImage']);
+  });
+
+  it('uses the package name as the display name when imageset.custom.json has none, like buildPackageEntry', () => {
+    const entry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['all']}], tags: {all: {title: 'All', description: 'All', category: 'general'}}};
+    const errors: string[] = [];
+    checkPackageEntry('image-new', entry, {}, errors);
+    expect(errors).toEqual([]);
+    checkPackageEntry('image-new', {...entry, googleFont: 'Saira'}, {}, errors);
+    expect(errors).toEqual(['imageset.config.json: image-new: googleFont is "Saira", but imageset.custom.json at HEAD gives nothing.']);
   });
 });

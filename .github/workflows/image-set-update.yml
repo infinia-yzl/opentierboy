@@ -100,11 +100,9 @@ jobs:
           VERSION: ${{ steps.input.outputs.version }}
         run: |
           mkdir -p "$RUNNER_TEMP/update"
+          # Official sets are copied into public/images/ at build time and never committed, so the
+          # patch holds only these files (job 2 refuses any other path).
           git add -A -- package.json package-lock.json imageset.config.json image-registry.lock.json image-aliases.json
-          # Official sets are copied at build time and ignored by git; take their folder only if it is committed.
-          if [ -n "$(git ls-files -- "public/images/${PACKAGE}")" ]; then
-            git add -A -- "public/images/${PACKAGE}"
-          fi
           if git diff --cached --quiet HEAD; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Nothing changed."

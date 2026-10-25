@@ -130,6 +130,25 @@ export function imageShape(packageName, metadata) {
 }
 
 /**
+ * The display fields of an official set's imageset.config.json entry. They come from its
+ * imageset.custom.json entry, never from the package: the display name (the package name when
+ * it has none; it is also the URL slug), and googleFont and backgroundImage when they are set.
+ */
+export function displayFields(packageName, custom) {
+  const source = isPlainObject(custom) ? custom : {};
+  return {
+    displayName: source.displayName || packageName,
+    ...(source.googleFont && {googleFont: source.googleFont}),
+    ...(source.backgroundImage && {backgroundImage: source.backgroundImage}),
+  };
+}
+
+/** The keys buildPackageEntry writes: of an entry, of an image and of a tag (category). */
+export const ENTRY_KEYS = Object.freeze(['displayName', 'images', 'tags', 'googleFont', 'backgroundImage']);
+export const IMAGE_KEYS = Object.freeze(['filename', 'label', 'tags', 'shape']);
+export const TAG_KEYS = Object.freeze(['title', 'description', 'category', 'shape']);
+
+/**
  * Builds the imageset.config.json entry of an official set from what its package returns:
  * `images` from getImageList(), `metadata` from getImageMetadata(). The key order and the
  * defaults are the ones the app has always written; `shape` appears only when not square.
@@ -163,13 +182,14 @@ export function buildPackageEntry({packageName, displayName, images, metadata, c
     };
   });
 
+  // Only include googleFont and backgroundImage if they exist in imageset.custom.json
+  const {googleFont, backgroundImage} = displayFields(packageName, custom);
   return {
     displayName,
     images: packageImages,
     tags: packageTags,
-    // Only include googleFont and backgroundImage if they exist in imageset.custom.json
-    ...(custom.googleFont && {googleFont: custom.googleFont}),
-    ...(custom.backgroundImage && {backgroundImage: custom.backgroundImage}),
+    ...(googleFont && {googleFont}),
+    ...(backgroundImage && {backgroundImage}),
   };
 }
 
