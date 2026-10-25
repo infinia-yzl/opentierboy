@@ -21,8 +21,9 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     other file the browser calls an image (SVG, BMP) is drawn again and stored as a plain picture.
     AVIF and HEIC files get the refusal of "From your device" ("AVIF and HEIC images cannot be
     added yet...") and nothing is stored. Other files get the message "This file is not a
-    picture." Drops do nothing while a dialog, a menu or a list box is open. Files that arrive
-    while another file is still opening are ignored.
+    picture." Drops do nothing while a dialog, a menu or a list box is open. Files are handled
+    one call at a time, in the order they arrive, so quick pastes each get added. Files that
+    arrive while a list is being asked about or opened are ignored.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
     The images go into the device store one call at a time with "From your device", with the

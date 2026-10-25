@@ -92,7 +92,7 @@ export interface UseSnapshotFiles {
   /**
    * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
    * asks whether to open the list; pictures become items; other files show a message. Files that
-   * arrive while an earlier file is still opening are ignored.
+   * arrive while a list is being asked about or opened are ignored; others wait their turn.
    */
   openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
@@ -116,8 +116,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const addItemsWithUndo = useAddItemsWithUndo();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
-  /** True while a file is being read, added or opened, and while the dialog asks. */
+  /** True while the dialog asks about a list and while that list opens: files are ignored then. */
   const busy = useRef(false);
+  /** Files are handled one call at a time, in the order they arrive. */
+  const queue = useRef<Promise<void>>(Promise.resolve());
   /** True from Open list until the list has opened. */
   const openingRef = useRef(false);
 
@@ -143,36 +145,36 @@ export function useSnapshotFiles(): UseSnapshotFiles {
 
   const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || busy.current) return;
-    busy.current = true;
-    void (async () => {
-      let asking = false;
-      try {
-        const checks = await Promise.all(files.map(isPictureFile));
-        const pictures = files.filter((_, index) => checks[index]);
-        const refused = files.filter((_, index) => !checks[index]);
-        if (refused.length > 0) {
-          toast.error(refused.length === files.length ? 'Could not open the file' : 'Some files could not be opened', {
-            description: refused.map((file) => `${file.name}: ${NOT_A_PICTURE}`).join(' '),
-          });
-        }
-        if (pictures.length === 0) return;
-        if (pictures.length === 1) {
-          const check = await checkFile(pictures[0]);
-          if (check.kind === 'snapshot') {
-            asking = true;
-            setPending(check.snapshot);
-            return;
-          }
-          if (check.kind === 'message') {
-            toast.error('Could not open the file', {description: check.message});
-            return;
-          }
-        }
-        await addAsItems(pictures);
-      } finally {
-        if (!asking) busy.current = false;
+    // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
+    const run = queue.current.then(() => openNow(files));
+    queue.current = run.catch(() => undefined);
+
+    async function openNow(files: File[]) {
+      // A list was found in an earlier file and is being asked about or opened.
+      if (busy.current) return;
+      const checks = await Promise.all(files.map(isPictureFile));
+      const pictures = files.filter((_, index) => checks[index]);
+      const refused = files.filter((_, index) => !checks[index]);
+      if (refused.length > 0) {
+        toast.error(refused.length === files.length ? 'Could not open the file' : 'Some files could not be opened', {
+          description: refused.map((file) => `${file.name}: ${NOT_A_PICTURE}`).join(' '),
+        });
       }
-    })();
+      if (pictures.length === 0) return;
+      if (pictures.length === 1) {
+        const check = await checkFile(pictures[0]);
+        if (check.kind === 'snapshot') {
+          busy.current = true;
+          setPending(check.snapshot);
+          return;
+        }
+        if (check.kind === 'message') {
+          toast.error('Could not open the file', {description: check.message});
+          return;
+        }
+      }
+      await addAsItems(pictures);
+    }
   }, [addAsItems]);
 
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
