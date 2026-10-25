@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,6 +39,7 @@ const ItemManager: React.FC = () => {
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
   // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
+  const manageItemsButton = useRef<HTMLButtonElement>(null);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
@@ -116,7 +117,7 @@ const ItemManager: React.FC = () => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon"
+          <Button variant="outline" size="icon" ref={manageItemsButton}
                   className={`${showGradientBorder ? 'glow-effect' : ''}`}
           >
             <DashboardIcon className="h-4 w-4"/>
@@ -144,7 +145,11 @@ const ItemManager: React.FC = () => {
       </DropdownMenu>
 
       <AlertDialog open={isRemoveAllOpen} onOpenChange={setIsRemoveAllOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          // The dialog has no trigger of its own, so give focus back to the menu button.
+          event.preventDefault();
+          manageItemsButton.current?.focus();
+        }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>

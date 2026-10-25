@@ -406,6 +406,15 @@ export class TierListPage {
     });
   }
 
+  /** Opens Remove All and cancels the confirmation. */
+  async cancelRemoveAllItems() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'Remove All'}).click();
+    const confirm = this.page.getByRole('alertdialog');
+    await confirm.getByRole('button', {name: 'Cancel'}).click();
+    await expect(confirm).toBeHidden();
+  }
+
   async removeAllItems() {
     await this.changeAndWaitForLink(async () => {
       await this.openItemsMenu();

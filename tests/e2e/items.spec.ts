@@ -120,6 +120,16 @@ test.describe('Managing items', () => {
     // A trial click runs every check of a real click, including that nothing covers the button.
     await tierList.shareButton.click({trial: true, timeout: 3_000});
   });
+
+  test('closing the Remove All confirmation gives focus back to the Manage items button', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+
+    await tierList.removeAllItems();
+    await expect(tierList.manageItemsButton).toBeFocused();
+
+    await tierList.cancelRemoveAllItems();
+    await expect(tierList.manageItemsButton).toBeFocused();
+  });
 });
 
 /**
