@@ -18,6 +18,21 @@ const RANK_PATH = /^\/rank(?:\/[A-Za-z0-9._~%-]+)*$/;
 /** A segment of dots only, plain or percent-encoded ('..', '%2e%2e', '.%2E'): it would leave /rank. */
 const DOT_SEGMENT = /^(?:\.|%2e)+$/i;
 
+/** Display names of editor pages: per set slug (package name or display name slug), its name and its tag titles. */
+export type RankPageNames = Readonly<Record<string, {name: string; tags: Readonly<Record<string, string>>}>>;
+
+/**
+ * The title an editor page shows for a list without one, from the page's path: "<set> - <tag>"
+ * as on the page itself, the set name alone, or "Custom Tier List".
+ */
+export function rankPageTitle(path: string, names: RankPageNames): string {
+  const [, , setSlug, tagSlug] = (normalizeRankPath(path) ?? '/rank').split('/');
+  const set = setSlug !== undefined && Object.prototype.hasOwnProperty.call(names, setSlug) ? names[setSlug] : undefined;
+  if (!set) return 'Custom Tier List';
+  const tag = tagSlug !== undefined && Object.prototype.hasOwnProperty.call(set.tags, tagSlug) ? set.tags[tagSlug] : undefined;
+  return tag ? `${set.name} - ${tag}` : set.name;
+}
+
 /**
  * The path with trailing slashes removed (`/rank/` becomes `/rank`), or null when it is not a
  * plain /rank path of at most MAX_RANK_PATH_CHARS characters.

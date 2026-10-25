@@ -14,27 +14,33 @@ import {
   type RecentLinksStorage,
 } from '@/lib/recent/recentLinks';
 
-class MemoryStorage implements RecentLinksStorage {
-  values = new Map<string, string>();
-  failGet = false;
-  failSet = false;
-  failRemove = false;
-  getItem(key: string): string | null {
-    if (this.failGet) throw new DOMException('blocked', 'SecurityError');
-    return this.values.get(key) ?? null;
-  }
-  setItem(key: string, value: string): void {
-    if (this.failSet) throw new DOMException('full', 'QuotaExceededError');
-    this.values.set(key, String(value));
-  }
-  removeItem(key: string): void {
-    if (this.failRemove) throw new DOMException('blocked', 'SecurityError');
-    this.values.delete(key);
-  }
+type MemoryStorage = RecentLinksStorage & {values: Map<string, string>; failGet: boolean; failSet: boolean; failRemove: boolean};
+
+/** An in-memory storage whose methods can be made to throw, like blocked or full local storage. */
+function memoryStorage(): MemoryStorage {
+  const storage: MemoryStorage = {
+    values: new Map<string, string>(),
+    failGet: false,
+    failSet: false,
+    failRemove: false,
+    getItem: (key) => {
+      if (storage.failGet) throw new DOMException('blocked', 'SecurityError');
+      return storage.values.get(key) ?? null;
+    },
+    setItem: (key, value) => {
+      if (storage.failSet) throw new DOMException('full', 'QuotaExceededError');
+      storage.values.set(key, String(value));
+    },
+    removeItem: (key) => {
+      if (storage.failRemove) throw new DOMException('blocked', 'SecurityError');
+      storage.values.delete(key);
+    },
+  };
+  return storage;
 }
 
 function setup(start = 1_000) {
-  const storage = new MemoryStorage();
+  const storage = memoryStorage();
   let clock = start;
   const tick = () => ++clock;
   const recent = createRecentLinks(storage, {now: tick});
@@ -327,7 +333,7 @@ describe('storage', () => {
   });
 
   it('uses the injected clock, and the real one when the injected clock is broken', () => {
-    const storage = new MemoryStorage();
+    const storage = memoryStorage();
     const recent = createRecentLinks(storage, {now: () => Number.NaN});
     const before = Date.now();
     recent.record(link(1));
@@ -335,7 +341,7 @@ describe('storage', () => {
   });
 
   it('uses another key when asked', () => {
-    const storage = new MemoryStorage();
+    const storage = memoryStorage();
     createRecentLinks(storage, {key: 'other'}).record(link(1));
     expect(Array.from(storage.values.keys())).toEqual(['other']);
   });
@@ -345,7 +351,7 @@ describe('untrusted stored data', () => {
   const valid = {path: '/rank/a', state: 'N4Ig', title: 'A', openedAt: 10, pinned: false};
 
   function load(value: unknown) {
-    const storage = new MemoryStorage();
+    const storage = memoryStorage();
     storage.values.set(RECENT_LINKS_STORAGE_KEY, typeof value === 'string' ? value : JSON.stringify(value));
     return createRecentLinks(storage).list();
   }
@@ -437,7 +443,7 @@ describe('helpers', () => {
 
   it('returns the browser storage, or null when it is missing or blocked', () => {
     expect(browserLocalStorage()).toBeNull();
-    const storage = new MemoryStorage();
+    const storage = memoryStorage();
     vi.stubGlobal('localStorage', storage);
     expect(browserLocalStorage()).toBe(storage);
     vi.unstubAllGlobals();
@@ -456,7 +462,7 @@ describe('helpers', () => {
 });
 
 function setupStorageFrom(recent: ReturnType<typeof createRecentLinks>): RecentLinksStorage {
-  const storage = new MemoryStorage();
+  const storage = memoryStorage();
   storage.setItem(RECENT_LINKS_STORAGE_KEY, JSON.stringify({version: 1, links: recent.list()}));
   return storage;
 }

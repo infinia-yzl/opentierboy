@@ -5,13 +5,13 @@ import {describe, expect, it} from 'vitest';
 /**
  * lib/snapshot, lib/recent and lib/rankPath.ts are plain modules: no React, no Next, no Node
  * modules, and no browser globals at import time. They may import files in their own folder and
- * a few plain app modules: zod through lib/zod (A39), the device id rule (A40) and the /rank
- * path rule. (Browser APIs such as CompressionStream or localStorage are used inside functions,
+ * a few plain app modules: zod through lib/zod (A39), the link format (lib/state, which is
+ * plain itself), the device id rule (A40) and the /rank path rule. (Browser APIs such as CompressionStream or localStorage are used inside functions,
  * at call time; lib/recent receives its storage from the caller.)
  */
 const root = path.resolve(__dirname, '../..');
 const folders = ['lib/snapshot', 'lib/recent'];
-const ALLOWED_APP_MODULES = new Set(['@/lib/zod', '@/lib/state/deviceId', '@/lib/rankPath']);
+const ALLOWED_APP_MODULES = new Set(['@/lib/zod', '@/lib/state', '@/lib/state/deviceId', '@/lib/rankPath']);
 
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, {withFileTypes: true}).flatMap(entry => {

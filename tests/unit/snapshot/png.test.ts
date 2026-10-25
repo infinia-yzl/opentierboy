@@ -188,28 +188,27 @@ describe('extractSnapshotText refuses bad files', () => {
     const RealDecompressionStream = globalThis.DecompressionStream;
     let largestWrite = 0;
     let produced = 0;
-    class CountingDecompressionStream {
-      readonly readable: ReadableStream<Uint8Array>;
-      readonly writable: WritableStream<BufferSource>;
-      constructor(format: CompressionFormat) {
-        const real = new RealDecompressionStream(format);
-        const input = new TransformStream<BufferSource, BufferSource>({
-          transform(piece, controller) {
-            largestWrite = Math.max(largestWrite, (piece as Uint8Array).byteLength);
-            controller.enqueue(piece);
-          },
-        });
-        input.readable.pipeTo(real.writable).catch(() => undefined);
-        this.writable = input.writable;
-        this.readable = real.readable.pipeThrough(
+    // A constructor function that returns an object: `new` gives back that object.
+    function CountingDecompressionStream(format: CompressionFormat): ReadableWritablePair<Uint8Array, BufferSource> {
+      const real = new RealDecompressionStream(format);
+      const input = new TransformStream<BufferSource, BufferSource>({
+        transform(piece, controller) {
+          largestWrite = Math.max(largestWrite, (piece as Uint8Array).byteLength);
+          controller.enqueue(piece);
+        },
+      });
+      input.readable.pipeTo(real.writable).catch(() => undefined);
+      return {
+        writable: input.writable,
+        readable: real.readable.pipeThrough(
           new TransformStream<Uint8Array, Uint8Array>({
             transform(piece, controller) {
               produced += piece.byteLength;
               controller.enqueue(piece);
             },
           }),
-        );
-      }
+        ),
+      };
     }
     vi.stubGlobal('DecompressionStream', CountingDecompressionStream);
 
