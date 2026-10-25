@@ -40,7 +40,7 @@ const decode = (state: string) => new TierCortex().decodeTierStateFromURL(state)
 
 describe('legacy link limits', () => {
   it('leave every golden link far below each limit', () => {
-    const largest = {json: 0, tiers: 0, items: 0, title: 0, name: 0, label: 0, id: 0};
+    const largest = {json: 0, tiers: 0, items: 0};
     for (const {id, state} of GOLDEN) {
       const json = LZString.decompressFromEncodedURIComponent(state)!;
       largest.json = Math.max(largest.json, json.length);
@@ -50,45 +50,28 @@ describe('legacy link limits', () => {
       expect(decode(state), id).not.toBeNull();
       largest.tiers = Math.max(largest.tiers, decoded.tiers.length);
       largest.items = Math.max(largest.items, decoded.tiers.reduce((sum, row) => sum + row.items.length, 0));
-      largest.title = Math.max(largest.title, decoded.title?.length ?? 0);
-      for (const row of decoded.tiers) {
-        largest.name = Math.max(largest.name, row.name.length);
-        largest.id = Math.max(largest.id, row.id.length);
-        for (const item of row.items) {
-          largest.id = Math.max(largest.id, item.id.length);
-          largest.label = Math.max(largest.label, item.content?.length ?? 0);
-        }
-      }
     }
     // The 430-item fixture is among them.
     expect(largest.items).toBe(430);
     expect(largest.json * 10).toBeLessThan(L.maxJsonLength);
     expect(largest.tiers * 10).toBeLessThan(L.maxTiers);
     expect(largest.items * 10).toBeLessThan(L.maxItems);
-    expect(largest.title * 10).toBeLessThan(L.maxTitleLength);
-    expect(largest.name * 10).toBeLessThan(L.maxTierNameLength);
-    expect(largest.label * 10).toBeLessThan(L.maxLabelLength);
-    expect(largest.id * 5).toBeLessThan(L.maxIdLength);
   });
 
-  it('accept a list exactly at every limit', () => {
-    const items = Array.from({length: L.maxItems}, (_, index) => ({i: `custom-${index}`, c: index === 0 ? 'l'.repeat(L.maxLabelLength) : 'x'}));
-    const tiers = Array.from({length: L.maxTiers}, (_, index) => tier(index === 0 ? 'n'.repeat(L.maxTierNameLength) : 'T', [], `tier-${index}`));
+  it('accept a list exactly at the row and item limits, with text of any length (A43)', () => {
+    const items = Array.from({length: L.maxItems}, (_, index) => ({i: `custom-${index}`, c: index === 0 ? 'l'.repeat(10_000) : 'x'}));
+    const tiers = Array.from({length: L.maxTiers}, (_, index) => tier(index === 0 ? 'n'.repeat(10_000) : 'T', [], `tier-${index}`));
     tiers[0].t = items.slice(0, L.maxItems - 1);
-    tiers[1].t = [{i: 'i'.repeat(L.maxIdLength)}];
-    const decoded = decode(v2(tiers, 't'.repeat(L.maxTitleLength)));
+    tiers[1].t = [{i: 'i'.repeat(10_000)}];
+    const decoded = decode(v2(tiers, 't'.repeat(100_000)));
     expect(decoded).not.toBeNull();
     expect(decoded!.tiers).toHaveLength(L.maxTiers);
-    expect(decoded!.title).toHaveLength(L.maxTitleLength);
+    expect(decoded!.tiers[0].name).toHaveLength(10_000);
+    expect(decoded!.title).toHaveLength(100_000);
   });
 
-  it('reject a list one past any limit', () => {
+  it('reject a list one past the row or item limit', () => {
     const over = [
-      v2([tier('S'), UNRANKED], 't'.repeat(L.maxTitleLength + 1)),
-      v2([tier('n'.repeat(L.maxTierNameLength + 1)), UNRANKED]),
-      v2([tier('S', [{i: 'abc', c: 'l'.repeat(L.maxLabelLength + 1)}]), UNRANKED]),
-      v2([tier('S', [{i: 'i'.repeat(L.maxIdLength + 1)}]), UNRANKED]),
-      v2([tier('S', [], 'i'.repeat(L.maxIdLength + 1)), UNRANKED]),
       v2(Array.from({length: L.maxTiers + 1}, (_, index) => tier('T', [], `tier-${index}`))),
       v2([tier('S', Array.from({length: L.maxItems}, (_, index) => ({i: `c${index}`}))), UNRANKED]),
     ];
@@ -96,15 +79,14 @@ describe('legacy link limits', () => {
   });
 
   it('reject a link whose JSON is longer than the cap, before decompressing it', () => {
-    const lastError = () => String((errorSpy.mock.calls.at(-1) as unknown[])[1]);
+    const lastError = () => String((errorSpy.mock.calls.at(-1) as unknown[] | undefined)?.[1]);
     const template = '{"tiers":[{"i":"tier-s","n":"{run}","t":[]}]}';
     const outline = template.length - '{run}'.length;
 
-    // Exactly at the cap, the JSON reaches the type checks (and the tier name is too long).
+    // Exactly at the cap, the link decodes: a tier name of almost a million characters.
     const atCap = lzWithRun(template, 'x', L.maxJsonLength - outline);
     expect(atCap.outputLength).toBe(L.maxJsonLength);
-    expect(decode(atCap.input)).toBeNull();
-    expect(lastError()).toContain('a tier name that is not text, or too long');
+    expect(decode(atCap.input)!.tiers[0].name).toHaveLength(L.maxJsonLength - outline);
 
     // One character more, and the link stops before lz-string decompresses it.
     const overCap = lzWithRun(template, 'x', L.maxJsonLength - outline + 1);

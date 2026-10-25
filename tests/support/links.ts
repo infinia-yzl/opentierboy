@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import imagesetConfig from '../../imageset.config.json';
 import legacyConfig from '../../imageset.legacy.json';
+import {lzWithRun} from '../unit/support/lzStream';
 
 type PackageConfig = {images: {filename: string; label: string; tags: string[]}[]};
 const packages = (imagesetConfig as {packages: Record<string, PackageConfig>}).packages;
@@ -97,9 +98,10 @@ export function stateFromJson(json: unknown): string {
 }
 
 /**
- * A short `state` value (under 2,000 characters) that decompresses to a list with a
- * 300,000-character tier name: far more than any real list, so the app rejects it (A29).
+ * A short `state` value (about 2,600 characters) that decompresses to a list with a
+ * 1,000,001-character tier name: more JSON than the app accepts (1,000,000 characters,
+ * lib/legacyLinkLimits.ts), so it falls back to the template (A29).
  */
 export function hugeTierNameState(): string {
-  return stateFromJson({tiers: [{i: 'tier-s', n: 'x'.repeat(300_000), t: []}, {i: 'uncategorized', n: '', t: []}]});
+  return lzWithRun('{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}', 'x', 1_000_001).input;
 }

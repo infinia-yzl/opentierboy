@@ -145,7 +145,7 @@ test.describe('Links with bad data', () => {
   });
 
   test('a link with a huge tier name falls back to the template', async ({tierList}) => {
-    // 300,000 characters of tier name in a link of under 2,000 characters.
+    // A million characters of tier name in a link of about 2,600 characters.
     await tierList.goto('/rank/overwatch/tank', hugeTierNameState());
 
     await expect(tierList.title).toHaveText('OVERWATCH - Tank');

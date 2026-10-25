@@ -338,12 +338,13 @@ describe('TierCortex limits for legacy links (A29)', () => {
   // Links are compressed, so a short link can hold a huge list: the review found a 5,760-character
   // link that holds a 5-million-character tier name (it blocked /api/og and every other request
   // to `next start` for over a minute), and a 12 KB link that expands to 10 MB of JSON. Never
-  // send such a link to a server in a test. This modest case keeps the test fast.
-  const hugeName = 'x'.repeat(300_000);
+  // send such a link to a server in a test. This case is just over the 1,000,000-character JSON
+  // cap (lib/legacyLinkLimits.ts); a longer text in a list under the cap decodes (A43).
+  const hugeName = 'x'.repeat(1_000_001);
   const state = lz(JSON.stringify({tiers: [{i: 'tier-s', n: hugeName, t: []}, {i: 'uncategorized', n: '', t: []}]}));
 
   it('the test link with a huge tier name is short', () => {
-    expect(state.length).toBeLessThan(2_000);
+    expect(state.length).toBeLessThan(4_000);
   });
 
   it('rejects a link whose decoded list is far larger than any real list', () => {

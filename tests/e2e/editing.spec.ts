@@ -51,6 +51,25 @@ test.describe('Editing labels, other ways', () => {
   });
 });
 
+test.describe('Long labels', () => {
+  test('a very long tier name survives the next change, Back and a reload', async ({tierList, page}) => {
+    // The editor accepts text of any length, so links must keep opening with it (A43).
+    const longName = 'A very long tier name. '.repeat(87).trim();
+    expect(longName.length).toBeGreaterThan(2_000);
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
+
+    await tierList.renameTier('S', longName);
+    await tierList.dragItemToTier('Winston', 'A');
+    await page.goBack();
+
+    await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn('A')).toHaveCount(0);
+    await page.reload();
+    await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
+  });
+});
+
 test.describe('Row settings', () => {
   test('switching to 3 rows moves items from removed rows into Unranked', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], F: ['Sigma']}));
