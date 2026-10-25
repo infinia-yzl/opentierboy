@@ -15,6 +15,13 @@ beforeAll(async () => {
   await eslint.calculateConfigForFile(path.join(repoRoot, 'lib/state/index.ts'));
 }, 90_000);
 
+/** The lines (each once) where ESLint reports one of `rules` for this code at this path. */
+async function reportedLines(filePath: string, code: string, rules: string[]): Promise<number[]> {
+  const [result] = await eslint.lintText(code, {filePath: path.join(repoRoot, filePath)});
+  const lines = result.messages.filter(message => message.ruleId !== null && rules.includes(message.ruleId)).map(message => message.line);
+  return [...new Set(lines)];
+}
+
 async function blockedLines(filePath: string, imports: string[]): Promise<number[]> {
   const code = imports.map((source, index) => `import x${index} from '${source}';`).join('\n') + '\n';
   const [result] = await eslint.lintText(code, {filePath: path.join(repoRoot, filePath)});
@@ -45,12 +52,36 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('tests/unit/images/deviceStore.test.ts', libraries)).toEqual([]);
   });
 
+  it('allow the indexedDB global only in the device image store and its tests', async () => {
+    const code = 'export const a = indexedDB;\nexport const b = globalThis.indexedDB;\nexport const c = window.indexedDB;\nexport const d = self.indexedDB;\n';
+    const rules = ['no-restricted-globals', 'no-restricted-properties'];
+    expect(await reportedLines('components/Probe.tsx', code, rules)).toEqual([1, 2, 3, 4]);
+    expect(await reportedLines('lib/state/probe.ts', code, rules)).toEqual([1, 2, 3, 4]);
+    expect(await reportedLines('app/api/og/probe.ts', code, rules)).toEqual([1, 2, 3, 4]);
+    expect(await reportedLines('lib/zod.ts', code, rules)).toEqual([1, 2, 3, 4]);
+    expect(await reportedLines('lib/images/deviceStore.ts', code, rules)).toEqual([]);
+    expect(await reportedLines('tests/unit/images/deviceStore.test.ts', code, rules)).toEqual([]);
+  });
+
+  it('allow importing zod only in lib/zod.ts and the eval-probe test', async () => {
+    const imports = ['zod', '@/lib/zod', '@hookform/resolvers/zod', 'zod/v4'];
+    expect(await blockedLines('components/ItemCreator.tsx', imports)).toEqual([1, 4]);
+    expect(await blockedLines('lib/snapshot/payload.ts', imports)).toEqual([1, 4]);
+    expect(await blockedLines('lib/images/deviceStore.ts', imports)).toEqual([1, 4]);
+    expect(await blockedLines('app/api/og/route.tsx', imports)).toEqual([1, 4]);
+    expect(await blockedLines('lib/zod.ts', imports)).toEqual([]);
+    expect(await blockedLines('tests/unit/zod-eval-probe.test.ts', imports)).toEqual([]);
+  });
+
   it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
     expect(await blockedLines('app/api/og/probe.ts', imports)).toEqual(blocked);
     expect(await blockedLines('app/api/og/route.tsx', imports)).toEqual(blocked);
     expect(await blockedLines('lib/TierCortex.ts', imports)).toEqual(blocked);
+    for (const file of ['linkImage', 'trustedSites', 'imageType', 'listImages']) {
+      expect(await blockedLines(`lib/images/${file}.ts`, imports), file).toEqual(blocked);
+    }
     // Elsewhere Node modules stay allowed, for example in scripts and tests.
     expect(await blockedLines('tests/unit/probe.test.ts', ['os', 'node:fs', 'path'])).toEqual([]);
   });

@@ -2,11 +2,11 @@ import {defineConfig, globalIgnores} from 'eslint/config';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import prettier from 'eslint-config-prettier/flat';
 
-// Import rules (amendments A12, A31 and A41). For one file, ESLint uses the options of the last
-// matching block that sets a rule. So every block builds its list with restrictImports(), which
-// always adds the rules that hold everywhere (SHARED_IMPORT_RULES): a later block can never drop
-// them. A rule for every file goes into SHARED_IMPORT_RULES, and the files it does not apply to
-// go into the "Everywhere" block's ignores.
+// Import rules (amendments A12, A31, A39 and A41). For one file, ESLint uses the options of the
+// last matching block that sets a rule. So every block builds its list with restrictImports(),
+// which always adds the rules that hold everywhere (IndexedDB libraries, zod): a later block can
+// never drop them. Each of those rules has a few files it does not apply to; the "Everywhere"
+// blocks below list them. Globals work the same way with restrictGlobals().
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
@@ -40,16 +40,63 @@ function stateEscape(depth) {
   };
 }
 
-/** Rules for every file (with the exceptions in the "Everywhere" block's ignores). */
-const SHARED_IMPORT_RULES = [INDEXED_DB_LIBRARIES];
+/** zod tries eval when it builds a schema, which the Content Security Policy blocks (A39). */
+const ZOD_IMPORT = {
+  name: 'zod',
+  message: 'Import z from @/lib/zod: it turns off the eval check that the Content Security Policy reports.',
+};
 
-/** The no-restricted-imports setting for a block: its own patterns plus SHARED_IMPORT_RULES. */
-const restrictImports = (...patterns) => ({
-  'no-restricted-imports': ['error', {patterns: [...SHARED_IMPORT_RULES, ...patterns]}],
+/** Files that may use IndexedDB: the device image store and its tests. */
+const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'];
+/** Files that may import zod itself: lib/zod.ts and the test that shows why it exists. */
+const ZOD_FILES = ['lib/zod.ts', 'tests/unit/zod-eval-probe.test.ts'];
+
+/**
+ * The no-restricted-imports setting for a block: its own patterns, plus the rules for every
+ * file. `allow` names the shared rules the block's files are exempt from ('indexedDB', 'zod').
+ */
+const restrictImports = (patterns = [], {allow = []} = {}) => ({
+  'no-restricted-imports': ['error', {
+    patterns: [
+      ...(allow.includes('indexedDB') ? [] : [INDEXED_DB_LIBRARIES]),
+      ...(allow.includes('zod') ? [] : [{regex: '^zod/', message: ZOD_IMPORT.message}]),
+      ...patterns,
+    ],
+    paths: allow.includes('zod') ? [] : [ZOD_IMPORT],
+  }],
 });
 
+const INDEXED_DB_GLOBAL = {
+  name: 'indexedDB',
+  message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB. Use that module instead.',
+};
+
+/**
+ * The no-restricted-globals setting for a block: its own globals, plus indexedDB unless allowed.
+ * no-restricted-properties catches the same global read through window, self or globalThis.
+ */
+const restrictGlobals = (globals = [], {allow = []} = {}) => {
+  const indexedDb = !allow.includes('indexedDB');
+  return {
+    'no-restricted-globals': ['error', ...(indexedDb ? [INDEXED_DB_GLOBAL] : []), ...globals],
+    'no-restricted-properties': ['error', ...(indexedDb
+      ? ['window', 'self', 'globalThis'].map((object) => ({object, property: 'indexedDB', message: INDEXED_DB_GLOBAL.message}))
+      : [])],
+  };
+};
+
+/** Code that the edge OG route runs: lib/TierCortex.ts and the image helpers it uses. */
+const EDGE_FILES = [
+  'app/api/og/**/*.{ts,tsx}',
+  'lib/TierCortex.ts',
+  'lib/images/linkImage.ts',
+  'lib/images/trustedSites.ts',
+  'lib/images/imageType.ts',
+  'lib/images/listImages.ts',
+];
+
 const stateImportRules = (depth) =>
-  restrictImports(STATE_FRAMEWORKS, NODE_BUILT_INS, STATE_ROUNDABOUT_PATH, stateEscape(depth));
+  restrictImports([STATE_FRAMEWORKS, NODE_BUILT_INS, STATE_ROUNDABOUT_PATH, stateEscape(depth)]);
 
 export default defineConfig([
   // Generated files: Playwright reports and traces, Vercel output, the image sets that the
@@ -68,18 +115,18 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
     },
   },
-  // Everywhere: no IndexedDB libraries outside the device image store.
+  // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts.
   {
     files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
-    ignores: ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'],
-    rules: restrictImports(),
+    ignores: [...INDEXED_DB_FILES, ...ZOD_FILES],
+    rules: {...restrictImports(), ...restrictGlobals()},
   },
+  {files: INDEXED_DB_FILES, rules: {...restrictImports([], {allow: ['indexedDB']}), ...restrictGlobals([], {allow: ['indexedDB']})}},
+  {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals()}},
   // lib/state: pure code for the browser, the server and the edge runtime.
   {
     files: ['lib/state/**/*.{ts,tsx}'],
-    rules: {
-      'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage', 'indexedDB', 'navigator', 'process'],
-    },
+    rules: restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'process']),
   },
   {files: ['lib/state/*.{ts,tsx}'], rules: stateImportRules(0)},
   {files: ['lib/state/*/*.{ts,tsx}'], rules: stateImportRules(1)},
@@ -87,13 +134,13 @@ export default defineConfig([
   {files: ['lib/state/*/*/*/**/*.{ts,tsx}'], rules: stateImportRules(3)},
   // The edge OG route, and TierCortex, which it imports.
   {
-    files: ['app/api/og/**/*.{ts,tsx}', 'lib/TierCortex.ts'],
-    rules: restrictImports(NODE_BUILT_INS),
+    files: EDGE_FILES,
+    rules: restrictImports([NODE_BUILT_INS]),
   },
   {
     files: ['app/api/og/**/*.{ts,tsx}'],
     rules: {
-      'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage', 'indexedDB'],
+      ...restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage']),
     },
   },
 ]);
