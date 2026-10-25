@@ -154,6 +154,15 @@ test.describe('Images from the device', () => {
     expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
   });
 
+  test('when some images cannot be added, the others are added and a message lists the rest', async ({tierList}) => {
+    await tierList.goto('/rank');
+    await tierList.addItemsFromDevice([imageFile('red-square.png'), imageFile('notes.png', Buffer.from('not an image at all'))]);
+
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
+    await expect(tierList.toast('Some images could not be added')).toContainText('notes: This file could not be read as an image.');
+    await expect(tierList.manageItemsButton).toBeFocused();
+  });
+
   test('300 uploads show quickly after the page loads', async ({tierList, page}) => {
     test.slow();
     const count = 300;

@@ -64,7 +64,7 @@ const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
     }
     if (result.reason === 'aborted') return;
     setFailedUrl(check.url);
-    setMessage(`${IMAGE_CHECK_FAILURE_MESSAGES[result.reason]} You can add it anyway: it shows as a label tile until the image loads.`);
+    setMessage(`${IMAGE_CHECK_FAILURE_MESSAGES[result.reason]} You can add it anyway: it shows its name in place of the picture until the image loads.`);
   };
 
   return (

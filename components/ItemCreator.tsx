@@ -10,6 +10,7 @@ import {Input} from "@/components/ui/input"
 import Image from 'next/image'
 import Item from "@/models/Item";
 import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {toast} from "sonner";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -67,6 +68,8 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
     setErrors(failures);
     if (items.length === 0) return;
     onItemsCreate(items);
+    // The dialog closes, so the images that failed are listed in a toast.
+    if (failures.length > 0) toast.error('Some images could not be added', {description: failures.join(' ')});
 
     setUploadedItems([]);
     form.reset();
