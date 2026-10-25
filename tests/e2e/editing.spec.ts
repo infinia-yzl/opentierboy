@@ -55,7 +55,7 @@ test.describe('Long labels', () => {
   test('a very long tier name survives the next change, Back and a reload', async ({tierList, page}) => {
     // The editor accepts text of any length, so links must keep opening with it (A43).
     const longName = 'A very long tier name. '.repeat(87).trim();
-    expect(longName.length).toBeGreaterThan(2_000);
+    expect(longName.length).toBe(2_000);
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
     await tierList.renameTier('S', longName);
