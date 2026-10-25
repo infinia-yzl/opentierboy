@@ -148,10 +148,13 @@ const restrictGlobals = (globals = [], {allow = []} = {}) => {
   };
 };
 
-/** Code that the edge OG route runs: lib/TierCortex.ts and the image helpers it uses. */
+/** Code that the edge OG route runs: lib/TierCortex.ts, the modules it binds, and the image helpers it uses. */
 const EDGE_FILES = [
   'app/api/og/**/*.{ts,tsx}',
   'lib/TierCortex.ts',
+  'lib/packageItems.ts',
+  'lib/listLink.ts',
+  'lib/linkPreview.ts',
   'lib/images/linkImage.ts',
   'lib/images/trustedSites.ts',
   'lib/images/imageType.ts',
@@ -204,7 +207,7 @@ export default defineConfig([
   {files: ['lib/state/*/*.{ts,tsx}'], rules: stateImportRules(1)},
   {files: ['lib/state/*/*/*.{ts,tsx}'], rules: stateImportRules(2)},
   {files: ['lib/state/*/*/*/**/*.{ts,tsx}'], rules: stateImportRules(3)},
-  // The edge OG route, and TierCortex, which it imports.
+  // The edge OG route, and TierCortex and its modules, which it imports.
   {
     files: EDGE_FILES,
     rules: restrictImports([NODE_BUILT_INS]),

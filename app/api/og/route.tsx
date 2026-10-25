@@ -1,5 +1,6 @@
 import {ImageResponse} from 'next/og';
-import {TierCortex} from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
+import {getOgTierGradient} from '@/lib/linkPreview';
 import {inlineLocalImages} from './local-images';
 import {inlineTrustedLinkImages} from './link-images';
 import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
@@ -65,7 +66,7 @@ const DefaultOGImage = ({logoSrc}: {logoSrc: string}) => (
 );
 
 async function defaultImageResponse() {
-  const logoUrl = new TierCortex().getAssetUrl(LOGO);
+  const logoUrl = createTierCortex().getAssetUrl(LOGO);
   const imageSrc = await inlineLocalImages([logoUrl]);
   return new ImageResponse(<DefaultOGImage logoSrc={imageSrc(logoUrl)}/>, await imageOptions());
 }
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
     return defaultImageResponse();
   }
 
-  const tierCortex = new TierCortex();
+  const tierCortex = createTierCortex();
   const decodedState = tierCortex.decodeTierStateFromURL(state);
 
   if (!decodedState) {
@@ -128,7 +129,7 @@ export async function GET(request: Request) {
             <div
               key={tier.id}
               style={{
-                background: tierCortex.getOgTierGradient(index, tiers.length + 1),
+                background: getOgTierGradient(index, tiers.length + 1),
               }}
               tw="flex items-center rounded-md min-h-[80px] overflow-hidden"
             >

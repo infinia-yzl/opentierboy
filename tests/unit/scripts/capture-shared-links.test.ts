@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
-import TierCortex from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
 import sharedLinks from '../../fixtures/shared-links.json';
 
 /**
@@ -36,7 +36,7 @@ describe('scripts/capture-shared-links.mjs', () => {
   };
 
   /** What the app shows for a link: tier names (an unnamed one is Unranked) and item labels. */
-  const shown = (state: string) => new TierCortex().decodeTierStateFromURL(state)!.tiers.map(tier => ({
+  const shown = (state: string) => createTierCortex().decodeTierStateFromURL(state)!.tiers.map(tier => ({
     name: tier.name.trim() || 'Unranked',
     items: tier.items.map(item => item.content),
   }));
@@ -49,7 +49,7 @@ describe('scripts/capture-shared-links.mjs', () => {
   });
 
   it('reads v3 links, and records what the app shows for them', () => {
-    const cortex = new TierCortex();
+    const cortex = createTierCortex();
     const legacy = sharedLinks.find(link => link.id === 'link-002')!;
     const tiers = cortex.decodeTierStateFromURL(legacy.state)!.tiers;
     tiers[0] = {...tiers[0], items: [

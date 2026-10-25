@@ -160,7 +160,9 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
     expect(await blockedLines('app/api/og/probe.ts', imports)).toEqual(blocked);
     expect(await blockedLines('app/api/og/route.tsx', imports)).toEqual(blocked);
-    expect(await blockedLines('lib/TierCortex.ts', imports)).toEqual(blocked);
+    for (const file of ['TierCortex', 'packageItems', 'listLink', 'linkPreview']) {
+      expect(await blockedLines(`lib/${file}.ts`, imports), file).toEqual(blocked);
+    }
     for (const file of ['linkImage', 'trustedSites', 'imageType', 'listImages']) {
       expect(await blockedLines(`lib/images/${file}.ts`, imports), file).toEqual(blocked);
     }

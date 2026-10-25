@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 import {type CanonicalState, decodeState, encodeV2, encodeV3} from '@/lib/state';
-import TierCortex from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
 import sharedLinks from '../../fixtures/shared-links.json';
 
 /**
@@ -112,7 +112,7 @@ describe('golden shared links (tests/fixtures/shared-links.json)', () => {
       });
 
       it('shows the captured tiers and labels', () => {
-        const decoded = new TierCortex().decodeTierStateFromURL(link.state);
+        const decoded = createTierCortex().decodeTierStateFromURL(link.state);
         expect(decoded).not.toBeNull();
         expect(decoded!.tiers.map(tier => ({
           name: tier.name.trim() || 'Unranked',

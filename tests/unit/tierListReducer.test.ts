@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import {describe, expect, it} from 'vitest';
-import TierCortex, {type ListLayout} from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
+import {type ListLayout} from '@/lib/listLink';
 import {decodeState} from '@/lib/state';
 import {tierTemplates} from '@/models/Tier';
 import type {ItemSet} from '@/models/ItemSet';
@@ -48,11 +49,11 @@ function fiveRowLink(rows: Partial<Record<'S' | 'A' | 'B' | 'C' | 'F' | '', stri
 
 /** A v3 link of a five-row list, as the app writes it. */
 function fiveRowV3Link(rows: Partial<Record<'S' | 'A' | 'B' | 'C' | 'F' | '', string[]>>, title = '', layout?: ListLayout) {
-  const cortex = new TierCortex();
+  const cortex = createTierCortex();
   return cortex.encodeListForURL(title, cortex.decodeTierStateFromURL(fiveRowLink(rows))!.tiers, layout);
 }
 
-function setup(address: string | null, cortex = new TierCortex(), layoutWrite: LayoutLinkWrite = LAYOUT_LINK_WRITE) {
+function setup(address: string | null, cortex = createTierCortex(), layoutWrite: LayoutLinkWrite = LAYOUT_LINK_WRITE) {
   const encode = (title: string, tiers: TierListState['tiers'], layout: ListLayout) => cortex.encodeListForURL(title, tiers, layout);
   const reducer = createTierListReducer(encode, {layoutWrite});
   const load = (to: string | null) => loadList(cortex, to, TANKS, PAGE_TITLE);
@@ -95,7 +96,7 @@ describe('opening a link writes nothing (A1)', () => {
   }
 
   it('a titled link with an aliased id, whose next save writes the new id (A30)', () => {
-    const cortex = new TierCortex({aliases: {'image-overwatch-old-mauga.webp': MAU}});
+    const cortex = createTierCortex({aliases: {'image-overwatch-old-mauga.webp': MAU}});
     const link = fiveRowLink({S: ['image-overwatch-old-mauga.webp']}, 'Renamed');
     const store = setup(link, cortex);
     expect(store.state.writes).toEqual([]);
@@ -118,7 +119,7 @@ describe('opening a link writes nothing (A1)', () => {
   }
 
   it('decoding and encoding a v3 link written by the app gives the same link', () => {
-    const cortex = new TierCortex();
+    const cortex = createTierCortex();
     for (const link of sharedLinks) {
       const opened = cortex.decodeTierStateFromURL(link.state)!;
       const written = cortex.encodeListForURL(opened.title ?? '', opened.tiers, opened.layout);
@@ -226,14 +227,14 @@ describe('layout settings in links (A3)', () => {
   });
 
   it('option "push": a layout change is a new history entry', () => {
-    const store = setup(fiveRowLink({S: [MAU]}), new TierCortex(), 'push');
+    const store = setup(fiveRowLink({S: [MAU]}), createTierCortex(), 'push');
     store.dispatch({type: 'labelsToggled'});
     expect(store.modes()).toEqual(['push']);
     expect(decoded(store.links()[0]).showLabels).toBe(false);
   });
 
   it('option "next-edit": a layout change writes nothing until the next change to the list', () => {
-    const store = setup(fiveRowLink({'': [MAU]}), new TierCortex(), 'next-edit');
+    const store = setup(fiveRowLink({'': [MAU]}), createTierCortex(), 'next-edit');
     store.dispatch({type: 'labelPositionChanged', labelPosition: 'top'});
     expect(store.state.writes).toEqual([]);
     expect(store.state.labelPosition).toBe('top');
@@ -426,7 +427,7 @@ describe('list changes', () => {
   });
 
   it('adding items leaves out items the list holds (same id or label), and Undo removes only the added ones', () => {
-    const cortex = new TierCortex();
+    const cortex = createTierCortex();
     const store = setup(fiveRowLink({S: [MAU]}), cortex);
     const newItems = [...cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp', 'win.webp']), {id: 'k3j9x0a1b', content: 'Mauga'}];
     const added = itemsToAdd(store.state.tiers, newItems);
@@ -440,7 +441,7 @@ describe('list changes', () => {
   });
 
   it('adding only items the list holds changes nothing', () => {
-    const cortex = new TierCortex();
+    const cortex = createTierCortex();
     const store = setup(fiveRowLink({S: [MAU]}), cortex);
     const before = store.state;
     store.dispatch({type: 'itemsAdded', items: cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp'])});

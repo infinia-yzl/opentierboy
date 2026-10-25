@@ -2,8 +2,8 @@ import type Item from "@/models/Item";
 import type Tier from "@/models/Tier";
 import type {LabelPosition} from "@/models/Tier";
 import type {ItemSet} from "@/models/ItemSet";
-import type TierCortex from "@/lib/TierCortex";
-import type {ListLayout} from "@/lib/TierCortex";
+import type {TierCortex} from "@/lib/TierCortex";
+import type {ListLayout} from "@/lib/listLink";
 
 /**
  * The tier list editor's state and every change to it, as a pure reducer (no React, no

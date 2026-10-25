@@ -5,7 +5,7 @@ import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import {ItemSet} from "@/models/ItemSet";
-import TierCortex from "@/lib/TierCortex";
+import {createTierCortex, type TierCortex} from "@/lib/TierCortex";
 import {recordRecentLink} from "@/components/useRecentLinks";
 import {
   addressNeedsLoading,
@@ -107,7 +107,7 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
   const searchParams = useSearchParams();
 
   const [{tierCortex, encode, reducer}] = useState(() => {
-    const cortex = new TierCortex();
+    const cortex = createTierCortex();
     const encodeList: ListEncoder = (title, tiers, layout) => cortex.encodeListForURL(title, tiers, layout);
     return {tierCortex: cortex, encode: encodeList, reducer: createTierListReducer(encodeList)};
   });
