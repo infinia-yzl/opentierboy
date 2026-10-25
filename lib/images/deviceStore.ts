@@ -11,7 +11,7 @@
  *   bugs with Blobs in IndexedDB.
  * - The image type comes from the file's first bytes (PNG, JPEG, WebP, GIF or AVIF). The
  *   type the browser reports is ignored. SVG and every other format are refused, so the
- *   wiring step re-encodes them first (draw on a canvas, export PNG or WebP).
+ *   editor converts them first (lib/images/prepareImage.ts).
  * - Limits: 5 MB per image, 100 MB and 2,000 images in total by default. When a new image
  *   does not fit, the least recently used images are removed first ("evict the oldest").
  *   `put` reports the removed ids. Ids passed in `keep` (for example the images of the list

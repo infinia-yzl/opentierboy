@@ -1,7 +1,28 @@
 # Images from links and devices
 
-This page explains the building blocks for custom images. They are library code only. The
-app does not use them yet. A later step wires them into the editor.
+This page explains how the editor handles images that do not come from an image set: images
+from a link, and images from the visitor's device (uploads and pasted images).
+
+## What people see
+
+- **From a link** (add-items menu): paste an image address and an optional name. The editor
+  checks the address and loads the image once. A refused address or an image that does not
+  load gets a plain message. An image that does not load can still be added: it shows as a
+  label tile. A link image without a name is named after its site.
+- **Pasting** an image anywhere in the editor adds it like "From your device".
+- **Images from other sites**: when a list holds link images from sites that are not trusted,
+  a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
+  (remembered in this browser). Until then, those items show as label tiles and the browser
+  sends no request to those sites.
+- **The site of a link image** shows on hover, in the right-click and long-press menu, and in
+  the item's description for screen readers.
+- **Uploads stay** after the tab closes (#86). They live in this browser only: other people who
+  open the link see the placeholder image. An image the browser removed to make room shows as
+  a label tile. When the browser cannot keep images, the editor says once that they last only
+  for the tab.
+- **Freeze Frame** draws link images when their site allows it, and label tiles otherwise.
+- **Link previews** draw images from trusted sites, and label tiles for other link images and
+  for uploads.
 
 | Module | What it does |
 | --- | --- |
@@ -10,7 +31,13 @@ app does not use them yet. A later step wires them into the editor.
 | `scripts/check-trusted-sites.mjs` + `scripts/tracker-list.pin.json` | Fails when a trusted site is a known tracker. |
 | `lib/images/deviceStore.ts` | Keeps images from the device in the browser (IndexedDB). |
 | `lib/images/imageCheck.ts` | Loads an image once to check it, and gives label-tile data. |
-| `lib/security/csp.ts` | Builds the Content Security Policy header. |
+| `lib/images/prepareImage.ts` | Converts other image formats and large photos before they are kept. |
+| `lib/images/legacyUploads.ts` | Moves uploads that older versions kept in localStorage into the store. |
+| `lib/images/localLists.ts` | Always-allowed sites and removed images, in localStorage. |
+| `contexts/CustomImagesContext.tsx` | Connects all of this to the editor. |
+| `app/api/og/link-images.ts` | Loads trusted link images for link previews, with caps. |
+| `lib/security/csp.ts` | Builds the Content Security Policy header (`next.config.ts` sends it). |
+| `lib/images/messages.ts` | The messages people see when an image cannot be added. |
 
 ## Images from a link
 
@@ -89,7 +116,11 @@ To move the pin to a newer list:
   protected with the `keep` option.
 - Without IndexedDB (private modes, blocked storage, the server) it keeps images in memory
   until the page closes. `store.persistent` is then false.
-- Call it only from effects and event handlers, never while rendering.
+- Call it only from effects and event handlers, never while rendering
+  (`contexts/CustomImagesContext.tsx` opens it in an effect).
+- Uploads that older versions kept in localStorage (`customItems`) move into the store when the
+  editor starts, under `legacy-<id>` when the id is too short (A42), so old links keep their
+  images.
 
 Safari deletes a site's stored data, IndexedDB included, after 7 days of Safari use without
 a visit to that site (Intelligent Tracking Prevention). Web apps added to the home screen are
