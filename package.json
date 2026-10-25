@@ -9,7 +9,6 @@
     "start": "next start",
     "lint": "eslint .",
     "prepare-images": "node scripts/prepareImages.js",
-    "add-image-set": "node scripts/addImageSet.js",
     "check:images": "node scripts/check-image-registry.mjs",
     "check:fixtures": "node scripts/check-fixtures-append-only.mjs",
     "test:e2e": "playwright test",
