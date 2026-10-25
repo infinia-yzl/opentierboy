@@ -1,0 +1,112 @@
+# Snapshot files and "Recently viewed"
+
+Two building blocks for keeping lists on this device. Neither sends anything to a server.
+
+- `lib/snapshot/`: a Freeze Frame PNG that also holds the whole list.
+- `lib/recent/recentLinks.ts`: a list of links this browser opened, with pins.
+
+The buttons and menus that use them come later.
+
+## Snapshot file
+
+A snapshot file is an ordinary PNG picture of the tier list. It also holds the list itself,
+device images included. Opening the file in OpenTierBoy brings the list back.
+
+Snapshot files that people saved must keep opening, exactly like old links. Treat the format
+below as a contract.
+
+### Where the list sits in the PNG
+
+- One `iTXt` text chunk with the keyword `opentierboy`, just before the `IEND` chunk.
+- The text is compressed with zlib (compression flag 1, method 0).
+- The language tag and the translated keyword are empty.
+- Image viewers skip text chunks, so the picture shows as usual.
+
+Why `iTXt`: it holds UTF-8 text and can be compressed. `zTXt` holds Latin-1 text only, and
+titles and labels can be in any language. `tEXt` cannot be compressed.
+
+Copying the picture to the clipboard loses the chunk: browsers re-encode clipboard images.
+Only a downloaded file keeps it.
+
+### The text inside the chunk
+
+JSON, for example:
+
+```json
+{"version":1,"state":"3.N4Ig...","images":[{"id":"k3J9x","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
+```
+
+- `version`: the payload version. Today it is 1.
+- `state`: the list, as the `?state=` value of a link in a versioned format (`3.` and up).
+  The app decodes it with `decodeState`, so the link format's checks and limits apply.
+- `images`: the device images the list uses. `id` is the image's local id (the `d` of a v3
+  item). `dataUrl` is a base64 data URL of a PNG, JPEG, WebP or GIF picture. The first bytes
+  must match the declared type. SVG is never accepted, because SVG can carry scripts.
+- Unknown fields are ignored. A later version can add fields, and version 1 readers skip them.
+
+### Limits
+
+Reading a snapshot treats the file as untrusted. Writing refuses anything reading would
+refuse, so every file the app writes opens again.
+
+| What | Limit |
+| --- | --- |
+| File size | 25 MB (check `File.size` before reading the file) |
+| Chunks in the file | 10,000 |
+| One chunk | 25 MB (some encoders write all image data as one chunk) |
+| The snapshot chunk, compressed | 12 MB |
+| The text, decompressed | 10 MB |
+| `state` | 1 M characters (the v3 decoder has tighter limits of its own) |
+| Images | 500 |
+| One image data URL | 2 M characters |
+| All image data URLs together | 8 M characters |
+| Image label | 1,000 characters |
+| Image local id | 128 characters: letters, digits, `-`, `_` |
+
+The reader also checks the PNG signature and the CRC of every chunk. It decompresses the text
+in small steps and stops at 10 MB, so a tiny file that would expand to gigabytes costs a few
+megabytes at most.
+
+### Reasons a file does not open
+
+`readSnapshotFile` returns a reason code. The UI can turn them into messages.
+
+- `no-snapshot`: a valid PNG without a list. Add it as an image item instead.
+- `not-png`: not a PNG at all. It may still be a JPEG or WebP picture to add as an item.
+- `unsupported-version`: made by a newer OpenTierBoy.
+- `file-too-large`, `text-too-large`, `payload-too-large`: too big.
+- Anything else (`bad-crc`, `truncated`, `bad-structure`, `chunk-too-large`,
+  `too-many-chunks`, `duplicate-snapshot`, `bad-snapshot-chunk`, `bad-compression`,
+  `bad-utf8`, `bad-json`, `invalid-payload`): the file is damaged or was not made by
+  OpenTierBoy.
+- `unsupported`: the browser has no Compression Streams API (very old browsers).
+
+### Adding payload version 2
+
+1. Keep the version 1 parser exactly as it is.
+2. Add a parser for version 2 and pick the parser by `version`.
+3. Write version 2 only when the app needs a field version 1 cannot hold. A new optional
+   field does not need a new version, because version 1 readers ignore unknown fields.
+
+## Recently viewed
+
+A list of tier list links this browser opened. It lives in local storage under the key
+`otb-recent-links`.
+
+- Each entry has the page path (`/rank/<set>/<tag>`), the `state` value, the list title and
+  the time it was opened.
+- Opening the same link again moves it to the top. One entry per link. A trailing `/` and
+  spaces for `+` count as the same link.
+- Pinned links stay until they are unpinned or removed.
+- At most 20 links can be pinned (`RECENT_PIN_LIMIT`). This number is open for your review
+  of the UI. If you lower it later, the oldest pins beyond it become ordinary links.
+- At most 30 unpinned links are kept (`RECENT_UNPINNED_LIMIT`). The oldest drop off first.
+  A link the user just unpinned stays, even when it is the oldest.
+- Links longer than 16,384 characters of state are not recorded. The 430-item test list has
+  about 12,000.
+- Titles are shortened to 200 characters.
+
+Stored data is untrusted. Every read checks it with zod, and bad entries are dropped. Only
+`/rank` paths are accepted, so an entry can never point to another site or run script.
+If local storage is blocked or full, the list is empty and changes report
+`storage-unavailable`. Nothing throws.
