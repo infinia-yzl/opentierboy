@@ -8,7 +8,10 @@ from a link, and images from the visitor's device (uploads and pasted images).
 - **From a link** (add-items menu): paste an image address and an optional name. The editor
   checks the address and loads the image once. A refused address or an image that does not
   load gets a plain message. An image that does not load can still be added: it shows as a
-  label tile. A link image without a name is named after its site.
+  label tile (its name in place of the picture). A link image added without a name is named
+  after its file (for example `74px-Abrams_vertical.png` gives "Abrams vertical"), or after
+  its site when the address has no file name. A link image in a link without any label is
+  named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
 - **Images from other sites**: when a list holds link images from sites that are not trusted,
   a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
@@ -104,7 +107,8 @@ To move the pin to a newer list:
 `openDeviceStore()` keeps images in IndexedDB, in the visitor's browser only.
 
 - Each image gets a local id of 16 letters, digits, `-` or `_`. A v3 link stores the id and
-  the label. Other people who open the link do not have the image and see a label tile.
+  the label. Other people who open the link do not have the image and see the placeholder
+  image with the label.
 - `isDeviceImageId` is the shared rule for these ids: 8 to 64 letters, digits, `-` or `_`,
   and never a name such as `__proto__`. The v3 link format and the snapshot file use the same
   function (amendment A40).

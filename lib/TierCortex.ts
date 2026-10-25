@@ -323,7 +323,8 @@ export class TierCortex {
   /** An item from a decoded link: by its kind in v3 links, by its id in legacy links. */
   private resolveCanonicalItem(item: CanonicalItem, version: CanonicalState['version']): Item {
     if (item.kind === 'link') {
-      // A label tile until Phase 5c: no image URL, so nothing loads the address.
+      // No image URL: the editor loads the address only from allowed sites
+      // (contexts/CustomImagesContext.tsx), and link previews only from trusted ones.
       return {id: item.id, content: item.content, source: 'link', url: item.url};
     }
     if (item.kind === 'device') return this.resolveDeviceItem(item.id, item.content);
