@@ -13,6 +13,7 @@ import {
   planEviction,
   sniffImageType,
 } from '@/lib/images/deviceStore';
+import {avifWithFalseSize, heicStart} from '../support/avif';
 
 // The smallest headers each format needs, padded to a given size.
 const HEADERS = {
@@ -227,6 +228,15 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.put(svg)).toEqual({ok: false, reason: 'unsupported-type'});
     const html = new Blob(['<!doctype html><script>alert(1)</script>'], {type: 'image/png'});
     expect(await store.put(html)).toEqual({ok: false, reason: 'unsupported-type'});
+  });
+
+  it('refuses AVIF and HEIC itself, whatever the caller checked: their declared size can lie', async () => {
+    for (const store of [await open(), createMemoryDeviceStore({createId: sequentialIds()})]) {
+      expect(await store.put(image(64, 'avif'))).toEqual({ok: false, reason: 'unsupported-type'});
+      expect(await store.put(new Blob([avifWithFalseSize([100, 100], [9000, 9000])], {type: 'image/png'}))).toEqual({ok: false, reason: 'unsupported-type'});
+      expect(await store.put(new Blob([heicStart()], {type: 'image/heic'}))).toEqual({ok: false, reason: 'unsupported-type'});
+      expect(await store.list()).toEqual([]);
+    }
   });
 
   it('refuses values that are not files, empty files and files over the image limit', async () => {
@@ -607,6 +617,8 @@ describe('createObjectUrlRegistry', () => {
     expect(registry.urlFor('a', file, 'image/webp')).toBe('blob:test/2');
     expect(() => registry.urlFor('b', file, 'text/html' as never)).toThrow(TypeError);
     expect(() => registry.urlFor('b', file, 'image/svg+xml' as never)).toThrow(TypeError);
+    expect(() => registry.urlFor('b', file, 'image/avif' as never)).toThrow(TypeError);
+    expect(() => registry.urlFor('b', file, 'image/heic' as never)).toThrow(TypeError);
     expect(registry.peek('b')).toBeUndefined();
   });
 

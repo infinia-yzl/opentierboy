@@ -9,10 +9,10 @@
  * - The store keeps the image bytes (an ArrayBuffer plus the image type), never a `blob:`
  *   URL: a `blob:` URL dies with the page that made it. ArrayBuffers also avoid old Safari
  *   bugs with Blobs in IndexedDB.
- * - The image type comes from the file's first bytes (PNG, JPEG, WebP, GIF or AVIF; the editor
- *   adds no AVIF, see lib/images/prepareImage.ts). The
- *   type the browser reports is ignored. SVG and every other format are refused, so the
- *   editor converts them first (lib/images/prepareImage.ts).
+ * - The image type comes from the file's first bytes (PNG, JPEG, WebP or GIF). The type the
+ *   browser reports is ignored. AVIF and HEIC are refused (their declared size can lie, see
+ *   lib/images/prepareImage.ts). SVG and every other format are refused, so the editor
+ *   converts them first.
  * - Limits: 5 MB per image, 100 MB and 2,000 images in total by default. When a new image
  *   does not fit, the least recently used images are removed first ("evict the oldest").
  *   `put` reports the removed ids. Ids passed in `keep` (for example the images of the list
@@ -39,11 +39,16 @@
  */
 
 import {isDeviceImageId} from '@/lib/state/deviceId';
-import {RASTER_IMAGE_TYPES, type RasterImageType, sniffImageType} from './imageType';
+import {sniffImageType} from './imageType';
 
-/** Image types the store accepts, detected from the file's first bytes (lib/images/imageType.ts). */
-export const DEVICE_IMAGE_TYPES = RASTER_IMAGE_TYPES;
-export type DeviceImageType = RasterImageType;
+/**
+ * Image types the store accepts, detected from the file's first bytes (lib/images/imageType.ts).
+ * No AVIF (nor HEIC, which sniffImageType never reports): the size in its header can lie about
+ * the coded picture (lib/images/prepareImage.ts), so the store refuses it too, and makes no
+ * object URL for it.
+ */
+export const DEVICE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export type DeviceImageType = (typeof DEVICE_IMAGE_TYPES)[number];
 export {sniffImageType};
 
 export interface DeviceStoreLimits {
@@ -268,7 +273,7 @@ async function prepareImage(
   if (data.byteLength === 0) return {ok: false, reason: 'empty'};
   if (data.byteLength > limits.maxImageBytes) return {ok: false, reason: 'too-large'};
   const type = sniffImageType(new Uint8Array(data, 0, Math.min(64, data.byteLength)));
-  if (!type) return {ok: false, reason: 'unsupported-type'};
+  if (!isDeviceImageType(type)) return {ok: false, reason: 'unsupported-type'};
   let id = options.id;
   if (id === undefined) {
     try {
