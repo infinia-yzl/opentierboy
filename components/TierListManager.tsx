@@ -6,6 +6,8 @@ import {TierListProvider, useTierContext} from '@/contexts/TierContext';
 import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
+import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import OpenFileButton from "@/components/OpenFileButton";
 import TierTemplateSelector from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
 import ItemManager from "@/components/ItemManager";
@@ -33,7 +35,10 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
-  usePasteImages();
+  // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
+  const {openFiles, dialog: openListDialog} = useSnapshotFiles();
+  usePasteImages(openFiles);
+  useFileDrop(openFiles);
 
   return (
     <>
@@ -46,6 +51,7 @@ const TierListEditor: React.FC = () => {
           <TierTemplateSelector/>
           <ItemManager/>
           <ShareButton title={title}/>
+          <OpenFileButton onFiles={openFiles}/>
         </div>
         <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
@@ -65,6 +71,7 @@ const TierListEditor: React.FC = () => {
       </div>
       <LinkImageNotice/>
       <DragDropTierList/>
+      {openListDialog}
     </>
   );
 };

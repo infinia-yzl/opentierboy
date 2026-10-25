@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
 
 export type RowCount = 3 | 5 | 7;
@@ -42,6 +43,9 @@ export class TierListPage {
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
   readonly sharePanel: Locator;
+  readonly openFileButton: Locator;
+  /** "Open the list in this file?", after opening a snapshot file. */
+  readonly openListDialog: Locator;
   readonly zenModeToggle: Locator;
 
   constructor(page: Page) {
@@ -56,6 +60,8 @@ export class TierListPage {
       has: page.getByRole('heading', {name: 'Share Your Rankings'}),
     });
     this.zenModeToggle = page.getByRole('button', {name: 'Toggle zen mode'});
+    this.openFileButton = page.getByRole('button', {name: 'Open file', exact: true});
+    this.openListDialog = page.getByRole('alertdialog', {name: 'Open the list in this file?'});
   }
 
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
@@ -572,7 +578,7 @@ export class TierListPage {
   /**
    * Waits until the editor responds to input. The server-rendered rows show before the page has
    * started in the browser; a paste event before that finds no listener. Opening the items menu
-   * proves the page has started.
+   * proves the page has started (and its effects, such as recording Recently viewed, have run).
    */
   async waitUntilInteractive() {
     const menu = this.page.getByRole('menu');
@@ -630,6 +636,55 @@ export class TierListPage {
         element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
       }
     }, groups.map((group) => group.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')}))));
+  }
+
+  // ---- Files: snapshot files and pictures ---------------------------------------------------
+
+  /** Chooses a file with "Open file", as the file chooser would. */
+  async openFile(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.waitUntilInteractive();
+    const chooser = this.page.waitForEvent('filechooser');
+    await this.openFileButton.click();
+    await (await chooser).setFiles(file);
+  }
+
+  /** Drops a file onto the editor, as dragging it from the desktop would. */
+  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.waitUntilInteractive();
+    const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
+      const data = new DataTransfer();
+      data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
+      return data;
+    }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
+    await this.tiers.first().dispatchEvent('dragover', {dataTransfer: transfer});
+    await this.tiers.first().dispatchEvent('drop', {dataTransfer: transfer});
+  }
+
+  /** Confirms "Open the list in this file?" and waits until the list's link is in the address bar. */
+  async confirmOpenList() {
+    const before = this.page.url();
+    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
+    await expect(this.openListDialog).toBeHidden();
+    await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
+  async cancelOpenList() {
+    await this.openListDialog.getByRole('button', {name: 'Cancel'}).click();
+    await expect(this.openListDialog).toBeHidden();
+  }
+
+  /**
+   * Freeze Frame's Download, after Capture Preview: returns the downloaded file. When the list
+   * does not fit into the picture, the app offers the picture without it in a toast instead.
+   */
+  async downloadCapturedImage(): Promise<{name: string; buffer: Buffer}> {
+    const button = this.sharePanel.getByRole('button', {name: 'Download', exact: true});
+    await expect(button).toBeEnabled();
+    const download = this.page.waitForEvent('download');
+    await button.click();
+    const file = await download;
+    return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
   }
 
   async deleteItem(itemName: string) {

@@ -1,6 +1,7 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
-import {packageItemId, v3State} from '../support/links';
+import {packageItemId, rankingState, v3State} from '../support/links';
 import {imageFile, serveImageSite} from '../support/imageSites';
+import {pngFile} from '../support/snapshotFiles';
 import type {CaptureMethod} from '../pages/TierListPage';
 
 /**
@@ -24,6 +25,27 @@ test.describe('Content Security Policy', () => {
     await page.goto('/blog/overwatch-2-karq-tier-list-season-11', {waitUntil: 'networkidle'});
     await expect(page.getByRole('heading', {level: 1})).toBeVisible();
     await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
+    await page.waitForLoadState('networkidle');
+    expect(await cspViolations()).toEqual([]);
+  });
+
+  test('Freeze Frame Download, opening the file, a dropped picture and Recently viewed cause no violation', async ({tierList, site, page, cspViolations}) => {
+    await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
+    await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+    await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
+    await tierList.capturePreview();
+    const snapshot = await tierList.downloadCapturedImage();
+    await page.keyboard.press('Escape');
+
+    await tierList.goto('/rank');
+    await tierList.dropFile(imageFile('blue-square.png'));
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
+    await tierList.openFile(pngFile(snapshot.name, snapshot.buffer));
+    await tierList.confirmOpenList();
+    await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
+
+    await site.gotoHome();
+    await expect(site.recentLinks.first()).toHaveText('CSP snapshot');
     await page.waitForLoadState('networkidle');
     expect(await cspViolations()).toEqual([]);
   });

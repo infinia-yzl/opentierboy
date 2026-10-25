@@ -1,11 +1,32 @@
 # Snapshot files and "Recently viewed"
 
-Two building blocks for keeping lists on this device. Neither sends anything to a server.
+Two ways to keep lists on this device. Neither sends anything to a server.
 
-- `lib/snapshot/`: a Freeze Frame PNG that also holds the whole list.
-- `lib/recent/recentLinks.ts`: a list of links this browser opened, with pins.
+- A snapshot file: a Freeze Frame picture that also holds the whole list (`lib/snapshot/`).
+- "Recently viewed": the links this browser opened, with pins (`lib/recent/recentLinks.ts`).
 
-The buttons and menus that use them come later.
+## What people see
+
+- **Download** (Share, Image tab, after Capture Preview) saves the picture as a PNG file with
+  the list inside: the link Share hands out, the editor page, and the device images the list
+  uses. Each device image is drawn again at most 512 pixels on its longest side (256 when all
+  images together are too large). When the list does not fit, a message offers the picture
+  without the list. This button is new (A10): Copy Image cannot carry the list.
+- **Open file** (the folder button next to Share), **dropping a file** onto the editor and
+  **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
+  - A file with a list asks "Open the list in this file? Your current list stays one Back step
+    away." Open list draws its images again, stores them in the device store (an image whose id
+    is taken by another image gets a new id, and the list follows), and goes to the list with one
+    `router.push`. Cancel changes nothing.
+  - A PNG without a list, any other picture, and a PNG with bytes after its end or a damaged
+    minor chunk become items, like "From your device".
+  - Anything else shows a plain message (damaged, too large, made by a newer version).
+- **Recently viewed** on the landing page, below "Create a New Tier List", shows the lists this
+  browser opened, pinned ones first, with pin, unpin and remove, and a one-line hint to use
+  bookmarks. It is hidden while empty. The editor records a list when it opens with a link that
+  holds a list, and when a snapshot file opens. Edits, and Back and Forward inside the editor,
+  record nothing. A list
+  without its own title shows its page name, for example "OVERWATCH - Tank".
 
 ## Snapshot file
 
