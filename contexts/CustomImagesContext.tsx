@@ -18,7 +18,7 @@ import {
 } from '@/lib/images/localLists';
 import {deviceImageKey, deviceImageKeys, hostsAwaitingConsent, isImageHostAllowed, linkImageOf} from '@/lib/images/listImages';
 import {DEVICE_IMAGE_REFUSAL_MESSAGES} from '@/lib/images/messages';
-import {prepareImageForStore} from '@/lib/images/prepareImage';
+import {isAvifOrHeicFile, prepareImageForStore} from '@/lib/images/prepareImage';
 import {snapshotImageId} from '@/lib/snapshot/imageId';
 
 /**
@@ -91,14 +91,15 @@ interface CustomImagesContextValue {
   /**
    * Keeps the images of a snapshot file in the device store, one call at a time with
    * addDeviceImages and with the same protection: no image the list shows or that was handed
-   * out is removed to make room. An image the store already holds under the file's own id is
-   * used as it is: the file was made in this browser, so its link stays the same (a file that
-   * reuses such an id on purpose can only show the visitor's own picture). Every other image is
-   * drawn again first, at most 512 pixels on its longest side (A10), and stored under a
-   * content-addressed id (`snap-` and a hash of the drawn bytes, lib/snapshot/imageId.ts):
-   * opening the same file again stores nothing new and gives the same ids. An image the store
-   * already holds under that id is reused; a different picture under the same id (a hash
-   * collision) gets a random id.
+   * out is removed to make room. AVIF and HEIC images are refused with the message of "From your
+   * device". An image the store already holds under the file's own id is used as it is: the file
+   * was made in this browser, so its link stays the same (a file that reuses such an id on
+   * purpose can only show the visitor's own picture). Every other image is drawn again first,
+   * at most 512 pixels on its longest side (A10), and stored under a content-addressed id
+   * (`snap-` and a hash of the drawn bytes, lib/snapshot/imageId.ts): opening the same file
+   * again stores nothing new and gives the same ids. An image the store already holds under
+   * that id is reused; a different picture under the same id (a hash collision) gets a random
+   * id.
    */
   importDeviceImages: (images: SnapshotDeviceImage[]) => Promise<ImportDeviceImagesResult>;
   /** The stored images with these ids (for a snapshot file). Missing images are left out. */
@@ -395,7 +396,8 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
 
       async function importOne(opened: DeviceStore, image: SnapshotDeviceImage) {
         // The file's own id names an image this browser already holds: the file was made here.
-        const own = await opened.get(image.id);
+        // An AVIF or HEIC image skips this, so that the preparation below refuses it.
+        const own = await isAvifOrHeicFile(image.blob) ? undefined : await opened.get(image.id);
         if (own) {
           handOut(image.id, image.id, own.blob, own.type);
           return;

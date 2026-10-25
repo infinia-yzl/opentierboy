@@ -4,7 +4,7 @@
  * Plain code: it uses `btoa` and `atob`, which browsers and Node 22 have, at call time only.
  */
 import {sniffImageType} from '@/lib/images/imageType';
-import {rasterDataUrlType, type SnapshotImageType} from './payload';
+import {isAvifOrHeicDataUrl, rasterDataUrlType, type AvifHeicImageType, type SnapshotImageType} from './payload';
 
 /** The snapshot image type of these bytes from their first bytes (PNG, JPEG, WebP or GIF), or null. */
 export function snapshotImageTypeOf(bytes: Uint8Array): SnapshotImageType | null {
@@ -24,9 +24,13 @@ export function dataUrlFromImageBytes(bytes: Uint8Array): string | null {
   return `data:${type};base64,${btoa(binary)}`;
 }
 
-/** The bytes and type of a snapshot image data URL, or null when it breaks the payload rules. */
-export function imageBytesFromDataUrl(dataUrl: string): {type: SnapshotImageType; bytes: Uint8Array<ArrayBuffer>} | null {
-  const type = rasterDataUrlType(dataUrl);
+/**
+ * The bytes and declared type of a snapshot image data URL, or null when it breaks the payload
+ * rules. An AVIF or HEIC image (isAvifOrHeicDataUrl) comes back as it is, with the type it
+ * declares, for the device store to refuse.
+ */
+export function imageBytesFromDataUrl(dataUrl: string): {type: SnapshotImageType | AvifHeicImageType; bytes: Uint8Array<ArrayBuffer>} | null {
+  const type = rasterDataUrlType(dataUrl) ?? (isAvifOrHeicDataUrl(dataUrl) ? declaredType(dataUrl) : null);
   if (!type) return null;
   try {
     const binary = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
@@ -36,4 +40,9 @@ export function imageBytesFromDataUrl(dataUrl: string): {type: SnapshotImageType
   } catch {
     return null;
   }
+}
+
+/** The type a data URL declares (one of those the payload accepts: see DATA_URL in payload.ts). */
+function declaredType(dataUrl: string): SnapshotImageType | AvifHeicImageType {
+  return dataUrl.slice('data:'.length, dataUrl.indexOf(';')) as SnapshotImageType | AvifHeicImageType;
 }

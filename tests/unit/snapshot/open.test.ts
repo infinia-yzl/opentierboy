@@ -140,6 +140,16 @@ describe('snapshot image data URLs', () => {
     expect(snapshotImageTypeOf(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 '))).toBe('image/webp');
   });
 
+  it('hands AVIF and HEIC images back as they are, with their declared type, for the store to refuse', () => {
+    const avif = new Uint8Array(Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypavif\0\0\0\0mif1avif', 'latin1'), Buffer.alloc(40)]));
+    const base64 = Buffer.from(avif).toString('base64');
+    expect(imageBytesFromDataUrl(`data:image/avif;base64,${base64}`)).toEqual({type: 'image/avif', bytes: avif});
+    expect(imageBytesFromDataUrl(`data:image/png;base64,${base64}`)).toEqual({type: 'image/png', bytes: avif});
+    // The app never writes one.
+    expect(snapshotImageTypeOf(avif)).toBeNull();
+    expect(dataUrlFromImageBytes(avif)).toBeNull();
+  });
+
   it('refuses other bytes and bad data URLs', () => {
     expect(dataUrlFromImageBytes(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull();
     expect(dataUrlFromImageBytes(new Uint8Array())).toBeNull();

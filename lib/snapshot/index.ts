@@ -36,7 +36,9 @@ export type {
   PngStructureReason,
 } from './png';
 export {
+  AVIF_HEIC_IMAGE_TYPES,
   buildSnapshotPayload,
+  isAvifOrHeicDataUrl,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_IMAGE_TYPES,
@@ -44,6 +46,7 @@ export {
   SNAPSHOT_PAYLOAD_VERSION,
 } from './payload';
 export type {
+  AvifHeicImageType,
   BuildSnapshotPayloadResult,
   ParseSnapshotPayloadResult,
   SnapshotImage,

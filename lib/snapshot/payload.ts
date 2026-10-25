@@ -20,7 +20,9 @@
  *   Each is a base64 data URL of a PNG, JPEG, WebP or GIF picture. SVG is never accepted,
  *   because SVG can carry scripts. The first bytes must match the declared type. Only the
  *   first bytes are checked, so the browser code re-encodes every image through a canvas
- *   before it stores or shows it (A10).
+ *   before it stores or shows it (A10). An AVIF or HEIC image (by its declared type or its
+ *   bytes) is kept as it is, never read or decoded: opening the file refuses it with the
+ *   refusal of "From your device" (`isAvifOrHeicDataUrl`). The app never writes one.
  *
  * Unknown fields are ignored, so a later version can add fields that this version skips.
  *
@@ -33,7 +35,7 @@
 import {normalizeRankPath} from '@/lib/rankPath';
 import {isDeviceImageId} from '@/lib/state/deviceId';
 import {z} from '@/lib/zod';
-import {readImageSize, sniffImageType} from '@/lib/images/imageType';
+import {isIsoMediaFile, readImageSize, sniffImageType} from '@/lib/images/imageType';
 import {SNAPSHOT_PNG_LIMITS} from './png';
 
 export const SNAPSHOT_PAYLOAD_VERSION = 1;
@@ -70,12 +72,19 @@ export const SNAPSHOT_PAYLOAD_LIMITS = Object.freeze({
 export const SNAPSHOT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
 export type SnapshotImageType = (typeof SNAPSHOT_IMAGE_TYPES)[number];
 
+/**
+ * Types a snapshot image may declare that the editor refuses, like "From your device" does
+ * (lib/images/prepareImage.ts): AVIF and HEIC. See isAvifOrHeicDataUrl.
+ */
+export const AVIF_HEIC_IMAGE_TYPES = ['image/avif', 'image/heic', 'image/heif'] as const;
+export type AvifHeicImageType = (typeof AVIF_HEIC_IMAGE_TYPES)[number];
+
 export interface SnapshotImage {
   /** The device image's local id: the `d` of the v3 items that show it. */
   id: string;
   /** The image's label. May be empty. */
   label: string;
-  /** `data:image/<png|jpeg|webp|gif>;base64,<data>` */
+  /** `data:image/<png|jpeg|webp|gif>;base64,<data>` (or an AVIF or HEIC image, refused on opening) */
   dataUrl: string;
 }
 
@@ -123,7 +132,7 @@ export const IMAGE_SIZE_SEARCH_BYTES = 64 * 1024;
 
 /** A versioned link value: version digits, a dot, then lz-string's URL-safe alphabet. */
 const VERSIONED_STATE = /^[1-9][0-9]{0,3}\.[A-Za-z0-9+$-]+$/;
-const DATA_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]*={0,2})$/;
+const DATA_URL = /^data:(image\/(?:png|jpeg|webp|gif|avif|heic|heif));base64,([A-Za-z0-9+/]*={0,2})$/;
 
 const imageSchema = z.object({
   id: z.string().refine(isDeviceImageId, {message: 'must follow the device image id rule (8 to 64 characters from A-Z a-z 0-9 - _)'}),
@@ -131,8 +140,8 @@ const imageSchema = z.object({
   dataUrl: z
     .string()
     .max(limits.maxImageDataUrlChars)
-    .refine(value => rasterDataUrlType(value) !== null, {
-      message: 'must be a base64 data URL of a PNG, JPEG, WebP or GIF picture of at most 4096 x 4096 pixels whose bytes match its type',
+    .refine(value => rasterDataUrlType(value) !== null || isAvifOrHeicDataUrl(value), {
+      message: 'must be a base64 data URL of a PNG, JPEG, WebP or GIF picture of at most 4096 x 4096 pixels whose bytes match its type, or of an AVIF or HEIC image',
     }),
 });
 
@@ -199,13 +208,16 @@ export function parseSnapshotPayload(text: string): ParseSnapshotPayloadResult {
 
 /**
  * Builds the payload text for a snapshot PNG from a link value and the device images the list
- * uses. The images must already be re-encoded raster data URLs (the browser code does that).
+ * uses. The images must already be re-encoded PNG, JPEG, WebP or GIF data URLs (the browser
+ * code does that): AVIF and HEIC images, which reading keeps to refuse them, are refused here.
  * Build the link value with `encodeState(list, {format: 3})`.
  * Checks every limit that `parseSnapshotPayload` checks, so the text always parses back.
  * Never throws.
  */
 export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshotPayloadResult {
   try {
+    const avifOrHeic = (input.images ?? []).findIndex(image => rasterDataUrlType(image?.dataUrl) === null && isAvifOrHeicDataUrl(image?.dataUrl));
+    if (avifOrHeic >= 0) return {ok: false, reason: 'invalid-payload', detail: `images.${avifOrHeic}.dataUrl: AVIF and HEIC images are never written`};
     const candidate = {
       version: SNAPSHOT_PAYLOAD_VERSION,
       state: input.state,
@@ -232,12 +244,10 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
  * the header is checked, so re-encode the image through a canvas before storing it.
  */
 export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType; width: number; height: number} | null {
-  if (typeof dataUrl !== 'string' || dataUrl.length > limits.maxImageDataUrlChars) return null;
-  const match = DATA_URL.exec(dataUrl);
-  if (!match) return null;
-  const type = match[1] as SnapshotImageType;
-  const base64 = match[2];
-  if (base64.length < 16 || base64.length % 4 !== 0) return null;
+  const parts = dataUrlParts(dataUrl);
+  if (!parts || !(SNAPSHOT_IMAGE_TYPES as readonly string[]).includes(parts.type)) return null;
+  const type = parts.type as SnapshotImageType;
+  const base64 = parts.base64;
 
   // JPEG and GIF keep their size after optional segments; PNG and WebP within the first 30 bytes.
   const headChars = type === 'image/jpeg' || type === 'image/gif' ? Math.ceil(IMAGE_SIZE_SEARCH_BYTES / 3) * 4 : 64;
@@ -259,6 +269,34 @@ export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType; wi
 /** The image type of a valid snapshot image data URL (see rasterDataUrlInfo), or null. */
 export function rasterDataUrlType(dataUrl: string): SnapshotImageType | null {
   return rasterDataUrlInfo(dataUrl)?.type ?? null;
+}
+
+/**
+ * True for a base64 data URL of an AVIF or HEIC image: by its declared type (image/avif,
+ * image/heic or image/heif) or by its bytes (an ISO base media file, whatever type it
+ * declares), the test lib/images/prepareImage.ts applies to "From your device". The payload
+ * keeps such an image so that opening the file can name it in that refusal. Nothing reads its
+ * size or decodes it: the device store's preparation refuses it first.
+ */
+export function isAvifOrHeicDataUrl(dataUrl: string): boolean {
+  const parts = dataUrlParts(dataUrl);
+  if (!parts) return false;
+  if ((AVIF_HEIC_IMAGE_TYPES as readonly string[]).includes(parts.type)) return true;
+  try {
+    return isIsoMediaFile(Uint8Array.from(atob(parts.base64.slice(0, 16)), char => char.charCodeAt(0)));
+  } catch {
+    return false;
+  }
+}
+
+/** The declared type and the base64 data of a snapshot image data URL within the size cap, or null. */
+function dataUrlParts(dataUrl: string): {type: string; base64: string} | null {
+  if (typeof dataUrl !== 'string' || dataUrl.length > limits.maxImageDataUrlChars) return null;
+  const match = DATA_URL.exec(dataUrl);
+  if (!match) return null;
+  const base64 = match[2];
+  if (base64.length < 16 || base64.length % 4 !== 0) return null;
+  return {type: match[1], base64};
 }
 
 /** A plain object with keys in a fixed order, so the same input always gives the same text. */

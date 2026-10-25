@@ -74,6 +74,11 @@ export const isPixelCapError = (error: unknown): boolean =>
 /** AVIF and HEIC, by their bytes or by the type the browser reports. */
 const isAvifOrHeic = (head: Uint8Array, blob: Blob) => isIsoMediaFile(head) || /^image\/(avif|heic|heif)\b/.test(blob.type);
 
+/** True for a file that prepareImageForStore refuses as AVIF or HEIC ('avif-heic'). */
+export async function isAvifOrHeicFile(blob: Blob): Promise<boolean> {
+  return isAvifOrHeic(new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer()), blob);
+}
+
 /** The part of a canvas this module uses. */
 export interface CanvasLike {
   width: number;

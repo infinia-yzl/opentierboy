@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {isDeviceImageId} from '@/lib/state/deviceId';
 import {
   buildSnapshotPayload,
+  isAvifOrHeicDataUrl,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_PAYLOAD_LIMITS,
@@ -26,6 +27,12 @@ function dataUrl(type: keyof typeof MAGIC, padTo = 0, mime = `image/${type}`): s
   const bytes = new Uint8Array(Math.max(MAGIC[type].length, padTo));
   bytes.set(MAGIC[type]);
   return `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
+}
+
+/** The start of an AVIF or HEIC file: an ISO base media "ftyp" box with that brand. */
+function isoMedia(brand: string, padTo = 0): Buffer {
+  const head = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from(`ftyp${brand}\0\0\0\0mif1${brand}`, 'latin1')]);
+  return Buffer.concat([head, Buffer.alloc(Math.max(0, padTo - head.length))]);
 }
 
 /** A device image id in the device store's format (8 to 64 URL-safe characters). */
@@ -235,6 +242,48 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(rasterDataUrlType(`data:image/gif;base64,${gif87a.toString('base64')}`)).toBe('image/gif');
   });
 
+  it('keeps AVIF and HEIC images, by declared type or by their bytes, for opening to refuse', () => {
+    const kept = [
+      `data:image/avif;base64,${isoMedia('avif', 64).toString('base64')}`,
+      `data:image/heic;base64,${isoMedia('heic', 64).toString('base64')}`,
+      `data:image/heif;base64,${isoMedia('mif1', 64).toString('base64')}`,
+      // AVIF and HEIC bytes that claim another type: the bytes decide.
+      `data:image/png;base64,${isoMedia('avif', 64).toString('base64')}`,
+      `data:image/jpeg;base64,${isoMedia('heic', 64).toString('base64')}`,
+      // A declared AVIF type with other bytes: the type decides, as for "From your device".
+      dataUrl('png', 0, 'image/avif'),
+    ];
+    for (const value of kept) {
+      expect(isAvifOrHeicDataUrl(value), value.slice(0, 40)).toBe(true);
+      // Never read as a picture: nothing checks its size or decodes it.
+      expect(rasterDataUrlType(value), value.slice(0, 40)).toBeNull();
+      const parsed = parseJson({version: 1, state: STATE, images: [image('a', {dataUrl: value})]});
+      expect(parsed, value.slice(0, 40)).toMatchObject({ok: true, payload: {images: [{dataUrl: value}]}});
+    }
+    for (const value of [dataUrl('png'), dataUrl('jpeg'), dataUrl('gif'), dataUrl('webp')]) expect(isAvifOrHeicDataUrl(value)).toBe(false);
+  });
+
+  it('applies the data URL rules and caps to AVIF and HEIC images too', () => {
+    const avif = isoMedia('avif', 64).toString('base64');
+    const bad = [
+      `data:image/avif;base64,${avif.slice(0, 12)}`,
+      `data:image/avif;base64,${avif.slice(0, -1)}`,
+      `data:image/avif,${avif}`,
+      `data:IMAGE/AVIF;base64,${avif}`,
+      `data:image/heic;charset=utf-8;base64,${avif}`,
+      `data:image/avif;base64,${'A'.repeat(limits.maxImageDataUrlChars)}`,
+    ];
+    for (const value of bad) {
+      expect(isAvifOrHeicDataUrl(value), value.slice(0, 40)).toBe(false);
+      expect(parseJson({version: 1, state: STATE, images: [image('a', {dataUrl: value})]}), value.slice(0, 40)).toMatchObject({ok: false, reason: 'invalid-payload'});
+    }
+    // AVIF images count toward the cap on all images together.
+    const each = `data:image/avif;base64,${Buffer.alloc(Math.floor(limits.maxImageDataUrlChars * 0.9 / 4) * 3, isoMedia('avif', 64)).toString('base64')}`;
+    const count = Math.ceil(limits.maxTotalImageDataUrlChars / each.length);
+    const over = Array.from({length: count}, (_, i) => image(`img${i}`, {dataUrl: each}));
+    expect(parseJson({version: 1, state: STATE, images: over})).toMatchObject({ok: false, reason: 'invalid-payload'});
+  });
+
   it('caps the size of one image', () => {
     const prefix = 'data:image/png;base64,'.length;
     // Largest base64 length (a multiple of 4) that fits the cap together with the prefix.
@@ -313,6 +362,16 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
 });
 
 describe('buildSnapshotPayload refuses bad input', () => {
+  it('never writes an AVIF or HEIC image, which reading keeps only to refuse it', () => {
+    for (const value of [`data:image/avif;base64,${isoMedia('avif', 64).toString('base64')}`, `data:image/png;base64,${isoMedia('heic', 64).toString('base64')}`]) {
+      expect(buildSnapshotPayload({state: STATE, images: [image('a', {dataUrl: value})]}), value.slice(0, 40)).toEqual({
+        ok: false,
+        reason: 'invalid-payload',
+        detail: 'images.0.dataUrl: AVIF and HEIC images are never written',
+      });
+    }
+  });
+
   it('refuses input that the parser would refuse', () => {
     expect(buildSnapshotPayload({state: 'N4IgLgFgpgTg'})).toMatchObject({ok: false, reason: 'invalid-payload'});
     expect(buildSnapshotPayload({state: STATE, images: [image('a'), image('a')]})).toMatchObject({ok: false, reason: 'invalid-payload'});
