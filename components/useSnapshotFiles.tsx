@@ -42,7 +42,8 @@ type FileCheck =
 /** True for a picture "From your device" would take: raster bytes, or an image type the browser reports. */
 async function isPictureFile(file: File): Promise<boolean> {
   // The rule of "From your device" (prepareImageForStore): a raster picture by its bytes, or a
-  // file the browser calls an image (SVG, BMP, HEIC), which is drawn again before it is stored.
+  // file the browser calls an image (SVG, BMP), which is drawn again before it is stored. AVIF
+  // and HEIC pass here and get prepareImageForStore's own refusal message.
   if (file.type.startsWith('image/')) return true;
   try {
     return sniffImageType(new Uint8Array(await file.slice(0, 64).arrayBuffer())) !== null;

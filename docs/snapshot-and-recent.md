@@ -16,12 +16,13 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   `tier-list.png`. This button is new (A10): Copy Image cannot carry the list.
 - **Open file** (the folder button next to Share), **dropping a file** onto the editor and
   **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
-  - All three take the same files as "From your device": a PNG, JPEG, WebP, GIF or AVIF picture
-    by its first bytes is stored as it is (within the pixel caps), and any other file the browser
-    calls an image (SVG, BMP, HEIC where the browser can show it) is drawn again and stored as a
-    plain picture. Other files get the message "This file is not a picture." Drops do nothing
-    while a dialog, a menu or a list box is open. Files that arrive while another file is still
-    opening are ignored.
+  - All three take the same files as "From your device", through the same code: a PNG, JPEG,
+    WebP or GIF picture by its first bytes is stored as it is (within the pixel caps), and any
+    other file the browser calls an image (SVG, BMP) is drawn again and stored as a plain picture.
+    AVIF and HEIC files get the refusal of "From your device" ("AVIF and HEIC images cannot be
+    added yet...") and nothing is stored. Other files get the message "This file is not a
+    picture." Drops do nothing while a dialog, a menu or a list box is open. Files that arrive
+    while another file is still opening are ignored.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
     An image this browser already holds under the file's own id is used as it is: the file was
