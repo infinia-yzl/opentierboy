@@ -322,6 +322,20 @@ test.describe('Opening other files', () => {
     await expect.poll(async () => (await tierList.itemImageCenterColor('tiny'))?.[1] ?? 0).toBeGreaterThan(200);
   });
 
+  test('AVIF and HEIC files get the refusal of "From your device", and nothing is stored', async ({tierList}) => {
+    await tierList.goto('/rank');
+    const isoMedia = (brand: string) => Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from(`ftyp${brand}\0\0\0\0mif1${brand}`, 'latin1'), Buffer.alloc(64)]);
+    const refusal = 'AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.';
+
+    await tierList.dropFile({name: 'photo.heic', mimeType: 'image/heic', buffer: isoMedia('heic')});
+    await expect(tierList.toast('Some images could not be added').filter({hasText: 'photo'})).toContainText(refusal);
+    await tierList.openFile({name: 'picture.avif', mimeType: 'image/avif', buffer: isoMedia('avif')});
+    await expect(tierList.toast('Some images could not be added').filter({hasText: 'picture'})).toContainText(refusal);
+
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    expect(await tierList.deviceImageCount()).toBe(0);
+  });
+
   test('a drop while a menu is open does nothing', async ({tierList, page}) => {
     await tierList.goto('/rank');
     await tierList.openManageItemsMenu();
