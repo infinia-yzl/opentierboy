@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import LZString from 'lz-string';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import TierCortex from '@/lib/TierCortex';
+import TierCortex, {uniqueTierIds} from '@/lib/TierCortex';
 import sharedLinks from '../fixtures/shared-links.json';
 import {PreRefactorTierCortex} from './support/TierCortex.pre-refactor';
 import {randomAppStates, seededRandom} from './support/randomStates';
@@ -17,6 +17,7 @@ import {randomAppStates, seededRandom} from './support/randomStates';
  *   that is not text where text belongs;
  * - a link that is not complete lz-string data stops before the decoder, with its own message;
  * - an item id that appears twice keeps only its first place (A32);
+ * - a tier id that appears twice keeps its first row, and later rows get new ids (A38);
  * - the placeholder tile of an unknown item uses a relative image URL (A37).
  */
 
@@ -92,6 +93,13 @@ function withoutDuplicateIds<T extends {tiers: {items: {id: string}[]}[]}>(decod
   })}))};
 }
 
+/** The list with a new id for each later row with a repeated tier id, as Phase 5a decodes it (A38). */
+function withUniqueTierIds<T extends {tiers: {id: string}[]}>(decoded: T | null): T | null {
+  if (decoded === null) return null;
+  const ids = uniqueTierIds(decoded.tiers.map(tier => tier.id));
+  return {...decoded, tiers: decoded.tiers.map((tier, index) => ({...tier, id: ids[index]}))};
+}
+
 /** The frozen copy's placeholder URLs were absolute. Phase 5a makes them relative (A37). */
 const ABSOLUTE_PLACEHOLDER = /^(http:\/\/localhost:3000|https:\/\/opentierboy\.com)\/placeholder-image\.png$/;
 function withRelativePlaceholders<T extends {tiers: {items: {imageUrl?: string}[]}[]}>(decoded: T | null): T | null {
@@ -109,7 +117,7 @@ function expectSameAsBefore(input: string, label: string) {
     expect(afterLogs, label).toEqual([[LOG_PREFIX, expect.stringContaining('Error: The link holds ')]]);
     return;
   }
-  expect(after, label).toStrictEqual(withRelativePlaceholders(withoutDuplicateIds(before)));
+  expect(after, label).toStrictEqual(withUniqueTierIds(withRelativePlaceholders(withoutDuplicateIds(before))));
   // A link that does not decode logs one error. The message is the same, unless the size check
   // stopped the link before the decoder because it is not complete lz-string data.
   expect(afterLogs.length, label).toBe(beforeLogs.length);
@@ -165,6 +173,8 @@ describe('TierCortex after moving the link format to lib/state', () => {
     expect(results.filter(before => before !== null && breaksLegacyRules(before)).length).toBeGreaterThanOrEqual(4);
     expect(results.filter(before => before !== null && !breaksLegacyRules(before)
       && JSON.stringify(withoutDuplicateIds(before)) !== JSON.stringify(before)).length).toBeGreaterThanOrEqual(10);
+    expect(results.filter(before => before !== null && !breaksLegacyRules(before)
+      && JSON.stringify(withUniqueTierIds(before)) !== JSON.stringify(before)).length).toBeGreaterThanOrEqual(10);
   });
 
   it('starts template pages and shared links with the same tiers', () => {
@@ -206,6 +216,30 @@ describe('TierCortex with item ids named like built-in object members', () => {
       })));
       expect(LZString.decompressFromEncodedURIComponent(saved), id)
         .toBe(`{"tiers":[{"i":"a","n":"b","t":[{"i":${JSON.stringify(id)},"c":"Mystery"},{"i":"image-overwatch-mau.webp"}]}]}`);
+    }
+  });
+});
+
+describe('TierCortex with repeated tier ids (A38)', () => {
+  it('gives each later row with a repeated id a new id, and keeps the first', () => {
+    expect(uniqueTierIds(['tier-s', 'tier-a', 'tier-s', 'tier-s', 'uncategorized'])).toEqual(['tier-s', 'tier-a', 'tier-s~2', 'tier-s~3', 'uncategorized']);
+    // A new id never takes an id that another row already has.
+    expect(uniqueTierIds(['x', 'x', 'x~2', 'x'])).toEqual(['x', 'x~3', 'x~2', 'x~4']);
+    expect(uniqueTierIds(['', ''])).toEqual(['', '~2']);
+    expect(uniqueTierIds(['a', 'b'])).toEqual(['a', 'b']);
+  });
+
+  it('decodes a legacy link with repeated tier ids into rows with their own ids', () => {
+    for (const legacy of [
+      lz(JSON.stringify([{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp', c: 'Mauga'}]}, {i: 'tier-s', n: 'A', t: [{i: 'image-overwatch-win.webp', c: 'Winston'}]}, {i: 'uncategorized', n: '', t: []}])),
+      lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}]}, {i: 'tier-s', n: 'A', t: [{i: 'image-overwatch-win.webp'}]}, {i: 'uncategorized', n: '', t: []}]})),
+    ]) {
+      const tiers = new TierCortex().decodeTierStateFromURL(legacy)!.tiers;
+      expect(tiers.map(tier => [tier.id, tier.name, tier.items.map(item => item.content)])).toEqual([
+        ['tier-s', 'S', ['Mauga']],
+        ['tier-s~2', 'A', ['Winston']],
+        ['uncategorized', '', []],
+      ]);
     }
   });
 });

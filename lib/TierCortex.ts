@@ -245,14 +245,16 @@ export class TierCortex {
   }
 
   /**
-   * Resolves the items of every tier. An id that appears twice, also after following an alias
-   * (an old id and its new id in one list), keeps only its first place (A32): duplicate ids
-   * break drag and drop.
+   * Resolves the items of every tier. Duplicate ids break drag and drop, so:
+   * - an item id that appears twice, also after following an alias (an old id and its new id
+   *   in one list), keeps only its first place (A32);
+   * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38).
    */
   private resolveTiers(state: CanonicalState): Tier[] {
     const seen = new Set<string>();
-    return state.tiers.map(tier => ({
-      id: tier.id,
+    const tierIds = uniqueTierIds(state.tiers.map(tier => tier.id));
+    return state.tiers.map((tier, index) => ({
+      id: tierIds[index],
       name: tier.name,
       items: tier.items
         .map(item => this.resolveItem(item.id, item.content))
@@ -332,6 +334,27 @@ export class TierCortex {
   private getAbsoluteUrl(path: string): string {
     return new URL(path, this.baseUrl).toString();
   }
+}
+
+/**
+ * The tier ids with each later duplicate renamed to `<id>~2`, `<id>~3`... (the first number not
+ * used by any tier), so every row has its own id. The first row with an id keeps it. The same
+ * ids always give the same result.
+ */
+export function uniqueTierIds(ids: readonly string[]): string[] {
+  const taken = new Set(ids);
+  const seen = new Set<string>();
+  return ids.map(id => {
+    if (!seen.has(id)) {
+      seen.add(id);
+      return id;
+    }
+    let number = 2;
+    while (taken.has(`${id}~${number}`)) number++;
+    const newId = `${id}~${number}`;
+    taken.add(newId);
+    return newId;
+  });
 }
 
 function toCanonicalItem(item: SimplifiedItem): CanonicalItem {

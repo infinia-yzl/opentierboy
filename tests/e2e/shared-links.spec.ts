@@ -125,6 +125,25 @@ test.describe('Links with bad data', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma', 'Mauga']);
   });
 
+  test('two rows with the same id each take their own drops', async ({tierList, openAsVisitor}) => {
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [
+        {i: 'tier-s', n: 'S', t: []},
+        {i: 'tier-s', n: 'A', t: []},
+        {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-win.webp'}]},
+      ],
+    }));
+
+    await tierList.dragItemToTier('Mauga', 'S');
+    await tierList.dragItemToTier('Winston', 'A');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+    const visitor = await openAsVisitor(await tierList.shareLink());
+    await expect(visitor.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(visitor.itemsIn('A')).toHaveText(['Winston']);
+  });
+
   test('a link with a huge tier name falls back to the template', async ({tierList}) => {
     // 300,000 characters of tier name in a link of under 2,000 characters.
     await tierList.goto('/rank/overwatch/tank', hugeTierNameState());
