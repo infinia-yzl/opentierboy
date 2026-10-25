@@ -243,11 +243,23 @@ export class TierCortex {
     }
   }
 
+  /**
+   * Resolves the items of every tier. An id that appears twice, also after following an alias
+   * (an old id and its new id in one list), keeps only its first place (A32): duplicate ids
+   * break drag and drop.
+   */
   private resolveTiers(state: CanonicalState): Tier[] {
+    const seen = new Set<string>();
     return state.tiers.map(tier => ({
       id: tier.id,
       name: tier.name,
-      items: tier.items.map(item => this.resolveItem(item.id, item.content)),
+      items: tier.items
+        .map(item => this.resolveItem(item.id, item.content))
+        .filter(item => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        }),
     }));
   }
 

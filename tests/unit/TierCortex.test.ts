@@ -15,7 +15,8 @@ import {randomAppStates, seededRandom} from './support/randomStates';
  * Phase 5a changed some results on purpose, and the comparison allows exactly these:
  * - links with bad data no longer decode (A29, lib/legacyLinkLimits.ts): no tiers, or a value
  *   that is not text where text belongs;
- * - a link that is not complete lz-string data stops before the decoder, with its own message.
+ * - a link that is not complete lz-string data stops before the decoder, with its own message;
+ * - an item id that appears twice keeps only its first place (A32).
  */
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
@@ -79,6 +80,17 @@ function breaksLegacyRules(decoded: DecodedForComparison): boolean {
     || tier.items.some(item => typeof item.id !== 'string' || typeof item.content !== 'string'));
 }
 
+/** The list with each item id only at its first place, as Phase 5a decodes it (A32). */
+function withoutDuplicateIds<T extends {tiers: {items: {id: string}[]}[]}>(decoded: T | null): T | null {
+  if (decoded === null) return null;
+  const seen = new Set<string>();
+  return {...decoded, tiers: decoded.tiers.map(tier => ({...tier, items: tier.items.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  })}))};
+}
+
 /** Decodes with both implementations and expects the same result, apart from Phase 5a's changes. */
 function expectSameAsBefore(input: string, label: string) {
   const {before, after, beforeLogs, afterLogs} = decodeWithBoth(input);
@@ -87,7 +99,7 @@ function expectSameAsBefore(input: string, label: string) {
     expect(afterLogs, label).toEqual([[LOG_PREFIX, expect.stringContaining('Error: The link holds ')]]);
     return;
   }
-  expect(after, label).toStrictEqual(before);
+  expect(after, label).toStrictEqual(withoutDuplicateIds(before));
   // A link that does not decode logs one error. The message is the same, unless the size check
   // stopped the link before the decoder because it is not complete lz-string data.
   expect(afterLogs.length, label).toBe(beforeLogs.length);
@@ -137,13 +149,12 @@ describe('TierCortex after moving the link format to lib/state', () => {
     }
   });
 
-  it('still compares the links that Phase 5a rejects on purpose', () => {
-    // Guards the comparison above: these inputs must reach the "rejected on purpose" branch.
-    const rejected = [...MALFORMED, ...decodeInputs()].filter(input => {
-      const {before} = decodeWithBoth(input);
-      return before !== null && breaksLegacyRules(before);
-    });
-    expect(rejected.length).toBeGreaterThanOrEqual(4);
+  it('still compares the links that Phase 5a changes on purpose', () => {
+    // Guards the comparison above: some inputs must reach each of Phase 5a's changes.
+    const results = [...MALFORMED, ...decodeInputs()].map(input => decodeWithBoth(input).before);
+    expect(results.filter(before => before !== null && breaksLegacyRules(before)).length).toBeGreaterThanOrEqual(4);
+    expect(results.filter(before => before !== null && !breaksLegacyRules(before)
+      && JSON.stringify(withoutDuplicateIds(before)) !== JSON.stringify(before)).length).toBeGreaterThanOrEqual(10);
   });
 
   it('starts template pages and shared links with the same tiers', () => {
@@ -211,7 +222,23 @@ describe('TierCortex follows image-aliases.json for renamed images', () => {
       'image-overwatch-mauga-v1.webp': 'image-overwatch-mauga-v2.webp',
       'image-overwatch-mauga-v2.webp': 'image-overwatch-mau.webp',
     }});
-    expect(itemsOf(cortex, link('image-overwatch-mauga-v1.webp', 'image-overwatch-mauga-v2.webp'))).toEqual([MAUGA, MAUGA]);
+    expect(itemsOf(cortex, link('image-overwatch-mauga-v1.webp'))).toEqual([MAUGA]);
+    expect(itemsOf(cortex, link('image-overwatch-mauga-v2.webp'))).toEqual([MAUGA]);
+  });
+
+  it('keeps only the first place of an item that appears twice after following aliases (A32)', () => {
+    const cortex = new TierCortex({aliases: {
+      'image-overwatch-mauga-v1.webp': 'image-overwatch-mauga-v2.webp',
+      'image-overwatch-mauga-v2.webp': 'image-overwatch-mau.webp',
+    }});
+    // Before Phase 5a this showed Mauga twice, with the same drag id twice.
+    expect(itemsOf(cortex, link('image-overwatch-mauga-v1.webp', 'image-overwatch-mauga-v2.webp'))).toEqual([MAUGA]);
+    const twoRows = lz(JSON.stringify({tiers: [
+      {i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-win.webp'}, {i: 'image-overwatch-mauga-v2.webp'}]},
+      {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-win.webp'}, {i: 'k3j9x0a1b', c: 'a'}, {i: 'k3j9x0a1b', c: 'b'}]},
+    ]}));
+    const tiers = cortex.decodeTierStateFromURL(twoRows)!.tiers;
+    expect(tiers.map(tier => tier.items.map(item => item.content))).toEqual([['Winston', 'Mauga'], ['a']]);
   });
 
   it('falls back to a placeholder when an alias loops or leads nowhere', () => {

@@ -72,7 +72,8 @@ test.describe('Links with item ids named like built-in object members', () => {
 });
 
 // Links that decode but hold data the app never writes, or far more data than any real list.
-// The page still works: it falls back to the template, like a damaged link.
+// The page still works: it falls back to the template, like a damaged link, or leaves out the
+// part that would break the editor.
 test.describe('Links with bad data', () => {
   const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
   const badLinks = [
@@ -95,6 +96,21 @@ test.describe('Links with bad data', () => {
       await expect(tierList.tiers.first()).toBeVisible();
     });
   }
+
+  test('an item that appears twice in a link shows once, at its first place', async ({tierList}) => {
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [
+        {i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-win.webp'}]},
+        {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-sig.webp'}]},
+      ],
+    }));
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
+    // Each tile has its own drag id again, so dragging works.
+    await tierList.dragItemToTier('Mauga', 'Unranked');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma', 'Mauga']);
+  });
 
   test('a link with a huge tier name falls back to the template', async ({tierList}) => {
     // 300,000 characters of tier name in a link of under 2,000 characters.
