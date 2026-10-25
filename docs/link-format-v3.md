@@ -239,7 +239,7 @@ in the edge OG route):
 | `deviceId.ts` | `isDeviceImageId`: the device id rule |
 | `lz.ts` | lz-string decompression with a length cap |
 | `decode.ts` | `decodeState`: sends `3.` values to the v3 decoder |
-| `encode.ts` | `encodeState` (v2 by default), `DEFAULT_WRITE_FORMAT` |
+| `encode.ts` | `encodeState` (v3 by default, v2 on request), `DEFAULT_WRITE_FORMAT` |
 
 In `CanonicalState`, an item without `kind` is an image-set item (legacy links give every
 item in this form). Link images are `{kind: 'link', id, url, content}`: a link image stores no
@@ -277,11 +277,16 @@ out of links.
 - Device images show this browser's upload, found by their id or by the id before the
   `legacy-` prefix. Without one, the label shows on the placeholder image, as for a legacy
   upload in someone else's browser.
+- An upload or unknown id from a legacy link shows under the id its v3 link writes
+  (`legacy-<id>` when the id breaks the device id rule, A42). So the item keeps one id on
+  screen across Back and Forward between legacy and v3 versions of a list, and toast Undo never
+  adds it twice. The upload is still found under its own id.
 - Link previews (`/api/og`) draw link and device images as label tiles. Their addresses never
   reach the local image inliner (A8, A36).
-- `TierCortex` gives a row with a repeated tier id its own id (A38, Phase 5a), and an empty
-  tier id a new id (`tier~1`, ...), so a list opened from any legacy link writes a v3 link that
-  opens again.
+- `TierCortex` gives a row with a repeated tier id its own id (A38, Phase 5a). Hand-made links
+  can also hold empty ids, which v3 refuses: an empty tier id gets a new id (`tier~1`, ...) and
+  an empty item id gets one too (`item~1`, ..., keeping its label, written as `{"i", "c"}`). So a
+  list opened from any legacy link writes a v3 link that opens again.
 
 **Layout settings (A3).** The label position and label visibility travel in v3 links.
 
