@@ -120,7 +120,12 @@ frame-ancestors 'none'; form-action 'self'
 - Fonts: next/font downloads the Google fonts at build time and serves them from the site
   itself. No font host is needed.
 - Connections: the app only talks to its own site. No other host is needed. If link images
-  are ever read with `fetch()`, `connect-src` must add `https:`.
+  are ever read with `fetch()`, `connect-src` must add `https:`. Reading a `data:` or `blob:`
+  URL with `fetch()` (for example to re-encode snapshot images) needs `data:` and `blob:` in
+  `connect-src` too.
+- No `'unsafe-eval'` in production. zod 4 runs `new Function("")` when it builds a schema, to
+  test whether eval works, and the browser reports that as a violation. So app code imports
+  `z` from `lib/zod.ts`, which turns that off (`jitless`). Never import from `zod` directly.
 - Options: `dev` (adds `'unsafe-eval'` for `next dev`), `vercelToolbar` (adds the Vercel
   Toolbar hosts for preview deployments), `reportOnly` (reports problems and blocks nothing,
   for a trial), `extend` (adds sources).

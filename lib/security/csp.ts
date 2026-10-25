@@ -19,6 +19,10 @@
  *   scripts. So this policy states script-src 'self' 'unsafe-inline' to keep A11's intent.
  *   (The JSON-LD block is data, so it never needed this, but the other two do.) `next dev`
  *   also needs 'unsafe-eval' (option `dev`).
+ * - No 'unsafe-eval' in production. zod 4 runs `new Function("")` when it builds an object
+ *   schema, to test whether eval works. The policy blocks that, and the browser reports a
+ *   violation even though zod catches the error. So app code imports `z` from lib/zod.ts,
+ *   which turns zod's code generation and that test off (`jitless`, amendment A39).
  * - style-src 'unsafe-inline': React style attributes, Radix UI and sonner set inline styles.
  * - img-src: link images come from any https site, device images are blob: URLs, and the
  *   Freeze Frame preview and next/image placeholders use data: and blob:.
@@ -30,6 +34,10 @@
  *   their `proxy` option, which the app does not use. The `next dev` WebSocket is
  *   same-origin, which 'self' covers. If link images are ever loaded with fetch() (for
  *   example to read their bytes for a snapshot), connect-src must add https:.
+ *   Reading a `data:` or `blob:` URL with fetch() also counts as a connection: connect-src
+ *   must then list `data:` and `blob:`. That is common when snapshot images are re-encoded
+ *   (the 5d wiring). Use `extend: {'connect-src': ["'self'", 'data:', 'blob:']}`, or decode
+ *   through an image element and a canvas, which img-src already allows.
  * - No upgrade-insecure-requests: it would break the local http server that the end-to-end
  *   tests use.
  *
