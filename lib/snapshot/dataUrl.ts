@@ -3,10 +3,14 @@
  *
  * Plain code: it uses `btoa` and `atob`, which browsers and Node 22 have, at call time only.
  */
-import {snapshotImageTypeOf} from './imageSize';
+import {sniffImageType} from '@/lib/images/imageType';
 import {rasterDataUrlType, type SnapshotImageType} from './payload';
 
-export {snapshotImageTypeOf};
+/** The snapshot image type of these bytes from their first bytes (PNG, JPEG, WebP or GIF), or null. */
+export function snapshotImageTypeOf(bytes: Uint8Array): SnapshotImageType | null {
+  const type = sniffImageType(bytes);
+  return type === null || type === 'image/avif' ? null : type;
+}
 
 /** A data URL of a PNG, JPEG, WebP or GIF picture, typed by its first bytes. Null for any other bytes. */
 export function dataUrlFromImageBytes(bytes: Uint8Array): string | null {

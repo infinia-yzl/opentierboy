@@ -15,8 +15,32 @@ export function pngHeader(width: number, height: number): Uint8Array {
   return u8([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], be32(13), 'IHDR', be32(width), be32(height), [8, 6, 0, 0, 0], [0, 0, 0, 0]);
 }
 
-export function gifHeader(width: number, height: number): Uint8Array {
-  return u8('GIF89a', le16(width), le16(height), [0x80, 0, 0], [0, 0, 0]);
+/**
+ * A GIF: logical screen, a 2-colour global colour table, a graphic control extension, and the
+ * first frame's image descriptor (`frame` defaults to the screen's size).
+ */
+export function gifHeader(width: number, height: number, frame: {width: number; height: number} = {width, height}): Uint8Array {
+  return u8(
+    'GIF89a', le16(width), le16(height), [0x80, 0, 0], [0, 0, 0, 255, 255, 255],
+    [0x21, 0xf9, 4, 0, 0, 0, 0, 0],
+    [0x2c], le16(0), le16(0), le16(frame.width), le16(frame.height), [0],
+    [2, 2, 0x4c, 0x01, 0, 0x3b],
+  );
+}
+
+/** A GIF with a comment extension of about `commentBytes` before its first frame. */
+export function gifWithLongComment(width: number, height: number, commentBytes: number): Uint8Array {
+  const blocks: number[] = [];
+  for (let left = commentBytes; left > 0; left -= 255) {
+    const size = Math.min(255, left);
+    blocks.push(size, ...new Array(size).fill(0x61));
+  }
+  return u8(
+    'GIF89a', le16(width), le16(height), [0x80, 0, 0], [0, 0, 0, 255, 255, 255],
+    [0x21, 0xfe], blocks, [0],
+    [0x2c], le16(0), le16(0), le16(width), le16(height), [0],
+    [2, 2, 0x4c, 0x01, 0, 0x3b],
+  );
 }
 
 /** A JPEG with `paddingBytes` of APP1 segments before its SOF (`sof`: 0xc0 baseline, 0xc2 progressive). */

@@ -33,7 +33,7 @@
 import {normalizeRankPath} from '@/lib/rankPath';
 import {isDeviceImageId} from '@/lib/state/deviceId';
 import {z} from '@/lib/zod';
-import {declaredImageSize, type ImageSize, JPEG_SIZE_SEARCH_BYTES, snapshotImageTypeOf} from './imageSize';
+import {readImageSize, sniffImageType} from '@/lib/images/imageType';
 import {SNAPSHOT_PNG_LIMITS} from './png';
 
 export const SNAPSHOT_PAYLOAD_VERSION = 1;
@@ -113,6 +113,13 @@ export type BuildSnapshotPayloadResult =
   | {ok: false; reason: 'payload-too-large' | 'invalid-payload'; detail?: string};
 
 const limits = SNAPSHOT_PAYLOAD_LIMITS;
+
+/**
+ * How many bytes of a JPEG or GIF image are searched for its size (readImageSize in
+ * lib/images/imageType.ts): a JPEG keeps it after its metadata, a GIF in its first frame after
+ * the colour table and extensions. Canvas and camera files have it early; later means refused.
+ */
+export const IMAGE_SIZE_SEARCH_BYTES = 64 * 1024;
 
 /** A versioned link value: version digits, a dot, then lz-string's URL-safe alphabet. */
 const VERSIONED_STATE = /^[1-9][0-9]{0,3}\.[A-Za-z0-9+$-]+$/;
@@ -224,7 +231,7 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
  * and the browser would decode it at full size (an image bomb). Nothing is decoded here. Only
  * the header is checked, so re-encode the image through a canvas before storing it.
  */
-export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType} & ImageSize | null {
+export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType; width: number; height: number} | null {
   if (typeof dataUrl !== 'string' || dataUrl.length > limits.maxImageDataUrlChars) return null;
   const match = DATA_URL.exec(dataUrl);
   if (!match) return null;
@@ -232,8 +239,8 @@ export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType} & 
   const base64 = match[2];
   if (base64.length < 16 || base64.length % 4 !== 0) return null;
 
-  // JPEG keeps its size after optional segments; the other types within the first 30 bytes.
-  const headChars = type === 'image/jpeg' ? Math.ceil(JPEG_SIZE_SEARCH_BYTES / 3) * 4 : 64;
+  // JPEG and GIF keep their size after optional segments; PNG and WebP within the first 30 bytes.
+  const headChars = type === 'image/jpeg' || type === 'image/gif' ? Math.ceil(IMAGE_SIZE_SEARCH_BYTES / 3) * 4 : 64;
   let head: Uint8Array;
   try {
     const binary = atob(base64.slice(0, headChars));
@@ -241,9 +248,9 @@ export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType} & 
   } catch {
     return null;
   }
-  if (snapshotImageTypeOf(head) !== type) return null;
-  const size = declaredImageSize(head);
-  if (!size || size.width > limits.maxImageSide || size.height > limits.maxImageSide || size.width * size.height > limits.maxImagePixels) {
+  if (sniffImageType(head) !== type) return null;
+  const size = readImageSize(head);
+  if (!size || !(size.width > 0 && size.height > 0) || size.width > limits.maxImageSide || size.height > limits.maxImageSide || size.width * size.height > limits.maxImagePixels) {
     return null;
   }
   return {type, ...size};

@@ -230,7 +230,9 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(rasterDataUrlType(dataUrl('jpeg'))).toBe('image/jpeg');
     expect(rasterDataUrlType(dataUrl('gif'))).toBe('image/gif');
     expect(rasterDataUrlType(dataUrl('webp'))).toBe('image/webp');
-    expect(rasterDataUrlType(`data:image/gif;base64,${Buffer.from('GIF87a\x01\x00\x01\x00\x80\x00').toString('base64')}`)).toBe('image/gif');
+    const gif87a = Buffer.from(gifHeader(1, 1));
+    gif87a.write('GIF87a', 0, 'latin1');
+    expect(rasterDataUrlType(`data:image/gif;base64,${gif87a.toString('base64')}`)).toBe('image/gif');
   });
 
   it('caps the size of one image', () => {
