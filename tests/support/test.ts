@@ -57,15 +57,18 @@ type Fixtures = {
 
 type WorkerFixtures = {
   /**
-   * Blocks the test runner's own fetch() calls to external hosts for the whole worker, hooks
-   * such as beforeAll included. In a test they count for that test (externalRequests); outside
-   * a test they fail the worker when it finishes.
+   * Fails the worker when it finishes if a request to an external host was blocked outside a
+   * test (at module scope or in a hook such as beforeAll).
    */
-  externalFetchGuard: void;
+  blockedOutsideTestsReport: void;
 };
 
-/** Where blocked fetch() calls are recorded: the running test's list, if a test is running. */
-let fetchSink: string[] | null = null;
+/** Where blocked requests are recorded: the running test's list, while a test runs. */
+let requestSink: string[] | null = null;
+/** Requests blocked outside a test; blockedOutsideTestsReport reports them. */
+const blockedOutsideTests: string[] = [];
+/** The list a request blocked now belongs to. */
+const currentBlockedList = () => requestSink ?? blockedOutsideTests;
 
 const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]'];
 /**
@@ -118,7 +121,11 @@ function guardRequestContext(request: APIRequestContext, baseURL: string | undef
  * the context's own API requests (context.request, page.request), so those are wrapped like
  * the `request` fixture, for the pages the context has and every page it opens later.
  */
+const guardedContexts = new WeakSet<BrowserContext>();
+
 async function guardContext(context: BrowserContext, baseURL: string | undefined, blocked: string[]) {
+  if (guardedContexts.has(context)) return;
+  guardedContexts.add(context);
   const siteURL = baseURL ? new URL(baseURL) : undefined;
   await context.route(
     (url) => isExternal(url, siteURL),
@@ -134,14 +141,60 @@ async function guardContext(context: BrowserContext, baseURL: string | undefined
   context.on('page', guardPage);
 }
 
+/**
+ * Makes the worker's browser guard every context it creates: browser.newContext() and
+ * browser.newPage() (which opens a context of its own), however the test reaches the browser
+ * (the `browser` fixture under any name, page.context().browser()). The methods are replaced on
+ * the instance, so every reference to it gets them. A context records into the list of the
+ * test that created it (or, outside a test, into blockedOutsideTests).
+ */
+function guardBrowser(browser: Browser, baseURL: string | undefined) {
+  const newContext = browser.newContext.bind(browser);
+  const newPage = browser.newPage.bind(browser);
+  browser.newContext = async (...args: Parameters<Browser['newContext']>) => {
+    const context = await newContext(...args);
+    await guardContext(context, baseURL, currentBlockedList());
+    return context;
+  };
+  browser.newPage = async (...args: Parameters<Browser['newPage']>) => {
+    const page = await newPage(...args);
+    await guardContext(page.context(), baseURL, currentBlockedList());
+    return page;
+  };
+}
+
+/**
+ * The test runner's own fetch(), guarded from the moment this module is first imported (before
+ * a spec's own code runs, in the runner process and in the workers), so that module-scope calls
+ * and a fetch captured at module scope (`const realFetch = globalThis.fetch`) are guarded too.
+ * In a test, a blocked call rejects and counts for the test. Outside a test it throws at once,
+ * so a call nobody awaits still breaks the file: loading it fails, in the runner too.
+ */
+const SITE_URL_FROM_ENV = process.env.BASE_URL ? new URL(process.env.BASE_URL) : undefined;
+const originalFetch = globalThis.fetch;
+const guardedFetch = Object.assign((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+  let url: URL;
+  try {
+    url = new URL(input instanceof Request ? input.url : String(input));
+  } catch {
+    return originalFetch(input, init); // not an absolute address: fetch() refuses it itself
+  }
+  if (!isExternal(url, SITE_URL_FROM_ENV)) return originalFetch(input, init);
+  currentBlockedList().push(url.href);
+  const error = new TypeError(`Blocked a request to an external host: ${url.href}`);
+  if (requestSink === null) throw error;
+  return Promise.reject(error);
+}, {guardsExternalRequests: true});
+if (!(globalThis.fetch as Partial<typeof guardedFetch>).guardsExternalRequests) globalThis.fetch = guardedFetch;
+
 export const test = base.extend<Fixtures, WorkerFixtures>({
   externalRequests: [async ({}, use, testInfo) => {
     const blocked: string[] = [];
-    fetchSink = blocked;
+    requestSink = blocked;
     try {
       await use(blocked);
     } finally {
-      fetchSink = null;
+      requestSink = null;
     }
     // Runs after the test and its afterEach hooks. A test marked test.fail() would count this
     // failure as the one it expects and pass: make the failure unexpected, so it is loud.
@@ -149,28 +202,16 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     testInfo.expectedStatus = 'passed';
     throw new Error(`Requests to external hosts that no test route answered (tests must never reach real sites):\n${blocked.join('\n')}`);
   }, {auto: true}],
-  externalFetchGuard: [async ({}, use, workerInfo) => {
-    const baseURL = workerInfo.project.use.baseURL;
-    const siteURL = baseURL ? new URL(baseURL) : undefined;
-    const outsideTests: string[] = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      const url = new URL(input instanceof Request ? input.url : String(input), baseURL);
-      if (isExternal(url, siteURL)) {
-        (fetchSink ?? outsideTests).push(url.href);
-        throw new TypeError(`Blocked a request to an external host: ${url.href}`);
-      }
-      return originalFetch(input, init);
-    }) as typeof fetch;
-    try {
-      await use();
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-    if (outsideTests.length > 0) {
-      throw new Error(`fetch() to external hosts outside a test, for example in beforeAll (tests must never reach real sites):\n${outsideTests.join('\n')}`);
+  blockedOutsideTestsReport: [async ({}, use) => {
+    await use();
+    if (blockedOutsideTests.length > 0) {
+      throw new Error(`Requests to external hosts outside a test, for example at module scope or in beforeAll (tests must never reach real sites):\n${blockedOutsideTests.join('\n')}`);
     }
   }, {scope: 'worker', auto: true}],
+  browser: [async ({browser}, use, workerInfo) => {
+    guardBrowser(browser, workerInfo.project.use.baseURL);
+    await use(browser);
+  }, {scope: 'worker'}],
   request: async ({request, baseURL, externalRequests}, use) => {
     await use(guardRequestContext(request, baseURL, externalRequests));
   },
