@@ -1,8 +1,17 @@
 import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
 import Image from 'next/image';
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
+import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {itemDisplayLabel} from "@/lib/images/listImages";
 
 interface ItemTileProps extends Item {
   onDelete?: (id: string) => void;
@@ -13,10 +22,26 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   id,
   content,
   imageUrl,
+  source,
+  url,
   onDelete = () => {
   },
   showLabel = true,
 }) => {
+  const images = useCustomImages();
+  const item: Item = {id, content, imageUrl, source, url};
+  const link = images.linkImage(item);
+  const device = images.deviceImage(item);
+  // Link images: a plain <img> (never the image optimizer, A8) once the site is allowed and the
+  // image passed its check; until then, and when it fails, a label tile with the site's name.
+  const linkSrc = link?.status === 'ready' ? link.src : undefined;
+  // Uploads: the image from the device store (a blob: URL). The placeholder until it is loaded
+  // or when this browser does not have it; a label tile when the store removed it for room.
+  const deviceSrc = device?.status === 'ready' ? device.url : undefined;
+  const tileImageUrl = link ? undefined : device?.status === 'evicted' ? undefined : deviceSrc ?? imageUrl;
+  const domain = link?.domain ?? '';
+  const label = itemDisplayLabel(item);
+
   const [isZenMode, setIsZenMode] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -54,21 +79,36 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md">
-      {imageUrl ? (
+    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md"
+         title={domain ? `Image from ${domain}` : undefined}>
+      {linkSrc || tileImageUrl ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
-            <Image
-              src={imageUrl}
-              alt={content}
-              fill
-              sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
-              style={{
-                objectFit: "contain"
-              }}
-              placeholder="blur"
-              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
-            />
+            {linkSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element -- link images never go through the image optimizer (A8)
+              <img
+                src={linkSrc}
+                alt={label}
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
+                data-link-image={linkSrc}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <Image
+                src={tileImageUrl as string}
+                alt={label}
+                fill
+                sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
+                style={{
+                  objectFit: "contain"
+                }}
+                unoptimized={tileImageUrl?.startsWith('blob:')}
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
+              />
+            )}
           </div>
           {showLabel && (
             // The label background is a plain rgb() value: "Original html2canvas" (Freeze Frame)
@@ -81,14 +121,15 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
               <span
                 className="text-[9px] leading-tight text-white block mb-0.5 text-center"
               >
-                {content}
+                {label}
               </span>
             </div>
           )}
         </>
       ) : (
-        <div className="flex items-center justify-center h-full text-sm">
-          {content}
+        <div className="flex flex-col items-center justify-center h-full text-sm text-center break-words">
+          <span>{label}</span>
+          {domain && domain !== label && <span className="text-[9px] leading-tight text-muted-foreground">{domain}</span>}
         </div>
       )}
     </div>
@@ -102,6 +143,12 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
     <ContextMenu>
       <ContextMenuTrigger>{tileContent}</ContextMenuTrigger>
       <ContextMenuContent>
+        {domain && (
+          <>
+            <ContextMenuLabel className="text-xs font-normal text-muted-foreground">Image from {domain}</ContextMenuLabel>
+            <ContextMenuSeparator/>
+          </>
+        )}
         <ContextMenuItem
           onClick={handleDelete}
           className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"

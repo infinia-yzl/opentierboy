@@ -1,0 +1,268 @@
+'use client';
+
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {toast} from 'sonner';
+import Item from '@/models/Item';
+import {useTierContext} from '@/contexts/TierContext';
+import {PLACEHOLDER_IMAGE_URL} from '@/lib/TierCortex';
+import {createObjectUrlRegistry, type DeviceStore, openDeviceStore} from '@/lib/images/deviceStore';
+import {checkImage, type ImageCheckFailure} from '@/lib/images/imageCheck';
+import {migrateLegacyUploads} from '@/lib/images/legacyUploads';
+import {
+  browserLocalStorage,
+  readAllowedImageSites,
+  readEvictedDeviceImages,
+  rememberAllowedImageSites,
+  updateEvictedDeviceImages,
+} from '@/lib/images/localLists';
+import {deviceImageKey, deviceImageKeys, hostsAwaitingConsent, isImageHostAllowed, linkImageOf} from '@/lib/images/listImages';
+import {DEVICE_IMAGE_REFUSAL_MESSAGES} from '@/lib/images/messages';
+import {prepareImageForStore} from '@/lib/images/prepareImage';
+
+/**
+ * Images from the device and from links, for the tier list editor (#86, #67, #107).
+ *
+ * Device images live in the device image store (IndexedDB, lib/images/deviceStore.ts). The list
+ * holds only their ids. The store opens in an effect, after the page has started, so the server
+ * and the browser render the same list; tiles show the placeholder image until their image is
+ * loaded. Uploads that older versions kept in localStorage move into the store first (A42).
+ * Each image gets one object URL (one registry per editor), revoked when the image leaves the
+ * list and when the editor closes.
+ *
+ * Link images load only from trusted sites (trusted-image-sites.json) and from sites this
+ * visitor allowed: [Load] for this page, [Always allow these sites] in localStorage. Nothing
+ * requests an image from any other site. Each address is checked once (lib/images/imageCheck.ts):
+ * a failure shows a label tile.
+ */
+
+export type DeviceImageState =
+  | {status: 'loading'}
+  | {status: 'ready'; url: string}
+  /** Not in this browser: the tile keeps the placeholder image. */
+  | {status: 'missing'}
+  /** Removed by the store to make room: the tile shows a label tile. */
+  | {status: 'evicted'};
+
+export type LinkImageState =
+  /** The site waits for the visitor's consent. */
+  | {status: 'blocked'; domain: string}
+  | {status: 'checking'; domain: string}
+  | {status: 'ready'; domain: string; src: string}
+  | {status: 'failed'; domain: string; reason: ImageCheckFailure}
+  /** The address breaks the link image rules: it never loads. */
+  | {status: 'invalid'; domain: string};
+
+export interface NewDeviceImage {
+  blob: Blob;
+  label: string;
+}
+
+export interface AddDeviceImagesResult {
+  items: Item[];
+  /** One message per image that could not be added. */
+  errors: string[];
+}
+
+export interface CustomImagesContextValue {
+  /** The image state of an upload, or null when the item is not one. */
+  deviceImage: (item: Item) => DeviceImageState | null;
+  /** The image state of a link image, or null when the item is not one. */
+  linkImage: (item: Item) => LinkImageState | null;
+  /** Keeps images in the device store and returns them as items (not yet in the list). */
+  addDeviceImages: (images: NewDeviceImage[]) => Promise<AddDeviceImagesResult>;
+  /** Lets this page load images from these sites (a link image the visitor adds, or [Load]). */
+  allowHosts: (hosts: string[], options?: {remember?: boolean}) => void;
+  /** Sites of the list's link images that wait for consent. Empty until the allowed sites are read. */
+  hostsAwaitingConsent: string[];
+}
+
+const CustomImagesContext = React.createContext<CustomImagesContextValue | undefined>(undefined);
+
+export const useCustomImages = () => {
+  const context = React.useContext(CustomImagesContext);
+  if (context === undefined) throw new Error('useCustomImages must be used within a CustomImagesProvider');
+  return context;
+};
+
+const NOT_PERSISTENT_MESSAGE = 'This browser does not let the site keep images. Images you add stay until you close this tab.';
+
+export function CustomImagesProvider({children}: {children: React.ReactNode}) {
+  const {tiers, tierCortex} = useTierContext();
+  const isPackageItem = useCallback((id: string) => !tierCortex.isCustomItem(id), [tierCortex]);
+
+  const [registry] = useState(() => createObjectUrlRegistry());
+  const [store, setStore] = useState<DeviceStore | null>(null);
+  const storePromise = useRef<Promise<DeviceStore> | null>(null);
+  const [deviceStates, setDeviceStates] = useState<ReadonlyMap<string, DeviceImageState>>(new Map());
+  const requestedKeys = useRef(new Set<string>());
+  const evicted = useRef(new Set<string>());
+  const warnedNotPersistent = useRef(false);
+  const alive = useRef(true);
+
+  const [allowedHosts, setAllowedHosts] = useState<ReadonlySet<string> | null>(null);
+  const [linkChecks, setLinkChecks] = useState<ReadonlyMap<string, {ok: true; src: string} | {ok: false; reason: ImageCheckFailure}>>(new Map());
+  const requestedLinks = useRef(new Set<string>());
+
+  // Open the device store and read the local lists, after the page has started.
+  useEffect(() => {
+    alive.current = true;
+    let cancelled = false;
+    const requested = requestedKeys.current;
+    const opening = (async () => {
+      const opened = await openDeviceStore();
+      const storage = browserLocalStorage();
+      evicted.current = new Set(readEvictedDeviceImages(storage));
+      await migrateLegacyUploads(storage, opened, (blob) => prepareImageForStore(blob, {maxBytes: opened.limits.maxImageBytes}));
+      return opened;
+    })();
+    storePromise.current = opening;
+    void (async () => {
+      const storage = browserLocalStorage();
+      await Promise.resolve();
+      if (!cancelled) setAllowedHosts(new Set(readAllowedImageSites(storage)));
+      const opened = await opening;
+      if (cancelled) {
+        opened.close();
+        return;
+      }
+      setStore(opened);
+    })();
+    return () => {
+      cancelled = true;
+      alive.current = false;
+      void opening.then((opened) => opened.close());
+      registry.revokeAll();
+      requested.clear();
+    };
+  }, [registry]);
+
+  // Load the images of the uploads in the list; revoke the URLs of images that left it.
+  const keys = useMemo(() => deviceImageKeys(tiers, isPackageItem), [tiers, isPackageItem]);
+  const latestKeys = useRef(keys);
+  useEffect(() => {
+    latestKeys.current = keys;
+    if (!store) return;
+    void (async () => {
+      await Promise.resolve();
+      const inList = new Set(keys);
+      const left = Array.from(requestedKeys.current).filter((key) => !inList.has(key));
+      if (left.length > 0) {
+        left.forEach((key) => {
+          requestedKeys.current.delete(key);
+          registry.revoke(key);
+        });
+        setDeviceStates((previous) => {
+          const next = new Map(previous);
+          left.forEach((key) => next.delete(key));
+          return next;
+        });
+      }
+      const toLoad = keys.filter((key) => !requestedKeys.current.has(key));
+      toLoad.forEach((key) => requestedKeys.current.add(key));
+      for (const key of toLoad) {
+        const image = await store.get(key);
+        if (!alive.current || !requestedKeys.current.has(key)) continue;
+        const state: DeviceImageState = image
+          ? {status: 'ready', url: registry.urlFor(key, image.blob)}
+          : {status: evicted.current.has(key) ? 'evicted' : 'missing'};
+        setDeviceStates((previous) => new Map(previous).set(key, state));
+      }
+    })();
+  }, [store, keys, registry]);
+
+  // Check each allowed link image once.
+  const links = useMemo(() => {
+    const found = new Map<string, string>(); // address -> label
+    tiers.forEach((tier) => tier.items.forEach((item) => {
+      const link = linkImageOf(item);
+      if (link && !found.has(link.url)) found.set(link.url, item.content);
+    }));
+    return found;
+  }, [tiers]);
+  useEffect(() => {
+    if (!allowedHosts) return;
+    links.forEach((label, url) => {
+      if (requestedLinks.current.has(url)) return;
+      const host = new URL(url).hostname;
+      if (!isImageHostAllowed(host, allowedHosts)) return;
+      requestedLinks.current.add(url);
+      void checkImage(url, {label}).then((result) => {
+        if (!alive.current) return;
+        setLinkChecks((previous) => new Map(previous).set(url, result.ok ? {ok: true, src: result.src} : {ok: false, reason: result.reason}));
+      });
+    });
+  }, [links, allowedHosts]);
+
+  const deviceImage = useCallback((item: Item): DeviceImageState | null => {
+    const key = deviceImageKey(item, isPackageItem);
+    if (key === null) return null;
+    return deviceStates.get(key) ?? {status: 'loading'};
+  }, [deviceStates, isPackageItem]);
+
+  const linkImage = useCallback((item: Item): LinkImageState | null => {
+    if (item.source !== 'link') return null;
+    const link = linkImageOf(item);
+    if (!link) return {status: 'invalid', domain: ''};
+    if (!allowedHosts || !isImageHostAllowed(link.host, allowedHosts)) return {status: 'blocked', domain: link.domain};
+    const checked = linkChecks.get(link.url);
+    if (!checked) return {status: 'checking', domain: link.domain};
+    return checked.ok
+      ? {status: 'ready', domain: link.domain, src: checked.src}
+      : {status: 'failed', domain: link.domain, reason: checked.reason};
+  }, [allowedHosts, linkChecks]);
+
+  const addDeviceImages = useCallback(async (images: NewDeviceImage[]): Promise<AddDeviceImagesResult> => {
+    const items: Item[] = [];
+    const errors: string[] = [];
+    const opened = store ?? await storePromise.current;
+    if (!opened) return {items, errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)};
+    const added: string[] = [];
+    for (const image of images) {
+      const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes});
+      if (!prepared.ok) {
+        errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
+        continue;
+      }
+      const result = await opened.put(prepared.blob, {keep: [...latestKeys.current, ...added]});
+      if (!result.ok) {
+        errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
+        continue;
+      }
+      added.push(result.id);
+      evicted.current = new Set(updateEvictedDeviceImages({evicted: result.evicted, stored: [result.id]}));
+      requestedKeys.current.add(result.id);
+      result.evicted.forEach((key) => registry.revoke(key));
+      const url = registry.urlFor(result.id, prepared.blob);
+      setDeviceStates((previous) => {
+        const next = new Map(previous).set(result.id, {status: 'ready', url});
+        result.evicted.forEach((key) => {
+          if (next.has(key)) next.set(key, {status: 'evicted'});
+        });
+        return next;
+      });
+      items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
+    }
+    if (items.length > 0 && !opened.persistent && !warnedNotPersistent.current) {
+      warnedNotPersistent.current = true;
+      toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
+    }
+    return {items, errors};
+  }, [store, registry]);
+
+  const allowHosts = useCallback((hosts: string[], {remember = false}: {remember?: boolean} = {}) => {
+    if (remember) rememberAllowedImageSites(hosts);
+    setAllowedHosts((previous) => new Set([...(previous ?? readAllowedImageSites()), ...hosts]));
+  }, []);
+
+  const waiting = useMemo(() => (allowedHosts ? hostsAwaitingConsent(tiers, allowedHosts) : []), [tiers, allowedHosts]);
+
+  const value = useMemo<CustomImagesContextValue>(() => ({
+    deviceImage,
+    linkImage,
+    addDeviceImages,
+    allowHosts,
+    hostsAwaitingConsent: waiting,
+  }), [deviceImage, linkImage, addDeviceImages, allowHosts, waiting]);
+
+  return <CustomImagesContext.Provider value={value}>{children}</CustomImagesContext.Provider>;
+}
