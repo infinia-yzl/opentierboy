@@ -6,7 +6,8 @@ import prettier from 'eslint-config-prettier/flat';
 // last matching block that sets a rule. So every block builds its list with restrictImports(),
 // which always adds the rules that hold everywhere (IndexedDB libraries, zod): a later block can
 // never drop them. Each of those rules has a few files it does not apply to; the "Everywhere"
-// blocks below list them. Globals work the same way with restrictGlobals().
+// blocks below list them. Globals work the same way with restrictGlobals(), and selectors with
+// restrictSyntax().
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
@@ -66,6 +67,39 @@ const restrictImports = (patterns = [], {allow = []} = {}) => ({
   }],
 });
 
+/** zod loaded in ways no-restricted-imports does not see: import('zod') and require('zod'). */
+const ZOD_SYNTAX = [
+  {selector: 'ImportExpression[source.value=/^zod(\\u002F|$)/]', message: ZOD_IMPORT.message},
+  {selector: "CallExpression[callee.name='require'][arguments.0.value=/^zod(\\u002F|$)/]", message: ZOD_IMPORT.message},
+];
+
+/**
+ * Ways around the guard against external requests in tests/support/test.ts. Only
+ * tests/support may use them.
+ */
+const GUARD_BYPASSES = [
+  {
+    selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='continue']",
+    message: 'route.continue() sends the request to the network, past the guard against external requests (tests/support/test.ts). Answer it with route.fulfill(), or pass it on with route.fallback().',
+  },
+  {
+    selector: "CallExpression[callee.type='MemberExpression'][callee.object.name='route'][callee.property.name='fetch']",
+    message: 'route.fetch() reaches the network past the guard against external requests (tests/support/test.ts). Answer the request with route.fulfill().',
+  },
+  {
+    selector: "CallExpression[callee.type='MemberExpression'][callee.property.name=/^(newContext|launchPersistentContext)$/]",
+    message: 'A new browser or request context has no guard against external requests. Use openAsVisitor or openInChromiumProfile from tests/support/test.ts.',
+  },
+];
+
+/**
+ * The no-restricted-syntax setting for a block: its own selectors, plus the zod selectors unless
+ * `allow` has 'zod'. Like restrictImports, so that a later block cannot drop them.
+ */
+const restrictSyntax = (selectors = [], {allow = []} = {}) => ({
+  'no-restricted-syntax': ['error', ...(allow.includes('zod') ? [] : ZOD_SYNTAX), ...selectors],
+});
+
 const INDEXED_DB_GLOBAL = {
   name: 'indexedDB',
   message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB. Use that module instead.',
@@ -119,10 +153,19 @@ export default defineConfig([
   {
     files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     ignores: [...INDEXED_DB_FILES, ...ZOD_FILES],
-    rules: {...restrictImports(), ...restrictGlobals()},
+    rules: {...restrictImports(), ...restrictGlobals(), ...restrictSyntax()},
   },
-  {files: INDEXED_DB_FILES, rules: {...restrictImports([], {allow: ['indexedDB']}), ...restrictGlobals([], {allow: ['indexedDB']})}},
-  {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals()}},
+  {
+    files: INDEXED_DB_FILES,
+    rules: {...restrictImports([], {allow: ['indexedDB']}), ...restrictGlobals([], {allow: ['indexedDB']}), ...restrictSyntax()},
+  },
+  {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals(), ...restrictSyntax([], {allow: ['zod']})}},
+  // Tests: no way around the guard against external requests, except in tests/support.
+  {
+    files: ['tests/**/*.ts'],
+    ignores: ['tests/support/**', ...ZOD_FILES],
+    rules: restrictSyntax(GUARD_BYPASSES),
+  },
   // lib/state: pure code for the browser, the server and the edge runtime.
   {
     files: ['lib/state/**/*.{ts,tsx}'],

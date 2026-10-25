@@ -73,6 +73,41 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('tests/unit/zod-eval-probe.test.ts', imports)).toEqual([]);
   });
 
+  it('refuse zod loaded with import() or require() outside lib/zod.ts and the eval-probe test', async () => {
+    const code = [
+      "export const a = await import('zod');",
+      "export const b = await import('zod/v4');",
+      "export const c = require('zod');",
+      "export const d = require('zod/mini');",
+      "export const e = await import('@/lib/zod');",
+      "export const f = await import('zodiac');",
+      "export const g = require('lz-string');",
+    ].join('\n') + '\n';
+    const rules = ['no-restricted-syntax'];
+    for (const file of ['components/Probe.tsx', 'lib/snapshot/payload.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'app/api/og/probe.ts', 'tests/e2e/probe.spec.ts', 'tests/support/probe.ts', 'scripts/probe.mjs']) {
+      expect(await reportedLines(file, code, rules), file).toEqual([1, 2, 3, 4]);
+    }
+    expect(await reportedLines('lib/zod.ts', code, rules)).toEqual([]);
+    expect(await reportedLines('tests/unit/zod-eval-probe.test.ts', code, rules)).toEqual([]);
+  });
+
+  it('refuse ways around the external-request guard in tests, except in tests/support', async () => {
+    const code = [
+      'await route.continue();',
+      'await route.fetch();',
+      'const context = await browser.newContext();',
+      'const api = await playwright.request.newContext();',
+      "const profile = await playwright.chromium.launchPersistentContext('dir');",
+      'await route.fallback();',
+      "await route.fulfill({body: ''});",
+      'await request.fetch(url);',
+    ].join('\n') + '\n';
+    const rules = ['no-restricted-syntax'];
+    expect(await reportedLines('tests/e2e/probe.spec.ts', code, rules)).toEqual([1, 2, 3, 4, 5]);
+    expect(await reportedLines('tests/pages/Probe.ts', code, rules)).toEqual([1, 2, 3, 4, 5]);
+    expect(await reportedLines('tests/support/probe.ts', code, rules)).toEqual([]);
+  });
+
   it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
