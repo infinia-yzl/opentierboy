@@ -178,6 +178,8 @@ export function createTierListReducer(encode: ListEncoder) {
       case 'itemDeleted':
         return edit(state, deleteItem(state.tiers, action.itemId));
       case 'itemRestored':
+        // The list may hold the item again already (added back, or Back to a version with it).
+        if (state.tiers.some(tier => tier.items.some(item => item.id === action.item.id))) return state;
         return edit(state, state.tiers.map(tier => (
           tier.id === action.tierId ? {...tier, items: [...tier.items, action.item]} : tier
         )));

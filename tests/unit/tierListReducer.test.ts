@@ -325,6 +325,20 @@ describe('list changes', () => {
     expect(itemsToAdd(store.state.tiers, cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp']))).toEqual([]);
   });
 
+  it('Undo of a delete does nothing when the list holds the item again', () => {
+    const start = fiveRowLink({S: [MAU, WIN]});
+    const store = setup(start);
+    const deleted = findItemToDelete(store.state.tiers, MAU)!;
+    store.dispatch({type: 'itemDeleted', itemId: MAU});
+    store.visit(store.links()[0]);
+    // Back to the version that still has Mauga, then Undo from the toast.
+    store.visit(start);
+    const before = store.state;
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId});
+    expect(store.state).toBe(before);
+    expect(store.contents()[0]).toEqual(['Mauga', 'Winston']);
+  });
+
   it('switching row templates keeps items in tiers with the same id and moves the rest to Unranked', () => {
     const store = setup(fiveRowLink({S: [MAU], C: [WIN], F: [SIG]}));
     store.dispatch({type: 'rowTemplateChanged', template: tierTemplates['3rows']});

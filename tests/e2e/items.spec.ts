@@ -89,6 +89,20 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 
+  test('undo of a delete after Back does not show the item twice', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+    const opened = page.url();
+    await tierList.deleteItem('Mauga');
+    await expect(page).not.toHaveURL(opened);
+
+    await page.goBack();
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    await tierList.undoFromToast('Item deleted');
+
+    await expect(tierList.toast('Item restored')).toBeVisible();
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+  });
+
   test('undo after Remove All brings the items back', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.removeAllItems();
