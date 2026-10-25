@@ -1,16 +1,13 @@
 'use client';
 
 import {useCallback} from 'react';
-import {usePathname} from 'next/navigation';
 import {toast} from 'sonner';
-import {useTierContext} from '@/contexts/TierContext';
 import {useCustomImages} from '@/contexts/CustomImagesContext';
 import {prepareImageForStore} from '@/lib/images/prepareImage';
 import {normalizeRankPath} from '@/lib/rankPath';
 import {SNAPSHOT_PAYLOAD_LIMITS, type SnapshotImage, writeSnapshotFile} from '@/lib/snapshot';
 import {dataUrlFromImageBytes} from '@/lib/snapshot/dataUrl';
-import {deviceImagesOfLink} from '@/lib/snapshot/open';
-import {slugify} from '@/lib/utils';
+import {deviceImagesOfLink, snapshotFileName, snapshotLinkTooLong} from '@/lib/snapshot/open';
 
 /**
  * Longest side of a device image in a snapshot file. Tiles are small, so 512 pixels is plenty;
@@ -66,19 +63,27 @@ async function snapshotImages(images: ImageToKeep[], side: number): Promise<Snap
   return kept;
 }
 
-/**
- * Freeze Frame's Download (A10): the captured picture as a PNG file that also holds the list (the
- * link Share hands out) and the device images the list uses. Opening the file in OpenTierBoy
- * brings the list back (components/useSnapshotFiles.tsx). When the list cannot go into the
- * picture (too large), it offers the picture without the list.
- */
-export function useSnapshotDownload(): (picture: Blob) => Promise<void> {
-  const {shareLink, title} = useTierContext();
-  const {readDeviceImages} = useCustomImages();
-  const pathname = usePathname();
+/** A Freeze Frame capture and the list it shows, kept together when the picture is taken. */
+export interface Capture {
+  picture: Blob;
+  /** The link Share handed out at capture time (v3, A46). */
+  state: string;
+  /** The editor page at capture time. */
+  path: string;
+  title: string;
+}
 
-  return useCallback(async (picture: Blob) => {
-    const fileName = `${slugify(title) || 'tier-list'}.png`;
+/**
+ * Freeze Frame's Download (A10): the captured picture as a PNG file that also holds the list it
+ * shows (the link Share handed out when the picture was taken) and the device images the list
+ * uses. Opening the file in OpenTierBoy brings the list back (components/useSnapshotFiles.tsx).
+ * When the list cannot go into the picture (too large), it offers the picture without the list.
+ */
+export function useSnapshotDownload(): (capture: Capture) => Promise<void> {
+  const {readDeviceImages} = useCustomImages();
+
+  return useCallback(async ({picture, state: shareLink, path: pathname, title}: Capture) => {
+    const fileName = snapshotFileName(title);
     const offerPictureOnly = (message: string) => {
       toast(message, {
         description: 'Download the picture without the list?',
@@ -86,6 +91,11 @@ export function useSnapshotDownload(): (picture: Blob) => Promise<void> {
       });
     };
     try {
+      // A longer link would open to a blank page (snapshotLinkTooLong).
+      if (snapshotLinkTooLong(shareLink)) {
+        offerPictureOnly(MESSAGES.tooLarge);
+        return;
+      }
       const png = new Uint8Array(await picture.arrayBuffer());
       const devices = deviceImagesOfLink(shareLink);
       const blobs = await readDeviceImages(devices.map((device) => device.id));
@@ -112,5 +122,5 @@ export function useSnapshotDownload(): (picture: Blob) => Promise<void> {
     } catch {
       offerPictureOnly(MESSAGES.failed);
     }
-  }, [shareLink, title, readDeviceImages, pathname]);
+  }, [readDeviceImages]);
 }

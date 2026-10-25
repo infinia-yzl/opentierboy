@@ -15,7 +15,8 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {useTierContext} from "@/contexts/TierContext";
 import {checkImage} from "@/lib/images/imageCheck";
-import {useSnapshotDownload} from "@/components/useSnapshotDownload";
+import {type Capture, useSnapshotDownload} from "@/components/useSnapshotDownload";
+import {usePathname} from "next/navigation";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -49,7 +50,11 @@ interface ShareButtonProps {
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const {shareLink} = useTierContext();
-  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+  const pathname = usePathname();
+  // The picture and the list it shows, taken together: Download embeds that list, even when the
+  // list on screen has changed since.
+  const [capture, setCapture] = useState<Capture | null>(null);
+  const imageBlob = capture?.picture ?? null;
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -58,10 +63,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   /** Downloads the picture with the list inside (a snapshot file that OpenTierBoy can open again). */
   const downloadImage = async () => {
-    if (!imageBlob) return;
+    if (!capture) return;
     setIsSaving(true);
     try {
-      await downloadSnapshot(imageBlob);
+      await downloadSnapshot(capture);
     } finally {
       setIsSaving(false);
     }
@@ -69,6 +74,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const captureImage = useCallback(async () => {
     setIsCapturing(true);
+    // The list the picture shows: the screen does not change while html2canvas draws it.
+    const shown = {state: shareLink, path: pathname, title};
     const element = document.body;
     const popover = popoverRef.current;
     const toastContainer = document.querySelector('[data-sonner-toaster]');
@@ -114,7 +121,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       }
 
       canvas.toBlob((blob: Blob | null) => {
-        if (blob) setImageBlob(blob);
+        if (blob) setCapture({picture: blob, ...shown});
       }, 'image/png');
 
       toast.success('Image captured successfully');
@@ -127,7 +134,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       if (toastContainer) (toastContainer as HTMLElement).style.display = '';
       setIsCapturing(false);
     }
-  }, [captureMethod]);
+  }, [captureMethod, shareLink, pathname, title]);
 
   const copyImage = () => {
     if (imageBlob) {
