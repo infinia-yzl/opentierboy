@@ -6,6 +6,23 @@ export const runtime = 'edge';
 
 const LOGO = 'brand/otb-logo-wide.png';
 
+// Limits for what the preview draws (A43). Drawing cost grows with every row and every
+// character, and a link may hold 100 rows and text of any length, which kept the route busy for
+// minutes. The preview has room for about six rows, so rows past these are clipped anyway, and
+// no real list reaches the text limits: the golden links have at most 7 rows to draw, 49-character
+// titles and 33-character tier names. Below the limits the preview is unchanged.
+const MAX_ROWS = 8;
+const MAX_TITLE_LENGTH = 100;
+/** Tier names and item labels. */
+const MAX_TEXT_LENGTH = 40;
+const ITEMS_PER_ROW = 10;
+
+/** The text, or its first characters and an ellipsis, `maxLength` characters in all. */
+function shorten(text: string, maxLength: number): string {
+  const characters = Array.from(text);
+  return characters.length <= maxLength ? text : `${characters.slice(0, maxLength - 1).join('')}…`;
+}
+
 // Previews use Noto Sans, the default font of next/og up to Next.js 15. Next.js 16 changed
 // the default to Geist, so the route passes the same font file itself to keep previews
 // unchanged. fonts/OFL.txt holds the font's licence.
@@ -64,14 +81,15 @@ export async function GET(request: Request) {
 
   const {title, tiers} = decodedState;
   tiers.pop(); // Remove uncategorized tier
+  const rows = tiers.slice(0, MAX_ROWS);
 
   const logoUrl = tierCortex.getAssetUrl(LOGO);
   const imageSrc = await inlineLocalImages([
     logoUrl,
-    ...tiers.flatMap((tier) => tier.items.slice(0, 10).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
+    ...rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
   ]);
 
-  const titleText = title ? `${title}` : 'OpenTierBoy';
+  const titleText = title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy';
 
   return new ImageResponse(
     (
@@ -89,7 +107,7 @@ export async function GET(request: Request) {
         </div>
 
         <div tw="flex flex-col space-y-4 px-4 pt-6">
-          {tiers.map((tier, index) => (
+          {rows.map((tier, index) => (
             <div
               key={tier.id}
               style={{
@@ -99,12 +117,13 @@ export async function GET(request: Request) {
             >
               <div tw="w-40 h-full flex items-center justify-center">
                 <div tw="text-2xl font-semibold text-white text-center">
-                  {tier.name}
+                  {shorten(tier.name, MAX_TEXT_LENGTH)}
                 </div>
               </div>
               <div tw="flex-1 flex flex-wrap">
-                {tier.items.slice(0, 10).map((item) => {
+                {tier.items.slice(0, ITEMS_PER_ROW).map((item) => {
                   const safeItem = tierCortex.getOgSafeItem(item);
+                  const label = shorten(safeItem.content, MAX_TEXT_LENGTH);
                   return (
                     <div
                       key={safeItem.id}
@@ -113,20 +132,20 @@ export async function GET(request: Request) {
                       {safeItem.imageUrl ? (
                         <img
                           src={imageSrc(safeItem.imageUrl)}
-                          alt={safeItem.content}
+                          alt={label}
                           tw="w-full h-full object-cover"
                         />
                       ) : (
                         <div tw="text-xs text-gray-600 text-center p-1">
-                          {safeItem.content}
+                          {label}
                         </div>
                       )}
                     </div>
                   );
                 })}
-                {tier.items.length > 10 && (
+                {tier.items.length > ITEMS_PER_ROW && (
                   <div tw="w-16 h-16 m-1 rounded-md bg-gray-700 flex items-center justify-center text-white font-bold">
-                    +{tier.items.length - 10}
+                    +{tier.items.length - ITEMS_PER_ROW}
                   </div>
                 )}
               </div>

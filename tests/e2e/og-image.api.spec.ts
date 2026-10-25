@@ -119,6 +119,54 @@ test.describe('Link preview images', () => {
   }
 });
 
+/**
+ * Lists at the limits that a link may hold (lib/legacyLinkLimits.ts: 100 rows, text of any
+ * length within 1,000,000 characters of JSON). Each one must get its preview quickly, while
+ * a plain preview request at the same time answers quickly too (A43). The texts repeat, so
+ * the links stay short enough for a URL.
+ */
+const ROWS_AT_LIMIT = 99; // plus the Unranked row: 100 rows
+const listAtLimit = (title: string, row: (index: number) => object) => ({
+  title,
+  tiers: [...Array.from({length: ROWS_AT_LIMIT}, (_, index) => row(index)), UNRANKED_FOR_LIMITS],
+});
+const listsAtLimits = [
+  {name: '100 short, empty rows', json: () => listAtLimit('Many rows', (index) => ({i: `t${index}`, n: `R${index}`, t: []}))},
+  {
+    name: '100 rows of 10 items, each row with a 4,800-character label',
+    json: () => listAtLimit('Long labels', (index) => ({i: `t${index}`, n: `R${index}`, t: Array.from({length: 11}, (_, item) => (
+      item === 0 ? {i: `r${index}`, c: 'Label '.repeat(800)} : {i: `r${index}i${item}`}
+    ))})),
+  },
+  {
+    name: '100 rows with 5,000-character names and a 90,000-character title',
+    json: () => listAtLimit('Title '.repeat(15_000), (index) => ({i: `t${index}`, n: 'Name '.repeat(1_000), t: [{i: 'image-overwatch-mau.webp'}]})),
+  },
+];
+
+test.describe('Link previews at the limits', () => {
+  test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
+    'Preview images need the local server on port 3000, see TierCortex.baseUrl.');
+
+  for (const list of listsAtLimits) {
+    test(`a list with ${list.name} gets its preview quickly`, async ({request}) => {
+      const [preview, plain] = await Promise.all([
+        request.get(previewPath(list.json()), {timeout: 5_000}),
+        request.get('/api/og', {timeout: 5_000}),
+      ]);
+
+      expect(preview.status()).toBe(200);
+      expect(preview.headers()['content-type']).toBe('image/png');
+      const image = await preview.body();
+      expect(pngSize(image)).toEqual({width: 1200, height: 630});
+      expect(image.equals(await plain.body()), 'preview should show the ranking').toBe(false);
+      expect(plain.status(), 'a plain preview at the same time').toBe(200);
+    });
+  }
+});
+
+const UNRANKED_FOR_LIMITS = {i: 'uncategorized', n: '', t: []};
+
 /** A list whose tier name is the run of characters that lzWithRun() writes in place of {run}. */
 const HUGE_NAME_JSON = '{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}';
 
