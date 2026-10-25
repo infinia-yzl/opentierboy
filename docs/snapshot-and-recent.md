@@ -28,16 +28,17 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
     The images go into the device store one call at a time with "From your device", with the
     same protection: nothing the list on screen shows, or that was just added, is removed to
-    make room. AVIF and HEIC images in the file get the refusal of "From your device" (in the
-    "Some images could not be added" message) and are never stored or decoded; their items
-    show their names. Any other failure for one image (a browser that cannot show it) gets the
-    usual "Your browser could not save the image.", and the list still opens. An image this browser already holds under the file's own id is used as
-    it is: the file was made here, so the link stays the file's own (a file that reuses such an id on purpose can
-    only show the visitor's own picture). Any other image is drawn again (at most 512 pixels)
-    and stored under a content-addressed id (`snap-` and a SHA-256 prefix of the drawn bytes),
-    and the list's `{d}` items follow. Opening the same file again stores nothing new and gives
-    the same link; when the address already shows that list, nothing changes. Cancel changes
-    nothing. Focus returns to Open file.
+    make room. An image this browser already holds under the file's own id is used as it is,
+    quietly, whatever the file holds there: the file was made here, so the link stays the
+    file's own (a file that reuses such an id on purpose can only show the visitor's own
+    picture). Any other image is drawn again (at most 512 pixels) and stored under a
+    content-addressed id (`snap-` and a SHA-256 prefix of the drawn bytes), and the list's `{d}`
+    items follow. AVIF and HEIC images get the refusal of "From your device" (in the "Some
+    images could not be added" message) and are never stored or decoded; their items show
+    their names. Any other failure for one image (a browser that cannot show it) gets the usual
+    "Your browser could not save the image.", and the list still opens. Opening the same file
+    again stores nothing new and gives the same link; when the address already shows that list,
+    nothing changes. Cancel changes nothing. Focus returns to Open file.
   - A PNG without a list, any other picture, and a PNG with bytes after its end or a damaged
     minor chunk become items, like "From your device".
   - Anything else shows a plain message (damaged, too large, made by a newer version). A list

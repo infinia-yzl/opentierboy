@@ -159,7 +159,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   });
 
-  test('an AVIF image under an id this browser holds is refused, and nothing is stored', async ({tierList}) => {
+  test('an image under an id this browser holds shows this browser\'s copy quietly, even when the file holds an AVIF', async ({tierList}) => {
     const snapshot = await downloadSnapshotOf(tierList);
     // The file, edited: its image is now an AVIF file under the same id.
     const payload = JSON.parse(snapshotTextOf(snapshot) ?? 'null');
@@ -169,7 +169,9 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await tierList.openFile(pngFile('edited.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload))));
     await tierList.confirmOpenList();
 
-    await expect(tierList.toast('Some images could not be added')).toContainText(`red-square: ${AVIF_HEIC_REFUSAL}`);
+    // The AVIF is never read: the tile shows the stored copy, and no message says otherwise.
+    await expect.poll(() => tierList.itemShowsUpload('red-square')).toBe(true);
+    await expect(tierList.toast('Some images could not be added')).toHaveCount(0);
     expect(await tierList.deviceImageCount()).toBe(1);
   });
 
