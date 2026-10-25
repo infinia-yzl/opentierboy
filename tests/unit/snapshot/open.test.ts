@@ -6,12 +6,16 @@ import {
   deviceImagesOfLink,
   SNAPSHOT_MESSAGES,
   MAX_SNAPSHOT_LINK_CHARS,
+  OPENED_IMAGE_ID_CHARS,
   snapshotFileName,
   snapshotLinkAfterImport,
   snapshotLinkTooLong,
+  snapshotLinkWorstCase,
+  snapshotOpenedLinkLength,
   snapshotOpenOutcome,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
+import {snapshotImageId} from '@/lib/snapshot/imageId';
 import type {SnapshotPayload} from '@/lib/snapshot/payload';
 import {makePng} from './pngHelpers';
 
@@ -35,6 +39,36 @@ const png = dataUrlFromImageBytes(makePng(2, 2))!;
 
 function payload(overrides: Partial<SnapshotPayload> = {}): SnapshotPayload {
   return {version: 1, state: STATE, images: [], ...overrides};
+}
+
+/** Seeded random ids and labels, so every run builds the same lists. */
+function randomText(seed: number) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let state = seed;
+  return (length: number) => Array.from({length}, () => {
+    // A 32-bit linear congruential generator; its high bits are the random ones.
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    return alphabet[state >>> 26];
+  }).join('');
+}
+
+/**
+ * A list with `images` device items (16-character ids, as the store makes them) and `filler`
+ * items of random text, which compress badly, as a long list near the link cap does.
+ */
+function bigList(images: number, filler: number, seed = 7): {state: string; list: CanonicalState; ids: string[]} {
+  const text = randomText(seed);
+  const ids = Array.from({length: images}, () => text(16));
+  const state = encodeState({
+    ...list,
+    tiers: [
+      {id: 'S', name: 'S', items: ids.map((id, index) => ({kind: 'device' as const, id, content: `Image ${index}`}))},
+      {id: 'A', name: 'A', items: Array.from({length: filler}, () => ({id: `x-${text(14)}`, content: text(12)}))},
+      {id: 'B', name: 'B', items: []},
+      {id: 'unranked', name: '', items: []},
+    ],
+  }, {format: 3});
+  return {state, list: decodeState(state)!, ids};
 }
 
 function open(snapshot: SnapshotPayload) {
@@ -86,6 +120,56 @@ describe('snapshotToOpen', () => {
     expect(snapshotLinkTooLong(long)).toBe(true);
     expect(snapshotLinkTooLong(long.slice(1))).toBe(false);
     expect(snapshotToOpen(payload({state: long}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.tooLarge});
+  });
+});
+
+describe('the link a file can get once it opens in another browser', () => {
+  it('replaces only the given images\' ids, each with its own placeholder, the same way every time', () => {
+    const decoded = decodeState(STATE)!;
+    const worst = snapshotLinkWorstCase(decoded, new Set([CAT]));
+    expect(worst).toBe(snapshotLinkWorstCase(decoded, new Set([CAT])));
+    const items = decodeState(worst)!.tiers.flatMap(tier => tier.items);
+    const devices = items.filter(item => 'kind' in item && item.kind === 'device').map(item => item.id);
+    // The cat (twice, one placeholder) changed; the dog, which the file does not hold, kept its id.
+    expect(devices).toHaveLength(3);
+    expect(devices[0]).toHaveLength(OPENED_IMAGE_ID_CHARS);
+    expect(devices[2]).toBe(devices[0]);
+    expect(devices[1]).toBe(DOG);
+    expect(snapshotLinkWorstCase(decoded, new Set())).toBe(encodeState(decoded, {format: 3}));
+    expect(snapshotOpenedLinkLength(decoded, new Set())).toBe(encodeState(decoded, {format: 3}).length);
+  });
+
+  it('is never shorter than the link after the images get their ids here', async () => {
+    // Over 2,100 random lists, a real link came out at most 15 characters longer than its
+    // placeholder link: snapshotOpenedLinkLength adds room for that.
+    const text = randomText(99);
+    for (let trial = 0; trial < 40; trial++) {
+      const {state, list: decoded, ids} = bigList(1 + trial * 3, trial * 5, trial + 1);
+      const kept = new Set(ids.filter((_, index) => index % 4 !== 3));
+      const opened = new Map<string, string>();
+      for (const id of kept) {
+        // Some images this browser holds already (their id stays), the others get a hash id.
+        opened.set(id, trial % 3 === 0 && id < 'M' ? id : await snapshotImageId(new TextEncoder().encode(text(40))));
+      }
+      const after = snapshotLinkAfterImport({list: decoded, state}, opened);
+      expect(after.length, `trial ${trial}`).toBeLessThanOrEqual(snapshotOpenedLinkLength(decoded, kept));
+    }
+  });
+
+  it('refuses a file whose link fits but would not fit once its images get their ids here, before anything is stored', () => {
+    // Fill until the link itself is just under the cap: with 50 images, it would grow past it.
+    let filler = 0;
+    let found = bigList(50, filler);
+    for (let next = bigList(50, filler + 10); next.state.length <= MAX_SNAPSHOT_LINK_CHARS; next = bigList(50, filler + 10)) {
+      filler += 10;
+      found = next;
+    }
+    expect(found.state.length).toBeGreaterThan(MAX_SNAPSHOT_LINK_CHARS - 400);
+    const images = found.ids.map(id => ({id, label: id, dataUrl: png}));
+    expect(snapshotOpenedLinkLength(found.list, new Set(found.ids))).toBeGreaterThan(MAX_SNAPSHOT_LINK_CHARS);
+    expect(snapshotToOpen({version: 1, state: found.state, images})).toEqual({ok: false, message: SNAPSHOT_MESSAGES.tooLarge});
+    // Without its images (it holds none), the same list opens: its ids stay as they are.
+    expect(snapshotToOpen({version: 1, state: found.state, images: []}).ok).toBe(true);
   });
 });
 

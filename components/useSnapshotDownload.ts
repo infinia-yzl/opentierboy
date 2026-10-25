@@ -7,7 +7,14 @@ import {prepareImageForStore} from '@/lib/images/prepareImage';
 import {normalizeRankPath} from '@/lib/rankPath';
 import {SNAPSHOT_PAYLOAD_LIMITS, type SnapshotImage, writeSnapshotFile} from '@/lib/snapshot';
 import {dataUrlFromImageBytes} from '@/lib/snapshot/dataUrl';
-import {deviceImagesOfLink, snapshotFileName, snapshotLinkTooLong} from '@/lib/snapshot/open';
+import {
+  deviceImagesOfLink,
+  MAX_SNAPSHOT_LINK_CHARS,
+  snapshotFileName,
+  snapshotLinkTooLong,
+  snapshotOpenedLinkLength,
+} from '@/lib/snapshot/open';
+import {decodeState} from '@/lib/state';
 
 /**
  * Longest side of a device image in a snapshot file. Tiles are small, so 512 pixels is plenty;
@@ -91,7 +98,7 @@ export function useSnapshotDownload(): (capture: Capture) => Promise<void> {
       });
     };
     try {
-      // A longer link would open to a blank page (snapshotLinkTooLong).
+      // A longer link would open to a blank page (snapshotLinkTooLong). Quick check first.
       if (snapshotLinkTooLong(shareLink)) {
         offerPictureOnly(MESSAGES.tooLarge);
         return;
@@ -109,6 +116,14 @@ export function useSnapshotDownload(): (capture: Capture) => Promise<void> {
         if (images) break;
       }
       if (!images) {
+        offerPictureOnly(MESSAGES.tooLarge);
+        return;
+      }
+      // Opened in another browser, the images get longer ids: check the longest the link can get
+      // there, as opening does (snapshotOpenedLinkLength), so the file always opens again.
+      const list = decodeState(shareLink);
+      const kept = new Set(images.map((image) => image.id));
+      if (!list || snapshotOpenedLinkLength(list, kept) > MAX_SNAPSHOT_LINK_CHARS) {
         offerPictureOnly(MESSAGES.tooLarge);
         return;
       }

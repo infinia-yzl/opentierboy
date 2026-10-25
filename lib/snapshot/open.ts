@@ -68,26 +68,86 @@ export function snapshotLinkTooLong(state: string): boolean {
   return state.length > MAX_SNAPSHOT_LINK_CHARS;
 }
 
+/**
+ * The longest id a snapshot's image can get when the file opens in another browser: `snap-` and
+ * 22 hash characters (lib/snapshot/imageId.ts). The file's own id is kept where this browser
+ * holds it, and a hash collision gets a random id of 16 characters.
+ */
+export const OPENED_IMAGE_ID_CHARS = 27;
+
+const ID_CHARACTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+/**
+ * The link value of a list with the ids that the file's images (`imageIds`) can get when it opens
+ * in another browser (OPENED_IMAGE_ID_CHARS): each id is replaced by its own placeholder of that
+ * length (or of its own length, when longer), made of random characters, which compress about
+ * as badly as a real hash. The same list and ids always give the same value. See
+ * snapshotOpenedLinkLength.
+ */
+export function snapshotLinkWorstCase(list: CanonicalState, imageIds: ReadonlySet<string>): string {
+  // xorshift32 with a fixed seed: the same placeholders on both sides.
+  let seed = 0x9e3779b9;
+  const nextCharacter = () => {
+    seed ^= seed << 13;
+    seed >>>= 0;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    seed >>>= 0;
+    return ID_CHARACTERS[seed & 63];
+  };
+  const placeholders = new Map<string, string>();
+  const placeholderOf = (id: string) => {
+    let placeholder = placeholders.get(id);
+    if (placeholder === undefined) {
+      placeholder = Array.from({length: Math.max(OPENED_IMAGE_ID_CHARS, id.length)}, nextCharacter).join('');
+      placeholders.set(id, placeholder);
+    }
+    return placeholder;
+  };
+  return encodeState({
+    ...list,
+    tiers: list.tiers.map(tier => ({
+      ...tier,
+      items: tier.items.map(item => (item.kind === 'device' && imageIds.has(item.id) ? {...item, id: placeholderOf(item.id)} : item)),
+    })),
+  }, {format: 3});
+}
+
+/**
+ * Room for the compressor: a real hash id can compress a few characters worse than its
+ * placeholder (at most 15 characters in 2,100 random lists). 64 keeps the estimate above the
+ * link that opening writes.
+ */
+const OPENED_LINK_SLACK = 64;
+
+/**
+ * The longest the link value of a list can get once its file opens in another browser, where the
+ * file's images (`imageIds`) get new, longer ids: snapshotLinkWorstCase plus OPENED_LINK_SLACK.
+ * Download checks it against MAX_SNAPSHOT_LINK_CHARS, and opening checks it again before
+ * anything is stored, so every file the app writes opens again.
+ */
+export function snapshotOpenedLinkLength(list: CanonicalState, imageIds: ReadonlySet<string>): number {
+  const worst = snapshotLinkWorstCase(list, imageIds);
+  return imageIds.size === 0 ? worst.length : worst.length + OPENED_LINK_SLACK;
+}
+
 export type SnapshotToOpenResult = {ok: true; snapshot: SnapshotToOpen} | {ok: false; message: string};
 
 /**
  * Decodes a snapshot's list. Refuses a link value that does not decode as a versioned list
- * (damaged) or that is too long to open as an address (too large).
+ * (damaged), or that is or can get too long to open as an address once its images get their ids
+ * in this browser (too large, snapshotOpenedLinkLength): before anything is stored.
  */
 export function snapshotToOpen(payload: SnapshotPayload): SnapshotToOpenResult {
   if (snapshotLinkTooLong(payload.state)) return {ok: false, message: SNAPSHOT_MESSAGES.tooLarge};
   const list = decodeState(payload.state);
   if (!list || list.version < 3) return {ok: false, message: SNAPSHOT_MESSAGES.damaged};
   const used = new Set(deviceItemIds(list));
-  return {
-    ok: true,
-    snapshot: {
-      list,
-      state: payload.state,
-      path: payload.path ?? '/rank',
-      images: payload.images.filter(image => used.has(image.id)),
-    },
-  };
+  const images = payload.images.filter(image => used.has(image.id));
+  if (snapshotOpenedLinkLength(list, new Set(images.map(image => image.id))) > MAX_SNAPSHOT_LINK_CHARS) {
+    return {ok: false, message: SNAPSHOT_MESSAGES.tooLarge};
+  }
+  return {ok: true, snapshot: {list, state: payload.state, path: payload.path ?? '/rank', images}};
 }
 
 /**

@@ -11,8 +11,8 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   the list inside: the link Share hands out, the editor page, and the device images the list
   uses, all as they were when the picture was taken. Each device image is drawn again at most
   512 pixels on its longest side (256 when all images together are too large). When the list
-  does not fit, or its link is longer than 13,000 characters, a message offers the picture
-  without the list. The file name comes from the title (letters and digits of any script), or
+  does not fit, or its link could get longer than 13,000 characters once the file opens in
+  another browser (see below), a message offers the picture without the list. The file name comes from the title (letters and digits of any script), or
   `tier-list.png`. This button is new (A10): Copy Image cannot carry the list.
 - **Open file** (the folder button next to Share), **dropping a file** onto the editor and
   **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
@@ -43,7 +43,12 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   - Anything else shows a plain message (damaged, too large, made by a newer version). A list
     whose link (the `state` value) is longer than 13,000 characters is too large: with the page
     path and the site address the whole URL would pass Vercel's limit of about 14 KB (and
-    `next start` answers 431 at about 15,850 characters).
+    `next start` answers 431 at about 15,850 characters). Opened in another browser, the file's
+    images get longer ids (27 characters instead of 16), so the link grows. Download and opening
+    both check the longest the link can get (`snapshotOpenedLinkLength` in
+    `lib/snapshot/open.ts`: each image id replaced by a 27-character placeholder of random
+    characters, plus 64 characters of room) before anything is stored, so every file the app
+    writes opens again.
 - **Recently viewed** on the landing page, below "Create a New Tier List", shows the lists this
   browser opened, pinned ones first, with pin, unpin and remove, and a one-line hint to use
   bookmarks. It is hidden while empty. The editor records a list when it opens with a link that
