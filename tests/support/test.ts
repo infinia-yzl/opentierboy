@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {test as base, expect, type Browser, type BrowserContext} from '@playwright/test';
+import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext} from '@playwright/test';
 import {TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
 import sharedLinks from '../fixtures/shared-links.json';
@@ -40,10 +40,13 @@ type Fixtures = {
   openInChromiumProfile: () => Promise<{tierList: TierListPage; context: BrowserContext}>;
   /**
    * Requests to hosts other than the site under test and local addresses that no test route
-   * answered. They are blocked, and the test fails if there are any: tests never reach real
-   * external sites (play them with tests/support/imageSites.ts).
+   * answered: from the browser, the `request` fixture or the test runner's `fetch`. They are
+   * blocked, and the test fails if there are any, also a test marked test.fail(): tests never
+   * reach real external sites (play them with tests/support/imageSites.ts).
    */
   externalRequests: string[];
+  /** Blocks and records the test runner's own fetch() calls to external hosts. */
+  externalFetchGuard: void;
   /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
   /**
@@ -68,6 +71,35 @@ function isSiteOrLocal(url: URL, siteURL: URL | undefined): boolean {
   return deployed && VERCEL_TOOLBAR_HOSTNAMES.includes(url.hostname);
 }
 
+const isExternal = (url: URL, siteURL: URL | undefined) =>
+  (url.protocol === 'http:' || url.protocol === 'https:') && !isSiteOrLocal(url, siteURL);
+
+/** Requests that can go out through the `request` fixture (APIRequestContext). */
+const REQUEST_METHODS = new Set(['fetch', 'get', 'post', 'put', 'patch', 'delete', 'head']);
+
+/**
+ * The `request` fixture, with every request to an external host refused and recorded. It
+ * resolves a relative address against `baseURL`, as the fixture does.
+ */
+function guardRequestContext(request: APIRequestContext, baseURL: string | undefined, blocked: string[]): APIRequestContext {
+  const siteURL = baseURL ? new URL(baseURL) : undefined;
+  return new Proxy(request, {
+    get(target, property) {
+      const value: unknown = Reflect.get(target, property, target);
+      if (typeof value !== 'function') return value;
+      if (typeof property !== 'string' || !REQUEST_METHODS.has(property)) return value.bind(target);
+      return (urlOrRequest: string | {url(): string}, ...rest: unknown[]) => {
+        const url = new URL(typeof urlOrRequest === 'string' ? urlOrRequest : urlOrRequest.url(), baseURL);
+        if (isExternal(url, siteURL)) {
+          blocked.push(url.href);
+          return Promise.reject(new Error(`Blocked a request to an external host: ${url.href}`));
+        }
+        return value.call(target, urlOrRequest, ...rest);
+      };
+    },
+  });
+}
+
 /**
  * Blocks and records every request to another host that no route of the test answers. Routes
  * registered later (a test's own) run first, so this one only sees what nothing else handled.
@@ -75,7 +107,7 @@ function isSiteOrLocal(url: URL, siteURL: URL | undefined): boolean {
 async function blockExternalRequests(context: BrowserContext, baseURL: string | undefined, blocked: string[]) {
   const siteURL = baseURL ? new URL(baseURL) : undefined;
   await context.route(
-    (url) => (url.protocol === 'http:' || url.protocol === 'https:') && !isSiteOrLocal(url, siteURL),
+    (url) => isExternal(url, siteURL),
     async (route) => {
       blocked.push(route.request().url());
       await route.abort('blockedbyclient');
@@ -84,11 +116,35 @@ async function blockExternalRequests(context: BrowserContext, baseURL: string | 
 }
 
 export const test = base.extend<Fixtures>({
-  externalRequests: [async ({}, use) => {
+  externalRequests: [async ({}, use, testInfo) => {
     const blocked: string[] = [];
     await use(blocked);
-    expect(blocked, 'requests to external hosts that no test route answered').toEqual([]);
+    // Runs after the test and its afterEach hooks. A test marked test.fail() would count this
+    // failure as the one it expects and pass: make the failure unexpected, so it is loud.
+    if (blocked.length === 0) return;
+    testInfo.expectedStatus = 'passed';
+    throw new Error(`Requests to external hosts that no test route answered (tests must never reach real sites):\n${blocked.join('\n')}`);
   }, {auto: true}],
+  externalFetchGuard: [async ({baseURL, externalRequests}, use) => {
+    const siteURL = baseURL ? new URL(baseURL) : undefined;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), baseURL);
+      if (isExternal(url, siteURL)) {
+        externalRequests.push(url.href);
+        throw new TypeError(`Blocked a request to an external host: ${url.href}`);
+      }
+      return originalFetch(input, init);
+    }) as typeof fetch;
+    try {
+      await use();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }, {auto: true}],
+  request: async ({request, baseURL, externalRequests}, use) => {
+    await use(guardRequestContext(request, baseURL, externalRequests));
+  },
   // Against a protected Vercel deployment, send the bypass secret to that site only.
   context: async ({context, baseURL, externalRequests}, use) => {
     await blockExternalRequests(context, baseURL, externalRequests);
