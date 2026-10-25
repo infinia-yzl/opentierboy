@@ -11,10 +11,11 @@
     "prepare-images": "node scripts/prepareImages.js",
     "check:images": "node scripts/check-image-registry.mjs",
     "check:fixtures": "node scripts/check-fixtures-append-only.mjs",
+    "check:trusted-sites": "node scripts/check-trusted-sites.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "vitest run",
-    "check": "tsc --noEmit -p . && eslint . && vitest run && npm run check:images && npm run check:fixtures && node scripts/generate-legacy-fixtures.mjs --check"
+    "check": "tsc --noEmit -p . && eslint . && vitest run && npm run check:images && npm run check:trusted-sites && npm run check:fixtures && node scripts/generate-legacy-fixtures.mjs --check"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -71,6 +72,7 @@
     "postcss": "^8",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.3.3",
+    "tldts": "^7.4.18",
     "typescript": "^5.9.3",
     "vitest": "^5.0.5"
   }
