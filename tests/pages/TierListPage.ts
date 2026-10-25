@@ -397,11 +397,18 @@ export class TierListPage {
     });
   }
 
-  /** The label settings that the row options menu shows as chosen. Closes the menu again. */
+  /**
+   * The label settings that the row options menu shows as chosen. Closes the menu again.
+   * Right after a navigation (Back, a reload) the server-rendered page shows before it responds
+   * to clicks, so it clicks the menu button again until the menu opens, like waitUntilInteractive.
+   */
   async labelSettings(): Promise<{position: LabelPosition; labelsShown: boolean}> {
-    await this.rowOptionsButton.click();
+    const menu = this.page.getByRole('menu');
     const checked = this.page.getByRole('menuitemradio', {checked: true});
-    await expect(checked).toHaveCount(3);
+    await expect(async () => {
+      if (!(await menu.isVisible())) await this.rowOptionsButton.click();
+      await expect(checked).toHaveCount(3, {timeout: 1_000});
+    }).toPass();
     const names = await checked.allTextContents();
     await this.page.keyboard.press('Escape');
     await expect(checked).toHaveCount(0);
