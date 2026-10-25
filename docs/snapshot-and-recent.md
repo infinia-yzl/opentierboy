@@ -29,7 +29,8 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     same protection: nothing the list on screen shows, or that was just added, is removed to
     make room. AVIF and HEIC images in the file get the refusal of "From your device" (in the
     "Some images could not be added" message) and are never stored or decoded; their items
-    show their names. An image this browser already holds under the file's own id is used as
+    show their names. Any other failure for one image (a browser that cannot show it) gets the
+    usual "Your browser could not save the image.", and the list still opens. An image this browser already holds under the file's own id is used as
     it is: the file was made here, so the link stays the file's own (a file that reuses such an id on purpose can
     only show the visitor's own picture). Any other image is drawn again (at most 512 pixels)
     and stored under a content-addressed id (`snap-` and a SHA-256 prefix of the drawn bytes),
