@@ -1,5 +1,14 @@
 import React, {useCallback, memo} from 'react';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import {
+  DragDropContext,
+  DraggableLocation,
+  DragStart,
+  DragUpdate,
+  Droppable,
+  Draggable,
+  DropResult,
+  ResponderProvided,
+} from '@hello-pangea/dnd';
 import {toast} from "sonner";
 import {useTierContext} from "@/contexts/TierContext";
 import Tier, {LabelPosition} from "@/models/Tier";
@@ -8,6 +17,7 @@ import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
+import {DragSubject, dragEndMessage, dragStartMessage, dragUpdateMessage} from "@/lib/dragAnnouncements";
 
 // Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
 // so an item id such as "__proto__" would never register as a draggable, and an item id equal
@@ -17,6 +27,15 @@ const rowDragId = (tierId: string) => `row:${tierId}`;
 const ROW_DROP_PREFIX = 'items:';
 const rowDropId = (tierId: string) => `${ROW_DROP_PREFIX}${tierId}`;
 const tierIdOfRowDrop = (dropId: string) => dropId.slice(ROW_DROP_PREFIX.length);
+
+const spotOf = (location: DraggableLocation) => ({tierId: tierIdOfRowDrop(location.droppableId), index: location.index});
+
+/** A drag of the library, for the announcements (lib/dragAnnouncements.ts). */
+function dragSubject(drag: DragStart | DragUpdate): DragSubject {
+  const destination = 'destination' in drag ? drag.destination : undefined;
+  if (drag.type === 'TIER') return {kind: 'row', from: drag.source.index, to: destination?.index ?? null};
+  return {kind: 'item', from: spotOf(drag.source), to: destination ? spotOf(destination) : null};
+}
 
 const TierItems = memo<{
   tier: Tier;
@@ -137,7 +156,17 @@ TierRow.displayName = 'TierRow';
 const DragDropTierList: React.FC = () => {
   const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
 
-  const onDragEnd = useCallback((result: DropResult) => {
+  // Announcements name rows and items by their labels, never by internal ids.
+  const onDragStart = useCallback((start: DragStart, provided: ResponderProvided) => {
+    provided.announce(dragStartMessage(tiers, dragSubject(start)));
+  }, [tiers]);
+
+  const onDragUpdate = useCallback((update: DragUpdate, provided: ResponderProvided) => {
+    provided.announce(dragUpdateMessage(tiers, dragSubject(update)));
+  }, [tiers]);
+
+  const onDragEnd = useCallback((result: DropResult, provided: ResponderProvided) => {
+    provided.announce(dragEndMessage(tiers, dragSubject(result), result.reason === 'CANCEL'));
     const {source, destination, type} = result;
     if (!destination) return;
 
@@ -149,7 +178,7 @@ const DragDropTierList: React.FC = () => {
         {tierId: tierIdOfRowDrop(destination.droppableId), index: destination.index},
       );
     }
-  }, [moveItem, moveTier]);
+  }, [tiers, moveItem, moveTier]);
 
   const handleDeleteItem = useCallback((itemId: string) => {
     const deleted = findItemToDelete(tiers, itemId);
@@ -175,7 +204,7 @@ const DragDropTierList: React.FC = () => {
   }, [tiers, deleteItem, restoreItem]);
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
