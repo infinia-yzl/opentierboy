@@ -1,0 +1,75 @@
+import path from 'node:path';
+import {ESLint} from 'eslint';
+import {beforeAll, describe, expect, it} from 'vitest';
+import {ALLOWED_CLASS_FILES} from '../../../eslint.config.mjs';
+
+/**
+ * The no-classes rule in eslint.config.mjs (amendment A47): our own code in app, components,
+ * contexts, lib, models and scripts declares no class, apart from the files in
+ * ALLOWED_CLASS_FILES. Tests and the root config files may. Each case lints a small piece of
+ * code as if it lived at the given path, and lists the lines ESLint reports.
+ */
+const repoRoot = path.resolve(__dirname, '../../..');
+let eslint: ESLint;
+
+beforeAll(async () => {
+  eslint = new ESLint({cwd: repoRoot});
+  // Load the config and plugins once, outside the test timeouts.
+  await eslint.calculateConfigForFile(path.join(repoRoot, 'lib/utils.ts'));
+}, 90_000);
+
+/** The lines (each once) where no-restricted-syntax reports this code at this path, with the messages. */
+async function reported(filePath: string, code: string): Promise<{lines: number[]; messages: string[]}> {
+  const [result] = await eslint.lintText(code, {filePath: path.join(repoRoot, filePath)});
+  const found = result.messages.filter(message => message.ruleId === 'no-restricted-syntax');
+  return {lines: [...new Set(found.map(message => message.line))], messages: [...new Set(found.map(message => message.message))]};
+}
+
+const CLASSES = [
+  'class Named {}',
+  'export const Expression = class {};',
+  'export default class {}',
+  'export const plain = () => new Map();',
+  'export class Failure extends Error {}',
+  'export const factory = () => Object.freeze({count: () => 1});',
+].join('\n') + '\n';
+const CLASS_LINES = [1, 2, 3, 5];
+
+const OWN_FILES = [
+  'app/probe.tsx', 'app/api/og/probe.ts', 'components/Probe.tsx', 'contexts/Probe.tsx', 'lib/probe.ts',
+  'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'lib/zod.ts', 'lib/dnd/probe.ts', 'models/Probe.ts',
+  'scripts/probe.mjs', 'scripts/probe.js', 'scripts/lib/probe.mjs',
+];
+
+// Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
+describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () => {
+  it('reports class declarations and class expressions in app, components, contexts, lib, models and scripts', async () => {
+    for (const file of OWN_FILES) {
+      const {lines, messages} = await reported(file, CLASSES);
+      expect(lines, file).toEqual(CLASS_LINES);
+      expect(messages, file).toEqual([expect.stringMatching(/no classes \(A47, "Code conventions" in CLAUDE\.md\).*ALLOWED_CLASS_FILES/)]);
+    }
+  });
+
+  it('allows classes in tests and in the config files at the root', async () => {
+    for (const file of ['tests/unit/probe.test.ts', 'tests/e2e/probe.spec.ts', 'tests/pages/Probe.ts', 'tests/support/probe.ts', 'playwright.config.ts', 'next.config.ts']) {
+      expect((await reported(file, CLASSES)).lines, file).toEqual([]);
+    }
+  });
+
+  it('keeps the zod rule next to it, and lib/zod.ts keeps its zod exemption', async () => {
+    const code = "class Named {}\nexport const z = await import('zod');\n";
+    expect((await reported('lib/probe.ts', code)).lines).toEqual([1, 2]);
+    expect((await reported('scripts/probe.mjs', code)).lines).toEqual([1, 2]);
+    expect((await reported('lib/zod.ts', code)).lines).toEqual([1]);
+    expect((await reported('tests/unit/probe.test.ts', code)).lines).toEqual([2]);
+  });
+
+  it('allows a class only in the files listed in ALLOWED_CLASS_FILES, which keep the other rules', async () => {
+    const code = "class Required {}\nexport const z = await import('zod');\n";
+    for (const file of ALLOWED_CLASS_FILES) {
+      expect(OWN_FILES.some(own => own.split('/')[0] === file.split('/')[0]), file).toBe(true);
+      expect((await reported(file, code)).lines, file).toEqual([2]);
+    }
+  });
+});

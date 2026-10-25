@@ -2,12 +2,12 @@ import {defineConfig, globalIgnores} from 'eslint/config';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import prettier from 'eslint-config-prettier/flat';
 
-// Import rules (amendments A12, A31, A39 and A41). For one file, ESLint uses the options of the
-// last matching block that sets a rule. So every block builds its list with restrictImports(),
-// which always adds the rules that hold everywhere (IndexedDB libraries, zod): a later block can
-// never drop them. Each of those rules has a few files it does not apply to; the "Everywhere"
-// blocks below list them. Globals work the same way with restrictGlobals(), and selectors with
-// restrictSyntax().
+// Import rules (amendments A12, A31, A39 and A41), and no classes in our own code (A47). For one
+// file, ESLint uses the options of the last matching block that sets a rule. So every block
+// builds its list with restrictImports(), which always adds the rules that hold everywhere
+// (IndexedDB libraries, zod): a later block can never drop them. Each of those rules has a few
+// files it does not apply to; the "Everywhere" blocks below list them. Globals work the same way
+// with restrictGlobals(), and selectors with restrictSyntax().
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
@@ -161,6 +161,27 @@ const EDGE_FILES = [
   'lib/images/listImages.ts',
 ];
 
+/**
+ * Our own code: functional, with no classes (A47, CLAUDE.md "Code conventions"). tests/ may use
+ * classes, and so may the config files at the root.
+ */
+const OWN_CODE = ['app', 'components', 'contexts', 'lib', 'models', 'scripts']
+  .map((folder) => `${folder}/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`);
+
+/**
+ * Files of our own code that may declare a class because a third-party API requires one. Each
+ * such file holds only that class and says in a comment which API needs it. Add the file here;
+ * never turn the rule off with a comment.
+ *
+ * @type {string[]}
+ */
+export const ALLOWED_CLASS_FILES = [];
+
+const NO_CLASS_MESSAGE = 'Our code is functional, with no classes (A47, "Code conventions" in CLAUDE.md). '
+  + 'Write plain functions, and a factory function with closures for state. A class that a third-party '
+  + 'API requires goes in a file of its own, listed in ALLOWED_CLASS_FILES in eslint.config.mjs.';
+const NO_CLASSES = ['ClassDeclaration', 'ClassExpression'].map((selector) => ({selector, message: NO_CLASS_MESSAGE}));
+
 const stateImportRules = (depth) =>
   restrictImports([STATE_FRAMEWORKS, NODE_BUILT_INS, STATE_ROUNDABOUT_PATH, stateEscape(depth)]);
 
@@ -218,4 +239,9 @@ export default defineConfig([
       ...restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage']),
     },
   },
+  // Our own code: no classes (A47). These come after every other block that sets
+  // no-restricted-syntax for these files, and restrictSyntax() keeps the zod selectors.
+  // lib/zod.ts keeps its zod exemption.
+  {files: OWN_CODE, ignores: [...ALLOWED_CLASS_FILES, ...ZOD_FILES], rules: restrictSyntax(NO_CLASSES)},
+  {files: ZOD_FILES, ignores: ['tests/**', ...ALLOWED_CLASS_FILES], rules: restrictSyntax(NO_CLASSES, {allow: ['zod']})},
 ]);
