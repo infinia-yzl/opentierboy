@@ -138,9 +138,10 @@ To move the pin to a newer list:
   refused.
 - Limits: 5 MB per image, 100 MB and 2,000 images in total. When a new image does not fit,
   the images used least recently are removed first, but only images that are not in the list
-  on screen: the editor passes the list's images, and images it has just handed out that the
-  list does not show yet, as `keep`. It adds images one call at a time, so two quick pastes
-  cannot remove each other's images.
+  on screen in this tab: the editor passes the list's images, and images it has just handed
+  out that the list does not show yet, as `keep`. It adds images one call at a time, so two
+  quick pastes cannot remove each other's images. Each tab protects only its own list: an
+  upload in another tab can remove an image this tab shows (it then shows its name only).
 - When the browser itself has no room left, the editor removes the least recently used images
   that are not in the list on screen, in a transaction of their own, and tries once more. If
   nothing can make room, the image is refused ("Your browser has no room left to keep this

@@ -89,7 +89,7 @@ export type DevicePutRefusal =
   | 'empty'
   /** Larger than `maxImageBytes`. */
   | 'too-large'
-  /** Not a PNG, JPEG, WebP, GIF or AVIF file. */
+  /** Not a PNG, JPEG, WebP or GIF file. */
   | 'unsupported-type'
   /** `options.id` is not a valid device image id. */
   | 'invalid-id'
