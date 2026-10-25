@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run prepare-images && next dev",
-    "prebuild": "node scripts/prepareImages.js --copy && npm run check:images",
+    "prebuild": "node scripts/prepareImages.js --copy && npm run check:images -- --files",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

@@ -50,7 +50,8 @@ npm run build             # prepare images, check item ids, then the production 
 npm run check             # type check, lint, unit tests, item ids, fixtures (CI runs this)
 npm run lint              # ESLint (`eslint .`, config in eslint.config.mjs)
 npm run test:unit         # Vitest only
-npm run check:images      # every shipped item id is registered (`-- --update` adds new ids)
+npm run check:images      # every shipped item id is registered (`-- --update` adds new ids;
+                          # `-- --files`: its image and PNG copy are in public/images/)
 npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
@@ -65,8 +66,9 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
   `app/globals.css`.
 - `npm run build` first runs the `prebuild` script: it copies the official image sets from
   `node_modules/image-*` into `public/images/` (with their PNG copies for link previews),
-  checks the committed legacy images, and runs `check:images`, so a lost item id stops the
-  build. Always build with `npm run build`. A plain `next build` skips the images.
+  checks the committed legacy images and makes their PNG copies, then runs
+  `check:images -- --files`, so a lost item id
+  or image file stops the build. Always build with `npm run build`. A plain `next build` skips the images.
 - Browsers already installed elsewhere: see `tests/README.md` (`PLAYWRIGHT_BROWSERS_PATH`).
 - Link preview tests (`og-image.api.spec.ts`) need the server on port 3000. They skip
   themselves on other ports.

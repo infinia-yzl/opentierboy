@@ -90,7 +90,7 @@ jobs:
         if: steps.input.outputs.same == 'false'
         run: |
           node scripts/prepareImages.js --copy
-          npm run check:images -- --update
+          npm run check:images -- --update --files
 
       - name: Build the patch
         id: patch

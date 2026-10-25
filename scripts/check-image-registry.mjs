@@ -23,11 +23,16 @@
  *   - a registered id is no longer shipped and has no alias to a shipped id,
  *   - an alias is broken: its old id was never registered or is still shipped, it loops, or it
  *     does not end at a shipped id,
- *   - two old ids lead to the same shipped id without one being renamed into the other.
+ *   - two old ids lead to the same shipped id without one being renamed into the other,
+ *   - with --files: the image of a shipped id, or the PNG copy of a WebP image that link
+ *     previews load, is missing in public/images/<package>/. The `prebuild` script passes it
+ *     after prepareImages, so a lost file stops the build. `npm run check` does not: the
+ *     official sets are only copied into public/images/ at build time.
  *
  * Usage:
  *   npm run check:images                 check only
  *   npm run check:images -- --update     also register new ids (appends; never removes)
+ *   npm run check:images -- --files      also check the image files in public/images/
  *   node scripts/check-image-registry.mjs --root <dir>   check another checkout (for tests)
  */
 import fs from 'node:fs';
@@ -38,6 +43,7 @@ const MAX_ALIAS_STEPS = 10;
 
 const args = process.argv.slice(2);
 const update = args.includes('--update');
+const checkFiles = args.includes('--files');
 const rootIndex = args.indexOf('--root');
 const root = rootIndex === -1
   ? path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -165,6 +171,25 @@ if (errors.length === 0) {
     fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
     console.log(`Registered ${added.length} new item id(s) in image-registry.lock.json.`);
     for (const id of added) console.log(`  + ${id}`);
+  }
+
+  // Every shipped image, and the PNG copy of every WebP image (link previews load PNG files).
+  if (checkFiles) {
+    const imagesDir = path.join(root, 'public', 'images');
+    const missing = [];
+    shipped.forEach((entry) => {
+      const files = [entry.filename];
+      if (/\.webp$/i.test(entry.filename)) files.push(entry.filename.replace(/\.webp$/i, '.png'));
+      for (const file of files) {
+        if (!fs.existsSync(path.join(imagesDir, entry.package, file))) missing.push(`${entry.package}/${file}`);
+      }
+    });
+    if (missing.length > 0) {
+      const shown = missing.slice(0, 10).join(', ') + (missing.length > 10 ? ', ...' : '');
+      errors.push(`${missing.length} image file(s) of shipped item ids are missing in public/images/: ${shown}. Run prepareImages, or restore committed legacy images with git.`);
+    } else {
+      console.log(`Image files OK: every shipped image (and the PNG copy of each WebP image) is in public/images/.`);
+    }
   }
 
   const relabelled = Object.entries(lock).filter(([id, entry]) => shipped.has(id) && shipped.get(id).label !== entry.label);
