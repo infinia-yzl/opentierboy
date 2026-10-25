@@ -73,19 +73,29 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('tests/unit/zod-eval-probe.test.ts', imports)).toEqual([]);
   });
 
-  it('refuse zod loaded with import() or require() outside lib/zod.ts and the eval-probe test', async () => {
+  it('refuse zod loaded with import(), require() and the like outside lib/zod.ts and the eval-probe test', async () => {
     const code = [
       "export const a = await import('zod');",
       "export const b = await import('zod/v4');",
       "export const c = require('zod');",
       "export const d = require('zod/mini');",
-      "export const e = await import('@/lib/zod');",
-      "export const f = await import('zodiac');",
-      "export const g = require('lz-string');",
+      'export const e = await import(`zod`);',
+      'export const f = require(`zod/v4`);',
+      "export const g = module.require('zod');",
+      "export const h = createRequire(import.meta.url)('zod');",
+      'export const i = createRequire(import.meta.url)(`zod`);',
+      "export const j = await vi.importActual('zod');",
+      // Allowed:
+      "export const k = await import('@/lib/zod');",
+      "export const l = await import('zodiac');",
+      "export const m = require('lz-string');",
+      'export const n = await import(`zod${suffix}`);',
+      "export const o = await vi.importActual('lz-string');",
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
-    for (const file of ['components/Probe.tsx', 'lib/snapshot/payload.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'app/api/og/probe.ts', 'tests/e2e/probe.spec.ts', 'tests/support/probe.ts', 'scripts/probe.mjs']) {
-      expect(await reportedLines(file, code, rules), file).toEqual([1, 2, 3, 4]);
+    const all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    for (const file of ['components/Probe.tsx', 'lib/snapshot/payload.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'app/api/og/probe.ts', 'tests/e2e/probe.spec.ts', 'tests/unit/probe.test.ts', 'tests/support/probe.ts', 'scripts/probe.mjs']) {
+      expect(await reportedLines(file, code, rules), file).toEqual(all);
     }
     expect(await reportedLines('lib/zod.ts', code, rules)).toEqual([]);
     expect(await reportedLines('tests/unit/zod-eval-probe.test.ts', code, rules)).toEqual([]);

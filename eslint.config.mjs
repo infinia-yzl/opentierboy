@@ -67,11 +67,26 @@ const restrictImports = (patterns = [], {allow = []} = {}) => ({
   }],
 });
 
-/** zod loaded in ways no-restricted-imports does not see: import('zod') and require('zod'). */
-const ZOD_SYNTAX = [
-  {selector: 'ImportExpression[source.value=/^zod(\\u002F|$)/]', message: ZOD_IMPORT.message},
-  {selector: "CallExpression[callee.name='require'][arguments.0.value=/^zod(\\u002F|$)/]", message: ZOD_IMPORT.message},
+/** A module name that is zod or a path inside it, as an esquery regular expression. */
+const ZOD_NAME = '/^zod(\\u002F|$)/';
+/** Selectors for a string, or a template without expressions, naming zod at `path`. */
+const zodNameAt = (path) => [
+  `[${path}.value=${ZOD_NAME}]`,
+  `[${path}.type='TemplateLiteral'][${path}.quasis.length=1][${path}.quasis.0.value.cooked=${ZOD_NAME}]`,
 ];
+/**
+ * zod loaded in ways no-restricted-imports does not see: import('zod'), require('zod'),
+ * module.require('zod'), createRequire(...)('zod') and vi.importActual('zod'), with a string
+ * or a template without expressions. Out of scope: a loader under another name
+ * (`const load = require; load('zod')`), require.call(...) and computed names ('zo' + 'd').
+ */
+const ZOD_SYNTAX = [
+  ['ImportExpression', 'source'],
+  ["CallExpression[callee.name='require']", 'arguments.0'],
+  ["CallExpression[callee.object.name='module'][callee.property.name='require']", 'arguments.0'],
+  ["CallExpression[callee.type='CallExpression'][callee.callee.name='createRequire']", 'arguments.0'],
+  ["CallExpression[callee.object.name='vi'][callee.property.name='importActual']", 'arguments.0'],
+].flatMap(([call, path]) => zodNameAt(path).map((name) => ({selector: `${call}${name}`, message: ZOD_IMPORT.message})));
 
 /** A call of a method with one of these names, written `x.name(...)` or `x['name'](...)`. */
 const methodCall = (names) => [
