@@ -19,6 +19,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
         consoleErrors,
       }) => {
         await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston', 'D.Va']}));
+        const tile = await tierList.tileColorsOnScreen('Mauga');
 
         await tierList.capturePreview(method);
 
@@ -32,6 +33,11 @@ for (const colorScheme of ['light', 'dark'] as const) {
         expect(image.height, 'image height').toBeLessThanOrEqual(image.pageHeight * image.devicePixelRatio + 2);
         // A real picture of the list has many colours (tier gradients, item images).
         expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
+        // The gradients alone have that many, so also look inside one item tile: its image and
+        // label must be in the capture, about as colourful as on the page.
+        const tileColors = await tierList.capturedColorsInColumn(tile.box);
+        expect(tileColors, `colours in the "Mauga" tile (page shows ${tile.colors})`)
+          .toBeGreaterThanOrEqual(tile.colors * 0.5);
         // The page background shows in the corner, so it follows the colour scheme.
         if (colorScheme === 'dark') {
           expect(image.cornerBrightness, 'dark page background').toBeLessThan(60);

@@ -382,6 +382,33 @@ export class TierListPage {
     await expect(this.toast(/Image captured successfully|Failed to capture image/)).toBeVisible();
   }
 
+  /**
+   * Counts the colours in an item's tile as the page shows it now, from a screenshot of the
+   * tile. Returns the tile's box in page coordinates as well, to find the tile in a capture.
+   */
+  async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {
+    const tile = this.item(itemName);
+    await tile.scrollIntoViewIfNeeded();
+    await expect.poll(() => tile.getByRole('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      {message: `the image of "${itemName}" should load`}).toBe(true);
+    const box = await boxOf(tile);
+    const scroll = await this.scrollPosition();
+    const png = await this.page.screenshot({clip: box, animations: 'disabled'});
+    const colors = await this.page.evaluate(countColors, {src: `data:image/png;base64,${png.toString('base64')}`});
+    return {box: {...box, x: box.x + scroll.x, y: box.y + scroll.y}, colors};
+  }
+
+  /**
+   * Finds the most colourful spot of a tile's size in the captured preview image, in the
+   * tile's column, and counts its colours. The capture leaves out the header and the toolbar
+   * (data-html2canvas-ignore), so the tiles sit higher in it than on the page; their
+   * horizontal position is the same.
+   */
+  async capturedColorsInColumn(box: Box): Promise<number> {
+    const src = await this.capturedImage.evaluate((img: HTMLImageElement) => img.currentSrc);
+    return this.page.evaluate(countColors, {src, column: box});
+  }
+
   /** Waits for the captured preview image to load, then measures it. */
   async capturedImageDetails(): Promise<CapturedImage> {
     await expect(this.capturedImage).toBeVisible();
@@ -444,6 +471,41 @@ export class TierListPage {
 
 type Box = {x: number; y: number; width: number; height: number};
 type Point = {x: number; y: number};
+
+/**
+ * Runs in the browser: loads an image and counts its different colours (5 bits per channel).
+ * With `column` (a box in CSS pixels), it slides a box of that size down that column of the
+ * image (scaled by the device pixel ratio) and returns the highest count.
+ */
+async function countColors({src, column}: {src: string; column?: Box}): Promise<number> {
+  const image = new Image();
+  image.src = src;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d')!;
+  context.drawImage(image, 0, 0);
+  const count = (x: number, y: number, width: number, height: number) => {
+    const pixels = context.getImageData(x, y, width, height).data;
+    const colors = new Set<number>();
+    for (let index = 0; index < pixels.length; index += 4) {
+      colors.add(((pixels[index] >> 3) << 10) | ((pixels[index + 1] >> 3) << 5) | (pixels[index + 2] >> 3));
+    }
+    return colors.size;
+  };
+  if (!column) return count(0, 0, canvas.width, canvas.height);
+  const scale = window.devicePixelRatio;
+  const x = Math.round(column.x * scale);
+  const width = Math.max(1, Math.round(column.width * scale));
+  const height = Math.max(1, Math.round(column.height * scale));
+  const step = Math.max(1, Math.round(height / 8));
+  let best = 0;
+  for (let y = 0; y + height <= canvas.height; y += step) {
+    best = Math.max(best, count(x, y, width, height));
+  }
+  return best;
+}
 
 async function boxOf(locator: Locator): Promise<Box> {
   const box = await locator.boundingBox();
