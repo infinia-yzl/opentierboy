@@ -154,7 +154,8 @@ function randomDeviceId(random: () => number): string {
 function randomV3Item(random: () => number): CanonicalItem {
   const roll = random();
   if (roll < 0.6) return {id: pick(random, PACKAGE_ITEM_IDS)};
-  if (roll < 0.65) return {id: randomText(random, 3) || 'odd-id'};
+  if (roll < 0.63) return {id: randomText(random, 3) || 'odd-id'};
+  if (roll < 0.65) return {id: randomText(random, 3) || 'odd-id', content: randomText(random, 3) || 'label'};
   if (roll < 0.82) {
     const url = randomUrl(random);
     return {kind: 'link', id: url, url, content: random() < 0.2 ? '' : randomText(random, 4)};
@@ -172,8 +173,8 @@ function randomTierId(random: () => number, template: RowTemplate, index: number
 
 /**
  * Seeded random lists in the form decodeState gives for v3 links: every layout field set, no
- * empty title, image-set items without `content`, link items whose id is their URL, no empty
- * ids or addresses, device ids that follow the device id rule. Decoding what encodeV3 writes
+ * empty title, items without `kind` with a non-empty `content` or none (A45), link items whose
+ * id is their URL, no empty ids or addresses, device ids that follow the device id rule. Decoding what encodeV3 writes
  * for one of them gives it back unchanged.
  */
 export function randomV3States(count: number, seed: number): CanonicalState[] {

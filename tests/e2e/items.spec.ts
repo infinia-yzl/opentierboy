@@ -157,6 +157,27 @@ test.describe('Uploads from before v3 links', () => {
   });
 });
 
+/** An id that names no image-set item (here one with a dot, like a removed image) keeps its label (A45). */
+test.describe('Unknown items in v3 links', () => {
+  test('an unknown id with a label from an old link keeps its label after a change and a reopen', async ({tierList, openAsVisitor}) => {
+    const oldLink = rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
+      i: tier.id,
+      n: tier.name,
+      t: tier.id === 'uncategorized' ? [{i: 'image-overwatch-gone.webp', c: 'Gone hero'}, {i: packageItemId('image-overwatch', 'Mauga')}] : [],
+    }))});
+    await tierList.goto(TANKS, oldLink);
+    await expect(tierList.item('Gone hero')).toBeVisible();
+
+    await tierList.dragItemToTier('Gone hero', 'S');
+
+    const link = await tierList.shareLink();
+    expect(JSON.stringify(v3LinkJson(link))).toContain('{"i":"image-overwatch-gone.webp","c":"Gone hero"}');
+    const friend = await openAsVisitor(link);
+    await expect(friend.itemsIn('S')).toHaveText(['Gone hero']);
+    await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga']);
+  });
+});
+
 /**
  * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
  * suite stays green while the bug exists. When a fix lands, the test starts to pass,

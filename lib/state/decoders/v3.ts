@@ -12,6 +12,8 @@
  *   row:  [id, name, [item, ...]], or [name, [item, ...]] when the id is the row template's
  *         id at that position (templates.ts: defaultTierId)
  *   item: "image-overwatch-ana.webp"     an image-set item id
+ *         {"i": id, "c": label}          an id with a stored label: the app writes it only for
+ *                                        an id that names no image-set item, such as a removed one
  *         {"u": url, "c": label}         an image from a link ("c" left out when empty)
  *         {"d": localId, "c": label}     an image from a device ("c" left out when empty)
  *
@@ -193,7 +195,8 @@ function readItem(item: unknown): CanonicalItem | 'bad-item' | 'bad-device-id' {
 
   const isLink = has(item, 'u');
   const isDevice = has(item, 'd');
-  if (isLink === isDevice) return 'bad-item'; // exactly one of "u" and "d"
+  const isId = has(item, 'i');
+  if (Number(isLink) + Number(isDevice) + Number(isId) !== 1) return 'bad-item'; // exactly one of "i", "u" and "d"
 
   let content = '';
   if (has(item, 'c')) {
@@ -202,6 +205,12 @@ function readItem(item: unknown): CanonicalItem | 'bad-item' | 'bad-device-id' {
     content = label;
   }
 
+  if (isId) {
+    // Any non-empty id: the device id rule does not apply. Without a label it is a plain id.
+    const id = item.i;
+    if (!isNonEmptyString(id)) return 'bad-item';
+    return content === '' ? {id} : {id, content};
+  }
   if (isLink) {
     const url = item.u;
     if (!isNonEmptyString(url)) return 'bad-item';

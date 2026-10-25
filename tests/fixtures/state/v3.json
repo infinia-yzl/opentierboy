@@ -2610,5 +2610,48 @@
         }
       ]
     }
+  },
+  {
+    "id": "v3-unknown-ids-with-labels",
+    "format": "v3",
+    "description": "Ids that name no image-set item keep their stored label as {i, c} (A45): an id with a dot from an image set the app does not have, an id the image sets never had, and a label with quotes and emoji. Image-set items and an unknown id without a label stay plain ids.",
+    "state": "3.N4IgLiBcIDIIYCMCmAbFSAmACArgOwGs8B7AdzywEsMBnEAGnAAcoBmRgJygG1uQBlBt1CUoISgFs4AcyQBafETJ4504niQA6UkgQtGAYzEBxdUiwALJB2IgAvo0kz5xAG7XScMAYty4eOG1dFgBdEPo+AEEhETENdw45GgtKJiZMBhAjaAAdEABFHGIwTDysQF4NwEYdwFgCcsATHfswiJAAISFxKVkFQhJyPxQaYlUzIL0QJr52py63Dy8fOSkcUdCwuyA",
+    "expected": {
+      "version": 3,
+      "title": "Labelled unknown ids",
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-unknown-gone.webp", "content": "Gone hero"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "never-shipped", "content": "\"Quoted\" 🐱‍👤"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "image-unknown-also-gone.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        }
+      ]
+    }
   }
 ]

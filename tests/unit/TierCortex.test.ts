@@ -449,7 +449,7 @@ describe('TierCortex with v3 links', () => {
     const opened = cortex.decodeTierStateFromURL(legacy)!;
     const saved = cortex.encodeListForURL('', opened.tiers);
     expect(v3Json(saved)).toBe('{"r":[["tier-s","S",[{"d":"legacy-ab3c9","c":"My cat"},{"d":"k3j9x0a1b","c":"Nine"},' +
-      '"image-overwatch-gone.webp","image-overwatch-mau.webp"]],["uncategorized","",[]]]}');
+      '{"i":"image-overwatch-gone.webp","c":"Gone"},"image-overwatch-mau.webp"]],["uncategorized","",[]]]}');
     // Reopened, the upload shows with its label and image.
     const reopened = cortex.decodeTierStateFromURL(saved)!.tiers[0].items[0];
     expect(reopened).toEqual({id: 'legacy-ab3c9', content: 'My cat', imageUrl: 'data:image/png;base64,BBBB', source: 'device'});
@@ -466,6 +466,24 @@ describe('TierCortex with v3 links', () => {
       const opened = cortex.decodeTierStateFromURL(state)!;
       expect(cortex.encodeListForURL(opened.title ?? '', opened.tiers, opened.layout), id).toBe(state);
     }
+  });
+
+  it('keeps the label of an id that names no image-set item (A45)', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-old.webp': 'image-overwatch-mau.webp'}});
+    const legacy = lz(JSON.stringify({title: 'T', tiers: [{i: 'tier-s', n: 'S', t: [
+      {i: 'image-overwatch-gone.webp', c: 'Gone hero'}, {i: 'image-overwatch-old.webp', c: 'Old Mauga'}, {i: 'image-overwatch-win.webp', c: 'Winston'},
+    ]}, {i: 'uncategorized', n: '', t: []}]}));
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    const saved = cortex.encodeListForURL('T', opened.tiers);
+    // Image-set items (also by an alias) stay plain ids; the unknown id keeps its label.
+    expect(v3Json(saved)).toBe('{"t":"T","r":[["tier-s","S",[{"i":"image-overwatch-gone.webp","c":"Gone hero"},' +
+      '"image-overwatch-mau.webp","image-overwatch-win.webp"]],["uncategorized","",[]]]}');
+    const reopened = cortex.decodeTierStateFromURL(saved)!.tiers[0].items;
+    expect(reopened[0]).toEqual({id: 'image-overwatch-gone.webp', content: 'Gone hero', imageUrl: PLACEHOLDER, source: 'package'});
+    expect(cortex.encodeListForURL('T', cortex.decodeTierStateFromURL(saved)!.tiers)).toBe(saved);
+    // Once an image set ships the id again, the link shows that image and its label.
+    const later = new TierCortex({aliases: {'image-overwatch-gone.webp': 'image-overwatch-ana.webp'}});
+    expect(later.decodeTierStateFromURL(saved)!.tiers[0].items[0]).toMatchObject({id: 'image-overwatch-ana.webp', content: 'Ana'});
   });
 
   it('writes a link that opens again for a legacy list with an empty tier id', () => {

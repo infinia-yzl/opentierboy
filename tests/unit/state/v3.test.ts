@@ -142,11 +142,31 @@ describe('v3 link format', () => {
       ]);
     });
 
-    it('drops the stored label of an image-set item, because the image set holds it', () => {
-      const decoded = decodeState(encodeV3(list({
-        tiers: [{id: 'uncategorized', name: '', items: [{id: 'image-overwatch-ana.webp', content: 'Ana'}]}],
-      })));
-      expect(decoded?.tiers[0].items).toStrictEqual([{id: 'image-overwatch-ana.webp'}]);
+    it('writes an id with a label as {i, c}, and an id without one as a plain id (A45)', () => {
+      const encoded = encodeV3(list({
+        tiers: [{id: 'uncategorized', name: '', items: [
+          {id: 'image-overwatch-gone.webp', content: 'Gone hero'},
+          {id: 'image-overwatch-ana.webp'},
+          {id: 'odd id', content: ''},
+        ]}],
+      }));
+      expect(jsonOf(encoded)).toBe('{"r":[["uncategorized","",[{"i":"image-overwatch-gone.webp","c":"Gone hero"},"image-overwatch-ana.webp","odd id"]]]}');
+      expect(decodeState(encoded)?.tiers[0].items).toStrictEqual([
+        {id: 'image-overwatch-gone.webp', content: 'Gone hero'}, {id: 'image-overwatch-ana.webp'}, {id: 'odd id'},
+      ]);
+    });
+
+    it('reads {i, c} with any non-empty id: the device id rule does not apply (A45)', () => {
+      const items = (json: string) => decodeState(v3(`{"r":[["x","",[${json}]]]}`))?.tiers[0].items;
+      expect(items('{"i":"a.b c","c":"Label"}')).toStrictEqual([{id: 'a.b c', content: 'Label'}]);
+      expect(items('{"i":"__proto__","c":"x"}')).toStrictEqual([{id: '__proto__', content: 'x'}]);
+      // Without a label it is a plain id; the encoder then writes the short form.
+      expect(items('{"i":"abc"}')).toStrictEqual([{id: 'abc'}]);
+      expect(items('{"i":"abc","c":""}')).toStrictEqual([{id: 'abc'}]);
+      expect(jsonOf(encodeV3(decodeState(v3('{"r":[["x","",[{"i":"abc","c":""}]]]}'))!))).toBe('{"r":[["x","",["abc"]]]}');
+      for (const bad of ['{"i":""}', '{"i":1}', '{"i":null,"c":"x"}', '{"i":"a","c":2}', '{"i":"a","u":"https://x.test/a.png"}', '{"i":"a","d":"abcdefgh"}']) {
+        expect(reasonOf(`{"r":[["x","",[${bad}]]]}`), bad).toBe('bad-item');
+      }
     });
 
     it('keeps duplicate items: removing them is the app\'s job', () => {
@@ -486,7 +506,7 @@ describe('hostile v3 input', () => {
       ['{"r":[["x","",[{"c":"label"}]]]}', 'bad-item'], ['{"r":[["x","",[{"u":1}]]]}', 'bad-item'],
       ['{"r":[["x","",[{"u":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"d":["a"]}]]]}', 'bad-device-id'],
       ['{"r":[["x","",[{"u":"a","d":"b"}]]]}', 'bad-item'], ['{"r":[["x","",[{"u":"a","c":1}]]]}', 'bad-item'],
-      ['{"r":[["x","",[{"d":"a","c":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"i":"a"}]]]}', 'bad-item'],
+      ['{"r":[["x","",[{"d":"a","c":null}]]]}', 'bad-item'], ['{"r":[["x","",[{"i":""}]]]}', 'bad-item'],
     ];
     for (const [json, reason] of invalid) expect(reasonOf(json), json).toBe(reason);
     expect(reasonOf('{"r":[["x","",[]]]')).toBe('not-json');

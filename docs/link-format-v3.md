@@ -41,11 +41,14 @@ An item is one of:
 | Item | Written as | Example |
 | --- | --- | --- |
 | image-set item | its item id, as a string | `"image-overwatch-ana.webp"` |
+| an id with a label | `{"i": id, "c": label}` | `{"i":"image-overwatch-gone.webp","c":"Gone hero"}` |
 | link image | `{"u": address, "c": label}` | `{"u":"https://i.imgur.com/abc123.png","c":"Wrecking Ball"}` |
 | device image | `{"d": local id, "c": label}` | `{"d":"k3j9x0a1b","c":"my cat"}` |
 
 `c` is left out when the label is empty. An image-set item never stores a label: the image set
-holds it.
+holds it. The app writes `{"i", "c"}` only for an id that names no image-set item, such as a
+removed image from an old link, so its label stays (A45). Without a label such an id is a plain
+string. The id in `i` can be any non-empty text: the device id rule does not apply to it.
 
 Tier ids, item ids and image addresses are never empty. A device image's local id follows the
 device id rule (A40): 8 to 64 characters from `A-Z`, `a-z`, `0-9`, `-` and `_`, and never the
@@ -134,7 +137,7 @@ The decoder is strict about types and sizes:
 - strings must be strings, `tp` must be 3, 5 or 7, `lp` one of the three positions, `sl` true
   or false;
 - each row must have 2 or 3 entries, each item must be a string or an object with exactly one
-  of `u` and `d`;
+  of `i`, `u` and `d`;
 - tier ids, item ids and image addresses must not be empty;
 - a device image id must follow the device id rule (code `bad-device-id` when it does not);
 - every limit below must hold.
@@ -253,15 +256,18 @@ out of links.
 
 - The row template is the row count without Unranked, as the "Number of Rows" menu shows it:
   3, 5 or 7 rows, else custom.
-- Image-set items are written as their id. An image-set id from a v3 link that the image sets
-  do not know (any more) shows as a placeholder and is written back as the same id.
+- Image-set items are written as their id, also when they came in under an old id that
+  `image-aliases.json` maps to them.
+- An id that names no image-set item keeps its label (A45): an unknown id from a v3 link, or an
+  id from a legacy link that is no upload (for example a removed image with a dot in its id).
+  It shows its label on the placeholder image and is written as `{"i": id, "c": label}`. If an
+  image set ships the id again (or an alias for it), the link shows that image.
 - Uploads (custom items) are written as device images by their device image id. Uploads made
   before Phase 5c have ids from `Math.random().toString(36).slice(2, 11)`, which can be shorter
   than 8 characters. Such an id is written as `legacy-<id>`, which is always valid (A42,
   `deviceImageIdForUpload` in `lib/state/deviceId.ts`). Phase 5c uses the same mapping when it
-  moves uploads to the device image store. An unknown id from a legacy link that no prefix
-  makes valid (for example a removed image-set id with a dot) is written as a plain id; its
-  stored label is then dropped, because v3 keeps labels only for link and device images.
+  moves uploads to the device image store. A legacy id that no prefix makes valid is not an
+  upload: it is written as `{"i": id, "c": label}` (see above).
 - Link images are written with their address and label.
 
 **Reading** (`TierCortex.decodeTierStateFromURL`):

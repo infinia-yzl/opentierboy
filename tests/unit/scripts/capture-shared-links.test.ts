@@ -56,6 +56,7 @@ describe('scripts/capture-shared-links.mjs', () => {
       ...tiers[0].items,
       {id: 'https://i.imgur.com/abc123.png', content: 'From a link', source: 'link', url: 'https://i.imgur.com/abc123.png'},
       {id: 'k3j9x0a1b', content: 'An upload', source: 'device'},
+      {id: 'image-overwatch-gone.webp', content: 'A removed image', source: 'package'},
     ]};
     tiers[1] = {...tiers[1], id: 'tier-moved'};
     const titled = cortex.encodeListForURL('A v3 list', tiers, {labelPosition: 'top', showLabels: false});
@@ -65,7 +66,7 @@ describe('scripts/capture-shared-links.mjs', () => {
     // The script stores the state as URLSearchParams reads it, with spaces for '+', like every entry.
     expect(first).toMatchObject({format: 'v3', path: '/rank/the-finals/light', state: titled.replace(/\+/g, ' '), expected: {title: 'A v3 list'}});
     expect(first.expected.tiers).toEqual(shown(titled));
-    expect(first.expected.tiers[0].items.slice(-2)).toEqual(['From a link', 'An upload']);
+    expect(first.expected.tiers[0].items.slice(-3)).toEqual(['From a link', 'An upload', 'A removed image']);
     expect(second.expected.title).toBe('THE FINALS - Light Build');
     expect(second.expected.tiers).toEqual(shown(untitled));
   });

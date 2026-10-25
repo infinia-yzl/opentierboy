@@ -69,14 +69,19 @@ function legacyView(parsed) {
 /**
  * What a visitor sees in a v3 link. A row is [id, name, items] or [name, items]; the visitor
  * sees only the name. An item is an image-set id (its label from the image set; an unknown id
- * shows no label), {u, c} or {d, c} (the label c, empty when left out).
+ * shows no label), {i, c} (the image set's label, or c for an id it does not know), or {u, c}
+ * or {d, c} (the label c, empty when left out).
  */
 function v3View(parsed) {
   return {
     title: typeof parsed.t === 'string' && parsed.t !== '' ? parsed.t : undefined,
     tiers: parsed.r.map((row) => ({
       name: row.length === 3 ? row[1] : row[0],
-      items: row[row.length - 1].map((item) => (typeof item === 'string' ? packageLabels.get(item) ?? '' : item.c ?? '')),
+      items: row[row.length - 1].map((item) => {
+        if (typeof item === 'string') return packageLabels.get(item) ?? '';
+        if ('i' in item) return packageLabels.get(item.i) ?? item.c ?? '';
+        return item.c ?? '';
+      }),
     })),
   };
 }

@@ -129,12 +129,12 @@ export class TierCortex {
    * The link of a list, in the format the app writes (DEFAULT_WRITE_FORMAT in lib/state).
    *
    * v3 (docs/link-format-v3.md) stores the layout and each item by kind:
-   * - image-set items, and image-set ids from v3 links that the image sets do not know, as
-   *   their id (the image set holds the label);
+   * - image-set items as their id (the image set holds the label);
    * - link images as their address and label;
    * - uploads (custom items) as device images, by their device image id: an id from before
-   *   Phase 5c that breaks the device id rule gets the prefix `legacy-` (A42). An id that no
-   *   prefix makes valid (an unknown id with a dot, from a legacy link) stays as a plain id.
+   *   Phase 5c that breaks the device id rule gets the prefix `legacy-` (A42);
+   * - any other id that names no image-set item (an unknown id from a v3 link, or one with a
+   *   dot from a legacy link, such as a removed image) as `{i, c}`, so its label stays (A45).
    * The row template is the row count, as the "Number of Rows" menu shows it.
    *
    * v2 (the format before Phase 5b) stores the title and tiers only, with labels on custom
@@ -360,8 +360,9 @@ export class TierCortex {
     }
     if (item.kind === 'device') return this.resolveDeviceItem(item.id, item.content);
     if (version === 3) {
-      // v3 writes uploads as device images, so a plain id is always an image-set id.
-      return this.resolvePackageItem(item.id) ?? {...this.createPlaceholderItem(item.id, ''), source: 'package'};
+      // v3 writes uploads as device images, so a plain id (or {i, c}) names an image-set item,
+      // or one the image sets do not know: its stored label on the placeholder (A45).
+      return this.resolvePackageItem(item.id) ?? {...this.createPlaceholderItem(item.id, item.content ?? ''), source: 'package'};
     }
     return this.resolveItem(item.id, item.content);
   }
@@ -391,9 +392,12 @@ export class TierCortex {
   /** How v3 stores an item of the list on screen (see encodeListForURL). */
   private toV3Item(item: Item): CanonicalItem {
     if (item.source === 'link') return {kind: 'link', id: item.id, url: item.url ?? item.id, content: item.content};
-    if (item.source === 'package' || !this.isCustomItem(item.id)) return {id: item.id};
+    // An image-set item: its id only (also after an alias, which gives the new id).
+    if (!this.isCustomItem(item.id)) return {id: item.id};
+    const labelled: CanonicalItem = item.content ? {id: item.id, content: item.content} : {id: item.id};
+    if (item.source === 'package') return labelled;
     const deviceId = deviceImageIdForUpload(item.id);
-    return deviceId === null ? {id: item.id} : {kind: 'device', id: deviceId, content: item.content};
+    return deviceId === null ? labelled : {kind: 'device', id: deviceId, content: item.content};
   }
 
   private resolveItem(itemId: string, content?: string): Item {
