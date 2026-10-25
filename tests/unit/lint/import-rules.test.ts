@@ -146,6 +146,15 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await reportedLines('tests/support/probe.cjs', commonJs, rules)).toEqual([]);
   });
 
+  it('keep zod out of lib/recent, lib/state and tests, and keep the other shared rule for each exception', async () => {
+    const imports = ['zod', 'zod/mini', '@/lib/zod', 'zodiac'];
+    expect(await blockedLines('lib/recent/recentLinks.ts', imports)).toEqual([1, 2]);
+    expect(await blockedLines('lib/state/probe.ts', ['zod'])).toEqual([1]);
+    expect(await blockedLines('tests/unit/probe.test.ts', ['zod'])).toEqual([1]);
+    expect(await blockedLines('lib/zod.ts', ['idb'])).toEqual([1]);
+    expect(await blockedLines('lib/images/deviceStore.ts', ['zod', 'idb'])).toEqual([1]);
+  });
+
   it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
