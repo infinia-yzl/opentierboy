@@ -284,12 +284,18 @@ export class TierListPage {
 
   async setTitle(newTitle: string) {
     await this.changeAndWaitForLink(async () => {
-      await this.title.click();
-      const input = this.main.getByPlaceholder('Enter title');
-      await input.fill(newTitle);
+      const input = await this.typeTitle(newTitle);
       await input.press('Enter');
       await expect(this.title).toHaveText(newTitle);
     });
+  }
+
+  /** Opens the title editor and types a new title, without confirming it. */
+  async typeTitle(newTitle: string): Promise<Locator> {
+    await this.title.click();
+    const input = this.main.getByPlaceholder('Enter title');
+    await input.fill(newTitle);
+    return input;
   }
 
   // ---- Row and label settings ------------------------------------------------------------

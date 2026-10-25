@@ -95,19 +95,37 @@ test.describe('Row settings', () => {
   });
 });
 
-/**
- * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
- * suite stays green while the bug exists. See items.spec.ts for the convention.
- */
-test.describe('Known bugs', () => {
-  test('Escape cancels renaming a tier', async ({tierList}) => {
-    test.fail(true, 'EditableLabel ignores Escape: the editor stays open and the next click saves the typed name.');
+test.describe('Cancelling an edit', () => {
+  test('Escape cancels renaming a tier', async ({tierList, page}) => {
     await tierList.goto(TANKS);
+    const opened = page.url();
 
     const input = await tierList.typeTierName('S', 'Changed my mind');
     await input.press('Escape');
 
-    await expect(tierList.main.getByRole('textbox')).toHaveCount(0, {timeout: 3_000});
-    await expect(tierList.tiers.first()).toHaveAccessibleName('S', {timeout: 3_000});
+    await expect(tierList.main.getByRole('textbox')).toHaveCount(0);
+    await expect(tierList.tiers.first()).toHaveAccessibleName('S');
+    // Nothing was saved: clicking elsewhere keeps the old name, and the link is unchanged.
+    await page.getByText('Drag to reorder.').click();
+    await expect(tierList.tiers.first()).toHaveAccessibleName('S');
+    await tierList.dragItemToTier('Mauga', 'A');
+    await page.goBack();
+    await expect(page).toHaveURL(opened);
+  });
+
+  test('Escape cancels changing the title', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    const opened = page.url();
+
+    const input = await tierList.typeTitle('Changed my mind');
+    await input.press('Escape');
+
+    await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+    await expect(tierList.main.getByRole('textbox')).toHaveCount(0);
+    await page.getByText('Drag to reorder.').click();
+    await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+    await tierList.dragItemToTier('Mauga', 'A');
+    await page.goBack();
+    await expect(page).toHaveURL(opened);
   });
 });
