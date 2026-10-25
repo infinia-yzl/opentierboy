@@ -22,8 +22,10 @@
 /scripts/lib/image-sets.mjs                      @infinia-yzl
 /tests/unit/state/                               @infinia-yzl
 /tests/unit/support/TierCortex.pre-refactor.ts   @infinia-yzl
-# Sites whose images load without asking.
-/trusted-image-sites.json    @infinia-yzl
+# Sites whose images load without asking, and the tracker list check that guards them.
+/trusted-image-sites.json                        @infinia-yzl
+/scripts/check-trusted-sites.mjs                 @infinia-yzl
+/scripts/tracker-list.pin.json                   @infinia-yzl
 # Workflows, Dependabot, issue templates and this file.
 /.github/                    @infinia-yzl
 # Instructions for agents (AGENTS.md is a link to it).

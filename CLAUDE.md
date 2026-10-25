@@ -47,12 +47,13 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwin
 npm ci                    # install exactly what package-lock.json says
 npm run dev               # prepare images, then the dev server on :3000
 npm run build             # prepare images, check item ids, then the production build
-npm run check             # type check, lint, unit tests, item ids, fixtures (CI runs this)
+npm run check             # type check, lint, unit tests, item ids, trusted sites, fixtures (CI runs this)
 npm run lint              # ESLint (`eslint .`, config in eslint.config.mjs)
 npm run test:unit         # Vitest only
 npm run check:images      # every shipped item id is registered (`-- --update` adds new ids;
                           # `-- --files`: its image and PNG copy are in public/images/)
 npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
+npm run check:trusted-sites   # no trusted image site is on the pinned tracker list (downloads it with git)
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
@@ -91,6 +92,9 @@ lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landin
 lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
 lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
 lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
+lib/images/           images from links and devices: address checks, trusted sites, device
+                      image store (the only IndexedDB code), image load check
+lib/security/         Content Security Policy header
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
@@ -101,6 +105,8 @@ scripts/image-set-update.mjs   checks for the image-set-update workflow (payload
 scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
+trusted-image-sites.json   sites whose link images load without asking
+scripts/tracker-list.pin.json   the tracker list check:trusted-sites downloads (no copy in the repo)
 imageset.custom.json  which image sets ship, in display order: official sets with display names,
                       legacy sets as {"legacy": true} (the official list)
 imageset.legacy.json  frozen config entries of the legacy sets (append-only, never edit an entry)
@@ -116,8 +122,6 @@ tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts)
 docs/                 owner checklists
 ```
-
-A later phase adds `trusted-image-sites.json`.
 
 ## Link contract
 
