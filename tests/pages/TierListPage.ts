@@ -448,6 +448,18 @@ export class TierListPage {
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
   }
 
+  /** The "From your device" dialog. */
+  get uploadDialog(): Locator {
+    return this.page.getByRole('dialog', {name: 'Add New Items'});
+  }
+
+  /** Opens "From your device" and leaves its dialog open. */
+  async openUploadDialog() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'From your device'}).click();
+    await expect(this.uploadDialog).toBeVisible();
+  }
+
   /**
    * Uploads images from the device: file paths, or files made in the test. Item names default to
    * the file names. `timeout`: how long adding may take (hundreds of files take a while).
@@ -640,33 +652,67 @@ export class TierListPage {
 
   // ---- Files: snapshot files and pictures ---------------------------------------------------
 
-  /** Chooses a file with "Open file", as the file chooser would. */
-  async openFile(file: {name: string; mimeType: string; buffer: Buffer}) {
-    await this.waitUntilInteractive();
+  /**
+   * Chooses a file with "Open file", as the file chooser would. Pass `waitForEditor: false` when
+   * the test already waited for the editor (waitUntilInteractive), for example to time the opening.
+   */
+  async openFile(file: {name: string; mimeType: string; buffer: Buffer}, {waitForEditor = true} = {}) {
+    if (waitForEditor) await this.waitUntilInteractive();
     const chooser = this.page.waitForEvent('filechooser');
     await this.openFileButton.click();
     await (await chooser).setFiles(file);
   }
 
-  /** Drops a file onto the editor, as dragging it from the desktop would. */
-  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}) {
-    await this.waitUntilInteractive();
+  /**
+   * Drops a file onto the editor, as dragging it from the desktop would. With `onPage`, it drops
+   * on the page itself (for example beside an open dialog), without waiting for the editor first.
+   */
+  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onPage = false} = {}) {
+    if (!onPage) await this.waitUntilInteractive();
     const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
       const data = new DataTransfer();
       data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
       return data;
     }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
-    await this.tiers.first().dispatchEvent('dragover', {dataTransfer: transfer});
-    await this.tiers.first().dispatchEvent('drop', {dataTransfer: transfer});
+    const element = onPage ? this.page.locator('body') : this.tiers.first();
+    await element.dispatchEvent('dragover', {dataTransfer: transfer});
+    await element.dispatchEvent('drop', {dataTransfer: transfer});
   }
 
-  /** Confirms "Open the list in this file?" and waits until the list's link is in the address bar. */
-  async confirmOpenList() {
+  /**
+   * Confirms "Open the list in this file?" and waits until the list's link is in the address bar.
+   * With `newAddress: false` (the address already shows that list), it waits until the opening
+   * has finished instead.
+   */
+  async confirmOpenList({newAddress = true} = {}) {
     const before = this.page.url();
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
     await expect(this.openListDialog).toBeHidden();
-    await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
+    if (newAddress) await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
+    await expect(this.toast('Opening the list')).toHaveCount(0);
     await expect(this.tiers.first()).toBeVisible();
+  }
+
+  /**
+   * The number of images in this browser's device image store. It reads the store's IndexedDB
+   * database in the page directly: only the test looks, the app itself goes through
+   * lib/images/deviceStore.ts.
+   */
+  async deviceImageCount(): Promise<number> {
+    return this.page.evaluate(() => new Promise<number>((resolve, reject) => {
+      // eslint-disable-next-line no-restricted-globals -- a test reads the store to count its images
+      const request = indexedDB.open('opentierboy-device-images');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const count = db.transaction('images').objectStore('images').count();
+        count.onsuccess = () => {
+          db.close();
+          resolve(count.result);
+        };
+        count.onerror = () => reject(count.error);
+      };
+    }));
   }
 
   async cancelOpenList() {
@@ -722,6 +768,12 @@ export class TierListPage {
   async openSharePanel() {
     await this.shareButton.click();
     await expect(this.sharePanel).toBeVisible();
+  }
+
+  /** Opens the Image tab of the share panel (Freeze Frame), where a capture stays until the next one. */
+  async openImageTab() {
+    if (!(await this.sharePanel.isVisible())) await this.openSharePanel();
+    await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
   }
 
   /** Copies the Markdown share text. The browser must allow clipboard access. */

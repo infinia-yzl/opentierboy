@@ -51,6 +51,15 @@ export function snapshotTextOf(png: Buffer): string | null {
   return null;
 }
 
+/** A copy of a PNG whose IHDR declares another size (the picture data stays as it was). */
+export function pngDeclaring(png: Buffer, width: number, height: number): Buffer {
+  const copy = Buffer.from(png);
+  copy.writeUInt32BE(width, 16);
+  copy.writeUInt32BE(height, 20);
+  copy.writeUInt32BE(zlib.crc32(copy.subarray(12, 29)), 29);
+  return copy;
+}
+
 /** A file to open, drop or paste, made from bytes. */
 export function pngFile(name: string, buffer: Buffer) {
   return {name, mimeType: 'image/png', buffer};
