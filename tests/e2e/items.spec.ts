@@ -1,6 +1,7 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {expect, test} from '../support/test';
-import {rankingState, templateItemCount} from '../support/links';
+import {FIVE_ROW_TIERS, packageItemId, rankingState, rawState, templateItemCount, v3LinkJson} from '../support/links';
 import {TierListPage} from '../pages/TierListPage';
 
 const TANKS = '/rank/overwatch/tank';
@@ -133,11 +134,42 @@ test.describe('Managing items', () => {
 });
 
 /**
+ * Uploads made before Phase 5c have ids from Math.random().toString(36).slice(2, 11), which can
+ * be shorter than the 8 characters a v3 device image id needs (A40). The app writes such an id
+ * as "legacy-<id>" (A42), and still finds the upload under its old id.
+ */
+test.describe('Uploads from before v3 links', () => {
+  test('an upload with a 5-character id survives open, change, share and reopen', async ({tierList, page}) => {
+    await keepUploadInThisBrowser(page, {i: 'ab3c9', c: 'My cat', d: redSquareDataUrl()});
+
+    await tierList.goto(TANKS, linkWithUpload('ab3c9', 'My cat'));
+    await tierList.dragItemToTier('My cat', 'S');
+    // The moved tile renders in the browser, with the upload kept under its short id. (Right
+    // after a page load the tile shows the placeholder: see Known bugs.)
+    await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
+
+    const link = await tierList.shareLink();
+    expect(JSON.stringify(v3LinkJson(link))).toContain('{"d":"legacy-ab3c9","c":"My cat"}');
+    await tierList.gotoLink(link);
+    await expect(tierList.itemsIn('S')).toHaveText(['My cat']);
+    await tierList.dragItemToTier('My cat', 'A');
+    await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
+  });
+});
+
+/**
  * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
  * suite stays green while the bug exists. When a fix lands, the test starts to pass,
  * Playwright reports "Expected to fail, but passed", and the marker must be removed.
  */
 test.describe('Known bugs', () => {
+  test('an upload kept in this browser shows its image right after the page loads', async ({tierList, page}) => {
+    test.fail(true, 'The server renders the list without the uploads of this browser, so the tile gets the placeholder image. When the page starts in the browser, React keeps the image address from the server, so the tile shows the placeholder until it renders again. Today uploads are blob: URLs that do not survive a page load anyway (#86); Phase 5c loads uploads in an effect, after the page has started.');
+    await keepUploadInThisBrowser(page, {i: 'k3j9x0a1b', c: 'My cat', d: redSquareDataUrl()});
+    await tierList.goto(TANKS, linkWithUpload('k3j9x0a1b', 'My cat'));
+    await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat')), {timeout: 3_000}).toBe(true);
+  });
+
   test('uploaded images still show after the tab is closed and reopened', {
     annotation: {type: 'issue', description: 'https://github.com/infinia-yzl/opentierboy/issues/86'},
   }, async ({tierList, context}) => {
@@ -158,6 +190,25 @@ test.describe('Known bugs', () => {
   });
 
 });
+/** The red test square as a data: URL, as an upload kept in localStorage holds its image. */
+function redSquareDataUrl(): string {
+  return `data:image/png;base64,${fs.readFileSync(path.join(IMAGES, 'red-square.png')).toString('base64')}`;
+}
+
+/** Keeps an upload in this browser's localStorage, as the app kept uploads before Phase 5c. */
+async function keepUploadInThisBrowser(page: import('@playwright/test').Page, upload: {i: string; c: string; d: string}) {
+  await page.addInitScript((stored) => localStorage.setItem('customItems', stored), JSON.stringify([upload]));
+}
+
+/** A v2 link with the upload and Mauga in Unranked. */
+function linkWithUpload(id: string, label: string): string {
+  return rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
+    i: tier.id,
+    n: tier.name,
+    t: tier.id === 'uncategorized' ? [{i: id, c: label}, {i: packageItemId('image-overwatch', 'Mauga')}] : [],
+  }))});
+}
+
 function isRed(color: [number, number, number] | null) {
   return color !== null && color[0] > 200 && color[1] < 60 && color[2] < 60;
 }

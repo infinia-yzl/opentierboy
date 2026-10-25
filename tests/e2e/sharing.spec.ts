@@ -1,5 +1,5 @@
 import {expect, test} from '../support/test';
-import {rankingState} from '../support/links';
+import {packageItemId, rankingState, v3State} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -55,5 +55,25 @@ test.describe('Sharing', () => {
     const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
     const friend = await openAsVisitor(linkInMarkdown!);
     await expect(friend.itemsIn('F')).toHaveCount(3);
+  });
+
+  test('a shared link carries the label position and label visibility', async ({tierList, openAsVisitor}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.chooseLabelPosition('Top');
+    await tierList.setItemLabelsVisible(false);
+
+    const friend = await openAsVisitor(await tierList.shareLink());
+    expect(await friend.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    expect(await friend.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect(friend.item('Mauga')).toHaveText('');
+  });
+
+  test('a v3 link with labels on Top opens with them on Top', {tag: '@mobile'}, async ({tierList}) => {
+    const mauga = packageItemId('image-overwatch', 'Mauga');
+    await tierList.goto(TANKS, v3State({tp: 5, lp: 'top', r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
+
+    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect(tierList.item('Mauga')).toHaveText('Mauga');
   });
 });

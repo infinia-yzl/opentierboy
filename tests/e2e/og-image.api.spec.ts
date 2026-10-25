@@ -1,5 +1,7 @@
+import http from 'node:http';
+import type {AddressInfo} from 'node:net';
 import {expect, SHARED_LINKS, test} from '../support/test';
-import {LEGACY_SETS, legacyItemIds, legacyItems, packageItemId, stateFromJson} from '../support/links';
+import {LEGACY_SETS, legacyItemIds, legacyItems, packageItemId, stateFromJson, v3State} from '../support/links';
 import {lzBomb, lzWithRun} from '../unit/support/lzStream';
 
 /**
@@ -80,6 +82,47 @@ test.describe('Link preview images', () => {
       expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
     });
   }
+
+  test('a v3 link draws link and device images as label tiles and never loads their addresses (A8, A36)', async ({request}) => {
+    // A server on a free port that counts every request it gets.
+    const requests: string[] = [];
+    const server = http.createServer((req, res) => {
+      requests.push(`${req.headers.host}${req.url}`);
+      res.writeHead(404);
+      res.end();
+    });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const {port} = server.address() as AddressInfo;
+    try {
+      const preview = async (addresses: string[]) => {
+        const json = {t: 'Link images', tp: 3, r: [
+          ['S', [packageItemId('image-overwatch', 'Mauga'), ...addresses.map((u, index) => ({u, c: `Link ${index + 1}`}))]],
+          ['A', [{d: 'k3j9x0a1b', c: 'Upload'}]], ['B', []], ['', []],
+        ]};
+        const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`, {timeout: 10_000});
+        expect(response.status()).toBe(200);
+        expect(response.headers()['content-type']).toBe('image/png');
+        return response.body();
+      };
+
+      const local = await preview([
+        `http://127.0.0.1:${port}/a36.png`,
+        `http://localhost:${port}/a36.png`,
+        // A real image of the app, on the address the preview route loads the app's own images from.
+        'http://localhost:3000/images/image-overwatch/win.png',
+      ]);
+      const unreachable = await preview(['https://unreachable.invalid/1.png', 'https://unreachable.invalid/2.png', 'https://unreachable.invalid/3.png']);
+
+      expect(pngSize(unreachable)).toEqual({width: 1200, height: 630});
+      expect(unreachable.equals(defaultImage), 'preview should show the ranking').toBe(false);
+      // A label tile shows only the label, so the same labels give the same picture whatever the
+      // address. Had the route loaded the app's own Winston image, the first preview would differ.
+      expect(local.equals(unreachable), 'link images are label tiles').toBe(true);
+      expect(requests, 'no request reaches a link image address').toEqual([]);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
 
   test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
     const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
