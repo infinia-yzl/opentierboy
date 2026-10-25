@@ -251,9 +251,10 @@ docs/                 owner checklists
   Format, limits and reason codes: `docs/snapshot-and-recent.md`. Saved files must keep
   opening, like old links: never change what payload version 1 means.
 - Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG (signature,
-  CRCs, size caps, capped decompression) and the payload (zod, caps), and never throws. Every
-  image is drawn again through a canvas before it is stored (`prepareImageForStore` with
-  `alwaysReencode`), because the payload checks only its first bytes (A10).
+  CRCs, size caps, capped decompression) and the payload (zod, caps, and each image's size as
+  its header declares it, at most 4096 x 4096), and never throws. Every image is drawn again
+  through a canvas before it is stored (`prepareImageForStore` with `alwaysReencode`), because
+  the payload checks only its header (A10).
 - Open file, a dropped file and a pasted file all go through `openFiles` in
   `components/useSnapshotFiles.tsx`. A file with a list asks first, then opens with one
   `router.push` (one Back step). Pictures become items, like "From your device".
