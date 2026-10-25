@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {asRasterImage, previewableImage, type CanvasLike, type DecodedImage, type DecodeHints, PixelCapError, prepareImageForStore} from '@/lib/images/prepareImage';
+import {asRasterImage, previewableImage, type CanvasLike, type DecodedImage, type DecodeHints, isPixelCapError, pixelCapError, prepareImageForStore} from '@/lib/images/prepareImage';
 
 type Decode = (blob: Blob, hints: DecodeHints) => Promise<DecodedImage>;
 
@@ -96,6 +96,16 @@ describe('prepareImageForStore', () => {
     expect(decode).not.toHaveBeenCalled();
   });
 
+  it('makes pixel cap errors as plain errors with a code', () => {
+    const error = pixelCapError();
+    expect(error).toBeInstanceOf(Error);
+    expect(Object.getPrototypeOf(error)).toBe(Error.prototype);
+    expect(error).toMatchObject({name: 'PixelCapError', code: 'PIXEL_CAP'});
+    expect(isPixelCapError(error)).toBe(true);
+    expect(isPixelCapError(new Error('other'))).toBe(false);
+    expect(isPixelCapError({code: 'PIXEL_CAP'})).toBe(false);
+  });
+
   it('previews only raster images whose header declares a size within the caps', async () => {
     const png = (width: number, height: number, type = 'image/png') => {
       const bytes = new Uint8Array(100);
@@ -133,7 +143,7 @@ describe('prepareImageForStore', () => {
     const decode = vi.fn<Decode>(async (_blob, hints) => {
       expect(hints.type).toBeNull();
       expect(hints.fits({width: 8192, height: 4096})).toBe(true);
-      if (!hints.fits({width: 20_000, height: 20_000})) throw new PixelCapError();
+      if (!hints.fits({width: 20_000, height: 20_000})) throw pixelCapError();
       throw new Error('decoded a huge image');
     });
     expect(await prepareImageForStore(svg, {maxBytes: 5000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});

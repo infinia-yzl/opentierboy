@@ -7,7 +7,7 @@ import {useTierContext} from '@/contexts/TierContext';
 import {PLACEHOLDER_IMAGE_URL} from '@/lib/TierCortex';
 import {createObjectUrlRegistry, type DeviceStore, openDeviceStore} from '@/lib/images/deviceStore';
 import {checkImage, type ImageCheckFailure} from '@/lib/images/imageCheck';
-import {ImageStatusStore} from '@/lib/images/imageStatusStore';
+import {createImageStatusStore, type ImageStatusStore} from '@/lib/images/imageStatusStore';
 import {migrateLegacyUploads} from '@/lib/images/legacyUploads';
 import {
   browserLocalStorage,
@@ -131,8 +131,8 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   const isPackageItem = useCallback((id: string) => !tierCortex.isCustomItem(id), [tierCortex]);
 
   const [registry] = useState(() => createObjectUrlRegistry());
-  const [deviceStates] = useState(() => new ImageStatusStore<DeviceImageState>());
-  const [linkStates] = useState(() => new ImageStatusStore<LinkImageState>());
+  const [deviceStates] = useState(() => createImageStatusStore<DeviceImageState>());
+  const [linkStates] = useState(() => createImageStatusStore<LinkImageState>());
   const [store, setStore] = useState<DeviceStore | null>(null);
   const storePromise = useRef<Promise<DeviceStore> | null>(null);
   const requestedKeys = useRef(new Set<string>());

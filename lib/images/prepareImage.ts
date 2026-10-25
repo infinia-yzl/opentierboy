@@ -46,17 +46,23 @@ export interface DecodedImage {
 export interface DecodeHints {
   /** The raster type sniffed from the file's bytes, or null for an image to convert (SVG, BMP). */
   type: RasterImageType | null;
-  /** False for a size above the pixel caps: the decoder then throws PixelCapError before decoding. */
+  /** False for a size above the pixel caps: the decoder then throws pixelCapError() before decoding. */
   fits: (size: {width: number; height: number}) => boolean;
 }
 
-/** Thrown by a decoder when the image is above the pixel caps (DecodeHints.fits). */
-export class PixelCapError extends Error {
-  constructor() {
-    super('The image is above the pixel caps.');
-    this.name = 'PixelCapError';
-  }
+const PIXEL_CAP_ERROR = 'PIXEL_CAP';
+
+/**
+ * The error a decoder throws when the image is above the pixel caps (DecodeHints.fits): a
+ * plain Error with `name` and `code` (A47: no classes).
+ */
+export function pixelCapError(): Error & {code: typeof PIXEL_CAP_ERROR} {
+  return Object.assign(new Error('The image is above the pixel caps.'), {name: 'PixelCapError', code: PIXEL_CAP_ERROR} as const);
 }
+
+/** True for an error made by pixelCapError(). */
+export const isPixelCapError = (error: unknown): boolean =>
+  error instanceof Error && (error as {code?: unknown}).code === PIXEL_CAP_ERROR;
 
 /** The part of a canvas this module uses. */
 export interface CanvasLike {
@@ -144,7 +150,7 @@ async function decodeWithImageElement(blob: Blob, {type, fits}: DecodeHints): Pr
     });
     const width = image.naturalWidth || FALLBACK_SIDE;
     const height = image.naturalHeight || FALLBACK_SIDE;
-    if (!fits({width, height})) throw new PixelCapError();
+    if (!fits({width, height})) throw pixelCapError();
     await image.decode();
     return {source: image, width, height, release};
   } catch (error) {
@@ -197,7 +203,7 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
     try {
       decoded = await (options.decode ?? decodeWithImageElement)(blob, {type, fits: (size) => !tooManyPixels(size)});
     } catch (error) {
-      return {ok: false, reason: error instanceof PixelCapError ? 'too-many-pixels' : 'unreadable'};
+      return {ok: false, reason: isPixelCapError(error) ? 'too-many-pixels' : 'unreadable'};
     }
     try {
       if (tooManyPixels(decoded)) return {ok: false, reason: 'too-many-pixels'};

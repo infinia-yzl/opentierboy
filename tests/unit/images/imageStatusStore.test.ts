@@ -1,11 +1,11 @@
 import {describe, expect, it, vi} from 'vitest';
-import {ImageStatusStore} from '@/lib/images/imageStatusStore';
+import {createImageStatusStore} from '@/lib/images/imageStatusStore';
 
 type State = {status: string; url?: string};
 
-describe('ImageStatusStore', () => {
+describe('createImageStatusStore', () => {
   it('tells only the listeners of keys whose state changed, once per batch', () => {
-    const store = new ImageStatusStore<State>();
+    const store = createImageStatusStore<State>();
     const a = vi.fn();
     const b = vi.fn();
     store.subscribe('a', a);
@@ -19,7 +19,7 @@ describe('ImageStatusStore', () => {
   });
 
   it('keeps the same object for an equal state, so nothing re-renders', () => {
-    const store = new ImageStatusStore<State>();
+    const store = createImageStatusStore<State>();
     const listener = vi.fn();
     store.setMany([['a', {status: 'ready', url: 'blob:1'}]]);
     const first = store.get('a');
@@ -32,7 +32,7 @@ describe('ImageStatusStore', () => {
   });
 
   it('removes states, and stops calling a listener after unsubscribing', () => {
-    const store = new ImageStatusStore<State>();
+    const store = createImageStatusStore<State>();
     const listener = vi.fn();
     const unsubscribe = store.subscribe('a', listener);
     store.setMany([['a', {status: 'loading'}]]);
