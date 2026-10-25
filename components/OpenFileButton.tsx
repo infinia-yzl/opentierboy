@@ -1,17 +1,16 @@
 import React, {useRef} from 'react';
-import type {FileSource} from '@/components/useSnapshotFiles';
 import {FaRegFolderOpen} from 'react-icons/fa6';
 import {Button} from '@/components/ui/button';
 
 interface OpenFileButtonProps {
   /** Called with the chosen file (components/useSnapshotFiles.tsx: openFiles). */
-  onFiles: (files: File[], source: FileSource) => void;
+  onFiles: (files: File[]) => void;
   /** Focus returns to the button after the "Open the list in this file?" dialog. */
   buttonRef?: React.Ref<HTMLButtonElement>;
 }
 
-/** The picture types Open file offers. The bytes are checked again after choosing. */
-const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp,image/gif,image/avif';
+/** Pictures, as "From your device" offers them. The bytes are checked again after choosing. */
+const ACCEPTED_TYPES = 'image/*';
 
 /**
  * The editor's "Open file" button: opens a Freeze Frame download that holds a list, or adds any
@@ -34,7 +33,7 @@ const OpenFileButton: React.FC<OpenFileButtonProps> = ({onFiles, buttonRef}) => 
           const files = Array.from(event.target.files ?? []);
           // Clear the input, so choosing the same file again opens it again.
           event.target.value = '';
-          if (files.length > 0) onFiles(files, 'open');
+          if (files.length > 0) onFiles(files);
         }}
       />
     </>

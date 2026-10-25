@@ -32,18 +32,18 @@ import {
 import {stateParam} from '@/lib/tierListReducer';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const NOT_A_PICTURE = 'This file is not a PNG, JPEG, WebP, GIF or AVIF picture.';
-
-/** Where files come from. Chosen and dropped files must be pictures by their bytes; pastes keep 5c's own check. */
-export type FileSource = 'open' | 'drop' | 'paste';
+const NOT_A_PICTURE = 'This file is not a picture.';
 
 type FileCheck =
   | {kind: 'snapshot'; snapshot: SnapshotToOpen}
   | {kind: 'image'}
   | {kind: 'message'; message: string};
 
-/** True when the file's first bytes are a PNG, JPEG, WebP, GIF or AVIF picture (snapshot files are PNGs). */
+/** True for a picture "From your device" would take: raster bytes, or an image type the browser reports. */
 async function isPictureFile(file: File): Promise<boolean> {
+  // The rule of "From your device" (prepareImageForStore): a raster picture by its bytes, or a
+  // file the browser calls an image (SVG, BMP, HEIC), which is drawn again before it is stored.
+  if (file.type.startsWith('image/')) return true;
   try {
     return sniffImageType(new Uint8Array(await file.slice(0, 64).arrayBuffer())) !== null;
   } catch {
@@ -93,7 +93,7 @@ export interface UseSnapshotFiles {
    * asks whether to open the list; pictures become items; other files show a message. Files that
    * arrive while an earlier file is still opening are ignored.
    */
-  openFiles: (files: File[], source: FileSource) => void;
+  openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
   dialog: React.ReactNode;
   /** The Open file button: focus returns to it when the dialog closes. */
@@ -140,24 +140,21 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
   }, []);
 
-  const openFiles = useCallback((files: File[], source: FileSource) => {
+  const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || busy.current) return;
     busy.current = true;
     void (async () => {
       let asking = false;
       try {
-        let pictures = files;
-        if (source !== 'paste') {
-          const checks = await Promise.all(files.map(isPictureFile));
-          pictures = files.filter((_, index) => checks[index]);
-          const refused = files.filter((_, index) => !checks[index]);
-          if (refused.length > 0) {
-            toast.error(refused.length === files.length ? 'Could not open the file' : 'Some files could not be opened', {
-              description: refused.map((file) => `${file.name}: ${NOT_A_PICTURE}`).join(' '),
-            });
-          }
-          if (pictures.length === 0) return;
+        const checks = await Promise.all(files.map(isPictureFile));
+        const pictures = files.filter((_, index) => checks[index]);
+        const refused = files.filter((_, index) => !checks[index]);
+        if (refused.length > 0) {
+          toast.error(refused.length === files.length ? 'Could not open the file' : 'Some files could not be opened', {
+            description: refused.map((file) => `${file.name}: ${NOT_A_PICTURE}`).join(' '),
+          });
         }
+        if (pictures.length === 0) return;
         if (pictures.length === 1) {
           const check = await checkFile(pictures[0]);
           if (check.kind === 'snapshot') {
@@ -241,9 +238,17 @@ function onFileInput(event: Event): boolean {
   return Boolean(target?.closest('input[type="file"]'));
 }
 
-/** True while a dialog, an alert dialog or the share panel is open: drops then do nothing. */
+/**
+ * True while a dialog, an alert dialog, the share panel, a menu (Manage items, Select rows, a
+ * tile's right-click menu) or a list box (a select) is open: drops then do nothing.
+ */
 function dialogOpen(): boolean {
-  return document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null;
+  return document.querySelector([
+    '[role="dialog"][data-state="open"]',
+    '[role="alertdialog"][data-state="open"]',
+    '[role="menu"][data-state="open"]',
+    '[role="listbox"][data-state="open"]',
+  ].join(', ')) !== null;
 }
 
 /**
@@ -251,7 +256,7 @@ function dialogOpen(): boolean {
  * browser would leave the page to show the dropped file. While a dialog is open, drops anywhere
  * (also on its overlay) do nothing, except on a file input.
  */
-export function useFileDrop(openFiles: (files: File[], source: FileSource) => void) {
+export function useFileDrop(openFiles: (files: File[]) => void) {
   useEffect(() => {
     const onDragOver = (event: DragEvent) => {
       if (!carriesFiles(event) || onFileInput(event)) return;
@@ -262,7 +267,7 @@ export function useFileDrop(openFiles: (files: File[], source: FileSource) => vo
       if (!carriesFiles(event) || onFileInput(event)) return;
       event.preventDefault();
       if (dialogOpen()) return;
-      openFiles(Array.from(event.dataTransfer?.files ?? []), 'drop');
+      openFiles(Array.from(event.dataTransfer?.files ?? []));
     };
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);

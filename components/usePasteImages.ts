@@ -1,5 +1,4 @@
 import {useEffect} from 'react';
-import type {FileSource} from '@/components/useSnapshotFiles';
 
 /** Images in a paste event, from its files or its file items. */
 function pastedImages(event: ClipboardEvent): File[] {
@@ -21,7 +20,7 @@ function pastedImages(event: ClipboardEvent): File[] {
  *
  * Pasting images was first proposed in pull request #146 by JB Wilson (Selenestica).
  */
-export function usePasteImages(openFiles: (files: File[], source: FileSource) => void) {
+export function usePasteImages(openFiles: (files: File[]) => void) {
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -29,7 +28,7 @@ export function usePasteImages(openFiles: (files: File[], source: FileSource) =>
       const files = pastedImages(event);
       if (files.length === 0) return;
       event.preventDefault();
-      openFiles(files, 'paste');
+      openFiles(files);
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
