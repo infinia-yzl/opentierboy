@@ -44,11 +44,12 @@ export interface TierContext {
   /** Length of the address when it holds the list on screen, else 0 (for the long-link warning). */
   urlLength: number;
   /**
-   * The link (`state` value) of the list on screen while it has not reached the address yet,
-   * else null. Writes reach the address one at a time, so on a slow connection the address can
-   * lag behind the screen; Share uses this so it never hands out an older list.
+   * The link of the list on screen with the layout on screen, written by the current link
+   * format: what Share hands out (A46). It never comes from the address, which can lag behind
+   * the screen (writes reach it one at a time) or hold older settings (after Back, the layout
+   * stays as it is on screen).
    */
-  pendingLink: string | null;
+  shareLink: string;
 
   setTitle: (title: string) => void;
   moveItem: (from: ItemPosition, to: ItemPosition) => void;
@@ -152,7 +153,10 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     ? pathname.length + state.address.length + 7 // 7 is the length of "?state="
     : 0;
 
-  const pendingLink = state.writes.length > 0 ? state.writes[state.writes.length - 1].link : null;
+  const shareLink = useMemo(
+    () => encode(state.title, state.tiers, {labelPosition: state.labelPosition, showLabels: state.showLabels}),
+    [encode, state.title, state.tiers, state.labelPosition, state.showLabels],
+  );
 
   const value = useMemo<TierContext>(() => ({
     tierCortex,
@@ -161,9 +165,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     labelPosition: state.labelPosition,
     showLabels: state.showLabels,
     urlLength,
-    pendingLink,
+    shareLink,
     ...actions,
-  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, pendingLink, actions]);
+  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, actions]);
 
   return <TierContext.Provider value={value}>{children}</TierContext.Provider>;
 }

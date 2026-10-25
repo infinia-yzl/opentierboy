@@ -292,7 +292,9 @@ out of links.
   settings.
 - On a template page without a link, a layout change writes a `?state=` link into the address,
   in place of the current entry.
-- Share uses the newest link of the store (`pendingLink`), so it carries the layout too.
+- Share writes its link from the list and layout on screen (`shareLink` in the store, A46),
+  never from the address: the address can lag behind on a slow connection, and after Back it
+  holds the older entry's settings while the screen keeps the current ones.
 
 **Opening a link writes nothing** (A1, the store from Phase 5a): opening any link leaves the
 address and the history as they are, also when the app would write that list differently
