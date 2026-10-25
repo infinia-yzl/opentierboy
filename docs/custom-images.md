@@ -136,11 +136,15 @@ To move the pin to a newer list:
   bytes gets no object URL: an image to convert (SVG, BMP) loads from a `data:` URL,
   which has no access to this site, and anything the browser does not call an image is
   refused.
-- When the browser itself has no room left, the editor removes the least recently used images
-  that are not in the list on screen and tries once more.
 - Limits: 5 MB per image, 100 MB and 2,000 images in total. When a new image does not fit,
-  the images used least recently are removed first. Images of the list on screen can be
-  protected with the `keep` option.
+  the images used least recently are removed first, but only images that are not in the list
+  on screen: the editor passes the list's images, and images it has just handed out that the
+  list does not show yet, as `keep`. It adds images one call at a time, so two quick pastes
+  cannot remove each other's images.
+- When the browser itself has no room left, the editor removes the least recently used images
+  that are not in the list on screen, in a transaction of their own, and tries once more. If
+  nothing can make room, the image is refused ("Your browser has no room left to keep this
+  image.") and nothing is removed.
 - Without IndexedDB (private modes, blocked storage, the server) it keeps images in memory
   until the page closes. `store.persistent` is then false.
 - Call it only from effects and event handlers, never while rendering

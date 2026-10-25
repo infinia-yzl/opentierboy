@@ -139,6 +139,11 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   const evicted = useRef(new Set<string>());
   const warnedNotPersistent = useRef(false);
   const alive = useRef(true);
+  // addDeviceImages runs one call at a time, so each call sees what the calls before it added.
+  const addQueue = useRef<Promise<unknown>>(Promise.resolve());
+  // Images handed to callers that the list may not show yet. Like the list's own images, they
+  // are never removed to make room; they leave this set once the list shows them.
+  const handedOut = useRef(new Set<string>());
 
   const [allowedHosts, setAllowedHosts] = useState<ReadonlySet<string> | null>(null);
   const linkChecks = useRef(new Map<string, LinkCheck>());
@@ -184,6 +189,7 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   const latestKeys = useRef(keys);
   useEffect(() => {
     latestKeys.current = keys;
+    keys.forEach((key) => handedOut.current.delete(key));
     if (!store) return;
     void (async () => {
       await Promise.resolve();
@@ -243,44 +249,50 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     linkStates.setMany(states);
   }, [links, allowedHosts, checkedCount, linkStates]);
 
-  const addDeviceImages = useCallback(async (images: NewDeviceImage[]): Promise<AddDeviceImagesResult> => {
-    const items: Item[] = [];
-    const errors: string[] = [];
-    const opened = store ?? await storePromise.current;
-    if (!opened) return {items, errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)};
-    const added: string[] = [];
-    const states: [string, DeviceImageState][] = [];
-    for (const image of images) {
-      const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes});
-      if (!prepared.ok) {
-        errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
-        continue;
+  const addDeviceImages = useCallback((images: NewDeviceImage[]): Promise<AddDeviceImagesResult> => {
+    const run = addQueue.current.then(() => addNow(images));
+    addQueue.current = run.catch(() => undefined);
+    return run;
+
+    async function addNow(images: NewDeviceImage[]): Promise<AddDeviceImagesResult> {
+      const items: Item[] = [];
+      const errors: string[] = [];
+      const opened = store ?? await storePromise.current;
+      if (!opened) return {items, errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)};
+      const states: [string, DeviceImageState][] = [];
+      for (const image of images) {
+        const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes});
+        if (!prepared.ok) {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
+          continue;
+        }
+        // Never remove an image the list shows, or one handed out that it may not show yet.
+        const result = await opened.put(prepared.blob, {keep: [...latestKeys.current, ...handedOut.current]});
+        // Images removed to make room, also when the write failed after making room.
+        const removed = result.evicted ?? [];
+        if (result.ok || removed.length > 0) {
+          evicted.current = new Set(updateEvictedDeviceImages({evicted: removed, stored: result.ok ? [result.id] : []}));
+        }
+        removed.forEach((key) => {
+          registry.revoke(key);
+          if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
+        });
+        if (!result.ok) {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
+          continue;
+        }
+        handedOut.current.add(result.id);
+        requestedKeys.current.add(result.id);
+        states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob, result.type)}]);
+        items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
       }
-      const result = await opened.put(prepared.blob, {keep: [...latestKeys.current, ...added]});
-      // Images removed to make room, also when the write failed after making room.
-      const removed = result.evicted ?? [];
-      if (result.ok || removed.length > 0) {
-        evicted.current = new Set(updateEvictedDeviceImages({evicted: removed, stored: result.ok ? [result.id] : []}));
+      deviceStates.setMany(states);
+      if (items.length > 0 && !opened.persistent && !warnedNotPersistent.current) {
+        warnedNotPersistent.current = true;
+        toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
       }
-      removed.forEach((key) => {
-        registry.revoke(key);
-        if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
-      });
-      if (!result.ok) {
-        errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
-        continue;
-      }
-      added.push(result.id);
-      requestedKeys.current.add(result.id);
-      states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob, result.type)}]);
-      items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
+      return {items, errors};
     }
-    deviceStates.setMany(states);
-    if (items.length > 0 && !opened.persistent && !warnedNotPersistent.current) {
-      warnedNotPersistent.current = true;
-      toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
-    }
-    return {items, errors};
   }, [store, registry, deviceStates]);
 
   const allowHosts = useCallback((hosts: string[], {remember = false}: {remember?: boolean} = {}) => {

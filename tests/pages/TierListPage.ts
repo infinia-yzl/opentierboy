@@ -598,6 +598,24 @@ export class TierListPage {
     }, files.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
   }
 
+  /**
+   * Pastes several groups of images at once, one paste event per group, as quick pastes do: the
+   * editor handles them while the earlier ones are still being added.
+   */
+  async pasteImagesAtOnce(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
+    await this.waitUntilInteractive();
+    await this.page.locator('body').evaluate((element, payload) => {
+      for (const group of payload) {
+        const transfer = new DataTransfer();
+        for (const file of group) {
+          const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
+          transfer.items.add(new File([bytes], file.name, {type: file.mimeType}));
+        }
+        element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+      }
+    }, groups.map((group) => group.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')}))));
+  }
+
   async deleteItem(itemName: string) {
     await this.item(itemName).click({button: 'right'});
     await this.page.getByRole('menuitem', {name: 'Delete'}).click();

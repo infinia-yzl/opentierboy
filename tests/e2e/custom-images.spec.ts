@@ -278,8 +278,7 @@ test.describe('Images from the device', () => {
     await tierList.addItemsFromDevice([imageFile('new.png', newImage)]);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['new']);
     await expect.poll(() => tierList.itemImageHasLoaded('new')).toBe(true);
-    const evicted = await page.evaluate(() => JSON.parse(localStorage.getItem('evictedDeviceImages') ?? '[]') as string[]);
-    expect(evicted).toHaveLength(1);
+    expect(await tierList.evictedImageIds()).toHaveLength(1);
 
     // The old list: the oldest image made room and shows its name only; the others are there.
     await tierList.gotoLink(oldList);
@@ -302,6 +301,26 @@ test.describe('Images from the device', () => {
     // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
     await expect.poll(() => tierList.oldUploadIds()).toEqual(['legacyUp3']);
     expect(await tierList.itemShowsUpload('old 3')).toBe(false);
+    expect(await tierList.evictedImageIds()).toEqual([]);
+  });
+
+  test('when the browser is full, quick pastes never remove an image the list shows', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
+    test.skip(browserName !== 'chromium', 'Only Chromium lets a test cap the storage (DevTools Protocol).');
+    const {tierList, context} = await openInChromiumProfile();
+    const images = [1, 2, 3].map((seed) => noisePng(320, 320, seed));
+    const cdp = await context.newCDPSession(tierList.page);
+    // Room for two of the three images.
+    await cdp.send('Storage.overrideQuotaForOrigin', {origin: new URL(test.info().project.use.baseURL!).origin, quotaSize: Math.round(images[0].length * 2.5)});
+    await tierList.goto('/rank');
+    await tierList.addItemsFromDevice([imageFile('base.png', images[0])]);
+    await expect.poll(() => tierList.itemShowsUpload('base')).toBe(true);
+
+    // Two pastes at once: the second must not make room by removing the first.
+    await tierList.pasteImagesAtOnce([[imageFile('first.png', images[1])], [imageFile('second.png', images[2])]]);
+    await expect(tierList.toast('Some images could not be added')).toContainText('second: Your browser has no room left to keep this image.');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['base', 'first']);
+    await expect.poll(() => tierList.itemShowsUpload('first')).toBe(true);
+    await expect.poll(() => tierList.itemShowsUpload('base')).toBe(true);
     expect(await tierList.evictedImageIds()).toEqual([]);
   });
 
