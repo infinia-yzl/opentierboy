@@ -91,11 +91,14 @@ interface CustomImagesContextValue {
   /**
    * Keeps the images of a snapshot file in the device store, one call at a time with
    * addDeviceImages and with the same protection: no image the list shows or that was handed
-   * out is removed to make room. Every image is drawn again first, at most 512 pixels on its
-   * longest side (A10), and stored under a content-addressed id (`snap-` and a hash of the drawn
-   * bytes, lib/snapshot/imageId.ts): opening the same file again stores nothing new and gives the
-   * same ids. An image the store already holds under that id is reused; a different picture under
-   * the same id (a hash collision) gets a random id.
+   * out is removed to make room. An image the store already holds under the file's own id is
+   * used as it is: the file was made in this browser, so its link stays the same (a file that
+   * reuses such an id on purpose can only show the visitor's own picture). Every other image is
+   * drawn again first, at most 512 pixels on its longest side (A10), and stored under a
+   * content-addressed id (`snap-` and a hash of the drawn bytes, lib/snapshot/imageId.ts):
+   * opening the same file again stores nothing new and gives the same ids. An image the store
+   * already holds under that id is reused; a different picture under the same id (a hash
+   * collision) gets a random id.
    */
   importDeviceImages: (images: SnapshotDeviceImage[]) => Promise<ImportDeviceImagesResult>;
   /** The stored images with these ids (for a snapshot file). Missing images are left out. */
@@ -391,6 +394,12 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
       }
 
       async function importOne(opened: DeviceStore, image: SnapshotDeviceImage) {
+        // The file's own id names an image this browser already holds: the file was made here.
+        const own = await opened.get(image.id);
+        if (own) {
+          handOut(image.id, image.id, own.blob, own.type);
+          return;
+        }
         const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes, maxSide: SNAPSHOT_IMAGE_SIDE, alwaysReencode: true});
         if (!prepared.ok) {
           errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
