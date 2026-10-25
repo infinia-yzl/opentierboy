@@ -79,6 +79,9 @@ describe('snapshotToOpen', () => {
   });
 
   it('refuses a link value too long to open as an address, as too large', () => {
+    expect(MAX_SNAPSHOT_LINK_CHARS).toBe(13_000);
+    // 13,000 characters of state, a 512-character path, "?state=" and a long site address stay under 14,000.
+    expect(MAX_SNAPSHOT_LINK_CHARS + 512 + '?state='.length + 'https://www.opentierboy.com'.length).toBeLessThan(14_000);
     const long = `3.${'A'.repeat(MAX_SNAPSHOT_LINK_CHARS - 1)}`;
     expect(snapshotLinkTooLong(long)).toBe(true);
     expect(snapshotLinkTooLong(long.slice(1))).toBe(false);

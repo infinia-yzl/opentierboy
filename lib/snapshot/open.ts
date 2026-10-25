@@ -54,10 +54,14 @@ export interface SnapshotToOpen {
 }
 
 /**
- * The longest link value a snapshot may open or write. A longer address makes the server answer
- * "431 Request Header Fields Too Large" (a blank page): Node accepts about 16 KB of headers.
+ * The longest link value (the `state` value) a snapshot may open or write: 13,000 characters.
+ * The whole address must stay under the servers' limits. Vercel accepts about 14 KB of URL, and
+ * `next start` answers "431 Request Header Fields Too Large" (a blank page) at about 15,850
+ * characters of state. With the page path (at most 512 characters), "?state=" and the site's
+ * address, 13,000 characters of state keep the whole URL under 14,000 characters, with room
+ * left for the other request headers.
  */
-export const MAX_SNAPSHOT_LINK_CHARS = 16_000;
+export const MAX_SNAPSHOT_LINK_CHARS = 13_000;
 
 /** True when a link value is too long to open as an address (MAX_SNAPSHOT_LINK_CHARS). */
 export function snapshotLinkTooLong(state: string): boolean {
