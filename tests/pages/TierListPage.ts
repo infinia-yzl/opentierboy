@@ -743,10 +743,10 @@ export class TierListPage {
   async deviceImageCount(): Promise<number> {
     return this.page.evaluate(() => new Promise<number>((resolve, reject) => {
       // eslint-disable-next-line no-restricted-globals -- a test reads the store to count its images
-      const request = indexedDB.open('opentierboy-device-images');
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => {
-        const db = request.result;
+      const opening = indexedDB.open('opentierboy-device-images');
+      opening.onerror = () => reject(opening.error);
+      opening.onsuccess = () => {
+        const db = opening.result;
         const count = db.transaction('images').objectStore('images').count();
         count.onsuccess = () => {
           db.close();
