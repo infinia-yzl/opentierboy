@@ -19,74 +19,47 @@ We welcome contributions to OpenTierBoy! Here's how you can help forge the legen
 - If adding a new feature, please include relevant information and documentation.
 - Be respectful and constructive in discussions and code reviews.
 
-## Contributing New Images / Image Sets
+## Contributing Images
 
-To contribute new images or image sets to OpenTierBoy, you can either add to existing image sets or create a new one
-using our image-set template.
+OpenTierBoy has two kinds of image sets: official sets, which keep growing, and legacy sets,
+which are frozen.
 
-### Current Image Sets
+### Official image sets
 
-We currently have the following image sets that you can contribute to:
+The official image sets are THE FINALS and OVERWATCH. Each one lives in its own repository and
+is published as an npm package:
 
-- The Finals (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
-- Wuthering Waves (image-wutheringwaves): https://github.com/infinia-yzl/image-wutheringwaves
-- Overwatch (image-overwatch): https://github.com/infinia-yzl/image-overwatch
-- Webdev (image-webdev): https://github.com/infinia-yzl/image-webdev
-- Supervive (image-supervive): https://github.com/infinia-yzl/image-supervive
+- THE FINALS (`image-reachthefinals`): https://github.com/infinia-yzl/image-reachthefinals
+- OVERWATCH (`image-overwatch`): https://github.com/infinia-yzl/image-overwatch
 
-To contribute to these existing image sets, please follow the general contribution guidelines above and make sure to
-adhere to any specific guidelines provided in each image set's repository.
+To add, fix, label or tag images, open a pull request in that set's repository and follow its
+README. Its CI checks every image (`npm run validate`), and a pull request that changes published
+images also raises the `version` in `package.json`. A weekly workflow there collects new images
+from the game's wiki and opens a pull request for them, so check the open pull requests first.
 
-### Getting Started with the Image Set Template
+After the owner merges your pull request, the set's `release.yml` workflow publishes the new
+version to npm and tells OpenTierBoy. OpenTierBoy's `image-set-update` workflow then opens a pull
+request in this repository, and the owner reviews and merges it. You do not need to open a pull
+request here for image changes.
 
-1. Visit the [image-set template repository](https://github.com/yourusername/image-set-template).
-2. Click on "Use this template" to create a new repository based on the template.
-3. Clone your new repository locally.
+Published images are never renamed or removed: their ids appear in shared links.
 
-### Setting Up Your Image Set
+### Legacy image sets
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
+SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development Technologies and the Example Items
+Template are legacy sets. They are frozen: their images are kept in this repository, they take no
+new contributions, and the app no longer offers them. Links that already use them keep working.
+Please do not open pull requests or issues to change them, here or in their old repositories.
 
-2. Update the `package.json` file:
-    - Change the `name` field to a unique name for your image set
-    - Update the `description`, `keywords`, and `author` fields
+### New image sets
 
-3. Add your images:
-    - Place your images in the `public/images/` directory
+A new set starts from the [image-set template](https://github.com/infinia-yzl/image-set), version
+2.2.0 or later. Its README covers the setup, the checks and the release workflow. The interactive
+`npm run publish-package` script of older template versions is gone: image sets publish from
+GitHub Actions (`release.yml`) only.
 
-4. Process your images:
-   ```
-   npm run process-images
-   ```
-   This will run an interactive CLI where you can compress and tag your images.
-
-5. Publish your package:
-   ```
-   npm run publish-package
-   ```
-
-For more detailed instructions on using the image-set template, please refer to its README file.
-
-### Submitting Your Image Set
-
-Once you've published your image set package:
-
-1. Open a pull request to the main OpenTierBoy repository.
-2. In your pull request, include:
-    - The name of your published npm package
-    - A brief description of the image set
-    - Any relevant tags or categories for the images
-
-Our team will review your submission and integrate it into the project if it meets our guidelines.
-
-#### Example Pull Requests
-
-- https://github.com/infinia-yzl/opentierboy/pull/23
-- https://github.com/infinia-yzl/opentierboy/pull/33
-- https://github.com/infinia-yzl/opentierboy/pull/44
+Before you publish anything, propose the set in an issue (**Image Update or Addition**
+template). If the owner accepts it, it joins the official sets in a pull request here.
 
 ## Reporting Issues
 
