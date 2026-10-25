@@ -67,12 +67,36 @@ export interface AddDeviceImagesResult {
   errors: string[];
 }
 
+/** An image from a snapshot file, with its id in the file. */
+export interface SnapshotDeviceImage {
+  id: string;
+  blob: Blob;
+  label: string;
+}
+
+export interface ImportDeviceImagesResult {
+  /** Each stored image's id in the file → its id in this browser's store. */
+  ids: Map<string, string>;
+  /** One message per image that could not be stored. */
+  errors: string[];
+}
+
 interface CustomImagesContextValue {
   deviceStates: ImageStatusStore<DeviceImageState>;
   linkStates: ImageStatusStore<LinkImageState>;
   isPackageItem: (id: string) => boolean;
   /** Keeps images in the device store and returns them as items (not yet in the list). */
   addDeviceImages: (images: NewDeviceImage[]) => Promise<AddDeviceImagesResult>;
+  /**
+   * Keeps the images of a snapshot file in the device store, one call at a time with
+   * addDeviceImages and with the same protection: no image the list shows or that was handed
+   * out is removed to make room. Every image is drawn again first (A10). An image keeps its id,
+   * unless the store holds another image under that id: then it gets a new id. The same image
+   * under the same id is reused.
+   */
+  importDeviceImages: (images: SnapshotDeviceImage[]) => Promise<ImportDeviceImagesResult>;
+  /** The stored images with these ids (for a snapshot file). Missing images are left out. */
+  readDeviceImages: (ids: string[]) => Promise<Map<string, Blob>>;
   /** Lets this page load images from these sites (a link image the visitor adds, or [Load]). */
   allowHosts: (hosts: string[], options?: {remember?: boolean}) => void;
 }
@@ -125,6 +149,16 @@ export function useLinkImage(item: Pick<Item, 'source' | 'url'>): LinkImageState
 const NOT_PERSISTENT_MESSAGE = 'This browser does not let the site keep images. Images you add stay until you close this tab.';
 
 type LinkCheck = {ok: true; src: string} | {ok: false; reason: ImageCheckFailure};
+
+/** True when two files hold the same bytes. */
+async function sameBytes(a: Blob, b: Blob): Promise<boolean> {
+  if (a.size !== b.size) return false;
+  const [left, right] = await Promise.all([a.arrayBuffer(), b.arrayBuffer()]);
+  const x = new Uint8Array(left);
+  const y = new Uint8Array(right);
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false;
+  return true;
+}
 
 export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   const {tiers, tierCortex} = useTierContext();
@@ -309,6 +343,87 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     }
   }, [store, registry, deviceStates]);
 
+  const importDeviceImages = useCallback((images: SnapshotDeviceImage[]): Promise<ImportDeviceImagesResult> => {
+    // The same queue as addDeviceImages: one call at a time, so each sees what the others stored.
+    // Like it, the result never rejects: anything unexpected becomes the usual message for each image.
+    const failed = (): ImportDeviceImagesResult => ({ids: new Map(), errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)});
+    const run = addQueue.current.then(() => importNow(images)).catch(failed);
+    addQueue.current = run;
+    return run;
+
+    async function importNow(images: SnapshotDeviceImage[]): Promise<ImportDeviceImagesResult> {
+      const ids = new Map<string, string>();
+      const errors: string[] = [];
+      const opened = store ?? await storePromise.current;
+      if (!opened) return failed();
+      const states: [string, DeviceImageState][] = [];
+      for (const image of images) {
+        // Whatever throws for one image becomes the usual message for that image.
+        try {
+          await importOne(opened, image);
+        } catch {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`);
+        }
+      }
+      deviceStates.setMany(states);
+      if (ids.size > 0 && !opened.persistent && !warnedNotPersistent.current) {
+        warnedNotPersistent.current = true;
+        toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
+      }
+      return {ids, errors};
+
+      /**
+       * Hands out a stored image: the list will show it, so nothing may remove it. The URL comes
+       * first: when it cannot be made, the image is not handed out at all.
+       */
+      function handOut(fileId: string, id: string, blob: Blob, type: Parameters<typeof registry.urlFor>[2]) {
+        const url = registry.urlFor(id, blob, type);
+        ids.set(fileId, id);
+        handedOut.current.add(id);
+        requestedKeys.current.add(id);
+        states.push([id, {status: 'ready', url}]);
+      }
+
+      async function importOne(opened: DeviceStore, image: SnapshotDeviceImage) {
+        const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes, alwaysReencode: true});
+        if (!prepared.ok) {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
+          return;
+        }
+        const id = image.id;
+        const existing = await opened.get(id);
+        if (existing && await sameBytes(existing.blob, prepared.blob)) {
+          handOut(image.id, id, existing.blob, existing.type);
+          return;
+        }
+        // Another image already has this id: store this one under a new id.
+        // Never remove an image the list shows, or one handed out that it may not show yet.
+        const result = await opened.put(prepared.blob, {id: existing ? undefined : id, keep: [...latestKeys.current, ...handedOut.current]});
+        // Images removed to make room, also when the write failed after making room.
+        const removed = result.evicted ?? [];
+        if (result.ok || removed.length > 0) {
+          evicted.current = new Set(updateEvictedDeviceImages({evicted: removed, stored: result.ok ? [result.id] : []}));
+        }
+        removed.forEach((key) => {
+          registry.revoke(key);
+          if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
+        });
+        if (!result.ok) {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
+          return;
+        }
+        handOut(image.id, result.id, prepared.blob, result.type);
+      }
+    }
+  }, [store, registry, deviceStates]);
+
+  const readDeviceImages = useCallback(async (ids: string[]): Promise<Map<string, Blob>> => {
+    const opened = store ?? await storePromise.current;
+    if (!opened) return new Map();
+    const images = await opened.getMany(ids);
+    return new Map(Array.from(images, ([id, image]) => [id, image.blob]));
+  }, [store]);
+
   const allowHosts = useCallback((hosts: string[], {remember = false}: {remember?: boolean} = {}) => {
     if (remember) rememberAllowedImageSites(hosts);
     setAllowedHosts((previous) => new Set([...(previous ?? readAllowedImageSites()), ...hosts]));
@@ -324,8 +439,10 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     linkStates,
     isPackageItem,
     addDeviceImages,
+    importDeviceImages,
+    readDeviceImages,
     allowHosts,
-  }), [deviceStates, linkStates, isPackageItem, addDeviceImages, allowHosts]);
+  }), [deviceStates, linkStates, isPackageItem, addDeviceImages, importDeviceImages, readDeviceImages, allowHosts]);
 
   return (
     <CustomImagesContext.Provider value={value}>
