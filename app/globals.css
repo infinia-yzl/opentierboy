@@ -37,6 +37,10 @@
 }
 
 @theme {
+  /* Tailwind 3's colour for ring utilities without a colour (blue-500 at 50%), such as the
+     ring around a dragged item or row. Tailwind 4 would use the text colour. */
+  --default-ring-color: rgb(59 130 246 / 0.5);
+
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
