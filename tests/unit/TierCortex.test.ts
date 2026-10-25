@@ -486,6 +486,18 @@ describe('TierCortex with v3 links', () => {
     expect(later.decodeTierStateFromURL(saved)!.tiers[0].items[0]).toMatchObject({id: 'image-overwatch-ana.webp', content: 'Ana'});
   });
 
+  it('writes a link that opens again for a legacy list with empty item ids, keeping their labels', () => {
+    const legacy = lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [{i: '', c: 'No id'}, {i: 'item~1', c: 'Taken'}, {i: '', c: 'Also no id'}]}, {i: 'uncategorized', n: '', t: []}]}));
+    const cortex = new TierCortex();
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    // New ids skip the ones the list already uses; the same list always gets the same ids.
+    expect(opened.tiers[0].items.map(item => [item.id, item.content])).toEqual([['item~2', 'No id'], ['item~1', 'Taken'], ['item~3', 'Also no id']]);
+    const saved = cortex.encodeListForURL('', opened.tiers);
+    const reopened = cortex.decodeTierStateFromURL(saved);
+    expect(reopened?.tiers[0].items.map(item => item.content)).toEqual(['No id', 'Taken', 'Also no id']);
+    expect(cortex.encodeListForURL('', reopened!.tiers)).toBe(saved);
+  });
+
   it('writes a link that opens again for a legacy list with an empty tier id', () => {
     const legacy = lz(JSON.stringify({tiers: [{i: '', n: 'S', t: [{i: 'image-overwatch-mau.webp'}]}, {i: '', n: 'A', t: []}, {i: 'uncategorized', n: '', t: []}]}));
     const cortex = new TierCortex();

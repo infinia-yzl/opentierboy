@@ -176,6 +176,22 @@ test.describe('Unknown items in v3 links', () => {
     await expect(friend.itemsIn('S')).toHaveText(['Gone hero']);
     await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga']);
   });
+
+  test('an item with an empty id from a hand-made link keeps its label after a change and a reload', async ({tierList}) => {
+    // v3 links refuse empty ids, so the app gives the item an id of its own (item~1) when it opens.
+    const handMade = rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
+      i: tier.id,
+      n: tier.name,
+      t: tier.id === 'uncategorized' ? [{i: '', c: 'No id'}, {i: packageItemId('image-overwatch', 'Mauga')}] : [],
+    }))});
+    await tierList.goto(TANKS, handMade);
+
+    await tierList.dragItemToTier('No id', 'S');
+    await tierList.reload();
+
+    await expect(tierList.itemsIn('S')).toHaveText(['No id']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga']);
+  });
 });
 
 /**

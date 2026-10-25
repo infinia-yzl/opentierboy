@@ -334,16 +334,17 @@ export class TierCortex {
    * - an item id that appears twice, also after following an alias (an old id and its new id
    *   in one list), keeps only its first place (A32);
    * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38);
-   * - an empty tier id gets a new id too, because a v3 link needs one (A40).
+   * - an empty tier id or item id gets a new id too, because a v3 link needs one (A40).
    */
   private resolveTiers(state: CanonicalState): Tier[] {
     const seen = new Set<string>();
     const tierIds = uniqueTierIds(state.tiers.map(tier => tier.id));
+    const withItemId = nonEmptyItemIds(state.tiers.flatMap(tier => tier.items.map(item => item.id)));
     return state.tiers.map((tier, index) => ({
       id: tierIds[index],
       name: tier.name,
       items: tier.items
-        .map(item => this.resolveCanonicalItem(item, state.version))
+        .map(item => this.resolveCanonicalItem(withItemId(item), state.version))
         .filter(item => {
           if (seen.has(item.id)) return false;
           seen.add(item.id);
@@ -511,6 +512,23 @@ export function uniqueTierIds(ids: readonly string[]): string[] {
 }
 
 const EMPTY_TIER_ID_BASE = 'tier';
+
+/**
+ * Gives each item with an empty id (only in hand-made links) a new id, `item~1`, `item~2`...
+ * (the first numbers no item uses), keeping its label, because v3 links refuse empty ids (A40).
+ * `ids` are all item ids of the list; the same list always gives the same ids.
+ */
+function nonEmptyItemIds(ids: readonly string[]): <T extends CanonicalItem>(item: T) => T {
+  const taken = new Set(ids);
+  let number = 1;
+  return item => {
+    if (item.id !== '') return item;
+    while (taken.has(`item~${number}`)) number++;
+    const id = `item~${number}`;
+    taken.add(id);
+    return {...item, id};
+  };
+}
 
 function toCanonicalItem(item: SimplifiedItem): CanonicalItem {
   return item.c === undefined ? {id: item.i} : {id: item.i, content: item.c};
