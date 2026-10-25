@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
+import {Alert, AlertDescription} from "@/components/ui/alert";
 import {Button} from "@/components/ui/button";
 import {useCustomImages, useHostsAwaitingConsent} from "@/contexts/CustomImagesContext";
 
@@ -18,7 +18,8 @@ const LinkImageNotice: React.FC = () => {
 
   return (
     <Alert role="region" aria-label="Images from other sites" className="max-w-2xl mx-auto my-2" data-html2canvas-ignore>
-      <AlertTitle>Images from other sites</AlertTitle>
+      {/* The page title is the only h1 above, so the notice's title is an h2. */}
+      <h2 className="mb-1 font-medium leading-none tracking-tight">Images from other sites</h2>
       <AlertDescription>
         <p>
           This list has images from {hostsAwaitingConsent.length === 1 ? 'a site' : 'sites'} that OpenTierBoy does not

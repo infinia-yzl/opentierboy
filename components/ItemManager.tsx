@@ -104,6 +104,13 @@ const ItemManager: React.FC = () => {
     });
   };
 
+  // The item dialogs have no trigger of their own (they open from the menu), so give focus back
+  // to the menu button when they close.
+  const focusManageItems = (event: Event) => {
+    event.preventDefault();
+    manageItemsButton.current?.focus();
+  };
+
   const handleItemSetSelect = (packageName: string, images: string[]) => {
     handleCreateItems(tierCortex.resolveItemsFromPackage(packageName, images));
   };
@@ -164,7 +171,7 @@ const ItemManager: React.FC = () => {
       </AlertDialog>
 
       <Dialog open={isItemCreatorOpen} onOpenChange={setIsItemCreatorOpen}>
-        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col" onCloseAutoFocus={focusManageItems}>
           <DialogHeader>
             <DialogTitle>Add New Items</DialogTitle>
             <DialogDescription>
@@ -176,7 +183,7 @@ const ItemManager: React.FC = () => {
       </Dialog>
 
       <Dialog open={isLinkCreatorOpen} onOpenChange={setIsLinkCreatorOpen}>
-        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col" onCloseAutoFocus={focusManageItems}>
           <DialogHeader>
             <DialogTitle>Add an Image from a Link</DialogTitle>
             <DialogDescription>
