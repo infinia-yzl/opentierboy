@@ -98,6 +98,10 @@ lib/images/           images from links and devices: address checks, trusted sit
                       image store (the only IndexedDB code), image load check
 lib/security/         Content Security Policy header (sent by next.config.ts)
 lib/zod.ts            zod without eval (import `z` from here, never from `zod`)
+lib/snapshot/         snapshot files: the list inside a Freeze Frame PNG (iTXt chunk, checked
+                      reader, zod payload), and what opening a file does
+lib/recent/           Recently viewed: links this browser opened, in local storage (pins, caps)
+lib/rankPath.ts       the /rank path rule for stored paths, and page names for lists without a title
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
@@ -238,6 +242,26 @@ docs/                 owner checklists
   font or connection needs a change to the policy and to `tests/e2e/csp.spec.ts`.
 - **zod**: import `z` from `@/lib/zod`, never from `zod`. Plain zod tries eval when it builds a
   schema, which the policy reports as a violation (A39).
+
+## Snapshot files and recently viewed
+
+- **Snapshot file**: Freeze Frame's Download saves the captured PNG with one `iTXt` chunk
+  (keyword `opentierboy`) that holds the list: `{version: 1, state, path?, images}`. `state` is
+  the v3 link Share hands out; `images` are the list's device images as raster data URLs.
+  Format, limits and reason codes: `docs/snapshot-and-recent.md`. Saved files must keep
+  opening, like old links: never change what payload version 1 means.
+- Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG (signature,
+  CRCs, size caps, capped decompression) and the payload (zod, caps), and never throws. Every
+  image is drawn again through a canvas before it is stored (`prepareImageForStore` with
+  `alwaysReencode`), because the payload checks only its first bytes (A10).
+- Open file, a dropped file and a pasted file all go through `openFiles` in
+  `components/useSnapshotFiles.tsx`. A file with a list asks first, then opens with one
+  `router.push` (one Back step). Pictures become items, like "From your device".
+- **Recently viewed** (`lib/recent/recentLinks.ts`, `components/useRecentLinks.ts`, the landing
+  page section) keeps the links this browser opened in local storage (`otb-recent-links`). The
+  editor records a list once, when it opens with a list in its link; edits never record. Pin
+  limit 20 and unpinned limit 30 are constants (owner review). Stored entries are checked with
+  zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
 
 ## Tests
 
