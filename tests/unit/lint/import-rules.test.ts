@@ -119,19 +119,26 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
       'const page = await browser.newPage();',
       "const page2 = await browser['newPage']();",
       'const page3 = await ctx.browser().newPage();',
+      'const page4 = await ctx.browser()?.newPage();',
       // Allowed:
       'await route.fallback();',
       "await route.fulfill({body: ''});",
       'await request.fetch(url);',
+      'await ctx.request.fetch(url);',
+      'await ctx.pages()[0].request.fetch(url);',
+      'await window.fetch(url);',
+      'await self.fetch(url);',
       'const tab = await ctx.newPage();',
       'await fetch(url);',
       '}',
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
-    const all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    const all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const file of ['tests/e2e/probe.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/Probe.ts']) {
       expect(await reportedLines(file, code, rules), file).toEqual(all);
     }
+    // TypeScript only: the non-null form of page.context().browser().
+    expect(await reportedLines('tests/e2e/probe.spec.ts', 'export const p = async (page) => page.context().browser()!.newPage();\n', rules)).toEqual([1]);
     const commonJs = 'module.exports = async (route, browser) => {\n  await route.continue();\n  await browser.newContext();\n};\n';
     expect(await reportedLines('tests/e2e/probe.spec.cjs', commonJs, rules)).toEqual([2, 3]);
     expect(await reportedLines('tests/support/probe.ts', code, rules)).toEqual([]);

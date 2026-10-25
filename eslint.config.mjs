@@ -104,10 +104,11 @@ const GUARD_BYPASSES = [
     selector,
     message: 'route.continue() sends the request to the network, past the guard against external requests (tests/support/test.ts). Answer it with route.fulfill(), or pass it on with route.fallback().',
   })),
-  // `.fetch(` on anything but the `request` fixture (which the guard wraps): route.fetch(),
+  // `.fetch(` on anything but what the guard covers (the `request` fixture, page.request and
+  // context.request, and window.fetch or self.fetch inside page.evaluate): route.fetch(),
   // whatever the route handler's argument is called, reaches the network past the guard.
   ...methodCall('/^fetch$/').map((selector) => ({
-    selector: `${selector}:not([callee.object.type='Identifier'][callee.object.name='request'])`,
+    selector: `${selector}:not([callee.object.type='Identifier'][callee.object.name=/^(request|window|self)$/], [callee.object.type='MemberExpression'][callee.object.property.name='request'])`,
     message: 'route.fetch() reaches the network past the guard against external requests (tests/support/test.ts). Answer the request with route.fulfill(); for API calls use the `request` fixture.',
   })),
   ...methodCall('/^(newContext|launchPersistentContext|launch|launchServer|connect|connectOverCDP)$/').map((selector) => ({
@@ -115,7 +116,7 @@ const GUARD_BYPASSES = [
     message: 'A new browser or request context has no guard against external requests. Use openAsVisitor or openInChromiumProfile from tests/support/test.ts.',
   })),
   ...methodCall('/^newPage$/').map((selector) => ({
-    selector: `${selector}:matches([callee.object.name='browser'], [callee.object.property.name='browser'], [callee.object.callee.property.name='browser'])`,
+    selector: `${selector}:matches([callee.object.name='browser'], [callee.object.property.name='browser'], [callee.object.callee.property.name='browser'], [callee.object.expression.callee.property.name='browser'])`,
     message: 'browser.newPage() opens a new context without the guard against external requests. Use the `page` fixture, or openAsVisitor from tests/support/test.ts.',
   })),
 ];
