@@ -43,11 +43,35 @@ const decodeAs = (width: number, height: number) => {
 };
 
 describe('prepareImageForStore', () => {
-  it('keeps a file the store accepts exactly as it is', async () => {
+  it('keeps a file the store accepts exactly as it is, after decoding it once', async () => {
     const file = fileOf('image/png', 1000);
-    const {decode} = decodeAs(10, 10);
+    const {decode, release} = decodeAs(10, 10);
     expect(await prepareImageForStore(file, {maxBytes: 5000, decode})).toEqual({ok: true, blob: file, reencoded: false});
+    expect(decode).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalled();
+  });
+
+  it('refuses a decompression bomb from its header, without decoding it', async () => {
+    // A PNG of a few bytes that declares 50,000 x 50,000 pixels (10 GB once decoded).
+    const bomb = new Uint8Array(64);
+    bomb.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    new DataView(bomb.buffer).setUint32(16, 50_000);
+    new DataView(bomb.buffer).setUint32(20, 50_000);
+    bomb.set([8, 6, 0, 0, 0], 24);
+    const {decode} = decodeAs(50_000, 50_000);
+    expect(await prepareImageForStore(new Blob([bomb]), {maxBytes: 5_000_000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});
     expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('refuses images over 8,192 pixels per side or 32 megapixels, also when the header does not tell', async () => {
+    const file = fileOf('image/png', 1000);
+    for (const [width, height] of [[8193, 10], [10, 8193], [8192, 4097]]) {
+      const {decode, release} = decodeAs(width, height);
+      expect(await prepareImageForStore(file, {maxBytes: 5000, decode}), `${width}x${height}`).toEqual({ok: false, reason: 'too-many-pixels'});
+      expect(release).toHaveBeenCalled();
+    }
+    const {decode} = decodeAs(8192, 4096);
+    expect(await prepareImageForStore(file, {maxBytes: 5000, decode})).toMatchObject({ok: true});
   });
 
   it('draws other formats again as WebP, at most 2,048 pixels on the longest side', async () => {

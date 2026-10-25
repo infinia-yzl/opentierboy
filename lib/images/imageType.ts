@@ -30,3 +30,65 @@ export function sniffImageType(bytes: Uint8Array): RasterImageType | null {
   }
   return null;
 }
+
+const uint32BE = (bytes: Uint8Array, offset: number) =>
+  ((bytes[offset] << 24) >>> 0) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3];
+const uint16BE = (bytes: Uint8Array, offset: number) => (bytes[offset] << 8) | bytes[offset + 1];
+const uint16LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[offset + 1] << 8);
+const uint24LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+
+/**
+ * The width and height that a PNG, GIF, WebP or JPEG file declares in its header, without
+ * decoding it, or null when the header does not say (AVIF, damaged or cut-off files). A file
+ * can declare a huge size in a few bytes (a "decompression bomb"), so the size is checked
+ * before anything decodes it. Reads the first bytes only; JPEG needs the bytes up to its frame
+ * header, which follows the metadata.
+ */
+export function readImageSize(bytes: Uint8Array): {width: number; height: number} | null {
+  const type = sniffImageType(bytes);
+  if (type === 'image/png') {
+    if (bytes.length < 24 || ascii(bytes, 12, 4) !== 'IHDR') return null;
+    return {width: uint32BE(bytes, 16), height: uint32BE(bytes, 20)};
+  }
+  if (type === 'image/gif') {
+    return bytes.length < 10 ? null : {width: uint16LE(bytes, 6), height: uint16LE(bytes, 8)};
+  }
+  if (type === 'image/webp') {
+    const chunk = bytes.length >= 16 ? ascii(bytes, 12, 4) : '';
+    if (chunk === 'VP8 ' && bytes.length >= 30) {
+      return {width: uint16LE(bytes, 26) & 0x3fff, height: uint16LE(bytes, 28) & 0x3fff};
+    }
+    if (chunk === 'VP8L' && bytes.length >= 25) {
+      const bits = (bytes[21] | (bytes[22] << 8) | (bytes[23] << 16) | (bytes[24] << 24)) >>> 0;
+      return {width: (bits & 0x3fff) + 1, height: ((bits >>> 14) & 0x3fff) + 1};
+    }
+    if (chunk === 'VP8X' && bytes.length >= 30) {
+      return {width: uint24LE(bytes, 24) + 1, height: uint24LE(bytes, 27) + 1};
+    }
+    return null;
+  }
+  if (type === 'image/jpeg') {
+    let offset = 2;
+    while (offset + 9 < bytes.length) {
+      if (bytes[offset] !== 0xff) return null;
+      const marker = bytes[offset + 1];
+      if (marker === 0xff) {
+        offset++;
+        continue;
+      }
+      // Markers without a length: TEM and RST0-RST7.
+      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+        offset += 2;
+        continue;
+      }
+      // Start of frame (SOF0-SOF15, except DHT, JPG and DAC) holds the size.
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return {width: uint16BE(bytes, offset + 7), height: uint16BE(bytes, offset + 5)};
+      }
+      if (marker === 0xd9 || marker === 0xda) return null;
+      offset += 2 + uint16BE(bytes, offset + 2);
+    }
+    return null;
+  }
+  return null;
+}
