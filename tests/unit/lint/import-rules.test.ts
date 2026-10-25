@@ -92,20 +92,41 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
   });
 
   it('refuse ways around the external-request guard in tests, except in tests/support', async () => {
+    // In a function, so that every kind of script file parses it (CommonJS has no top-level await).
     const code = [
+      'export async function probe(route, r, handler, browser, playwright, chromium, ctx, request, url) {',
       'await route.continue();',
+      "await route['continue']();",
       'await route.fetch();',
+      'await r.fetch();',
+      "await handler['fetch']();",
       'const context = await browser.newContext();',
+      "const other = await browser['newContext']();",
       'const api = await playwright.request.newContext();',
       "const profile = await playwright.chromium.launchPersistentContext('dir');",
+      'const launched = await chromium.launch();',
+      "const remote = await chromium.connectOverCDP('http://127.0.0.1:9222');",
+      'const page = await browser.newPage();',
+      "const page2 = await browser['newPage']();",
+      'const page3 = await ctx.browser().newPage();',
+      // Allowed:
       'await route.fallback();',
       "await route.fulfill({body: ''});",
       'await request.fetch(url);',
+      'const tab = await ctx.newPage();',
+      'await fetch(url);',
+      '}',
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
-    expect(await reportedLines('tests/e2e/probe.spec.ts', code, rules)).toEqual([1, 2, 3, 4, 5]);
-    expect(await reportedLines('tests/pages/Probe.ts', code, rules)).toEqual([1, 2, 3, 4, 5]);
+    const all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    for (const file of ['tests/e2e/probe.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/Probe.ts']) {
+      expect(await reportedLines(file, code, rules), file).toEqual(all);
+    }
+    const commonJs = 'module.exports = async (route, browser) => {\n  await route.continue();\n  await browser.newContext();\n};\n';
+    expect(await reportedLines('tests/e2e/probe.spec.cjs', commonJs, rules)).toEqual([2, 3]);
     expect(await reportedLines('tests/support/probe.ts', code, rules)).toEqual([]);
+    expect(await reportedLines('tests/support/probe.mjs', code, rules)).toEqual([]);
+    expect(await reportedLines('tests/support/probe.cjs', commonJs, rules)).toEqual([]);
   });
 
   it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {

@@ -73,23 +73,36 @@ const ZOD_SYNTAX = [
   {selector: "CallExpression[callee.name='require'][arguments.0.value=/^zod(\\u002F|$)/]", message: ZOD_IMPORT.message},
 ];
 
+/** A call of a method with one of these names, written `x.name(...)` or `x['name'](...)`. */
+const methodCall = (names) => [
+  `CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.name=${names}]`,
+  `CallExpression[callee.type='MemberExpression'][callee.computed=true][callee.property.value=${names}]`,
+];
+
 /**
  * Ways around the guard against external requests in tests/support/test.ts. Only
- * tests/support may use them.
+ * tests/support may use them. page.request and context.request need no rule: the fixtures
+ * guard them at run time.
  */
 const GUARD_BYPASSES = [
-  {
-    selector: "CallExpression[callee.type='MemberExpression'][callee.property.name='continue']",
+  ...methodCall('/^continue$/').map((selector) => ({
+    selector,
     message: 'route.continue() sends the request to the network, past the guard against external requests (tests/support/test.ts). Answer it with route.fulfill(), or pass it on with route.fallback().',
-  },
-  {
-    selector: "CallExpression[callee.type='MemberExpression'][callee.object.name='route'][callee.property.name='fetch']",
-    message: 'route.fetch() reaches the network past the guard against external requests (tests/support/test.ts). Answer the request with route.fulfill().',
-  },
-  {
-    selector: "CallExpression[callee.type='MemberExpression'][callee.property.name=/^(newContext|launchPersistentContext)$/]",
+  })),
+  // `.fetch(` on anything but the `request` fixture (which the guard wraps): route.fetch(),
+  // whatever the route handler's argument is called, reaches the network past the guard.
+  ...methodCall('/^fetch$/').map((selector) => ({
+    selector: `${selector}:not([callee.object.type='Identifier'][callee.object.name='request'])`,
+    message: 'route.fetch() reaches the network past the guard against external requests (tests/support/test.ts). Answer the request with route.fulfill(); for API calls use the `request` fixture.',
+  })),
+  ...methodCall('/^(newContext|launchPersistentContext|launch|launchServer|connect|connectOverCDP)$/').map((selector) => ({
+    selector,
     message: 'A new browser or request context has no guard against external requests. Use openAsVisitor or openInChromiumProfile from tests/support/test.ts.',
-  },
+  })),
+  ...methodCall('/^newPage$/').map((selector) => ({
+    selector: `${selector}:matches([callee.object.name='browser'], [callee.object.property.name='browser'], [callee.object.callee.property.name='browser'])`,
+    message: 'browser.newPage() opens a new context without the guard against external requests. Use the `page` fixture, or openAsVisitor from tests/support/test.ts.',
+  })),
 ];
 
 /**
@@ -162,7 +175,7 @@ export default defineConfig([
   {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals(), ...restrictSyntax([], {allow: ['zod']})}},
   // Tests: no way around the guard against external requests, except in tests/support.
   {
-    files: ['tests/**/*.ts'],
+    files: ['tests/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     ignores: ['tests/support/**', ...ZOD_FILES],
     rules: restrictSyntax(GUARD_BYPASSES),
   },

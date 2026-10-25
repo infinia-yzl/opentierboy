@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext} from '@playwright/test';
+import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext, type Page} from '@playwright/test';
 import {TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
 import sharedLinks from '../fixtures/shared-links.json';
@@ -40,13 +40,12 @@ type Fixtures = {
   openInChromiumProfile: () => Promise<{tierList: TierListPage; context: BrowserContext}>;
   /**
    * Requests to hosts other than the site under test and local addresses that no test route
-   * answered: from the browser, the `request` fixture or the test runner's `fetch`. They are
-   * blocked, and the test fails if there are any, also a test marked test.fail(): tests never
-   * reach real external sites (play them with tests/support/imageSites.ts).
+   * answered: from the browser, the `request` fixture, page.request and context.request, or
+   * the test runner's `fetch`. They are blocked, and the test fails if there are any, also a
+   * test marked test.fail(): tests never reach real external sites (play them with
+   * tests/support/imageSites.ts).
    */
   externalRequests: string[];
-  /** Blocks and records the test runner's own fetch() calls to external hosts. */
-  externalFetchGuard: void;
   /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
   /**
@@ -55,6 +54,18 @@ type Fixtures = {
    */
   cspViolations: () => Promise<string[]>;
 };
+
+type WorkerFixtures = {
+  /**
+   * Blocks the test runner's own fetch() calls to external hosts for the whole worker, hooks
+   * such as beforeAll included. In a test they count for that test (externalRequests); outside
+   * a test they fail the worker when it finishes.
+   */
+  externalFetchGuard: void;
+};
+
+/** Where blocked fetch() calls are recorded: the running test's list, if a test is running. */
+let fetchSink: string[] | null = null;
 
 const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]'];
 /**
@@ -101,10 +112,13 @@ function guardRequestContext(request: APIRequestContext, baseURL: string | undef
 }
 
 /**
- * Blocks and records every request to another host that no route of the test answers. Routes
- * registered later (a test's own) run first, so this one only sees what nothing else handled.
+ * Guards a browser context against external requests. Its route blocks and records every
+ * request to another host that no route of the test answers (routes registered later, a
+ * test's own, run first, so this one only sees what nothing else handled). Routes do not cover
+ * the context's own API requests (context.request, page.request), so those are wrapped like
+ * the `request` fixture, for the pages the context has and every page it opens later.
  */
-async function blockExternalRequests(context: BrowserContext, baseURL: string | undefined, blocked: string[]) {
+async function guardContext(context: BrowserContext, baseURL: string | undefined, blocked: string[]) {
   const siteURL = baseURL ? new URL(baseURL) : undefined;
   await context.route(
     (url) => isExternal(url, siteURL),
@@ -113,25 +127,37 @@ async function blockExternalRequests(context: BrowserContext, baseURL: string | 
       await route.abort('blockedbyclient');
     },
   );
+  const request = guardRequestContext(context.request, baseURL, blocked);
+  Object.defineProperty(context, 'request', {value: request, configurable: true});
+  const guardPage = (page: Page) => Object.defineProperty(page, 'request', {value: request, configurable: true});
+  context.pages().forEach(guardPage);
+  context.on('page', guardPage);
 }
 
-export const test = base.extend<Fixtures>({
+export const test = base.extend<Fixtures, WorkerFixtures>({
   externalRequests: [async ({}, use, testInfo) => {
     const blocked: string[] = [];
-    await use(blocked);
+    fetchSink = blocked;
+    try {
+      await use(blocked);
+    } finally {
+      fetchSink = null;
+    }
     // Runs after the test and its afterEach hooks. A test marked test.fail() would count this
     // failure as the one it expects and pass: make the failure unexpected, so it is loud.
     if (blocked.length === 0) return;
     testInfo.expectedStatus = 'passed';
     throw new Error(`Requests to external hosts that no test route answered (tests must never reach real sites):\n${blocked.join('\n')}`);
   }, {auto: true}],
-  externalFetchGuard: [async ({baseURL, externalRequests}, use) => {
+  externalFetchGuard: [async ({}, use, workerInfo) => {
+    const baseURL = workerInfo.project.use.baseURL;
     const siteURL = baseURL ? new URL(baseURL) : undefined;
+    const outsideTests: string[] = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
       const url = new URL(input instanceof Request ? input.url : String(input), baseURL);
       if (isExternal(url, siteURL)) {
-        externalRequests.push(url.href);
+        (fetchSink ?? outsideTests).push(url.href);
         throw new TypeError(`Blocked a request to an external host: ${url.href}`);
       }
       return originalFetch(input, init);
@@ -141,13 +167,16 @@ export const test = base.extend<Fixtures>({
     } finally {
       globalThis.fetch = originalFetch;
     }
-  }, {auto: true}],
+    if (outsideTests.length > 0) {
+      throw new Error(`fetch() to external hosts outside a test, for example in beforeAll (tests must never reach real sites):\n${outsideTests.join('\n')}`);
+    }
+  }, {scope: 'worker', auto: true}],
   request: async ({request, baseURL, externalRequests}, use) => {
     await use(guardRequestContext(request, baseURL, externalRequests));
   },
   // Against a protected Vercel deployment, send the bypass secret to that site only.
   context: async ({context, baseURL, externalRequests}, use) => {
-    await blockExternalRequests(context, baseURL, externalRequests);
+    await guardContext(context, baseURL, externalRequests);
     await sendBypassOnlyToSite(context, baseURL);
     await use(context);
   },
@@ -162,7 +191,7 @@ export const test = base.extend<Fixtures>({
     await use(async (link: string, options: VisitorOptions = {}) => {
       const context = await browser.newContext();
       contexts.push(context);
-      await blockExternalRequests(context, baseURL, externalRequests);
+      await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
       await options.beforeOpen?.(context);
       const visitor = new TierListPage(await context.newPage());
@@ -178,7 +207,7 @@ export const test = base.extend<Fixtures>({
       const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-profile-'));
       const context = await playwright.chromium.launchPersistentContext(directory, {baseURL});
       opened.push({context, directory});
-      await blockExternalRequests(context, baseURL, externalRequests);
+      await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
       const page = context.pages()[0] ?? await context.newPage();
       return {tierList: new TierListPage(page), context};
