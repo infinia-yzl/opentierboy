@@ -6,14 +6,17 @@
 #   set repositories send it from their release.yml after npm publish.
 # - workflow_dispatch with the same two inputs, to run it by hand.
 #
-# Job 1 (prepare) has read-only access and no secrets. It installs the new version with
-# --ignore-scripts, prepares the images, registers new item ids, runs the checks, the build and
-# the Playwright tests, and uploads the result as a patch. The package's own code runs here
-# (prepareImages calls its API), so nothing in this job can write to the repository.
+# Job 1 (prepare) has read-only access and no secrets. It waits until npm serves the new
+# version, installs it with --ignore-scripts, prepares the images, registers new item ids, runs
+# the checks, the build and the Playwright tests, and uploads the result as a patch. The
+# package's own code runs here (prepareImages calls its API), so nothing in this job can write
+# to the repository.
 # Job 2 (open-pr) mints a short-lived token of the bot GitHub App for this repository only,
 # inside the "bot" environment (main only). It runs only code from main: it applies the patch to
-# the git index (never the working tree), checks it with scripts/image-set-update.mjs, and
-# opens the pull request.
+# the git index (never the working tree), checks it with scripts/image-set-update.mjs, pushes
+# the branch and opens the pull request. When the branch exists already, it opens the pull
+# request only if there is none (an earlier run stopped after the push) and the branch holds
+# exactly this update.
 #
 # Owner setup (docs/setup-checklist.md): environment "bot" (Deployment branches: main only) with
 # the environment secrets OTB_BOT_APP_ID and OTB_BOT_PRIVATE_KEY of the bot app, installed on
@@ -21,7 +24,10 @@
 # attached to the run as an artifact and no pull request is opened.
 name: Image set update
 
-on:
+# zizmor's auditor persona asks for a workflow-wide concurrency group (concurrency-limits). Job 1
+# is read-only, and one shared group would cancel waiting updates of other packages; job 2 has a
+# group per package instead.
+on: # zizmor: ignore[concurrency-limits]
   repository_dispatch:
     types: [image-set-published]
   workflow_dispatch:
@@ -37,11 +43,6 @@ on:
 
 permissions: {}
 
-# One update at a time; a second one waits.
-concurrency:
-  group: image-set-update
-  cancel-in-progress: false
-
 jobs:
   prepare:
     name: Prepare the update (read-only)
@@ -51,6 +52,9 @@ jobs:
       contents: read # checkout only; no token in this job can write
     outputs:
       changed: ${{ steps.patch.outputs.changed }}
+      # Written by the validate step, before any package code runs. Job 2 uses it only to name
+      # its concurrency group; it validates the event payload again itself.
+      package: ${{ steps.input.outputs.package }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +76,28 @@ jobs:
           PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
           VERSION: ${{ github.event.client_payload.version || inputs.version }}
         run: node scripts/image-set-update.mjs validate
+
+      # The image set repository sends the event right after npm publish, and the registry can
+      # take a few minutes to serve a new version. Ask npm (bypassing its cache) with growing
+      # pauses, for at most about 10 minutes.
+      - name: Wait until npm serves the new version
+        if: steps.input.outputs.same == 'false'
+        env:
+          PACKAGE: ${{ steps.input.outputs.package }}
+          VERSION: ${{ steps.input.outputs.version }}
+        run: |
+          delay=10
+          deadline=$((SECONDS + 600))
+          until [ "$(npm view --prefer-online "${PACKAGE}@${VERSION}" version 2>/dev/null)" = "$VERSION" ]; do
+            if [ $((SECONDS + delay)) -gt "$deadline" ]; then
+              echo "::error::npm does not serve ${PACKAGE}@${VERSION} after 10 minutes. Check that the version was published, then run this workflow again."
+              exit 1
+            fi
+            echo "npm does not serve ${PACKAGE}@${VERSION} yet. Next try in ${delay} seconds."
+            sleep "$delay"
+            delay=$((delay * 2 > 120 ? 120 : delay * 2))
+          done
+          echo "npm serves ${PACKAGE}@${VERSION}."
 
       - name: Install dependencies
         if: steps.input.outputs.same == 'false'
@@ -165,6 +191,14 @@ jobs:
     if: needs.prepare.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # One job per package at a time, so two runs never push or open the same branch at once;
+    # updates of different packages do not wait for each other. GitHub keeps at most one waiting
+    # job per group: if another update of the same package arrives while one waits, the waiting
+    # one is cancelled and the newest waits instead. Run a cancelled update again by hand if it
+    # is still needed.
+    concurrency:
+      group: image-set-update-${{ needs.prepare.outputs.package }}
+      cancel-in-progress: false
     # The bot app's secrets live in the "bot" environment, which only main may use.
     environment: bot
     permissions: {} # pushes and the pull request use the app token, not GITHUB_TOKEN
@@ -245,7 +279,25 @@ jobs:
           fi
           branch="bot/image-set-update/${PACKAGE}-${VERSION}"
           if git ls-remote --exit-code --heads origin "refs/heads/${branch}" > /dev/null; then
-            echo "::notice::The branch ${branch} exists already: an earlier run proposed this version. Nothing pushed."
+            # An earlier run pushed this version. Stop if the branch has a pull request (open,
+            # closed or merged). Otherwise that run stopped before opening it: open it now, but
+            # only if the branch holds exactly this checked update on top of this commit.
+            prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state all --json number --jq length)
+            if [[ ! "$prs" =~ ^[0-9]+$ ]]; then
+              echo "Unexpected answer from gh pr list" >&2
+              exit 1
+            fi
+            if [ "$prs" -gt 0 ]; then
+              echo "::notice::${branch} already has a pull request. Nothing to do."
+              exit 0
+            fi
+            git fetch --no-tags --depth=2 origin "refs/heads/${branch}"
+            if [ "$(git rev-parse FETCH_HEAD^)" != "$(git rev-parse HEAD)" ] || [ "$(git rev-parse 'FETCH_HEAD^{tree}')" != "$(git write-tree)" ]; then
+              echo "::error::${branch} exists without a pull request, but it does not hold exactly this update on top of ${GITHUB_SHA}. Delete the branch, then run this workflow again."
+              exit 1
+            fi
+            echo "::notice::${branch} exists without a pull request. Opening it from the existing branch."
+            echo "branch=${branch}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           bot_id=$(gh api "users/${APP_SLUG}[bot]" --jq .id)
