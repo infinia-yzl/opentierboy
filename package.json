@@ -69,6 +69,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.2",
     "eslint-config-prettier": "^10.1.8",
+    "fake-indexeddb": "^6.2.6",
     "postcss": "^8",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.3.3",
