@@ -93,6 +93,17 @@ export class TierCortex {
     });
   }
 
+  /**
+   * The link of a list, in the format the app writes (v2 today, encodeTierStateForURL). Only
+   * custom items keep their label in the link; package items get theirs from the image set.
+   */
+  public encodeListForURL(title: string, tiers: Tier[]): string {
+    return TierCortex.encodeTierStateForURL(title, tiers.map(tier => ({
+      ...tier,
+      items: tier.items.map(item => ({i: item.id, c: this.isCustomItem(item.id) ? item.content : undefined})),
+    })));
+  }
+
   public isCustomItem(itemId: string): boolean {
     return !this.packageItemLookup.has(itemId);
   }

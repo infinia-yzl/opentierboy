@@ -67,6 +67,29 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn('S')).toHaveCount(0);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
+
+  test('undo after Reset restores the ranking', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+    await tierList.resetRankings();
+
+    await tierList.undoFromToast('Items Reset');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+  });
+
+  test('undo after Remove All brings the items back', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.removeAllItems();
+    // Work around the frozen page (known bug below), so that this test checks Undo alone:
+    // Escape closes the menu that blocks the page.
+    await expect(page.getByRole('alertdialog')).toBeHidden();
+    await page.keyboard.press('Escape');
+
+    await tierList.undoFromToast('All Items Deleted');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+  });
 });
 
 /**
@@ -90,34 +113,6 @@ test.describe('Known bugs', () => {
     const image = reopened.item('red-square').getByRole('img');
     await expect(image).toBeVisible();
     await expect.poll(() => imageHasLoaded(image), {timeout: 3_000}).toBe(true);
-  });
-
-  test('undo after Reset restores the ranking', async ({tierList}) => {
-    test.fail(true, 'TierListManager.handleTiersUpdate overwrites the saved ranking that Undo needs.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-    await tierList.resetRankings();
-
-    await tierList.undoFromToast('Items Reset');
-
-    // Short timeouts: these assertions are expected to fail until the bug is fixed.
-    await expect(tierList.itemsIn('S')).toHaveText(['Mauga'], {timeout: 3_000});
-    await expect(tierList.itemsIn('A')).toHaveText(['Winston'], {timeout: 3_000});
-  });
-
-  test('undo after Remove All brings the items back', async ({tierList, page}) => {
-    test.fail(true, 'TierListManager.handleTiersUpdate overwrites the saved ranking that Undo needs.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.removeAllItems();
-    // Work around the frozen page (next test), so that this test checks Undo alone:
-    // Escape closes the menu that blocks the page.
-    await expect(page.getByRole('alertdialog')).toBeHidden();
-    await page.keyboard.press('Escape');
-
-    // The toast closes by itself after a few seconds, so a slow click must fail here and
-    // not run into the test timeout, which would not count as the expected failure.
-    await tierList.undoFromToast('All Items Deleted', {timeout: 3_000});
-
-    await expect(tierList.itemsIn('S')).toHaveText(['Mauga'], {timeout: 3_000});
   });
 
   test('the page responds to clicks again after Remove All', async ({tierList}) => {

@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,30 +31,9 @@ import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
 
-interface ItemManagerProps {
-  onItemsCreate: (newItems: Item[]) => void;
-  onUndoItemsCreate: (itemIds: string[]) => void;
-  resetItems: () => void;
-  deleteAllItems: () => void;
-  undoReset: () => void;
-  undoDelete: () => void;
-}
-
-const ItemManager: React.FC<ItemManagerProps> = ({
-  onItemsCreate,
-  onUndoItemsCreate,
-  resetItems,
-  deleteAllItems,
-  undoReset,
-  undoDelete,
-}) => {
-  const {tiers, tierCortex} = useTierContext();
-  const [showGradientBorder, setShowGradientBorder] = useState(false);
-
-  useEffect(() => {
-    const totalItems = tiers.reduce((sum, tier) => sum + tier.items.length, 0);
-    setShowGradientBorder(totalItems === 0);
-  }, [tiers]);
+const ItemManager: React.FC = () => {
+  const {tiers, tierCortex, addItems, removeItems, resetRankings, removeAllItems, restoreTiers} = useTierContext();
+  const showGradientBorder = tiers.every(tier => tier.items.length === 0);
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
@@ -87,37 +66,40 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     return sets;
   }, []);
 
+  // Each Undo below is a new change to the list, so it adds a history entry (A6).
   const handleCreateItems = (newItems: Item[]) => {
-    onItemsCreate(newItems);
+    addItems(newItems);
     setIsItemCreatorOpen(false);
     setIsItemSetSelectorOpen(false);
     toast('Items Added', {
       description: `${newItems.length} item(s) have been added.`,
       action: {
         label: 'Undo',
-        onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
+        onClick: () => removeItems(newItems.map(item => item.id)),
       },
     });
   };
 
   const handleReset = () => {
-    resetItems();
+    const tiersBefore = tiers;
+    resetRankings();
     toast('Items Reset', {
       description: 'All item rankings have been reset.',
       action: {
         label: 'Undo',
-        onClick: undoReset,
+        onClick: () => restoreTiers(tiersBefore),
       },
     });
   };
 
   const handleDelete = () => {
-    deleteAllItems();
+    const tiersBefore = tiers;
+    removeAllItems();
     toast('All Items Deleted', {
       description: 'All items have been removed.',
       action: {
         label: 'Undo',
-        onClick: undoDelete,
+        onClick: () => restoreTiers(tiersBefore),
       },
     });
   };

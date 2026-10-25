@@ -114,6 +114,11 @@ export class TierListPage {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
   }
 
+  /** The number of entries in the tab's history (window.history.length). */
+  async historyLength(): Promise<number> {
+    return this.page.evaluate(() => window.history.length);
+  }
+
   /** The link a visitor would share. The app keeps it in the address bar. */
   async shareLink(): Promise<string> {
     await expect(this.page).toHaveURL(/[?&]state=/);
