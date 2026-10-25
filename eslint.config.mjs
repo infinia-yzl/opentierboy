@@ -5,14 +5,20 @@ import prettier from 'eslint-config-prettier/flat';
 // Import rules (amendments A12, A31, A39 and A41), and no classes in our own code (A47). For one
 // file, ESLint uses the options of the last matching block that sets a rule. So every block
 // builds its list with restrictImports(), which always adds the rules that hold everywhere
-// (IndexedDB libraries, zod): a later block can never drop them. Each of those rules has a few
-// files it does not apply to; the "Everywhere" blocks below list them. Globals work the same way
-// with restrictGlobals(), and selectors with restrictSyntax().
+// (IndexedDB libraries, zod, dnd-kit): a later block can never drop them. Each of those rules
+// has a few files it does not apply to; the "Everywhere" blocks below list them. Globals work
+// the same way with restrictGlobals(), and selectors with restrictSyntax().
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
   regex: '^(?:dexie|idb|idb-keyval|localforage|fake-indexeddb)(?:/.*)?$',
   message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB libraries. Use that module instead.',
+};
+
+/** Only lib/dnd may import dnd-kit (the fork in packages/dnd-kit, see docs/dnd-fork.md). */
+const DND_KIT_ONLY_IN_LIB_DND = {
+  group: ['@dnd-kit/*'],
+  message: 'Only lib/dnd may import dnd-kit. Use the drag and drop adapter in lib/dnd (docs/dnd-fork.md).',
 };
 
 /** Node built-in modules, which the edge runtime does not have. */
@@ -51,15 +57,19 @@ const ZOD_IMPORT = {
 const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'];
 /** Files that may import zod itself: lib/zod.ts and the test that shows why it exists. */
 const ZOD_FILES = ['lib/zod.ts', 'tests/unit/zod-eval-probe.test.ts'];
+/** Files that may import dnd-kit: the drag and drop adapter and its unit tests. */
+const DND_KIT_FILES = ['lib/dnd/**', 'tests/unit/dnd/**'];
 
 /**
  * The no-restricted-imports setting for a block: its own patterns, plus the rules for every
- * file. `allow` names the shared rules the block's files are exempt from ('indexedDB', 'zod').
+ * file. `allow` names the shared rules the block's files are exempt from ('indexedDB', 'zod',
+ * 'dndKit').
  */
 const restrictImports = (patterns = [], {allow = []} = {}) => ({
   'no-restricted-imports': ['error', {
     patterns: [
       ...(allow.includes('indexedDB') ? [] : [INDEXED_DB_LIBRARIES]),
+      ...(allow.includes('dndKit') ? [] : [DND_KIT_ONLY_IN_LIB_DND]),
       ...(allow.includes('zod') ? [] : [{regex: '^zod/', message: ZOD_IMPORT.message}]),
       ...patterns,
     ],
@@ -213,10 +223,11 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
     },
   },
-  // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts.
+  // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts, dnd-kit
+  // only in lib/dnd.
   {
     files: [CODE_FILES],
-    ignores: [...INDEXED_DB_FILES, ...ZOD_FILES],
+    ignores: [...INDEXED_DB_FILES, ...ZOD_FILES, ...DND_KIT_FILES],
     rules: {...restrictImports(), ...restrictGlobals(), ...restrictSyntax()},
   },
   {
@@ -224,6 +235,7 @@ export default defineConfig([
     rules: {...restrictImports([], {allow: ['indexedDB']}), ...restrictGlobals([], {allow: ['indexedDB']}), ...restrictSyntax()},
   },
   {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals(), ...restrictSyntax([], {allow: ['zod']})}},
+  {files: DND_KIT_FILES, rules: {...restrictImports([], {allow: ['dndKit']}), ...restrictGlobals(), ...restrictSyntax()}},
   // Tests: no way around the guard against external requests, except in tests/support.
   {
     files: ['tests/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
