@@ -136,7 +136,7 @@ test.describe('Managing items', () => {
 /**
  * Uploads made before Phase 5c have ids from Math.random().toString(36).slice(2, 11), which can
  * be shorter than the 8 characters a v3 device image id needs (A40). The app writes such an id
- * as "legacy-<id>" (A42), and still finds the upload under its old id.
+ * as "legacy-<id>" (A42), and keeps its image in the device image store under that id.
  */
 test.describe('Uploads from before v3 links', () => {
   test('an upload with a 5-character id survives open, change, share and reopen', async ({tierList, page}) => {
