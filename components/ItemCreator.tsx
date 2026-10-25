@@ -11,6 +11,7 @@ import Image from 'next/image'
 import Item from "@/models/Item";
 import {useCustomImages} from "@/contexts/CustomImagesContext";
 import {toast} from "sonner";
+import {previewableImage} from "@/lib/images/prepareImage";
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -24,8 +25,13 @@ interface UploadedItem {
   /** Only for the preview list: the store gives each image its own id when it is added. */
   key: string;
   content: string;
-  /** A blob: URL of the file, for the preview. Revoked when the preview goes away. */
-  imageUrl: string;
+  /**
+   * A blob: URL of the file as its real type (sniffed from its bytes, never the type the browser
+   * reports from the file name), for the preview. Null when the file is not a PNG, JPEG, WebP,
+   * GIF or AVIF (it is converted when added, like SVG, or refused), or when its header does not
+   * declare a size within the pixel caps. Revoked when the preview goes away.
+   */
+  imageUrl: string | null;
   file: File;
 }
 
@@ -44,7 +50,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
   // Revoke preview URLs that no preview uses any more, and all of them when the dialog closes.
   const previewUrls = useRef<string[]>([]);
   useEffect(() => {
-    const current = uploadedItems.map((item) => item.imageUrl);
+    const current = uploadedItems.flatMap((item) => (item.imageUrl ? [item.imageUrl] : []));
     previewUrls.current.filter((url) => !current.includes(url)).forEach((url) => URL.revokeObjectURL(url));
     previewUrls.current = current;
   }, [uploadedItems]);
@@ -78,19 +84,26 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
     }
   }, [addDeviceImages, uploadedItems, onItemsCreate, form]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Counts file choices, so that a slow preview of an older choice does not replace a newer one.
+  const fileChoice = useRef(0);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      form.setValue('files', files);
-      setErrors([]);
-      const newItems = Array.from(files).map((file, index) => ({
+    if (!files) return;
+    form.setValue('files', files);
+    setErrors([]);
+    const choice = ++fileChoice.current;
+    const chosen = Array.from(files);
+    const previews = await Promise.all(chosen.map((file) => previewableImage(file).catch(() => null)));
+    if (choice !== fileChoice.current) return;
+    setUploadedItems(chosen.map((file, index) => {
+      const preview = previews[index];
+      return {
         key: `${index}-${file.name}`,
         content: file.name.split('.')[0],
-        imageUrl: URL.createObjectURL(file),
+        imageUrl: preview ? URL.createObjectURL(preview.blob) : null,
         file,
-      }));
-      setUploadedItems(newItems);
-    }
+      };
+    }));
   };
 
   const handleNameChange = (key: string, newName: string) => {
@@ -117,7 +130,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
                   ref={fileInputRef}
                   onChange={(e) => {
                     field.onChange(e);
-                    handleFileChange(e);
+                    void handleFileChange(e);
                   }}
                 />
               </FormControl>
@@ -132,8 +145,13 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
           {uploadedItems.map((item) => (
             <div key={item.key} className="space-y-2">
               <div className="w-28 h-28 relative">
-                <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill unoptimized
-                />
+                {item.imageUrl ? (
+                  <Image src={item.imageUrl} alt={item.content} style={{objectFit: 'cover'}} fill unoptimized/>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-md bg-muted p-2 text-center text-xs text-muted-foreground">
+                    No preview
+                  </div>
+                )}
               </div>
               <Input
                 type="text"

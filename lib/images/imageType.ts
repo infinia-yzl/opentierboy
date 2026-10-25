@@ -38,8 +38,8 @@ const uint16LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[o
 const uint24LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
 
 /**
- * The width and height that a PNG, GIF, WebP or JPEG file declares in its header, without
- * decoding it, or null when the header does not say (AVIF, damaged or cut-off files). A file
+ * The width and height that a PNG, GIF, WebP, JPEG or AVIF file declares in its header,
+ * without decoding it, or null when the header does not say (damaged or cut-off files). A file
  * can declare a huge size in a few bytes (a "decompression bomb"), so the size is checked
  * before anything decodes it. Reads the first bytes only; JPEG needs the bytes up to its frame
  * header, which follows the metadata.
@@ -89,6 +89,19 @@ export function readImageSize(bytes: Uint8Array): {width: number; height: number
       offset += 2 + uint16BE(bytes, offset + 2);
     }
     return null;
+  }
+  if (type === 'image/avif') {
+    // Each image item has an "ispe" property box (size 20, "ispe", version and flags, width,
+    // height). A file can hold several (a grid and its tiles, a thumbnail): the largest counts.
+    let width = 0;
+    let height = 0;
+    for (let offset = 4; offset + 16 <= bytes.length; offset++) {
+      if (bytes[offset] === 0x69 && ascii(bytes, offset, 4) === 'ispe' && uint32BE(bytes, offset - 4) === 20) {
+        width = Math.max(width, uint32BE(bytes, offset + 8));
+        height = Math.max(height, uint32BE(bytes, offset + 12));
+      }
+    }
+    return width > 0 && height > 0 ? {width, height} : null;
   }
   return null;
 }

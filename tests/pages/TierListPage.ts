@@ -30,6 +30,9 @@ export interface CapturedImage {
  * - An item is a `button` named after its label (it is the drag handle as well).
  * - The handle that reorders a row is a `button` named "Move tier <label>".
  */
+/** Files for the file picker: paths, or files made in the test. */
+type DeviceFiles = string[] | {name: string; mimeType: string; buffer: Buffer}[];
+
 export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
@@ -133,6 +136,23 @@ export class TierListPage {
       const [red, green, blue] = context.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data;
       return [red, green, blue] as [number, number, number];
     });
+  }
+
+  /**
+   * Opens an image's blob: URL in a new tab, as the browser's "Open image in new tab" does.
+   * Returns the type of the document the tab shows (image/png for a picture, text/html for a
+   * page) and the localStorage item `pwned`, which a script in a disguised page would set.
+   */
+  async openImageInNewTab(image: Locator): Promise<{contentType: string; pwned: string | null}> {
+    const src = await image.evaluate((img: HTMLImageElement) => img.currentSrc || img.src);
+    expect(src).toMatch(/^blob:/);
+    const tab = await this.page.context().newPage();
+    try {
+      await tab.goto(src);
+      return await tab.evaluate(() => ({contentType: document.contentType, pwned: localStorage.getItem('pwned')}));
+    } finally {
+      await tab.close();
+    }
   }
 
   rowHandle(tierName: string): Locator {
@@ -426,13 +446,19 @@ export class TierListPage {
    * Uploads images from the device: file paths, or files made in the test. Item names default to
    * the file names. `timeout`: how long adding may take (hundreds of files take a while).
    */
-  async addItemsFromDevice(files: string[] | {name: string; mimeType: string; buffer: Buffer}[], {timeout}: {timeout?: number} = {}) {
+  async addItemsFromDevice(files: DeviceFiles, {timeout}: {timeout?: number} = {}) {
+    const dialog = await this.chooseFilesFromDevice(files);
+    await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
+    await expect(dialog).toBeHidden({timeout});
+  }
+
+  /** Opens "From your device" and chooses files. Returns the dialog, still open. */
+  async chooseFilesFromDevice(files: DeviceFiles): Promise<Locator> {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'From your device'}).click();
     const dialog = this.page.getByRole('dialog', {name: 'Add New Items'});
     await dialog.getByLabel('Upload Images').setInputFiles(files);
-    await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
-    await expect(dialog).toBeHidden({timeout});
+    return dialog;
   }
 
   /**

@@ -152,6 +152,43 @@ test.describe('Images from the device', () => {
     expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
   });
 
+  test('an upload always shows as the image type of its bytes, so a disguised page never runs', async ({tierList}) => {
+    // A PNG followed by a script, named evil.html: the browser reports text/html for it.
+    const script = Buffer.from('<script>localStorage.setItem("pwned", "yes")</script>');
+    const evil = imageFile('evil.html', Buffer.concat([RED_SQUARE, script]), 'text/html');
+    await tierList.goto('/rank');
+
+    const dialog = await tierList.chooseFilesFromDevice([evil]);
+    const preview = dialog.getByRole('img', {name: 'evil'});
+    await expect(preview).toBeVisible();
+    expect(await tierList.openImageInNewTab(preview)).toEqual({contentType: 'image/png', pwned: null});
+    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
+    await expect(dialog).toBeHidden();
+
+    await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
+    expect(await tierList.openImageInNewTab(tierList.item('evil').getByRole('img'))).toEqual({contentType: 'image/png', pwned: null});
+    await tierList.page.reload();
+    await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
+    expect(await tierList.openImageInNewTab(tierList.item('evil').getByRole('img'))).toEqual({contentType: 'image/png', pwned: null});
+  });
+
+  test('a small file that declares a huge picture is refused at once, without a preview', async ({tierList}) => {
+    // A PNG header that declares 12,000 x 12,000 pixels: decoding a real one takes seconds and GBs.
+    const huge = Buffer.alloc(688);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).copy(huge);
+    huge.writeUInt32BE(12_000, 16);
+    huge.writeUInt32BE(12_000, 20);
+    Buffer.from([8, 6, 0, 0, 0]).copy(huge, 24);
+    await tierList.goto('/rank');
+
+    const dialog = await tierList.chooseFilesFromDevice([imageFile('huge.png', huge)]);
+    await expect(dialog.getByText('No preview')).toBeVisible();
+    await expect(dialog.locator('img')).toHaveCount(0);
+    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
+    await expect(dialog.getByRole('alert')).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.', {timeout: 3_000});
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+  });
+
   test('when some images cannot be added, the others are added and a message lists the rest', async ({tierList}) => {
     await tierList.goto('/rank');
     await tierList.addItemsFromDevice([imageFile('red-square.png'), imageFile('notes.png', Buffer.from('not an image at all'))]);

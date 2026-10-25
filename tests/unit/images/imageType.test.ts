@@ -20,6 +20,23 @@ describe('readImageSize', () => {
     const jpeg = bytes([0xff, 0xd8, 0xff, 0xe0, 0, 16], 'JFIF', new Array(10).fill(0), [0xff, 0xc0, 0, 17, 8, 0x04, 0x38, 0x07, 0x80, 3, 0, 0, 0]);
     expect(sniffImageType(jpeg)).toBe('image/jpeg');
     expect(readImageSize(jpeg)).toEqual({width: 1920, height: 1080});
+    // The 688-byte PNG of the review that declares 12,000 x 12,000 pixels.
+    const bomb = new Uint8Array(688);
+    bomb.set(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13], 'IHDR', [0, 0, 0x2e, 0xe0, 0, 0, 0x2e, 0xe0, 8, 6, 0, 0, 0]));
+    expect(readImageSize(bomb)).toEqual({width: 12_000, height: 12_000});
+  });
+
+  it('reads the largest "ispe" size of an AVIF file', () => {
+    const u32 = (value: number) => [value >>> 24, (value >>> 16) & 255, (value >>> 8) & 255, value & 255];
+    const ispe = (width: number, height: number) => [...u32(20), ...'ispe'.split('').map((c) => c.charCodeAt(0)), 0, 0, 0, 0, ...u32(width), ...u32(height)];
+    const ftyp = bytes(u32(24), 'ftypavif', [0, 0, 0, 0], 'mif1avif');
+    expect(sniffImageType(ftyp)).toBe('image/avif');
+    // meta > iprp > ipco with a thumbnail and the main picture, in any order.
+    const avif = Uint8Array.from([...ftyp, ...bytes(u32(60), 'meta', [0, 0, 0, 0]), ...ispe(160, 90), ...ispe(12_000, 9_000)]);
+    expect(readImageSize(avif)).toEqual({width: 12_000, height: 9_000});
+    expect(readImageSize(ftyp)).toBeNull();
+    // An "ispe" that is not a 20-byte box is not one.
+    expect(readImageSize(Uint8Array.from([...ftyp, 0, 0, 0, 9, ...'ispe'.split('').map((c) => c.charCodeAt(0)), ...new Array(12).fill(1)]))).toBeNull();
   });
 
   it('gives null when the header does not tell', () => {

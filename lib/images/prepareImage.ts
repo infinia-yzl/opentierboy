@@ -9,18 +9,29 @@
  * picture: its scripts and links never reach the store.
  *
  * Every image is decoded once, and refused when it is wider or taller than 8,192 pixels or
- * larger than 32 megapixels (the caps of lib/images/imageCheck.ts). The size its header
- * declares is checked first, without decoding, so a small file that declares a huge picture (a
- * "decompression bomb") is refused before the browser allocates memory for it. The store's
- * bytes are later read back and drawn, so they must stay within the caps.
+ * larger than 32 megapixels (the caps of lib/images/imageCheck.ts). The size is checked before
+ * the pixels are decoded: from the file's header (PNG, GIF, WebP, JPEG, AVIF), or else from the
+ * loaded image's natural size, so a small file that declares a huge picture (a "decompression
+ * bomb") is refused before the browser allocates memory for it. The store's bytes are later
+ * read back and drawn, so they must stay within the caps.
+ *
+ * The type of a file comes from its bytes, never from the type the browser reports (which
+ * comes from the file name). A blob: URL is a page of this site when opened in a tab, so an
+ * object URL is only ever made from a Blob of the sniffed raster type (`asRasterImage`,
+ * `previewableImage`, `ObjectUrlRegistry.urlFor` in lib/images/deviceStore.ts): a
+ * PNG named evil.html shows as image/png, and its trailing <script> never runs. Images that
+ * are converted (SVG, BMP) load from a data: URL, which has no access to this site.
  *
  * Uses the browser's Image and canvas at call time only. Tests inject both.
  */
 import {DEFAULT_IMAGE_CHECK_LIMITS} from './imageCheck';
-import {readImageSize, sniffImageType} from './imageType';
+import {type RasterImageType, readImageSize, sniffImageType} from './imageType';
 
-export type PrepareImageRefusal = 'empty' | 'unreadable' | 'too-large' | 'too-many-pixels';
-export type PrepareImageResult = {ok: true; blob: Blob; reencoded: boolean} | {ok: false; reason: PrepareImageRefusal};
+export type PrepareImageRefusal = 'empty' | 'unreadable' | 'unsupported-type' | 'too-large' | 'too-many-pixels';
+/** `blob` always has `type`, the type sniffed from its bytes. */
+export type PrepareImageResult =
+  | {ok: true; blob: Blob; type: RasterImageType; reencoded: boolean}
+  | {ok: false; reason: PrepareImageRefusal};
 
 /** A decoded picture that a canvas can draw. */
 export interface DecodedImage {
@@ -29,6 +40,22 @@ export interface DecodedImage {
   height: number;
   /** Frees what decoding needed (an object URL). */
   release: () => void;
+}
+
+/** What a decoder gets to know about the file. */
+export interface DecodeHints {
+  /** The raster type sniffed from the file's bytes, or null for an image to convert (SVG, BMP). */
+  type: RasterImageType | null;
+  /** False for a size above the pixel caps: the decoder then throws PixelCapError before decoding. */
+  fits: (size: {width: number; height: number}) => boolean;
+}
+
+/** Thrown by a decoder when the image is above the pixel caps (DecodeHints.fits). */
+export class PixelCapError extends Error {
+  constructor() {
+    super('The image is above the pixel caps.');
+    this.name = 'PixelCapError';
+  }
 }
 
 /** The part of a canvas this module uses. */
@@ -46,7 +73,7 @@ export interface PrepareImageOptions {
   maxSide?: number;
   /** Largest file this module tries to decode at all. */
   maxInputBytes?: number;
-  decode?: (blob: Blob) => Promise<DecodedImage>;
+  decode?: (blob: Blob, hints: DecodeHints) => Promise<DecodedImage>;
   createCanvas?: () => CanvasLike;
   /** Pixel caps; the defaults are those of lib/images/imageCheck.ts. */
   maxWidth?: number;
@@ -61,22 +88,67 @@ const DEFAULT_MAX_INPUT_BYTES = 50 * 1024 * 1024;
 /** Enough of the file to find a JPEG's frame header behind large metadata. */
 const HEAD_BYTES = 512 * 1024;
 
-/** Loads an image file through an Image element (also SVG, which createImageBitmap refuses). */
-async function decodeWithImageElement(blob: Blob): Promise<DecodedImage> {
-  const url = URL.createObjectURL(blob);
+/**
+ * The file as a Blob of its real raster type, sniffed from its first bytes, or null when the
+ * bytes are not PNG, JPEG, WebP, GIF or AVIF. Make object URLs only from such a Blob.
+ */
+export async function asRasterImage(blob: Blob): Promise<{blob: Blob; type: RasterImageType} | null> {
+  const type = sniffImageType(new Uint8Array(await blob.slice(0, 64).arrayBuffer()));
+  return type ? {blob: new Blob([blob], {type}), type} : null;
+}
+
+/**
+ * The file as a Blob of its sniffed raster type, for a preview: null when its bytes are not PNG,
+ * JPEG, WebP, GIF or AVIF, or when its header does not declare a size within the pixel caps
+ * (showing the file would decode it).
+ */
+export async function previewableImage(
+  blob: Blob,
+  {maxWidth, maxHeight, maxPixels} = DEFAULT_IMAGE_CHECK_LIMITS,
+): Promise<{blob: Blob; type: RasterImageType} | null> {
+  const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
+  const type = sniffImageType(head);
+  const size = type ? readImageSize(head) : null;
+  if (!type || !size || size.width > maxWidth || size.height > maxHeight || size.width * size.height > maxPixels) return null;
+  return {blob: new Blob([blob], {type}), type};
+}
+
+function readAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Not read.')));
+    reader.onerror = () => reject(reader.error ?? new Error('Not read.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Loads an image file through an Image element (also SVG, which createImageBitmap refuses).
+ * A raster file loads from an object URL of its sniffed type, an image to convert from a data:
+ * URL. The natural size is known once the file has loaded, before the pixels are decoded, so
+ * an image above the caps is refused without decoding it.
+ */
+async function decodeWithImageElement(blob: Blob, {type, fits}: DecodeHints): Promise<DecodedImage> {
+  const objectUrl = type ? URL.createObjectURL(new Blob([blob], {type})) : null;
+  const release = () => {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+  };
   try {
+    const src = objectUrl ?? await readAsDataUrl(blob);
     const image = new Image();
     image.decoding = 'async';
-    image.src = url;
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('The image did not load.'));
+      image.src = src;
+    });
+    const width = image.naturalWidth || FALLBACK_SIDE;
+    const height = image.naturalHeight || FALLBACK_SIDE;
+    if (!fits({width, height})) throw new PixelCapError();
     await image.decode();
-    return {
-      source: image,
-      width: image.naturalWidth || FALLBACK_SIDE,
-      height: image.naturalHeight || FALLBACK_SIDE,
-      release: () => URL.revokeObjectURL(url),
-    };
+    return {source: image, width, height, release};
   } catch (error) {
-    URL.revokeObjectURL(url);
+    release();
     throw error;
   }
 }
@@ -93,9 +165,10 @@ function toBlob(canvas: CanvasLike, type: string, quality?: number): Promise<Blo
   });
 }
 
-async function isStorable(blob: Blob | null, maxBytes: number): Promise<boolean> {
-  if (!blob || blob.size === 0 || blob.size > maxBytes) return false;
-  return sniffImageType(new Uint8Array(await blob.slice(0, 64).arrayBuffer())) !== null;
+/** The canvas result as a Blob of its sniffed type, when the store accepts it. */
+async function storable(blob: Blob | null, maxBytes: number): Promise<{blob: Blob; type: RasterImageType} | null> {
+  if (!blob || blob.size === 0 || blob.size > maxBytes) return null;
+  return asRasterImage(blob);
 }
 
 /** Keeps the file when the store accepts it, otherwise draws it again. Never throws. */
@@ -114,19 +187,23 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
     if (blob.size === 0) return {ok: false, reason: 'empty'};
     if (blob.size > maxInputBytes) return {ok: false, reason: 'too-large'};
     const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
-    const declared = readImageSize(head);
+    const type = sniffImageType(head);
+    // Not a raster image by its bytes: only what the browser calls an image is converted.
+    if (!type && !blob.type.startsWith('image/')) return {ok: false, reason: 'unsupported-type'};
+    const declared = type ? readImageSize(head) : null;
     if (declared && tooManyPixels(declared)) return {ok: false, reason: 'too-many-pixels'};
 
     let decoded: DecodedImage;
     try {
-      decoded = await (options.decode ?? decodeWithImageElement)(blob);
-    } catch {
-      return {ok: false, reason: 'unreadable'};
+      decoded = await (options.decode ?? decodeWithImageElement)(blob, {type, fits: (size) => !tooManyPixels(size)});
+    } catch (error) {
+      return {ok: false, reason: error instanceof PixelCapError ? 'too-many-pixels' : 'unreadable'};
     }
     try {
       if (tooManyPixels(decoded)) return {ok: false, reason: 'too-many-pixels'};
-      // A file the store accepts is kept exactly as it is (an animated GIF stays animated).
-      if (await isStorable(blob, maxBytes)) return {ok: true, blob, reencoded: false};
+      // A file the store accepts is kept exactly as it is (an animated GIF stays animated), with
+      // its sniffed type in place of the one the browser reported.
+      if (type && blob.size <= maxBytes) return {ok: true, blob: new Blob([blob], {type}), type, reencoded: false};
       const createCanvas = options.createCanvas ?? createDocumentCanvas;
       for (const side of [maxSide, Math.round(maxSide / 2)]) {
         const scale = Math.min(1, side / Math.max(decoded.width, decoded.height));
@@ -137,8 +214,8 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
         if (!context) return {ok: false, reason: 'unreadable'};
         context.drawImage(decoded.source, 0, 0, canvas.width, canvas.height);
         // WebP keeps transparency. A browser that cannot write WebP writes PNG instead.
-        const webp = await toBlob(canvas, 'image/webp', 0.9);
-        if (await isStorable(webp, maxBytes)) return {ok: true, blob: webp!, reencoded: true};
+        const webp = await storable(await toBlob(canvas, 'image/webp', 0.9), maxBytes);
+        if (webp) return {ok: true, ...webp, reencoded: true};
         // JPEG has no transparency: paint white under the picture first.
         const opaque = createCanvas();
         opaque.width = canvas.width;
@@ -148,8 +225,8 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
         opaqueContext.fillStyle = '#ffffff';
         opaqueContext.fillRect(0, 0, opaque.width, opaque.height);
         opaqueContext.drawImage(decoded.source, 0, 0, opaque.width, opaque.height);
-        const jpeg = await toBlob(opaque, 'image/jpeg', 0.85);
-        if (await isStorable(jpeg, maxBytes)) return {ok: true, blob: jpeg!, reencoded: true};
+        const jpeg = await storable(await toBlob(opaque, 'image/jpeg', 0.85), maxBytes);
+        if (jpeg) return {ok: true, ...jpeg, reencoded: true};
       }
       return {ok: false, reason: 'too-large'};
     } finally {

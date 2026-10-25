@@ -227,7 +227,10 @@ docs/                 owner checklists
   in IndexedDB. `lib/images/deviceStore.ts` is the only module that may use IndexedDB (ESLint
   enforces it). The list holds only the image id (`isDeviceImageId` in `lib/state/deviceId.ts`).
   Open the store only in effects (`contexts/CustomImagesContext.tsx`), never during rendering,
-  so the server and the browser render the same list.
+  so the server and the browser render the same list. Make object URLs only from a Blob of the
+  type sniffed from the bytes (`ObjectUrlRegistry.urlFor(id, blob, type)`,
+  `previewableImage`), never from a `File`: its type comes from its name, and a `text/html`
+  `blob:` URL runs as a page of this site.
 - Uploads that older versions kept in localStorage (`customItems`) move into the store, under
   `legacy-<id>` when the id is too short (A42). Old links keep their images.
 - **Content Security Policy**: `next.config.ts` sends the header from `lib/security/csp.ts`.

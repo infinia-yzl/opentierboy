@@ -696,10 +696,17 @@ export interface ObjectUrlApi {
 /**
  * Keeps one object URL per device image and revokes URLs that are no longer needed, so that
  * images do not leak memory. Create one per editor and call `revokeAll` when it unmounts.
+ *
+ * Every URL is made from a new Blob of the given type, which must be a type the store accepts
+ * (sniffed from the bytes by `put`), never the type the browser reported for a file. A blob:
+ * URL of type text/html would run as a page of this site when opened in a tab.
  */
 export interface ObjectUrlRegistry {
-  /** The object URL for this image. Created on first use; a new blob for the same id replaces (and revokes) the old URL. */
-  urlFor(id: string, blob: Blob): string;
+  /**
+   * The object URL for this image, of type `type`. Created on first use; a new blob for the
+   * same id replaces (and revokes) the old URL. Throws for a type the store does not accept.
+   */
+  urlFor(id: string, blob: Blob, type: DeviceImageType): string;
   /** The current URL for this id, if any. */
   peek(id: string): string | undefined;
   /** Revokes the URL for this id. */
@@ -713,7 +720,7 @@ export interface ObjectUrlRegistry {
 }
 
 export function createObjectUrlRegistry(api: ObjectUrlApi = URL): ObjectUrlRegistry {
-  const urls = new Map<string, {blob: Blob; url: string}>();
+  const urls = new Map<string, {blob: Blob; type: DeviceImageType; url: string}>();
   const revoke = (id: string) => {
     const entry = urls.get(id);
     if (!entry) return;
@@ -725,12 +732,13 @@ export function createObjectUrlRegistry(api: ObjectUrlApi = URL): ObjectUrlRegis
     }
   };
   return {
-    urlFor(id, blob) {
+    urlFor(id, blob, type) {
+      if (!isDeviceImageType(type)) throw new TypeError(`Not an image type the store accepts: ${String(type)}`);
       const entry = urls.get(id);
-      if (entry && entry.blob === blob) return entry.url;
+      if (entry && entry.blob === blob && entry.type === type) return entry.url;
       if (entry) revoke(id);
-      const url = api.createObjectURL(blob);
-      urls.set(id, {blob, url});
+      const url = api.createObjectURL(new Blob([blob], {type}));
+      urls.set(id, {blob, type, url});
       return url;
     },
     peek: (id) => urls.get(id)?.url,

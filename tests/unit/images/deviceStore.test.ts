@@ -559,7 +559,7 @@ describe('createObjectUrlRegistry', () => {
     const live = new Set<string>();
     return {
       live,
-      createObjectURL: vi.fn(() => {
+      createObjectURL: vi.fn<(blob: Blob) => string>(() => {
         const url = `blob:test/${++next}`;
         live.add(url);
         return url;
@@ -574,25 +574,41 @@ describe('createObjectUrlRegistry', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
     const blob = image();
-    expect(registry.urlFor('a', blob)).toBe('blob:test/1');
-    expect(registry.urlFor('a', blob)).toBe('blob:test/1');
+    expect(registry.urlFor('a', blob, 'image/png')).toBe('blob:test/1');
+    expect(registry.urlFor('a', blob, 'image/png')).toBe('blob:test/1');
     expect(api.createObjectURL).toHaveBeenCalledTimes(1);
     expect(registry.peek('a')).toBe('blob:test/1');
     expect(registry.size).toBe(1);
   });
 
+  it('makes every URL from a blob of the given image type, whatever type the file had', async () => {
+    const api = fakeUrlApi();
+    const registry = createObjectUrlRegistry(api);
+    // A PNG named evil.html: the browser reports text/html for it.
+    const file = new Blob([new Uint8Array(await image().arrayBuffer()), '<script>alert(1)</script>'], {type: 'text/html'});
+    registry.urlFor('a', file, 'image/png');
+    const made = api.createObjectURL.mock.calls[0][0];
+    expect(made.type).toBe('image/png');
+    expect(made.size).toBe(file.size);
+    // The same blob with another type gets a new URL.
+    expect(registry.urlFor('a', file, 'image/webp')).toBe('blob:test/2');
+    expect(() => registry.urlFor('b', file, 'text/html' as never)).toThrow(TypeError);
+    expect(() => registry.urlFor('b', file, 'image/svg+xml' as never)).toThrow(TypeError);
+    expect(registry.peek('b')).toBeUndefined();
+  });
+
   it('revokes the old URL when an id gets a new blob', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
-    registry.urlFor('a', image());
-    expect(registry.urlFor('a', image())).toBe('blob:test/2');
+    registry.urlFor('a', image(), 'image/png');
+    expect(registry.urlFor('a', image(), 'image/png')).toBe('blob:test/2');
     expect([...api.live]).toEqual(['blob:test/2']);
   });
 
   it('revokes URLs one by one, all but some, or all', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
-    for (const id of ['a', 'b', 'c', 'd']) registry.urlFor(id, image());
+    for (const id of ['a', 'b', 'c', 'd']) registry.urlFor(id, image(), 'image/png');
     registry.revoke('a');
     registry.revoke('missing');
     expect(registry.peek('a')).toBeUndefined();
@@ -608,14 +624,14 @@ describe('createObjectUrlRegistry', () => {
       throw new Error('nope');
     }};
     const registry = createObjectUrlRegistry(api);
-    registry.urlFor('a', image());
+    registry.urlFor('a', image(), 'image/png');
     expect(() => registry.revokeAll()).not.toThrow();
     expect(registry.size).toBe(0);
   });
 
   it('uses the standard URL API by default', () => {
     const registry = createObjectUrlRegistry();
-    const url = registry.urlFor('a', image());
+    const url = registry.urlFor('a', image(), 'image/png');
     expect(url).toMatch(/^blob:/);
     registry.revokeAll();
   });

@@ -1,5 +1,7 @@
 import {describe, expect, it, vi} from 'vitest';
-import {type CanvasLike, type DecodedImage, prepareImageForStore} from '@/lib/images/prepareImage';
+import {asRasterImage, previewableImage, type CanvasLike, type DecodedImage, type DecodeHints, PixelCapError, prepareImageForStore} from '@/lib/images/prepareImage';
+
+type Decode = (blob: Blob, hints: DecodeHints) => Promise<DecodedImage>;
 
 const HEADERS: Record<string, number[]> = {
   'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
@@ -38,7 +40,7 @@ function fakeCanvas(sizeFor: (type: string, width: number, height: number) => nu
 
 const decodeAs = (width: number, height: number) => {
   const release = vi.fn();
-  const decode = vi.fn(async (): Promise<DecodedImage> => ({source: {} as CanvasImageSource, width, height, release}));
+  const decode = vi.fn<Decode>(async () => ({source: {} as CanvasImageSource, width, height, release}));
   return {decode, release};
 };
 
@@ -46,9 +48,40 @@ describe('prepareImageForStore', () => {
   it('keeps a file the store accepts exactly as it is, after decoding it once', async () => {
     const file = fileOf('image/png', 1000);
     const {decode, release} = decodeAs(10, 10);
-    expect(await prepareImageForStore(file, {maxBytes: 5000, decode})).toEqual({ok: true, blob: file, reencoded: false});
+    const result = await prepareImageForStore(file, {maxBytes: 5000, decode});
+    expect(result).toMatchObject({ok: true, type: 'image/png', reencoded: false});
+    expect(result.ok && new Uint8Array(await result.blob.arrayBuffer())).toEqual(new Uint8Array(await file.arrayBuffer()));
     expect(decode).toHaveBeenCalledTimes(1);
+    expect(decode.mock.calls[0][1]).toMatchObject({type: 'image/png'});
     expect(release).toHaveBeenCalled();
+  });
+
+  it('gives the kept file the type of its bytes, never the type the browser reported', async () => {
+    // A PNG named evil.html, with a script after the picture: the browser reports text/html.
+    const evil = new Blob([await fileOf('image/png', 100).arrayBuffer(), '<script>alert(1)</script>'], {type: 'text/html'});
+    const {decode} = decodeAs(10, 10);
+    const result = await prepareImageForStore(evil, {maxBytes: 5000, decode});
+    expect(result).toMatchObject({ok: true, type: 'image/png', reencoded: false});
+    expect(result.ok && result.blob.type).toBe('image/png');
+    expect(decode.mock.calls[0][1]).toMatchObject({type: 'image/png'});
+  });
+
+  it('refuses a file that is not an image by its bytes or by its type, before decoding it', async () => {
+    const {decode} = decodeAs(10, 10);
+    expect(await prepareImageForStore(new Blob(['<html><script>alert(1)</script>'], {type: 'text/html'}), {maxBytes: 5000, decode}))
+      .toEqual({ok: false, reason: 'unsupported-type'});
+    expect(await prepareImageForStore(new Blob(['just text']), {maxBytes: 5000, decode})).toEqual({ok: false, reason: 'unsupported-type'});
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('asRasterImage gives a blob of the sniffed type, or null', async () => {
+    const evil = new Blob([await fileOf('image/png', 100).arrayBuffer(), '<script>alert(1)</script>'], {type: 'text/html'});
+    const raster = await asRasterImage(evil);
+    expect(raster?.type).toBe('image/png');
+    expect(raster?.blob.type).toBe('image/png');
+    expect(raster?.blob.size).toBe(evil.size);
+    expect(await asRasterImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
+    expect(await asRasterImage(new Blob([]))).toBeNull();
   });
 
   it('refuses a decompression bomb from its header, without decoding it', async () => {
@@ -61,6 +94,49 @@ describe('prepareImageForStore', () => {
     const {decode} = decodeAs(50_000, 50_000);
     expect(await prepareImageForStore(new Blob([bomb]), {maxBytes: 5_000_000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});
     expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('previews only raster images whose header declares a size within the caps', async () => {
+    const png = (width: number, height: number, type = 'image/png') => {
+      const bytes = new Uint8Array(100);
+      bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+      new DataView(bytes.buffer).setUint32(16, width);
+      new DataView(bytes.buffer).setUint32(20, height);
+      return new Blob([bytes, '<script>alert(1)</script>'], {type});
+    };
+    const preview = await previewableImage(png(300, 200, 'text/html'));
+    expect(preview?.type).toBe('image/png');
+    expect(preview?.blob.type).toBe('image/png');
+    expect(await previewableImage(png(12_000, 12_000))).toBeNull();
+    expect(await previewableImage(png(8192, 4097))).toBeNull();
+    expect(await previewableImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
+    expect(await previewableImage(fileOf('image/png', 12))).toBeNull(); // no IHDR: the size is unknown
+  });
+
+  it('refuses a 688-byte PNG that declares 12,000 x 12,000 pixels quickly, without decoding it', async () => {
+    // Decoding such a file takes seconds and about 1.5 GB in a browser.
+    const bomb = new Uint8Array(688);
+    bomb.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    new DataView(bomb.buffer).setUint32(16, 12_000);
+    new DataView(bomb.buffer).setUint32(20, 12_000);
+    bomb.set([8, 6, 0, 0, 0], 24);
+    const {decode} = decodeAs(12_000, 12_000);
+    const started = performance.now();
+    expect(await prepareImageForStore(new Blob([bomb], {type: 'image/png'}), {maxBytes: 5_000_000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});
+    expect(performance.now() - started).toBeLessThan(500);
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('lets the decoder refuse an image above the caps from its natural size, before it decodes the pixels', async () => {
+    // An SVG has no header size: the Image element tells its size once it has loaded.
+    const svg = new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="20000" height="20000"/>'], {type: 'image/svg+xml'});
+    const decode = vi.fn<Decode>(async (_blob, hints) => {
+      expect(hints.type).toBeNull();
+      expect(hints.fits({width: 8192, height: 4096})).toBe(true);
+      if (!hints.fits({width: 20_000, height: 20_000})) throw new PixelCapError();
+      throw new Error('decoded a huge image');
+    });
+    expect(await prepareImageForStore(svg, {maxBytes: 5000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});
   });
 
   it('refuses images over 8,192 pixels per side or 32 megapixels, also when the header does not tell', async () => {
@@ -113,7 +189,7 @@ describe('prepareImageForStore', () => {
     const failing = vi.fn(async () => {
       throw new Error('cannot decode');
     });
-    expect(await prepareImageForStore(new Blob(['<html>']), {maxBytes: 5000, decode: failing})).toEqual({ok: false, reason: 'unreadable'});
+    expect(await prepareImageForStore(new Blob(['not a picture'], {type: 'image/png'}), {maxBytes: 5000, decode: failing})).toEqual({ok: false, reason: 'unreadable'});
     expect(await prepareImageForStore(fileOf('image/png', 2000), {maxBytes: 1000, maxInputBytes: 1500, decode})).toEqual({ok: false, reason: 'too-large'});
     expect(decode).not.toHaveBeenCalled();
   });
@@ -125,6 +201,6 @@ describe('prepareImageForStore', () => {
       getContext: () => ({drawImage: () => undefined, fillRect: () => undefined, fillStyle: ''}),
       toBlob: (callback) => callback(new Blob(['not an image'])),
     });
-    expect(await prepareImageForStore(new Blob(['<svg/>']), {maxBytes: 5000, decode, createCanvas})).toEqual({ok: false, reason: 'too-large'});
+    expect(await prepareImageForStore(new Blob(['<svg/>'], {type: 'image/svg+xml'}), {maxBytes: 5000, decode, createCanvas})).toEqual({ok: false, reason: 'too-large'});
   });
 });

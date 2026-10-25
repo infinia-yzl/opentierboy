@@ -202,7 +202,7 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
       deviceStates.setMany(toLoad.filter((key) => requestedKeys.current.has(key)).map((key) => {
         const image = images.get(key);
         const state: DeviceImageState = image
-          ? {status: 'ready', url: registry.urlFor(key, image.blob)}
+          ? {status: 'ready', url: registry.urlFor(key, image.blob, image.type)}
           : {status: evicted.current.has(key) ? 'evicted' : 'missing'};
         return [key, state] as const;
       }));
@@ -268,7 +268,7 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
         registry.revoke(key);
         if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
       });
-      states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob)}]);
+      states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob, result.type)}]);
       items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
     }
     deviceStates.setMany(states);
