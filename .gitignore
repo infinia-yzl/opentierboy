@@ -46,6 +46,8 @@ public/images/*
 !public/images/image-supervive/
 !public/images/image-helldivers2/
 /public/images/**/*.png
+# The preview-size copy of the placeholder tile (scripts/prepareImages.js).
+/public/placeholder-image.preview.png
 /test-results/
 /playwright-report/
 /blob-report/

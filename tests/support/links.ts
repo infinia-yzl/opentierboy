@@ -28,6 +28,13 @@ export function legacyItems(packageName: string, tag?: string): string[] {
     .map((image) => image.label || image.filename.split('.')[0]);
 }
 
+/** The item ids of a legacy set, in the order its template lists them. */
+export function legacyItemIds(packageName: string): string[] {
+  const set = legacyPackages[packageName];
+  if (!set) throw new Error(`${packageName} is not a legacy set`);
+  return set.images.map((image) => `${packageName}-${image.filename}`);
+}
+
 /** The files of a legacy set in public/images/<package>/: each image and its PNG copy for link previews. */
 export function legacyFiles(packageName: string): string[] {
   return legacyPackages[packageName].images.flatMap(({filename}) => (

@@ -11,6 +11,10 @@
  * This script checks that every committed image is there and makes the PNG copy of every
  * WebP image next to it, as for the official sets. The PNG copies are git-ignored.
  *
+ * The PNG copies are made at link preview size (PREVIEW_COPY_SIZE in scripts/lib/image-sets.mjs:
+ * the shorter side 128 px, never enlarged), and so is a copy of the placeholder tile
+ * (public/placeholder-image.preview.png), so that drawing a preview stays fast (A43).
+ *
  * imageset.config.json lists the sets in the order of imageset.custom.json.
  *
  * It stops with exit code 1, and leaves imageset.config.json as it was, when a package is
@@ -120,9 +124,12 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
+/** Makes the PNG copy of an image for link previews, at preview size (see PREVIEW_COPY_SIZE). */
 async function convertWebpToPng(sourcePath, targetPath) {
   try {
+    const {PREVIEW_COPY_SIZE} = await imageSets;
     await sharp(sourcePath)
+      .resize({width: PREVIEW_COPY_SIZE, height: PREVIEW_COPY_SIZE, fit: 'outside', withoutEnlargement: true})
       .png()
       .toFile(targetPath);
     console.log(`Converted: ${sourcePath} -> ${targetPath}`);
@@ -349,6 +356,19 @@ async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
   console.log('Config updated at', CONFIG_PATH);
 }
 
+/**
+ * The placeholder tile of an unknown item, at preview size for link previews (TierCortex maps
+ * /placeholder-image.png to this copy). The app itself shows public/placeholder-image.png.
+ */
+const PLACEHOLDER = path.join(ROOT, 'public', 'placeholder-image.png');
+const PLACEHOLDER_PREVIEW = path.join(ROOT, 'public', 'placeholder-image.preview.png');
+
+async function preparePlaceholderPreview() {
+  await fs.rm(PLACEHOLDER_PREVIEW, {force: true});
+  await convertWebpToPng(PLACEHOLDER, PLACEHOLDER_PREVIEW);
+  await verifyFiles(path.dirname(PLACEHOLDER_PREVIEW), [path.basename(PLACEHOLDER_PREVIEW)], 'The placeholder tile for link previews');
+}
+
 async function main() {
   // `--copy` copies the images into public/images. The `prebuild` npm script passes it:
   // npm runs prebuild with NODE_ENV unset, and Vercel and CI builds must copy. Without the
@@ -361,6 +381,7 @@ async function main() {
   const legacyConfig = await getLegacyConfig();
   const {order, official, legacy} = splitPackages(customConfig, legacyConfig);
 
+  await preparePlaceholderPreview();
   for (const packageName of legacy) {
     await prepareLegacySet(packageName, legacyEntry(packageName, legacyConfig[packageName]));
   }

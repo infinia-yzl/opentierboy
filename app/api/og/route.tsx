@@ -6,15 +6,24 @@ export const runtime = 'edge';
 
 const LOGO = 'brand/otb-logo-wide.png';
 
-// Limits for what the preview draws (A43). Drawing cost grows with every row and every
+// Limits for what the preview draws (A43). Drawing cost grows with every row, tile and
 // character, and a link may hold 100 rows and text of any length, which kept the route busy for
-// minutes. The preview has room for about six rows, so rows past these are clipped anyway, and
-// no real list reaches the text limits: the golden links have at most 7 rows to draw, 49-character
-// titles and 33-character tier names. Below the limits the preview is unchanged.
-const MAX_ROWS = 8;
+// minutes. No real list reaches the text limits: the golden links have 49-character titles and
+// 33-character tier names at most.
+//
+// Rows: only the rows that can show. The header takes at least 72 px and each row at least 80 px
+// (satori drops the spacing between rows, and shrinks the padding above them when they overflow),
+// so 7 rows reach the bottom of the 630 px image and an 8th row starts below it. The golden
+// previews draw 7 rows at most. Drawing an 8th row also made satori take about 9 s instead of
+// 2 s on the test machine.
+const MAX_ROWS = 7;
 const MAX_TITLE_LENGTH = 100;
 /** Tier names and item labels. */
 const MAX_TEXT_LENGTH = 40;
+// Tiles drawn per row (plus a "+N" tile for the rest). A row has 1,008 px for tiles (1,200 px,
+// less the 16 px padding on each side and the 160 px label) and a tile takes 72 px (64 px and a
+// 4 px margin on each side), so 14 fit: all 11 are visible, none is clipped. Images come at
+// preview size (scripts/prepareImages.js), which keeps each tile cheap to draw.
 const ITEMS_PER_ROW = 10;
 
 /** The text, or its first characters and an ellipsis, `maxLength` characters in all. */

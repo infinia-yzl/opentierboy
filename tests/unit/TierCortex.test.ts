@@ -256,10 +256,10 @@ describe('TierCortex placeholder tiles (A37)', () => {
     expect(inBrowser).toEqual(onServer);
   });
 
-  it('give link previews an absolute URL for the placeholder', () => {
+  it('give link previews an absolute URL for the placeholder, at preview size', () => {
     const cortex = new TierCortex();
     const item = cortex.decodeTierStateFromURL(unknownLink)!.tiers[0].items[0];
-    expect(cortex.getOgSafeItem(item).imageUrl).toBe('http://localhost:3000/placeholder-image.png');
+    expect(cortex.getOgSafeItem(item).imageUrl).toBe('http://localhost:3000/placeholder-image.preview.png');
   });
 });
 

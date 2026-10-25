@@ -11,6 +11,8 @@ import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
+/** The placeholder at link preview size (made by scripts/prepareImages.js). */
+const PLACEHOLDER_PREVIEW_URL = '/placeholder-image.preview.png';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const MAX_ALIAS_STEPS = 10;
 
@@ -185,7 +187,13 @@ export class TierCortex {
     return initialTiers;
   }
 
+  /**
+   * The image URL for link previews: the PNG copy of a WebP image, or the placeholder's copy.
+   * These copies are made at preview size (scripts/prepareImages.js), so previews draw fast.
+   */
   public getOgSafeImageUrl(url: string): string {
+    if (url === PLACEHOLDER_IMAGE_URL) url = PLACEHOLDER_PREVIEW_URL;
+
     // Convert WebP to PNG
     if (url.toLowerCase().endsWith('.webp')) {
       url = url.substring(0, url.length - 5) + '.png';

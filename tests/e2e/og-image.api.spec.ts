@@ -1,5 +1,5 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
-import {LEGACY_SETS, legacyItems, packageItemId, stateFromJson} from '../support/links';
+import {LEGACY_SETS, legacyItemIds, legacyItems, packageItemId, stateFromJson} from '../support/links';
 import {lzBomb, lzWithRun} from '../unit/support/lzStream';
 
 /**
@@ -125,10 +125,9 @@ test.describe('Link preview images', () => {
  * a plain preview request at the same time answers quickly too (A43). The texts repeat, so
  * the links stay short enough for a URL.
  *
- * Image tiles are not at their limit here. Each tile costs time in proportion to its image's
- * pixels (about 0.1 s for the 456 x 456 placeholder on a busy test machine), and the preview
- * still draws up to 10 tiles in each row, so 80 placeholder tiles take about 10 s. Bounding that
- * needs smaller image copies for previews, which would change every preview.
+ * Image tiles: the preview draws at most 7 rows of 10 tiles (an 8th row made it take about 9 s),
+ * from PNG copies made at preview size (scripts/prepareImages.js), so even rows full of the
+ * largest legacy images (up to 4 megapixels as WebP) stay fast.
  */
 const ROWS_AT_LIMIT = 99; // plus the Unranked row: 100 rows
 const listAtLimit = (title: string, row: (index: number) => object) => ({
@@ -140,6 +139,18 @@ const listsAtLimits = [
   {
     name: '100 rows, each with an item with a 4,800-character label',
     json: () => listAtLimit('Long labels', (index) => ({i: `t${index}`, n: `R${index}`, t: [{i: `r${index}`, c: 'Label '.repeat(800)}]})),
+  },
+  {
+    // The legacy sets with the largest images first: all their tiles that the preview draws.
+    name: '100 rows, the first ones full of the largest legacy images',
+    json: () => {
+      const ids = ['image-set', 'image-webdev', 'image-helldivers2'].flatMap(legacyItemIds);
+      return listAtLimit('Large images', (index) => ({i: `t${index}`, n: `R${index}`, t: ids.slice(index * 11, index * 11 + 11).map((i) => ({i}))}));
+    },
+  },
+  {
+    name: '100 rows of 10 unknown items, drawn as placeholder tiles',
+    json: () => listAtLimit('Unknown items', (index) => ({i: `t${index}`, n: `R${index}`, t: Array.from({length: 11}, (_, item) => ({i: `r${index}i${item}`}))})),
   },
   {
     name: '100 rows with 5,000-character names and a 90,000-character title',
