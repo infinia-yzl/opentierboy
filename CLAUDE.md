@@ -80,7 +80,8 @@ app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (
                       image, edge runtime), /blog, /about, sitemap
 components/           React components; components/ui/ is shadcn/ui
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
-                      syncs it with the address (one router.push per change, one at a time)
+                      syncs it with the address (one router.push per list change, one at a time;
+                      label settings use router.replace, owner decision A3)
 lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue
 lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom items, preview
                       helpers, the link encode and decode used by the store
