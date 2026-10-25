@@ -1,6 +1,7 @@
 import {ImageResponse} from 'next/og';
 import {TierCortex} from '@/lib/TierCortex';
 import {inlineLocalImages} from './local-images';
+import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 
 export const runtime = 'edge';
 
@@ -17,7 +18,6 @@ const LOGO = 'brand/otb-logo-wide.png';
 // previews draw 7 rows at most. Drawing an 8th row also made satori take about 9 s instead of
 // 2 s on the test machine.
 const MAX_ROWS = 7;
-const MAX_TITLE_LENGTH = 100;
 /** Tier names and item labels. */
 const MAX_TEXT_LENGTH = 40;
 // Tiles drawn per row (plus a "+N" tile for the rest). A row has 1,008 px for tiles (1,200 px,
@@ -26,11 +26,6 @@ const MAX_TEXT_LENGTH = 40;
 // preview size (scripts/prepareImages.js), which keeps each tile cheap to draw.
 const ITEMS_PER_ROW = 10;
 
-/** The text, or its first characters and an ellipsis, `maxLength` characters in all. */
-function shorten(text: string, maxLength: number): string {
-  const characters = Array.from(text);
-  return characters.length <= maxLength ? text : `${characters.slice(0, maxLength - 1).join('')}…`;
-}
 
 // Previews use Noto Sans, the default font of next/og up to Next.js 15. Next.js 16 changed
 // the default to Geist, so the route passes the same font file itself to keep previews
