@@ -29,7 +29,7 @@ function positionText(tiers: readonly TierLike[], row: number, index: number, co
 /**
  * The announcement for an item drag. `from` is where the item was when the drag started;
  * `to` is where it would land now (for 'over' and 'drop'). Returns undefined when the input
- * does not fit the list: then nothing is announced, rather than an id.
+ * does not fit the list. Then nothing is announced, so no id ever reaches a screen reader.
  */
 export function itemAnnouncement(
   phase: DragPhase,

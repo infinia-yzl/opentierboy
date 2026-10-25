@@ -17,7 +17,7 @@ export function tierLabel(tiers: readonly TierLike[], index: number): string {
 
 /**
  * A row as it reads inside a sentence: "tier S", "Unranked", "Tier 3". A label that already
- * starts with the word "tier" stays as it is ("Tier 10", not "tier Tier 10").
+ * starts with the word "tier" stays as it is: "Tier 10" reads "Tier 10".
  */
 export function tierPhrase(tiers: readonly TierLike[], index: number): string {
   const label = tierLabel(tiers, index);

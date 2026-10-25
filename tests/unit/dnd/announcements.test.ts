@@ -39,7 +39,7 @@ describe('item announcements', () => {
     expect(itemAnnouncement('start', tiers, 'x', {tierId: 'tier-1', index: 0})).toBe('Picked up Unnamed item, in Tier 3, position 1 of 1.');
   });
 
-  it('says nothing for input that does not fit the list, instead of an id', () => {
+  it('says nothing for input that does not fit the list', () => {
     expect(itemAnnouncement('start', tiers, 'nope', {tierId: 'tier-s', index: 0})).toBeUndefined();
     expect(itemAnnouncement('start', tiers, 'w', {tierId: 'nope', index: 0})).toBeUndefined();
     expect(itemAnnouncement('over', tiers, 'w', {tierId: 'tier-s', index: 1}, {tierId: 'nope', index: 0})).toBeUndefined();
