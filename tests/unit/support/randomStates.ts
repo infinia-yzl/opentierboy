@@ -1,5 +1,13 @@
 import imagesetConfig from '@/imageset.config.json';
-import type {CanonicalState} from '@/lib/state';
+import {
+  type CanonicalItem,
+  type CanonicalState,
+  type CanonicalTier,
+  defaultTierId,
+  type LabelPosition,
+  type RowTemplate,
+  ROW_TEMPLATE_TIER_IDS,
+} from '@/lib/state';
 
 /**
  * Seeded random tier lists in the shape TierListManager hands to
@@ -112,4 +120,75 @@ export function toCanonical(state: AppState): Omit<CanonicalState, 'version'> {
       items: tier.items.map(item => (item.c === undefined ? {id: item.i} : {id: item.i, content: item.c})),
     })),
   };
+}
+
+const ROW_TEMPLATES: RowTemplate[] = ['3rows', '5rows', '7rows', 'custom'];
+const LABEL_POSITIONS: LabelPosition[] = ['left', 'right', 'top'];
+
+const URL_PARTS = [
+  'https://thefinals.wiki/images/a/ab/Light.png',
+  'https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png',
+  'https://i.imgur.com/abc123.jpeg?x=1&y=2#frag',
+  'https://例え.テスト/画像.png',
+  'https://cdn.deadlock.wiki/hero%20name.webp',
+  'http://localhost:3000/secret.png',
+  'javascript:alert(1)',
+  '',
+];
+
+function randomUrl(random: () => number): string {
+  const base = pick(random, URL_PARTS);
+  return random() < 0.3 ? `${base}${randomText(random, 2)}` : base;
+}
+
+function randomV3Item(random: () => number): CanonicalItem {
+  const roll = random();
+  if (roll < 0.6) return {id: pick(random, PACKAGE_ITEM_IDS)};
+  if (roll < 0.65) return {id: randomText(random, 3)};
+  if (roll < 0.82) {
+    const url = randomUrl(random);
+    return {kind: 'link', id: url, url, content: random() < 0.2 ? '' : randomText(random, 4)};
+  }
+  return {kind: 'device', id: randomCustomId(random), content: random() < 0.2 ? '' : randomText(random, 4)};
+}
+
+function randomTierId(random: () => number, template: RowTemplate, index: number): string {
+  const fallback = defaultTierId(template, index);
+  const roll = random();
+  if (fallback !== undefined && roll < 0.7) return fallback;
+  if (roll < 0.9) return pick(random, TIER_IDS);
+  return randomText(random, 2);
+}
+
+/**
+ * Seeded random lists in the form decodeState gives for v3 links: every layout field set, no
+ * empty title, image-set items without `content`, link items whose id is their URL. Decoding
+ * what encodeV3 writes for one of them gives it back unchanged.
+ */
+export function randomV3States(count: number, seed: number): CanonicalState[] {
+  const random = seededRandom(seed);
+  const states: CanonicalState[] = [];
+  for (let index = 0; index < count; index++) {
+    const rowTemplate = pick(random, ROW_TEMPLATES);
+    const templateRows = rowTemplate === 'custom' ? 0 : ROW_TEMPLATE_TIER_IDS[rowTemplate].length;
+    const roll = random();
+    const tierCount = roll < 0.6 && templateRows > 0 ? templateRows : 1 + Math.floor(random() * 12);
+    const tiers: CanonicalTier[] = [];
+    for (let tierIndex = 0; tierIndex < tierCount; tierIndex++) {
+      const itemCount = random() < 0.02 ? 120 : Math.floor(random() * 12);
+      const items: CanonicalItem[] = [];
+      for (let itemIndex = 0; itemIndex < itemCount; itemIndex++) items.push(randomV3Item(random));
+      tiers.push({id: randomTierId(random, rowTemplate, tierIndex), name: randomText(random, 3), items});
+    }
+    const title = random() < 0.3 ? '' : randomText(random, 6);
+    states.push({
+      version: 3,
+      ...(title === '' ? {} : {title}),
+      rowTemplate,
+      labelPosition: pick(random, LABEL_POSITIONS),
+      showLabels: random() < 0.7,
+      tiers,
+    });
+  }
+  return states;
 }

@@ -24,13 +24,17 @@ import {randomAppStates, seededRandom} from './support/randomStates';
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
 
 const stateDir = path.resolve(__dirname, '../fixtures/state');
-const fixtureStates = fs.readdirSync(stateDir)
+const allFixtures = fs.readdirSync(stateDir)
   .filter(file => file.endsWith('.json'))
-  .flatMap(file => (JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {state: string}[]))
-  .map(entry => entry.state);
+  .flatMap(file => (JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {format: string; state: string}[]));
+// The comparison with the pre-refactor copy covers the legacy formats only: v3 links are new
+// in Phase 5b, so the old copy cannot read them. The "v3 links" tests below cover them.
+const fixtureStates = allFixtures.filter(entry => entry.format !== 'v3').map(entry => entry.state);
+const v3FixtureStates = allFixtures.filter(entry => entry.format === 'v3').map(entry => entry.state);
 
+// '3.' values go to the v3 decoder since Phase 5b: see "v3 links" below.
 const MALFORMED = [
-  '', 'this-is-not-a-valid-state', 'N', '3.', `3.${sharedLinks[1].state}`,
+  '', 'this-is-not-a-valid-state', 'N',
   lz('hello'), lz('42'), lz('null'), lz('{}'), lz('{"tiers":"x"}'), lz('{"tiers":[null]}'),
   lz('[{"i":"a","n":"b"}]'), lz('[{"i":"a","n":"b","t":"x"}]'), lz('[{"i":"a","n":"b","t":[null]}]'),
   lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7}'),
@@ -331,6 +335,81 @@ describe('TierCortex follows image-aliases.json for renamed images', () => {
     const saved = TierCortex.encodeTierStateForURL(undefined, forEncoding);
     expect(LZString.decompressFromEncodedURIComponent(saved))
       .toBe('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp"}]}]}');
+  });
+});
+
+/**
+ * Until the Phase 5b wiring step, TierCortex reads v3 links through the same item lookup as
+ * legacy links. Link and device images are items whose id is their URL or local id.
+ */
+describe('TierCortex with v3 links, before the wiring step', () => {
+  const v3 = (json: string) => `3.${lz(json)}`;
+  // The placeholder tile has a relative URL since Phase 5a (A37); previews use its PNG copy.
+  const PLACEHOLDER = '/placeholder-image.png';
+  const PLACEHOLDER_PREVIEW = 'http://localhost:3000/placeholder-image.preview.png';
+
+  it('reads every v3 fixture without errors', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      for (const state of v3FixtureStates) expect(new TierCortex().decodeTierStateFromURL(state), state.slice(0, 40)).not.toBeNull();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('shows image-set items with their labels from the image set', () => {
+    const decoded = new TierCortex().decodeTierStateFromURL(v3('{"t":"T","tp":3,"r":[["S",["image-overwatch-mau.webp"]],["A",[]],["B",[]],["",[]]]}'));
+    expect(decoded).toEqual({
+      title: 'T',
+      tiers: [
+        {id: 'tier-s', name: 'S', items: [{id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'}]},
+        {id: 'tier-a', name: 'A', items: []},
+        {id: 'tier-b', name: 'B', items: []},
+        {id: 'uncategorized', name: '', items: []},
+      ],
+    });
+  });
+
+  it('never turns a link image address into an image URL, so the OG route never fetches it (A8, A36)', () => {
+    const addresses = ['http://localhost:3000/secret.png', 'http://127.0.0.1:3001/secret.webp', 'https://example.com/a.png'];
+    const state = v3(JSON.stringify({r: [['uncategorized', '', addresses.map(u => ({u, c: 'label'}))]]}));
+    const cortex = new TierCortex();
+    const items = cortex.decodeTierStateFromURL(state)!.tiers[0].items;
+    expect(items.map(item => item.imageUrl)).toEqual(addresses.map(() => PLACEHOLDER));
+    expect(items.map(item => cortex.getOgSafeItem(item).imageUrl)).toEqual(addresses.map(() => PLACEHOLDER_PREVIEW));
+    expect(items.map(item => item.content)).toEqual(['label', 'label', 'label']);
+  });
+
+  it('shows a device image from this browser\'s uploads, as for a v2 custom item', () => {
+    const stored = JSON.stringify([{i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'}]);
+    vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
+    vi.stubGlobal('localStorage', {getItem: (key: string) => (key === 'customItems' ? stored : null), setItem: () => undefined});
+    const items = new TierCortex().decodeTierStateFromURL(v3('{"r":[["x","",[{"d":"k3j9x0a1b","c":"my cat"},{"d":"gone"}]]]}'))!.tiers[0].items;
+    expect(items).toEqual([
+      {id: 'k3j9x0a1b', content: 'my cat', imageUrl: 'data:image/png;base64,AAAA'},
+      {id: 'gone', content: '', imageUrl: '/placeholder-image.png'},
+    ]);
+  });
+
+  it('treats an invalid v3 link like any undecodable link', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const cases: [string, string][] = [
+        [v3('{"r":[["S",[]]]}'), 'missing-tier-id'],
+        ['3.', 'not-lz-string-or-too-long'],
+        [`3.${sharedLinks[1].state}`, 'bad-rows'],
+      ];
+      for (const [state, reason] of cases) {
+        // The pre-refactor copy also returned null for these: only the logged reason is new.
+        expect(new PreRefactorTierCortex().decodeTierStateFromURL(state)).toBeNull();
+        errorSpy.mockClear();
+        expect(new TierCortex().decodeTierStateFromURL(state)).toBeNull();
+        expect(errorSpy).toHaveBeenCalledWith('Failed to decode tier state from URL:', new Error(`Invalid v3 state: ${reason}`));
+      }
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
 

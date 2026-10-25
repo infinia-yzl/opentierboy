@@ -1,4 +1,5 @@
 import {decodeLegacyState} from './decoders/legacy';
+import {readV3Payload} from './decoders/v3';
 import type {CanonicalState, DecodeOptions} from './types';
 
 /**
@@ -10,18 +11,25 @@ import type {CanonicalState, DecodeOptions} from './types';
  */
 const VERSION_PREFIX = /^(\d+)\./;
 
+/** Returns the decoded state, or throws an Error that says why the value is invalid. */
 type VersionedDecoder = (payload: string) => CanonicalState;
 
 /**
  * Decoders for versioned values, keyed by the exact version text before the dot.
  *
- * Version 3 is reserved for the next link format (Phase 5b adds its decoder here). Until a
- * version has a decoder, its values go to the legacy decoder, which rejects them.
- * A decoder receives the payload after the dot exactly as it came from the URL, so it must
- * read ' ' as '+' (lz-string's decompressFromEncodedURIComponent does) and ignore characters
- * after the end of its data, as the legacy decoder does.
+ * A version without a decoder here is unknown: its values go to the legacy decoder, which
+ * rejects them. A decoder receives the payload after the dot exactly as it came from the URL,
+ * so it must read ' ' as '+' (lz-string's decompressFromEncodedURIComponent does) and ignore
+ * characters after the end of its data, as the legacy decoder does.
+ * docs/link-format-v3.md explains how to add a version.
  */
-const VERSIONED_DECODERS: Readonly<Record<string, VersionedDecoder>> = {};
+const VERSIONED_DECODERS: Readonly<Record<string, VersionedDecoder>> = {
+  '3': payload => {
+    const result = readV3Payload(payload);
+    if (!result.ok) throw new Error(`Invalid v3 state: ${result.reason}`);
+    return result.state;
+  },
+};
 
 /**
  * Decodes the `state` value of a shared link. Returns null when the value is not a link this

@@ -156,8 +156,10 @@ describe('legacy link type checks', () => {
   });
 
   it('apply to legacy values only', () => {
-    // No versioned format has a decoder yet, so every value goes to the legacy decoder.
+    // Golden legacy links go to the legacy decoder; "3." values go to the v3 decoder, which
+    // has its own limits (lib/state/limits.ts).
     for (const {state} of GOLDEN) expect(isVersionedValue(state)).toBe(false);
-    expect(isVersionedValue('3.abc')).toBe(false);
+    expect(isVersionedValue('3.abc')).toBe(true);
+    expect(isVersionedValue('4.abc')).toBe(false);
   });
 });
