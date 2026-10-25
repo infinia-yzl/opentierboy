@@ -133,7 +133,9 @@ export async function migrateLegacyUploads(
       else result.dropped++;
       continue;
     }
-    const stored = await store.put(prepared.blob, {id: upload.deviceId});
+    // Never make room: removing an image here could remove one just moved (or one a list shows).
+    // A full store leaves the upload in localStorage for the next start.
+    const stored = await store.put(prepared.blob, {id: upload.deviceId, evict: false});
     if (stored.ok) {
       result.moved.push(upload.deviceId);
     } else if (RETRYABLE.includes(stored.reason) && store.persistent) {

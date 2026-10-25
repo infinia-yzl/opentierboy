@@ -239,6 +239,28 @@ describe('openDeviceStore with IndexedDB', () => {
     }
   });
 
+  it('never removes an image with evict: false: a full store or browser gives storage-full', async () => {
+    const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
+    await store.put(image(40)); // img-00000001
+    await store.put(image(40)); // img-00000002
+    // Our own limits: the oldest would have to go.
+    expect(await store.put(image(40), {evict: false})).toEqual({ok: false, reason: 'storage-full'});
+    // The browser's quota: no room is made, and there is no retry.
+    const roomy = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
+    await roomy.put(image(40));
+    failNextWrites(1);
+    expect(await roomy.put(image(40), {evict: false})).toEqual({ok: false, reason: 'storage-full'});
+    expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000002']);
+    expect((await roomy.list()).map(info => info.id)).toEqual(['img-00000001']);
+    // Where it fits, it is stored as usual.
+    expect(await roomy.put(image(40), {evict: false})).toMatchObject({ok: true, evicted: []});
+    const memory = createMemoryDeviceStore({limits: {maxImageBytes: 60, maxTotalBytes: 100}, createId: sequentialIds()});
+    await memory.put(image(40));
+    await memory.put(image(40));
+    expect(await memory.put(image(40), {evict: false})).toEqual({ok: false, reason: 'storage-full'});
+    expect(await memory.usage()).toEqual({count: 2, totalBytes: 80});
+  });
+
   it('refuses values that are not files, empty files and files over the image limit', async () => {
     const store = await open({limits: {maxImageBytes: 100, maxTotalBytes: 1000}});
     for (const value of [null, undefined, 'image.png', 42, {size: 10}, new Uint8Array(10)]) {

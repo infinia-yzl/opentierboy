@@ -287,6 +287,24 @@ test.describe('Images from the device', () => {
     for (const name of ['old-2', 'old-3', 'old-4']) await expect.poll(() => tierList.itemImageHasLoaded(name)).toBe(true);
   });
 
+  test('when the browser is full, moving old uploads into the store never removes one', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
+    test.skip(browserName !== 'chromium', 'Only Chromium lets a test cap the storage (DevTools Protocol).');
+    const {tierList, context} = await openInChromiumProfile();
+    const images = [1, 2, 3].map((seed) => noisePng(320, 320, seed)); // about 300 KB each
+    const cdp = await context.newCDPSession(tierList.page);
+    // Room for two of the three old uploads.
+    await cdp.send('Storage.overrideQuotaForOrigin', {origin: new URL(test.info().project.use.baseURL!).origin, quotaSize: Math.round(images[0].length * 2.5)});
+    await tierList.keepOldUploads(images.map((png, index) => ({id: `legacyUp${index + 1}`, label: `old ${index + 1}`, png})));
+
+    await tierList.goto(TANKS, listWith([1, 2, 3].map((n) => ({d: `legacyUp${n}`, c: `old ${n}`}))));
+    await expect.poll(() => tierList.itemShowsUpload('old 1')).toBe(true);
+    await expect.poll(() => tierList.itemShowsUpload('old 2')).toBe(true);
+    // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
+    await expect.poll(() => tierList.oldUploadIds()).toEqual(['legacyUp3']);
+    expect(await tierList.itemShowsUpload('old 3')).toBe(false);
+    expect(await tierList.evictedImageIds()).toEqual([]);
+  });
+
   test('without IndexedDB, uploads still work for the tab, and the app says so once', async ({tierList, page}) => {
     await page.addInitScript(() => Object.defineProperty(window, 'indexedDB', {get: () => {
       throw new DOMException('Blocked', 'SecurityError');

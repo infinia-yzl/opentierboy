@@ -470,6 +470,40 @@ export class TierListPage {
     )).length);
   }
 
+  /**
+   * Scrolls an item into view and tells whether its tile shows an upload from this browser (a
+   * loaded `blob:` image), rather than a placeholder or its name only. Use it with expect.poll().
+   */
+  async itemShowsUpload(name: string): Promise<boolean> {
+    const image = this.item(name).getByRole('img');
+    if ((await image.count()) === 0) return false;
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => img.currentSrc.startsWith('blob:') && img.complete && img.naturalWidth > 0);
+  }
+
+  // ---- Data kept in this browser -------------------------------------------------------------
+
+  /**
+   * Keeps old uploads in localStorage, as the app kept them before Phase 5c. Writes them on the
+   * landing page, which does not open the device image store, so the next editor page moves them.
+   */
+  async keepOldUploads(uploads: {id: string; label: string; png: Buffer}[]) {
+    await this.page.goto('/');
+    const entries = uploads.map(({id, label, png}) => ({i: id, c: label, d: `data:image/png;base64,${png.toString('base64')}`}));
+    await this.page.evaluate((value) => localStorage.setItem('customItems', value), JSON.stringify(entries));
+  }
+
+  /** The ids of old uploads still waiting in localStorage to move into the image store. */
+  async oldUploadIds(): Promise<string[]> {
+    const stored = await this.page.evaluate(() => localStorage.getItem('customItems'));
+    return stored === null ? [] : (JSON.parse(stored) as {i: string}[]).map((entry) => entry.i);
+  }
+
+  /** The ids of images the image store removed to make room, as the editor records them. */
+  async evictedImageIds(): Promise<string[]> {
+    return this.page.evaluate(() => JSON.parse(localStorage.getItem('evictedDeviceImages') ?? '[]') as string[]);
+  }
+
   /** The "From a link" dialog. */
   get linkImageDialog(): Locator {
     return this.page.getByRole('dialog', {name: 'Add an Image from a Link'});

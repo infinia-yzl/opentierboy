@@ -86,6 +86,19 @@ describe('migrateLegacyUploads', () => {
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!).map((entry: {i: string}) => entry.i)).toEqual(['k3j9x0a1b', 'm0n9b8v7c']);
   });
 
+  it('never makes room: when the store is full, the rest stays in localStorage and nothing is removed', async () => {
+    const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
+      {i: 'first1234', c: 'One', d: pngDataUrl(4)},
+      {i: 'second123', c: 'Two', d: pngDataUrl(4)},
+      {i: 'third1234', c: 'Three', d: pngDataUrl(4)},
+    ])});
+    // Room for two of the three uploads (20 bytes each).
+    const store = persistentStore({maxImageBytes: 30, maxTotalBytes: 45});
+    expect(await migrateLegacyUploads(storage, store, keepAsIs)).toEqual({moved: ['first1234', 'second123'], kept: 1, dropped: 0});
+    expect((await store.list()).map((info) => info.id).sort()).toEqual(['first1234', 'second123']);
+    expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!).map((entry: {i: string}) => entry.i)).toEqual(['third1234']);
+  });
+
   it('keeps AVIF and HEIC uploads in localStorage, since the editor cannot check them yet', async () => {
     const avif = `data:image/avif;base64,${Buffer.from(avifWithFalseSize([100, 100], [9000, 9000])).toString('base64')}`;
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([

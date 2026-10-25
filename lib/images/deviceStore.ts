@@ -21,7 +21,8 @@
  *   that free at least the new image's size, in a transaction of their own, and then tries
  *   the write once more. Chrome aborts a whole transaction on QuotaExceededError, so removing
  *   and writing in one transaction would undo the removal. The removed ids come back in
- *   `evicted`, also when the second write fails.
+ *   `evicted`, also when the second write fails. With `evict: false`, `put` never removes an
+ *   image: it gives storage-full instead (the move of old uploads uses it).
  * - Without IndexedDB (server rendering, blocked storage, some private modes, a database
  *   that does not open in time) `openDeviceStore` returns an in-memory store with the same
  *   API and `persistent: false`. Its images last until the page closes.
@@ -107,13 +108,18 @@ export interface DevicePutOptions {
   id?: string;
   /** Ids that eviction must not remove, such as the images in the list on screen. */
   keep?: Iterable<string>;
+  /**
+   * False: never remove an image to make room. A full store or browser gives storage-full,
+   * and nothing is removed. The move of old uploads uses this (lib/images/legacyUploads.ts).
+   */
+  evict?: boolean;
 }
 
 export interface DeviceStore {
   /** True for IndexedDB (images survive closing the tab), false for the in-memory fallback. */
   readonly persistent: boolean;
   readonly limits: Readonly<DeviceStoreLimits>;
-  /** Stores an image. Removes least recently used images when it does not fit. */
+  /** Stores an image. Removes least recently used images when it does not fit, unless `evict` is false. */
   put(blob: Blob, options?: DevicePutOptions): Promise<DevicePutResult>;
   /** The image with this id, or null. Marks it as used now. */
   get(id: string): Promise<DeviceImage | null>;
@@ -231,6 +237,7 @@ interface PreparedImage {
   type: DeviceImageType;
   data: ArrayBuffer;
   keep: Set<string>;
+  evict: boolean;
 }
 
 interface BlobLike {
@@ -289,7 +296,7 @@ async function prepareImage(
   } catch {
     // An iterable that fails to iterate protects nothing.
   }
-  return {id, type, data, keep};
+  return {id, type, data, keep, evict: options.evict !== false};
 }
 
 const byMostRecentUse = (a: DeviceImageInfo, b: DeviceImageInfo) => b.usedAt - a.usedAt || b.storedAt - a.storedAt;
@@ -324,7 +331,7 @@ export function createMemoryDeviceStore(options: Omit<OpenDeviceStoreOptions, 'i
       if ('ok' in prepared) return prepared;
       if (closed) return {ok: false, reason: 'storage-error'};
       const evicted = planEviction([...records.values()], {id: prepared.id, size: prepared.data.byteLength}, limits, prepared.keep);
-      if (!evicted) return {ok: false, reason: 'storage-full'};
+      if (!evicted || (!prepared.evict && evicted.length > 0)) return {ok: false, reason: 'storage-full'};
       for (const id of evicted) records.delete(id);
       const time = now();
       const size = prepared.data.byteLength;
@@ -457,21 +464,22 @@ class IndexedDbDeviceStore implements DeviceStore {
   async put(blob: Blob, options: DevicePutOptions = {}): Promise<DevicePutResult> {
     const prepared = await prepareImage(blob, options, this.limits, this.createId);
     if ('ok' in prepared) return prepared;
-    const {id, type, data, keep} = prepared;
-    const first = await this.write(id, type, data, keep);
+    const {id, type, data, keep, evict} = prepared;
+    const first = await this.write(id, type, data, keep, evict);
     if (first.ok || first.reason !== 'quota') return first.ok ? first : {ok: false, reason: first.reason};
+    if (!evict) return {ok: false, reason: 'storage-full'};
     // The browser ran out of room below our limits. Chrome aborts the whole transaction on
     // QuotaExceededError, removals included, so make room in a transaction of its own first,
     // then write in a new one.
     const freed = await this.freeRoom(id, data.byteLength, keep);
     if (freed.length === 0) return {ok: false, reason: 'storage-full'};
-    const second = await this.write(id, type, data, keep);
+    const second = await this.write(id, type, data, keep, true);
     if (second.ok) return {...second, evicted: [...freed, ...second.evicted]};
     return {ok: false, reason: second.reason === 'quota' ? 'storage-full' : second.reason, evicted: freed};
   }
 
-  /** One attempt to store an image, removing what our own limits need removed. */
-  private async write(id: string, type: DeviceImageType, data: ArrayBuffer, keep: ReadonlySet<string>)
+  /** One attempt to store an image, removing what our own limits need removed (unless `evict` is false). */
+  private async write(id: string, type: DeviceImageType, data: ArrayBuffer, keep: ReadonlySet<string>, evict: boolean)
     : Promise<DevicePutResult | {ok: false; reason: 'quota'}> {
     const size = data.byteLength;
     try {
@@ -480,7 +488,7 @@ class IndexedDbDeviceStore implements DeviceStore {
         all.onsuccess = () => {
           const entries = (all.result as unknown[]).filter(isMetaRecord);
           const evicted = planEviction(entries, {id, size}, this.limits, keep);
-          if (!evicted) {
+          if (!evicted || (!evict && evicted.length > 0)) {
             setResult({ok: false, reason: 'storage-full'});
             return;
           }

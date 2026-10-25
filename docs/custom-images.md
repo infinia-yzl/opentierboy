@@ -147,7 +147,9 @@ To move the pin to a newer list:
   (`contexts/CustomImagesContext.tsx` opens it in an effect).
 - Uploads that older versions kept in localStorage (`customItems`) move into the store when the
   editor starts, under `legacy-<id>` when the id is too short (A42), so old links keep their
-  images.
+  images. The move never makes room (`put` with `evict: false`): when the store or the browser
+  is full, the uploads that did not fit stay in localStorage for the next start, and no image
+  is removed.
 
 Safari deletes a site's stored data, IndexedDB included, after 7 days of Safari use without
 a visit to that site (Intelligent Tracking Prevention). Web apps added to the home screen are
