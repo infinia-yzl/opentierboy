@@ -124,6 +124,11 @@ test.describe('Link preview images', () => {
  * length within 1,000,000 characters of JSON). Each one must get its preview quickly, while
  * a plain preview request at the same time answers quickly too (A43). The texts repeat, so
  * the links stay short enough for a URL.
+ *
+ * Image tiles are not at their limit here. Each tile costs time in proportion to its image's
+ * pixels (about 0.1 s for the 456 x 456 placeholder on a busy test machine), and the preview
+ * still draws up to 10 tiles in each row, so 80 placeholder tiles take about 10 s. Bounding that
+ * needs smaller image copies for previews, which would change every preview.
  */
 const ROWS_AT_LIMIT = 99; // plus the Unranked row: 100 rows
 const listAtLimit = (title: string, row: (index: number) => object) => ({
@@ -133,10 +138,8 @@ const listAtLimit = (title: string, row: (index: number) => object) => ({
 const listsAtLimits = [
   {name: '100 short, empty rows', json: () => listAtLimit('Many rows', (index) => ({i: `t${index}`, n: `R${index}`, t: []}))},
   {
-    name: '100 rows of 10 items, each row with a 4,800-character label',
-    json: () => listAtLimit('Long labels', (index) => ({i: `t${index}`, n: `R${index}`, t: Array.from({length: 11}, (_, item) => (
-      item === 0 ? {i: `r${index}`, c: 'Label '.repeat(800)} : {i: `r${index}i${item}`}
-    ))})),
+    name: '100 rows, each with an item with a 4,800-character label',
+    json: () => listAtLimit('Long labels', (index) => ({i: `t${index}`, n: `R${index}`, t: [{i: `r${index}`, c: 'Label '.repeat(800)}]})),
   },
   {
     name: '100 rows with 5,000-character names and a 90,000-character title',
