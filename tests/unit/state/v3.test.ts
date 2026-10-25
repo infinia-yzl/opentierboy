@@ -335,25 +335,29 @@ describe('v3 link format', () => {
   });
 });
 
-describe('v3 limits (A29)', () => {
+describe('v3 limits (A29, A43)', () => {
   const L = V3_LIMITS;
   const row = (items: unknown[], name = '', id = 'x') => [id, name, items];
   const linkWith = (json: object) => v3(JSON.stringify(json));
 
-  it('accept each string at its cap and refuse it one character longer', () => {
-    const cases: [string, (length: number) => object, number][] = [
-      ['title', n => ({t: 'é'.repeat(n), r: [row([])]}), L.maxTitleLength],
-      ['tier name', n => ({r: [row([], 'n'.repeat(n))]}), L.maxTierNameLength],
-      ['tier id', n => ({r: [row([], '', 'i'.repeat(n))]}), L.maxIdLength],
-      ['package item id', n => ({r: [row(['p'.repeat(n)])]}), L.maxIdLength],
-      ['link label', n => ({r: [row([{u: 'https://x.test/a.png', c: 'c'.repeat(n)}])]}), L.maxLabelLength],
-      ['device label', n => ({r: [row([{d: 'abcdefgh', c: 'c'.repeat(n)}])]}), L.maxLabelLength],
-      ['url', n => ({r: [row([{u: `https://x.test/${'u'.repeat(n - 15)}`}])]}), L.maxUrlLength],
+  it('accept strings of any length within the JSON cap (A43)', () => {
+    // The editor lets people type text of any length: a cap would refuse links it wrote.
+    const long = 50_000;
+    const cases: [string, object][] = [
+      ['title', {t: 'é'.repeat(long), r: [row([])]}],
+      ['tier name', {r: [row([], 'n'.repeat(long))]}],
+      ['tier id', {r: [row([], '', 'i'.repeat(long))]}],
+      ['image-set item id', {r: [row(['p'.repeat(long)])]}],
+      ['link label', {r: [row([{u: 'https://x.test/a.png', c: 'c'.repeat(long)}])]}],
+      ['device label', {r: [row([{d: 'abcdefgh', c: 'c'.repeat(long)}])]}],
+      ['link address', {r: [row([{u: `https://x.test/${'u'.repeat(long)}`}])]}],
     ];
-    for (const [name, build, cap] of cases) {
-      expect(decodeState(linkWith(build(cap))), `${name} at the cap`).not.toBeNull();
-      expect(decodeState(linkWith(build(cap + 1))), `${name} over the cap`).toBeNull();
+    for (const [name, json] of cases) {
+      const decoded = decodeState(linkWith(json));
+      expect(decoded, name).not.toBeNull();
+      expect(encodeV3(decoded!), name).toBe(linkWith(json));
     }
+    expect(Object.keys(L).sort()).toEqual(['maxItems', 'maxJsonLength', 'maxPayloadLength', 'maxRows']);
   });
 
   it('accept device image ids of 8 to 64 URL-safe characters (deviceId.ts, A40)', () => {
@@ -376,11 +380,6 @@ describe('v3 limits (A29)', () => {
     expect(reasonOf('{"r":[["x","",[{"d":""}]]]}')).toBe('bad-device-id');
     // Names and labels may be empty.
     expect(reasonOf('{"t":"","r":[["x","",["a",{"u":"https://x.test/a.png","c":""}]]]}')).toBe('ok');
-  });
-
-  it('counts string lengths in UTF-16 code units', () => {
-    expect(decodeState(linkWith({t: '😀'.repeat(L.maxTitleLength / 2), r: [row([])]}))).not.toBeNull();
-    expect(decodeState(linkWith({t: `${'😀'.repeat(L.maxTitleLength / 2)}a`, r: [row([])]}))).toBeNull();
   });
 
   it('accept 1 to 100 rows', () => {

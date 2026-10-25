@@ -169,9 +169,10 @@ example a list of row colours), or a new version.
 
 ## Limits
 
-A v3 link beyond any of these limits does not decode (A29). They are far above what any real
-list needs: the largest list the app ships (all 430 items in 7 rows) has 16,000 characters of
-JSON and a 6,381-character link. Lengths count UTF-16 code units (an emoji often counts 2).
+A v3 link beyond any of these limits does not decode (A29, A43). The limits protect the
+editor, the page metadata and the link preview from hand-made links. They never refuse a real
+list: the largest list the app ships (all 430 items in 7 rows) has 16,000 characters of JSON
+and a 6,381-character link. Lengths count UTF-16 code units (an emoji often counts 2).
 
 | Limit | Value |
 | --- | --- |
@@ -179,12 +180,12 @@ JSON and a 6,381-character link. Lengths count UTF-16 code units (an emoji often
 | characters of JSON after decompression | 1,000,000 |
 | rows (including Unranked) | 1 to 100 |
 | items in all rows together | 5,000 |
-| title | 1,000 |
-| tier name | 500 |
-| item label | 500 |
-| tier id, item id | 1 to 500 |
 | device image id | 8 to 64, URL-safe characters only (device id rule) |
-| link image address | 1 to 2,000 |
+
+Titles, tier names, labels, tier ids, item ids and link image addresses have no length cap
+(A43). The editor lets people type text of any length, so a cap would make the app write
+links it then refused to open. The JSON cap bounds every string, and the link preview shortens
+long text before it draws it. Legacy links follow the same policy (`lib/legacyLinkLimits.ts`).
 
 The limits live in `lib/state/limits.ts` (`V3_LIMITS`). Raising a limit is safe. Lowering one
 can break links people already shared, so never lower a limit.

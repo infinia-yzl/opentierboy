@@ -15,10 +15,10 @@
  *         {"u": url, "c": label}         an image from a link ("c" left out when empty)
  *         {"d": localId, "c": label}     an image from a device ("c" left out when empty)
  *
- * Validation is strict about types and sizes (limits.ts) and ignores keys it does not know,
- * so a later version can add keys that this decoder skips. Tier ids, item ids and image
- * addresses must not be empty, and a device image id must follow the device id rule
- * (deviceId.ts). It checks nothing else: an image address is not checked here (the app must
+ * Validation is strict about types and sizes (limits.ts: the JSON, rows and items; strings
+ * have no length cap, A43) and ignores keys it does not know, so a later version can add keys
+ * that this decoder skips. Tier ids, item ids and image addresses must not be empty, and a
+ * device image id must follow the device id rule (deviceId.ts). It checks nothing else: an image address is not checked here (the app must
  * check it before use, and the server must never fetch it), and duplicate ids are kept.
  * Anything invalid gives null, never an exception.
  */
@@ -71,13 +71,13 @@ function has(object: JsonObject, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
 
-function isStringWithin(value: unknown, maxLength: number): value is string {
-  return typeof value === 'string' && value.length <= maxLength;
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
 }
 
 /** For ids and addresses: an empty one names nothing. */
-function isNonEmptyStringWithin(value: unknown, maxLength: number): value is string {
-  return isStringWithin(value, maxLength) && value !== '';
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value !== '';
 }
 
 /**
@@ -118,7 +118,7 @@ function read(payload: string): V3DecodeResult {
   let title: string | undefined;
   if (has(parsed, 't')) {
     const value = parsed.t;
-    if (!isStringWithin(value, V3_LIMITS.maxTitleLength)) return fail('bad-title');
+    if (!isString(value)) return fail('bad-title');
     if (value !== '') title = value;
   }
 
@@ -160,8 +160,8 @@ function read(payload: string): V3DecodeResult {
     const name: unknown = idOmitted ? row[0] : row[1];
     const items: unknown = idOmitted ? row[1] : row[2];
     if (idOmitted && id === undefined) return fail('missing-tier-id');
-    if (!isNonEmptyStringWithin(id, V3_LIMITS.maxIdLength)) return fail('bad-tier-id');
-    if (!isStringWithin(name, V3_LIMITS.maxTierNameLength)) return fail('bad-tier-name');
+    if (!isNonEmptyString(id)) return fail('bad-tier-id');
+    if (!isString(name)) return fail('bad-tier-name');
     if (!Array.isArray(items)) return fail('bad-items');
 
     // Count before reading, so a huge row is refused without walking it.
@@ -187,7 +187,7 @@ function read(payload: string): V3DecodeResult {
 /** The item, or the reason it is invalid. */
 function readItem(item: unknown): CanonicalItem | 'bad-item' | 'bad-device-id' {
   if (typeof item === 'string') {
-    return isNonEmptyStringWithin(item, V3_LIMITS.maxIdLength) ? {id: item} : 'bad-item';
+    return item !== '' ? {id: item} : 'bad-item';
   }
   if (!isObject(item)) return 'bad-item';
 
@@ -198,13 +198,13 @@ function readItem(item: unknown): CanonicalItem | 'bad-item' | 'bad-device-id' {
   let content = '';
   if (has(item, 'c')) {
     const label = item.c;
-    if (!isStringWithin(label, V3_LIMITS.maxLabelLength)) return 'bad-item';
+    if (!isString(label)) return 'bad-item';
     content = label;
   }
 
   if (isLink) {
     const url = item.u;
-    if (!isNonEmptyStringWithin(url, V3_LIMITS.maxUrlLength)) return 'bad-item';
+    if (!isNonEmptyString(url)) return 'bad-item';
     return {kind: 'link', id: url, url, content};
   }
   const localId = item.d;

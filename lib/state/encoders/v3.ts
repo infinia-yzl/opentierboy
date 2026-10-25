@@ -33,9 +33,9 @@ interface V3Json {
  * (the image set holds their label). Mark custom items as `{kind: 'device'}` before encoding.
  * A link image is written from its `url`; its `id` is ignored.
  *
- * It writes whatever it is given. A list beyond V3_LIMITS (limits.ts), with no rows, with an
- * empty tier id, item id or image address, or with a device image id that breaks the device
- * id rule (deviceId.ts), gives a value that decodeState refuses:
+ * It writes whatever it is given. A list beyond V3_LIMITS (limits.ts: JSON size, rows,
+ * items), with no rows, with an empty tier id, item id or image address, or with a device
+ * image id that breaks the device id rule (deviceId.ts), gives a value that decodeState refuses:
  * `decodeState(encodeV3(list)) !== null` checks a list.
  */
 export function encodeV3(state: EncodableState): string {
