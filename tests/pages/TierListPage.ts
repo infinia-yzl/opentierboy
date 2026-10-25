@@ -430,6 +430,12 @@ export class TierListPage {
     await this.manageItemsButton.click();
   }
 
+  /** Opens the Manage items menu and leaves it open. */
+  async openManageItemsMenu() {
+    await this.openItemsMenu();
+    await expect(this.page.getByRole('menu')).toBeVisible();
+  }
+
   /** The template picker ("From template"): a searchable list of image sets and their tags. */
   get templatePicker(): Locator {
     return this.page.getByRole('dialog');

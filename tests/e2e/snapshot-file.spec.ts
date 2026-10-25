@@ -8,6 +8,24 @@ import {SitePage} from '../pages/SitePage';
 
 const TANKS = '/rank/overwatch/tank';
 
+/** A 2 x 2 green BMP picture (24 bits per pixel), which browsers show but the store does not keep as it is. */
+function greenBmp(): Buffer {
+  const file = Buffer.alloc(70);
+  file.write('BM', 0, 'latin1');
+  file.writeUInt32LE(70, 2);
+  file.writeUInt32LE(54, 10);
+  file.writeUInt32LE(40, 14);
+  file.writeInt32LE(2, 18);
+  file.writeInt32LE(2, 22);
+  file.writeUInt16LE(1, 26);
+  file.writeUInt16LE(24, 28);
+  file.writeUInt32LE(16, 34);
+  for (const row of [0, 1]) {
+    for (const column of [0, 1]) file.writeUIntLE(0x00ff00, 54 + row * 8 + column * 3, 3); // blue, green, red bytes
+  }
+  return file;
+}
+
 /** Makes a snapshot file the way people do: a list with a device image, Capture Preview, Download. */
 async function downloadSnapshotOf(tierList: TierListPage): Promise<Buffer> {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks with a cat'));
@@ -97,6 +115,21 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
     // The dialog has no trigger of its own: focus goes back to Open file.
     await expect(tierList.openFileButton).toBeFocused();
+  });
+
+  test('opening your own file in the browser that made it uses its images as they are', async ({tierList}) => {
+    const snapshot = await downloadSnapshotOf(tierList);
+    const state = JSON.parse(snapshotTextOf(snapshot) ?? 'null').state;
+    expect(await tierList.deviceImageCount()).toBe(1);
+    await tierList.goto('/rank');
+
+    await tierList.openFile(pngFile('snapshot.png', snapshot));
+    await tierList.confirmOpenList();
+
+    // The link is the file's own, and no copy of the image was stored.
+    expect(tierList.page.url()).toBe(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
+    expect(await tierList.deviceImageCount()).toBe(1);
+    await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   });
 
   test('opening the same file again changes nothing: no new image, link or Recently viewed entry', async ({tierList, openAsVisitor}) => {
@@ -241,11 +274,17 @@ test.describe('Opening other files', () => {
 
   test('a snapshot whose link is too long to open as an address is refused as too large', async ({tierList}) => {
     await tierList.goto('/rank');
-    // Labels that do not compress: the link gets longer than 16,000 characters.
+    // Labels that do not compress: add items until the link passes the 13,000-character cap. It
+    // stays under the ~15,850 characters at which the server itself would refuse the address.
     let seed = 7;
     const noise = () => Array.from({length: 40}, () => String.fromCharCode(97 + ((seed = (seed * 48271) % 2147483647) % 26))).join('');
-    const state = v3State({t: 'Long', r: [['S', Array.from({length: 400}, () => ({i: `x-${noise()}`, c: noise()}))], ['', []]]});
-    expect(state.length).toBeGreaterThan(16_000);
+    const items: {i: string; c: string}[] = [];
+    let state = '';
+    while (state.length <= 13_200) {
+      items.push({i: `x-${noise()}`, c: noise()});
+      state = v3State({t: 'Long', r: [['S', items], ['', []]]});
+    }
+    expect(state.length).toBeLessThan(15_000);
 
     await tierList.openFile(pngFile('long.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify({version: 1, state, images: []}))));
 
@@ -256,13 +295,42 @@ test.describe('Opening other files', () => {
   test('files that are not pictures are refused with a message', async ({tierList}) => {
     await tierList.goto('/rank');
     const text = {name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('not a picture')};
-    const svg = {name: 'drawing.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>')};
+    const pdf = {name: 'scan.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%âãÏÓ\n')};
 
     await tierList.dropFile(text);
-    await expect(tierList.toast('Could not open the file')).toContainText('notes.txt: This file is not a PNG, JPEG, WebP, GIF or AVIF picture.');
-    await tierList.openFile(svg);
-    await expect(tierList.toast('Could not open the file').filter({hasText: 'drawing.svg'})).toBeVisible();
+    await expect(tierList.toast('Could not open the file')).toContainText('notes.txt: This file is not a picture.');
+    await tierList.openFile(pdf);
+    await expect(tierList.toast('Could not open the file').filter({hasText: 'scan.pdf'})).toBeVisible();
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+  });
+
+  test('SVG and BMP files become items through Open file and drops, as from your device', async ({tierList}) => {
+    await tierList.goto('/rank');
+    const svg = {
+      name: 'drawing.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#00f"/><script>alert(1)</script></svg>'),
+    };
+
+    await tierList.openFile(svg);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['drawing']);
+    await tierList.dropFile({name: 'tiny.bmp', mimeType: 'image/bmp', buffer: greenBmp()});
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['drawing', 'tiny']);
+
+    // Both were drawn again as plain pictures: the SVG's script never runs.
+    await expect.poll(async () => (await tierList.itemImageCenterColor('drawing'))?.[2] ?? 0).toBeGreaterThan(200);
+    await expect.poll(async () => (await tierList.itemImageCenterColor('tiny'))?.[1] ?? 0).toBeGreaterThan(200);
+  });
+
+  test('a drop while a menu is open does nothing', async ({tierList, page}) => {
+    await tierList.goto('/rank');
+    await tierList.openManageItemsMenu();
+
+    await tierList.dropFile(imageFile('red-square.png'), {onPage: true});
+
+    await page.keyboard.press('Escape');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    await expect(tierList.toast('Items Added')).toHaveCount(0);
   });
 
   test('a drop while a dialog is open does nothing', async ({tierList, page}) => {
