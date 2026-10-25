@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
   buildSnapshotPayload,
+  isSnapshotImageId,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_PAYLOAD_LIMITS,
@@ -25,8 +26,13 @@ function dataUrl(type: keyof typeof MAGIC, padTo = 0, mime = `image/${type}`): s
   return `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
 }
 
-function image(id: string, overrides: Partial<SnapshotImage> = {}): SnapshotImage {
-  return {id, label: `Label ${id}`, dataUrl: dataUrl('png'), ...overrides};
+/** A device image id in the device store's format (8 to 64 URL-safe characters). */
+function deviceId(name: string): string {
+  return `dev_${name}_00`;
+}
+
+function image(name: string, overrides: Partial<SnapshotImage> = {}): SnapshotImage {
+  return {id: deviceId(name), label: `Label ${name}`, dataUrl: dataUrl('png'), ...overrides};
 }
 
 function parseJson(value: unknown) {
@@ -39,7 +45,7 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
       image('a-real-png', {dataUrl: `data:image/png;base64,${Buffer.from(makePng()).toString('base64')}`}),
       image('jpeg_1', {dataUrl: dataUrl('jpeg'), label: 'Ünïcödé ✨ 🧪'}),
       image('gif', {dataUrl: dataUrl('gif'), label: ''}),
-      image('0b8f6a62-6a0e-4c43-a3a8-3c2e7f0b1d9e', {dataUrl: dataUrl('webp')}),
+      image('webp', {id: 'h3Kx9_Tq2LmZ-a8B', dataUrl: dataUrl('webp')}),
     ];
     const built = buildSnapshotPayload({state: STATE, images});
     expect(built.ok).toBe(true);
@@ -49,9 +55,9 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
   });
 
   it('writes the same text for the same input, with keys in a fixed order', () => {
-    const shuffled = {dataUrl: dataUrl('gif'), label: 'x', id: 'one'} as SnapshotImage;
+    const shuffled = {dataUrl: dataUrl('gif'), label: 'x', id: 'image-one'} as SnapshotImage;
     const built = buildSnapshotPayload({images: [shuffled], state: STATE});
-    expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","images":[{"id":"one","label":"x","dataUrl":"${dataUrl('gif')}"}]}`);
+    expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","images":[{"id":"image-one","label":"x","dataUrl":"${dataUrl('gif')}"}]}`);
     const again = buildSnapshotPayload({state: STATE, images: [{...shuffled}]});
     expect(again.ok && again.text).toBe(built.ok && built.text);
   });
@@ -63,9 +69,9 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
   });
 
   it('ignores unknown fields, including prototype keys', () => {
-    const text = `{"version":1,"state":"${STATE}","future":{"a":1},"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}},"images":[{"id":"a","label":"b","dataUrl":"${dataUrl('png')}","extra":1,"__proto__":{"polluted":true}}]}`;
+    const text = `{"version":1,"state":"${STATE}","future":{"a":1},"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}},"images":[{"id":"abcdefgh","label":"b","dataUrl":"${dataUrl('png')}","extra":1,"__proto__":{"polluted":true}}]}`;
     const result = parseSnapshotPayload(text);
-    expect(result).toEqual({ok: true, payload: {version: 1, state: STATE, images: [{id: 'a', label: 'b', dataUrl: dataUrl('png')}]}});
+    expect(result).toEqual({ok: true, payload: {version: 1, state: STATE, images: [{id: 'abcdefgh', label: 'b', dataUrl: dataUrl('png')}]}});
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     if (result.ok) expect(Object.getPrototypeOf(result.payload)).toBe(Object.prototype);
   });
@@ -119,25 +125,51 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     }
   });
 
-  it('refuses bad image ids and labels', () => {
+  it("uses the device store's id rule: 8 to 64 URL-safe characters, never a prototype name", () => {
+    const badIds: unknown[] = [
+      '',
+      'k3J9x',
+      'a'.repeat(limits.minLocalIdChars - 1),
+      'a'.repeat(limits.maxLocalIdChars + 1),
+      'abcd efgh',
+      '../abcdef',
+      'abcdefgé',
+      'abcdefg.',
+      'abcdefg/',
+      '__proto__',
+      'constructor',
+      'toString',
+      'hasOwnProperty',
+      'propertyIsEnumerable',
+      '__defineGetter__',
+      '__lookupSetter__',
+      7,
+      null,
+    ];
+    for (const id of badIds) {
+      expect(isSnapshotImageId(id), String(id)).toBe(false);
+      const images = [{id, label: 'x', dataUrl: dataUrl('png')}];
+      expect(parseJson({version: 1, state: STATE, images}), String(id)).toMatchObject({ok: false, reason: 'invalid-payload'});
+    }
+    for (const id of ['a'.repeat(limits.minLocalIdChars), 'a'.repeat(limits.maxLocalIdChars), 'h3Kx9_Tq2LmZ-a8B', '0b8f6a62-6a0e-4c43-a3a8-3c2e7f0b1d9e', 'valueOfX']) {
+      expect(isSnapshotImageId(id), id).toBe(true);
+      expect(parseJson({version: 1, state: STATE, images: [image('ok', {id})]}).ok, id).toBe(true);
+    }
+  });
+
+  it('refuses bad image labels and missing fields', () => {
     const bad: unknown[] = [
-      {id: '', label: 'x'},
-      {id: 'a b', label: 'x'},
-      {id: '../a', label: 'x'},
-      {id: 'é', label: 'x'},
-      {id: 'a'.repeat(limits.maxLocalIdChars + 1), label: 'x'},
-      {id: 7, label: 'x'},
       {label: 'x'},
-      {id: 'a', label: 7},
-      {id: 'a'},
-      {id: 'a', label: 'x'.repeat(limits.maxLabelChars + 1)},
+      {id: 'abcdefgh', label: 7},
+      {id: 'abcdefgh'},
+      {id: 'abcdefgh', label: 'x'.repeat(limits.maxLabelChars + 1)},
     ];
     for (const fields of bad) {
       const images = [{dataUrl: dataUrl('png'), ...(fields as object)}];
       expect(parseJson({version: 1, state: STATE, images}), JSON.stringify(fields).slice(0, 60)).toMatchObject({ok: false, reason: 'invalid-payload'});
     }
-    const atCaps = image('a'.repeat(limits.maxLocalIdChars), {label: 'x'.repeat(limits.maxLabelChars)});
-    expect(parseJson({version: 1, state: STATE, images: [atCaps]}).ok).toBe(true);
+    const atCap = image('caps', {label: 'x'.repeat(limits.maxLabelChars)});
+    expect(parseJson({version: 1, state: STATE, images: [atCap]}).ok).toBe(true);
   });
 
   it('refuses duplicate image ids', () => {
@@ -215,6 +247,28 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseJson({version: 1, state: STATE, images: under}).ok).toBe(true);
     const over = Array.from({length: count}, (_, i) => big(i));
     expect(parseJson({version: 1, state: STATE, images: over})).toMatchObject({ok: false, reason: 'invalid-payload'});
+  });
+
+  it('refuses a flood of tiny JSON values in a few milliseconds, before JSON.parse', () => {
+    const flood = (key: string, item: string, n = 3_000_000) => `{"version":1,"state":"${STATE}","${key}":[${`${item},`.repeat(n - 1)}${item}]}`;
+    for (const text of [flood('images', '{}'), flood('future', '[]'), flood('future', '1'), flood('images', '{"id":"abcdefgh"}', 400_000)]) {
+      expect(text.length).toBeLessThanOrEqual(limits.maxPayloadBytes);
+      const started = performance.now();
+      expect(parseSnapshotPayload(text)).toMatchObject({ok: false, reason: 'invalid-payload', detail: 'payload: too many JSON values'});
+      // Measured at about 10 ms; JSON.parse alone takes seconds on these texts.
+      expect(performance.now() - started).toBeLessThan(250);
+    }
+  });
+
+  it('counts JSON values outside strings only', () => {
+    // 600 commas and brackets inside a string do not count.
+    const label = '{[,'.repeat(200);
+    expect(parseJson({version: 1, state: STATE, images: [image('a', {label})]}).ok).toBe(true);
+  });
+
+  it('checks the number of images before checking each image', () => {
+    const tooMany = `{"version":1,"state":"${STATE}","images":[${Array(limits.maxImages + 1).fill('{}').join(',')}]}`;
+    expect(parseSnapshotPayload(tooMany)).toEqual({ok: false, reason: 'invalid-payload', detail: `images: must be a list of at most ${limits.maxImages} images`});
   });
 
   it('refuses text longer than the payload cap before parsing it', () => {

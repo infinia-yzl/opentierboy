@@ -4,7 +4,7 @@
  * It is JSON with three fields:
  *
  * ```json
- * {"version":1,"state":"3.N4Ig...","images":[{"id":"k3J9x","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
+ * {"version":1,"state":"3.N4Ig...","images":[{"id":"h3Kx9_Tq2LmZ-a8B","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
  * ```
  *
  * - `version`: the payload format version. This file writes and reads version 1. A file with
@@ -14,8 +14,12 @@
  *   snapshot reuses it. This module checks only the shape of the value; the caller decodes it
  *   with `decodeState` from lib/state.
  * - `images`: the device images the list uses, keyed by their local id (the `d` of a v3 item).
+ *   An id has 8 to 64 characters from `A-Z a-z 0-9 - _`, and is never the name of an
+ *   `Object.prototype` member such as `__proto__`: the same rule as the device store.
  *   Each is a base64 data URL of a PNG, JPEG, WebP or GIF picture. SVG is never accepted,
- *   because SVG can carry scripts. The first bytes must match the declared type.
+ *   because SVG can carry scripts. The first bytes must match the declared type. Only the
+ *   first bytes are checked, so the browser code re-encodes every image through a canvas
+ *   before it stores or shows it (A10).
  *
  * Unknown fields are ignored, so a later version can add fields that this version skips.
  *
@@ -39,7 +43,11 @@ const MiB = 1024 * 1024;
  * - `maxStateChars`: the link value. The v3 decoder applies its own, tighter limits.
  * - `maxImages`, `maxImageDataUrlChars`, `maxTotalImageDataUrlChars`: device images.
  *   8 MB of data URLs is about 6 MB of pictures, for example 300 pictures of 20 KB each.
- * - `maxLabelChars`, `maxLocalIdChars`: per image.
+ * - `maxLabelChars`: per image.
+ * - `minLocalIdChars`, `maxLocalIdChars`: the device store's id length (8 to 64).
+ * - `maxJsonTokens`: objects, arrays and commas outside strings, counted before JSON.parse.
+ *   A payload with 500 images has about 2,000. The count stops JSON.parse and zod from
+ *   building millions of tiny values: 9 MB of `{},` would otherwise take seconds.
  */
 export const SNAPSHOT_PAYLOAD_LIMITS = Object.freeze({
   maxPayloadBytes: SNAPSHOT_PNG_LIMITS.maxTextBytes,
@@ -48,7 +56,9 @@ export const SNAPSHOT_PAYLOAD_LIMITS = Object.freeze({
   maxImageDataUrlChars: 2 * MiB,
   maxTotalImageDataUrlChars: 8 * MiB,
   maxLabelChars: 1_000,
-  maxLocalIdChars: 128,
+  minLocalIdChars: 8,
+  maxLocalIdChars: 64,
+  maxJsonTokens: 100_000,
 });
 
 /** The image types a snapshot may hold. */
@@ -98,12 +108,15 @@ const limits = SNAPSHOT_PAYLOAD_LIMITS;
 
 /** A versioned link value: version digits, a dot, then lz-string's URL-safe alphabet. */
 const VERSIONED_STATE = /^[1-9][0-9]{0,3}\.[A-Za-z0-9+$-]+$/;
-/** Local ids: letters, digits, '-' and '_' (UUIDs and nanoid-style ids fit). */
-const LOCAL_ID = /^[A-Za-z0-9_-]+$/;
+/**
+ * Device image ids: 8 to 64 URL-safe characters. Same rule as `isDeviceImageId` in the device
+ * store (5c, A40); at restack both use one shared definition.
+ */
+const LOCAL_ID = /^[A-Za-z0-9_-]{8,64}$/;
 const DATA_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]*={0,2})$/;
 
 const imageSchema = z.object({
-  id: z.string().min(1).max(limits.maxLocalIdChars).regex(LOCAL_ID),
+  id: z.string().refine(isSnapshotImageId, {message: 'must be 8 to 64 characters from A-Z a-z 0-9 - _'}),
   label: z.string().max(limits.maxLabelChars),
   dataUrl: z
     .string()
@@ -143,6 +156,9 @@ export function parseSnapshotPayload(text: string): ParseSnapshotPayloadResult {
     if (typeof text !== 'string') return {ok: false, reason: 'invalid-payload'};
     // A string's length never exceeds its UTF-8 byte count, so this is a safe early check.
     if (text.length > limits.maxPayloadBytes) return {ok: false, reason: 'payload-too-large'};
+    if (countJsonTokens(text, limits.maxJsonTokens) > limits.maxJsonTokens) {
+      return {ok: false, reason: 'invalid-payload', detail: 'payload: too many JSON values'};
+    }
 
     let json: unknown;
     try {
@@ -152,9 +168,13 @@ export function parseSnapshotPayload(text: string): ParseSnapshotPayloadResult {
     }
 
     if (json !== null && typeof json === 'object' && !Array.isArray(json)) {
-      const version = (json as {version?: unknown}).version;
+      const {version, images} = json as {version?: unknown; images?: unknown};
       if (typeof version === 'number' && Number.isInteger(version) && version > SNAPSHOT_PAYLOAD_VERSION) {
         return {ok: false, reason: 'unsupported-version'};
+      }
+      // Cap the list before zod walks it: millions of tiny entries would cost seconds.
+      if (images !== undefined && (!Array.isArray(images) || images.length > limits.maxImages)) {
+        return {ok: false, reason: 'invalid-payload', detail: `images: must be a list of at most ${limits.maxImages} images`};
       }
     }
 
@@ -169,6 +189,7 @@ export function parseSnapshotPayload(text: string): ParseSnapshotPayloadResult {
 /**
  * Builds the payload text for a snapshot PNG from a link value and the device images the list
  * uses. The images must already be re-encoded raster data URLs (the browser code does that).
+ * Build the link value with `encodeState(list, {format: 3})`.
  * Checks every limit that `parseSnapshotPayload` checks, so the text always parses back.
  * Never throws.
  */
@@ -192,8 +213,17 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
 }
 
 /**
+ * True for a device image id: 8 to 64 characters from `A-Z a-z 0-9 - _`, and never the name
+ * of an `Object.prototype` member (`__proto__`, `constructor`, `toString`...).
+ */
+export function isSnapshotImageId(value: unknown): value is string {
+  return typeof value === 'string' && LOCAL_ID.test(value) && !Object.prototype.hasOwnProperty.call(Object.prototype, value);
+}
+
+/**
  * The image type of a base64 data URL of a PNG, JPEG, WebP or GIF picture, or null.
- * The declared type must match the first bytes of the data.
+ * The declared type must match the first bytes of the data. Only the first bytes are checked:
+ * re-encode the image through a canvas before storing it.
  */
 export function rasterDataUrlType(dataUrl: string): SnapshotImageType | null {
   if (typeof dataUrl !== 'string' || dataUrl.length > limits.maxImageDataUrlChars) return null;
@@ -232,6 +262,27 @@ function normalize(data: z.infer<typeof payloadSchema>): SnapshotPayload {
     state: data.state,
     images: data.images.map(image => ({id: image.id, label: image.label, dataUrl: image.dataUrl})),
   };
+}
+
+/**
+ * Counts '{', '[' and ',' outside JSON strings, and stops once the count passes `stopAfter`.
+ * One fast pass over the text; it never allocates.
+ */
+function countJsonTokens(text: string, stopAfter: number): number {
+  let count = 0;
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (inString) {
+      if (c === 0x5c) i++; // a backslash escapes the next character
+      else if (c === 0x22) inString = false;
+    } else if (c === 0x22) {
+      inString = true;
+    } else if (c === 0x7b || c === 0x5b || c === 0x2c) {
+      if (++count > stopAfter) return count;
+    }
+  }
+  return count;
 }
 
 function describeIssue(error: z.ZodError): string | undefined {

@@ -8,7 +8,7 @@ describe('readSnapshotFile and writeSnapshotFile', () => {
   it('stores a list with device images in a screenshot and reads it back', async () => {
     const screenshot = makePng(32, 20, 3);
     const deviceImage = `data:image/png;base64,${Buffer.from(makePng(8, 8, 9)).toString('base64')}`;
-    const images = [{id: 'k3J9x', label: 'My cat 🐈', dataUrl: deviceImage}];
+    const images = [{id: 'h3Kx9_Tq2LmZ-a8B', label: 'My cat 🐈', dataUrl: deviceImage}];
 
     const written = await writeSnapshotFile(screenshot, {state: STATE, images});
     expect(written.ok).toBe(true);

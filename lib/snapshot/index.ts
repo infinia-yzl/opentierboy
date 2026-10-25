@@ -37,6 +37,7 @@ export type {
 } from './png';
 export {
   buildSnapshotPayload,
+  isSnapshotImageId,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_IMAGE_TYPES,
@@ -63,7 +64,9 @@ export type WriteSnapshotFileResult =
 
 /**
  * Reads the list from a snapshot PNG. `no-snapshot` means a valid PNG without a list (an
- * ordinary picture); every other reason means the file cannot be opened as a list.
+ * ordinary picture); every other reason means the file cannot be opened as a list. Offer to
+ * add the file as an image item for `no-snapshot`, `not-png`, `bad-structure` and `bad-crc`:
+ * a PNG with bytes after its end or a damaged minor chunk still shows as a picture.
  * Check `File.size` against `SNAPSHOT_PNG_LIMITS.maxFileBytes` before reading the file into
  * memory. Never throws.
  */
