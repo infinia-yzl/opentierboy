@@ -9,7 +9,8 @@
  * - The store keeps the image bytes (an ArrayBuffer plus the image type), never a `blob:`
  *   URL: a `blob:` URL dies with the page that made it. ArrayBuffers also avoid old Safari
  *   bugs with Blobs in IndexedDB.
- * - The image type comes from the file's first bytes (PNG, JPEG, WebP, GIF or AVIF). The
+ * - The image type comes from the file's first bytes (PNG, JPEG, WebP, GIF or AVIF; the editor
+ *   adds no AVIF, see lib/images/prepareImage.ts). The
  *   type the browser reports is ignored. SVG and every other format are refused, so the
  *   editor converts them first (lib/images/prepareImage.ts).
  * - Limits: 5 MB per image, 100 MB and 2,000 images in total by default. When a new image

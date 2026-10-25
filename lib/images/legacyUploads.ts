@@ -90,7 +90,7 @@ export type PrepareForStore = (blob: Blob) => Promise<{ok: true; blob: Blob} | {
 export interface MigrationResult {
   /** Device ids now in the store. */
   moved: string[];
-  /** Uploads left in localStorage for another try (the store was full or failed). */
+  /** Uploads left in localStorage for another try (the store was full or failed, or AVIF and HEIC). */
   kept: number;
   /** Entries removed because they can never be moved. */
   dropped: number;
@@ -128,7 +128,9 @@ export async function migrateLegacyUploads(
     }
     const prepared = await prepare(new Blob([decoded.bytes as BlobPart], {type: decoded.type}));
     if (!prepared.ok) {
-      result.dropped++;
+      // AVIF and HEIC wait in localStorage until the editor can check them: they are not lost.
+      if (prepared.reason === 'avif-heic' && store.persistent) keep.push({i: upload.itemId, c: upload.label, d: upload.dataUrl});
+      else result.dropped++;
       continue;
     }
     const stored = await store.put(prepared.blob, {id: upload.deviceId});

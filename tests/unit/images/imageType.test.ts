@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {readImageSize, sniffImageType} from '@/lib/images/imageType';
+import {isIsoMediaFile, readImageSize, sniffImageType} from '@/lib/images/imageType';
+import {avifWithFalseSize, heicStart} from '../support/avif';
 
 const bytes = (...parts: (number[] | string)[]) =>
   Uint8Array.from(parts.flatMap((part) => (typeof part === 'string' ? [...part].map((c) => c.charCodeAt(0)) : part)));
@@ -49,17 +50,14 @@ describe('readImageSize', () => {
     expect(readImageSize(bytes('GIF89a', [1, 0, 1, 0, 0, 0, 0], [0x2c, 0, 0, 0, 0]))).toBeNull();
   });
 
-  it('reads the largest "ispe" size of an AVIF file', () => {
-    const u32 = (value: number) => [value >>> 24, (value >>> 16) & 255, (value >>> 8) & 255, value & 255];
-    const ispe = (width: number, height: number) => [...u32(20), ...'ispe'.split('').map((c) => c.charCodeAt(0)), 0, 0, 0, 0, ...u32(width), ...u32(height)];
-    const ftyp = bytes(u32(24), 'ftypavif', [0, 0, 0, 0], 'mif1avif');
-    expect(sniffImageType(ftyp)).toBe('image/avif');
-    // meta > iprp > ipco with a thumbnail and the main picture, in any order.
-    const avif = Uint8Array.from([...ftyp, ...bytes(u32(60), 'meta', [0, 0, 0, 0]), ...ispe(160, 90), ...ispe(12_000, 9_000)]);
-    expect(readImageSize(avif)).toEqual({width: 12_000, height: 9_000});
-    expect(readImageSize(ftyp)).toBeNull();
-    // An "ispe" that is not a 20-byte box is not one.
-    expect(readImageSize(Uint8Array.from([...ftyp, 0, 0, 0, 9, ...'ispe'.split('').map((c) => c.charCodeAt(0)), ...new Array(12).fill(1)]))).toBeNull();
+  it('gives no size for AVIF, whose "ispe" size can lie, and tells ISO media files apart', () => {
+    const liar = avifWithFalseSize([100, 100], [9000, 9000]);
+    expect(sniffImageType(liar)).toBe('image/avif');
+    expect(readImageSize(liar)).toBeNull();
+    expect(isIsoMediaFile(liar)).toBe(true);
+    expect(isIsoMediaFile(heicStart())).toBe(true);
+    expect(isIsoMediaFile(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(false);
+    expect(isIsoMediaFile(bytes('GIF89a'))).toBe(false);
   });
 
   it('gives null when the header does not tell', () => {

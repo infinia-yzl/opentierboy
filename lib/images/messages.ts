@@ -34,12 +34,13 @@ export const IMAGE_CHECK_FAILURE_MESSAGES: Readonly<Record<ImageCheckFailure, st
 };
 
 /** Why an image from the device could not be kept (lib/images/deviceStore.ts and lib/images/prepareImage.ts). */
-export const DEVICE_IMAGE_REFUSAL_MESSAGES: Readonly<Record<DevicePutRefusal | 'unreadable' | 'too-many-pixels', string>> = {
+export const DEVICE_IMAGE_REFUSAL_MESSAGES: Readonly<Record<DevicePutRefusal | 'unreadable' | 'too-many-pixels' | 'avif-heic', string>> = {
   'not-a-blob': 'This is not an image file.',
   empty: 'The file is empty.',
   'too-large': 'The image is too large, even after making it smaller.',
   'too-many-pixels': 'The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.',
-  'unsupported-type': 'This file type is not supported. Use a PNG, JPEG, WebP, GIF or AVIF image.',
+  'unsupported-type': 'This file type is not supported. Use a PNG, JPEG, WebP or GIF image.',
+  'avif-heic': 'AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.',
   'invalid-id': 'The image could not be saved.',
   'storage-full': 'Your browser has no room left to keep this image.',
   'storage-error': 'Your browser could not save the image.',

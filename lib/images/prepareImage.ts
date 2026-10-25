@@ -1,19 +1,24 @@
 /**
  * Gets an image file ready for the device store (lib/images/deviceStore.ts), in the browser.
  *
- * The store keeps PNG, JPEG, WebP, GIF and AVIF files of up to 5 MB, judged by their first
- * bytes. A file that already fits is kept exactly as it is (an animated GIF stays animated).
- * Any other image the browser can show (SVG, BMP, HEIC on Safari, a large photo) is drawn on a
+ * The store keeps PNG, JPEG, WebP and GIF files of up to 5 MB, judged by their first bytes. A
+ * file that already fits is kept exactly as it is (an animated GIF stays animated). Any other
+ * image the browser can show (SVG, BMP, a large photo) is drawn on a
  * canvas, at most 2,048 pixels on its longest side, and saved again: as WebP, or PNG where the
  * browser cannot write WebP, and as JPEG when that is still too large. SVG thus becomes a plain
  * picture: its scripts and links never reach the store.
  *
  * Every image is decoded once, and refused when it is wider or taller than 8,192 pixels or
  * larger than 32 megapixels (the caps of lib/images/imageCheck.ts). The size is checked before
- * the pixels are decoded: from the file's header (PNG, GIF, WebP, JPEG, AVIF), or else from the
+ * the pixels are decoded: from the file's header (PNG, GIF, WebP, JPEG), or else from the
  * loaded image's natural size, so a small file that declares a huge picture (a "decompression
  * bomb") is refused before the browser allocates memory for it. The store's bytes are later
  * read back and drawn, so they must stay within the caps.
+ *
+ * AVIF and HEIC files are refused: the size in their header can differ from the size of the
+ * coded picture, and the browser reports the header's size as the natural size. A 2 KB AVIF
+ * that says 100 x 100 can decode at 9,000 x 9,000. Checking the real size needs an AV1 (or
+ * HEVC) parser and the file's item locations; until then, such files are not taken.
  *
  * The type of a file comes from its bytes, never from the type the browser reports (which
  * comes from the file name). A blob: URL is a page of this site when opened in a tab, so an
@@ -25,9 +30,9 @@
  * Uses the browser's Image and canvas at call time only. Tests inject both.
  */
 import {DEFAULT_IMAGE_CHECK_LIMITS} from './imageCheck';
-import {type RasterImageType, readImageSize, sniffImageType} from './imageType';
+import {isIsoMediaFile, type RasterImageType, readImageSize, sniffImageType} from './imageType';
 
-export type PrepareImageRefusal = 'empty' | 'unreadable' | 'unsupported-type' | 'too-large' | 'too-many-pixels';
+export type PrepareImageRefusal = 'empty' | 'unreadable' | 'unsupported-type' | 'avif-heic' | 'too-large' | 'too-many-pixels';
 /** `blob` always has `type`, the type sniffed from its bytes. */
 export type PrepareImageResult =
   | {ok: true; blob: Blob; type: RasterImageType; reencoded: boolean}
@@ -63,6 +68,9 @@ export function pixelCapError(): Error & {code: typeof PIXEL_CAP_ERROR} {
 /** True for an error made by pixelCapError(). */
 export const isPixelCapError = (error: unknown): boolean =>
   error instanceof Error && (error as {code?: unknown}).code === PIXEL_CAP_ERROR;
+
+/** AVIF and HEIC, by their bytes or by the type the browser reports. */
+const isAvifOrHeic = (head: Uint8Array, blob: Blob) => isIsoMediaFile(head) || /^image\/(avif|heic|heif)\b/.test(blob.type);
 
 /** The part of a canvas this module uses. */
 export interface CanvasLike {
@@ -105,15 +113,15 @@ export async function asRasterImage(blob: Blob): Promise<{blob: Blob; type: Rast
 
 /**
  * The file as a Blob of its sniffed raster type, for a preview: null when its bytes are not PNG,
- * JPEG, WebP, GIF or AVIF, or when its header does not declare a size within the pixel caps
- * (showing the file would decode it).
+ * JPEG, WebP or GIF, or when its header does not declare a size within the pixel caps (showing
+ * the file would decode it).
  */
 export async function previewableImage(
   blob: Blob,
   {maxWidth, maxHeight, maxPixels} = DEFAULT_IMAGE_CHECK_LIMITS,
 ): Promise<{blob: Blob; type: RasterImageType} | null> {
   const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
-  const type = sniffImageType(head);
+  const type = isAvifOrHeic(head, blob) ? null : sniffImageType(head);
   const size = type ? readImageSize(head) : null;
   if (!type || !size || size.width > maxWidth || size.height > maxHeight || size.width * size.height > maxPixels) return null;
   return {blob: new Blob([blob], {type}), type};
@@ -193,6 +201,7 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
     if (blob.size === 0) return {ok: false, reason: 'empty'};
     if (blob.size > maxInputBytes) return {ok: false, reason: 'too-large'};
     const head = new Uint8Array(await blob.slice(0, HEAD_BYTES).arrayBuffer());
+    if (isAvifOrHeic(head, blob)) return {ok: false, reason: 'avif-heic'};
     const type = sniffImageType(head);
     // Not a raster image by its bytes: only what the browser calls an image is converted.
     if (!type && !blob.type.startsWith('image/')) return {ok: false, reason: 'unsupported-type'};

@@ -114,19 +114,25 @@ To move the pin to a newer list:
   function (amendment A40).
 - The store keeps the image bytes, never a `blob:` URL.
 - It accepts PNG, JPEG, WebP, GIF and AVIF, judged by the file's first bytes. Other formats
-  (SVG, HEIC, BMP) must be converted first, for example drawn on a canvas and saved as PNG.
+  (SVG, BMP) must be converted first, for example drawn on a canvas and saved as PNG.
+- The editor adds no AVIF or HEIC files ("AVIF and HEIC images cannot be added yet"): the size
+  in their header (`ispe`) can differ from the size of the coded picture, and the browser
+  reports the header's size. A 2 KB AVIF that says 100 x 100 can decode at 9,000 x 9,000.
+  Checking the real size needs an AV1 or HEVC parser and the file's item locations (the AV1
+  sequence header is usually in the item data, not in `av1C`). Old uploads of these types stay
+  in localStorage instead of being dropped.
 - Every image is decoded once before it is kept, and refused when it is wider or taller than
   8,192 pixels or larger than 32 megapixels. The size is checked before the pixels are
-  decoded: from the file's header (PNG, GIF, WebP, JPEG, AVIF), or else from the loaded
-  image's natural size. A small file that declares a huge picture is refused at once, and the
+  decoded: from the file's header (PNG, GIF, WebP, JPEG; a GIF counts its first frame too), or
+  else from the loaded image's natural size. A small file that declares a huge picture is refused at once, and the
   upload dialog shows no preview for it.
 - **Object URLs only from the sniffed type.** The type the browser reports for a file comes
   from its name, and a `blob:` URL opened in a tab is a page of this site: a PNG named
   `evil.html` with a script after the picture would run that script. So every object URL is
   made from `new Blob([bytes], {type})` with the type sniffed from the bytes:
   `ObjectUrlRegistry.urlFor(id, blob, type)` for tiles (the type `put` returns) and
-  `previewableImage` for the upload preview. A file that is not PNG, JPEG, WebP, GIF or AVIF
-  by its bytes gets no object URL: an image to convert (SVG, BMP) loads from a `data:` URL,
+  `previewableImage` for the upload preview. A file that is not PNG, JPEG, WebP or GIF by its
+  bytes gets no object URL: an image to convert (SVG, BMP) loads from a `data:` URL,
   which has no access to this site, and anything the browser does not call an image is
   refused.
 - When the browser itself has no room left, the editor removes the least recently used images

@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {createMemoryDeviceStore, type DeviceStore} from '@/lib/images/deviceStore';
 import {dataUrlToBytes, LEGACY_UPLOADS_KEY, migrateLegacyUploads, parseLegacyUploads} from '@/lib/images/legacyUploads';
 import type {StringStorage} from '@/lib/images/localLists';
+import {avifWithFalseSize} from '../support/avif';
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8];
 const pngDataUrl = (extra = 0) => `data:image/png;base64,${Buffer.from([...PNG, ...new Array(extra).fill(9)]).toString('base64')}`;
@@ -83,6 +84,17 @@ describe('migrateLegacyUploads', () => {
     const result = await migrateLegacyUploads(storage, {...store, put: (blob, options) => store.put(blob, {...options, keep: ['keep-this-one']})}, prepare);
     expect(result).toEqual({moved: [], kept: 2, dropped: 1});
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!).map((entry: {i: string}) => entry.i)).toEqual(['k3j9x0a1b', 'm0n9b8v7c']);
+  });
+
+  it('keeps AVIF and HEIC uploads in localStorage, since the editor cannot check them yet', async () => {
+    const avif = `data:image/avif;base64,${Buffer.from(avifWithFalseSize([100, 100], [9000, 9000])).toString('base64')}`;
+    const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
+      {i: 'k3j9x0a1b', c: 'Cat', d: pngDataUrl()},
+      {i: 'a1v1f2x3y', c: 'Photo', d: avif},
+    ])});
+    const prepare = async (blob: Blob) => (blob.type === 'image/avif' ? {ok: false as const, reason: 'avif-heic'} : {ok: true as const, blob});
+    expect(await migrateLegacyUploads(storage, persistentStore(), prepare)).toEqual({moved: ['k3j9x0a1b'], kept: 1, dropped: 0});
+    expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!)).toEqual([{i: 'a1v1f2x3y', c: 'Photo', d: avif}]);
   });
 
   it('leaves localStorage alone when the store keeps images only in memory', async () => {

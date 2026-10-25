@@ -1,5 +1,6 @@
 import {expect, test} from '../support/test';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
+import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
 
 const TANKS = '/rank/overwatch/tank';
@@ -186,6 +187,20 @@ test.describe('Images from the device', () => {
     await expect(dialog.locator('img')).toHaveCount(0);
     await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
     await expect(dialog.getByRole('alert')).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.', {timeout: 3_000});
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+  });
+
+  test('an AVIF file is refused at once with a plain message, without a preview', async ({tierList}) => {
+    // The 5d review's file: its header says 100 x 100, its AV1 data 9,000 x 9,000.
+    const avif = Buffer.from(avifWithFalseSize([100, 100], [9000, 9000]));
+    await tierList.goto('/rank');
+
+    const dialog = await tierList.chooseFilesFromDevice([imageFile('photo.avif', avif, 'image/avif')]);
+    await expect(dialog.getByText('No preview')).toBeVisible();
+    await expect(dialog.locator('img')).toHaveCount(0);
+    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
+    await expect(dialog.getByRole('alert'))
+      .toHaveText('photo: AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.', {timeout: 3_000});
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 

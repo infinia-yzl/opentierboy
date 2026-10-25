@@ -27,9 +27,9 @@ interface UploadedItem {
   content: string;
   /**
    * A blob: URL of the file as its real type (sniffed from its bytes, never the type the browser
-   * reports from the file name), for the preview. Null when the file is not a PNG, JPEG, WebP,
-   * GIF or AVIF (it is converted when added, like SVG, or refused), or when its header does not
-   * declare a size within the pixel caps. Revoked when the preview goes away.
+   * reports from the file name), for the preview. Null when the file is not a PNG, JPEG, WebP
+   * or GIF (it is converted when added, like SVG, or refused, like AVIF), or when its header
+   * does not declare a size within the pixel caps. Revoked when the preview goes away.
    */
   imageUrl: string | null;
   file: File;

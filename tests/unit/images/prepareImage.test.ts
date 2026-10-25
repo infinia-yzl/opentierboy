@@ -1,5 +1,9 @@
 import {describe, expect, it, vi} from 'vitest';
 import {asRasterImage, previewableImage, type CanvasLike, type DecodedImage, type DecodeHints, isPixelCapError, pixelCapError, prepareImageForStore} from '@/lib/images/prepareImage';
+import {avifWithFalseSize, heicStart} from '../support/avif';
+
+/** An AVIF that libavif (through sharp) wrote: 300 x 200, with an empty av1C (no sequence header there). */
+const REAL_AVIF = new Uint8Array(Buffer.from('AAAAHGZ0eXBhdmlmAAAAAG1pZjFhdmlmbWlhZgAAANZtZXRhAAAAAAAAACFoZGxyAAAAAAAAAABwaWN0AAAAAAAAAAAAAAAAAAAAAA5waXRtAAAAAAABAAAAImlsb2MAAAAAREAAAQABAAAAAAD6AAEAAAAAAAAAKgAAACNpaW5mAAAAAAABAAAAFWluZmUCAAAAAAEAAGF2MDEAAAAAVmlwcnAAAAA4aXBjbwAAAAxhdjFDgSACAAAAABRpc3BlAAAAAAAAASwAAADIAAAAEHBpeGkAAAAAAwgICAAAABZpcG1hAAAAAAAAAAEAAQOBAgMAAAAybWRhdBIACgk4IeV47CAhoNIyGxIAAAAUAcV4wThbaFA3Eb0Y1metvOW8MgWzOA==', 'base64'));
 
 type Decode = (blob: Blob, hints: DecodeHints) => Promise<DecodedImage>;
 
@@ -93,6 +97,24 @@ describe('prepareImageForStore', () => {
     bomb.set([8, 6, 0, 0, 0], 24);
     const {decode} = decodeAs(50_000, 50_000);
     expect(await prepareImageForStore(new Blob([bomb]), {maxBytes: 5_000_000, decode})).toEqual({ok: false, reason: 'too-many-pixels'});
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('refuses AVIF and HEIC before decoding them: their declared size can lie', async () => {
+    const {decode} = decodeAs(100, 100);
+    // The review's file: "ispe" says 100 x 100, the AV1 data 9,000 x 9,000 (190 MB to decode).
+    const liar = avifWithFalseSize([100, 100], [9000, 9000]);
+    for (const [file, label] of [
+      [new Blob([liar], {type: 'image/avif'}), 'false size'],
+      [new Blob([liar], {type: 'text/html'}), 'false size, wrong reported type'],
+      [new Blob([REAL_AVIF], {type: 'image/avif'}), 'a real AVIF'],
+      [new Blob([heicStart()], {type: 'image/heic'}), 'HEIC'],
+      [new Blob(['not even ISO media'], {type: 'image/avif'}), 'reported as AVIF'],
+      [new Blob(['not even ISO media'], {type: 'image/heif'}), 'reported as HEIF'],
+    ] as const) {
+      expect(await prepareImageForStore(file, {maxBytes: 5_000_000, decode}), label).toEqual({ok: false, reason: 'avif-heic'});
+      expect(await previewableImage(file), label).toBeNull();
+    }
     expect(decode).not.toHaveBeenCalled();
   });
 
