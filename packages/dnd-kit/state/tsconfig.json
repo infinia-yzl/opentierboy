@@ -1,5 +1,5 @@
 {
-  "extends": "../../config/typescript/vanilla.json",
+  "extends": "../config/typescript/vanilla.json",
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["dist", "build", "node_modules"],
   "compilerOptions": {

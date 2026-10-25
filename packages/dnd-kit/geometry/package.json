@@ -1,6 +1,7 @@
 {
   "name": "@dnd-kit/geometry",
   "version": "0.5.1",
+  "private": true,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -19,12 +20,6 @@
   "dependencies": {
     "@dnd-kit/state": "^0.5.1",
     "tslib": "^2.6.2"
-  },
-  "devDependencies": {
-    "@dnd-kit/eslint-config": "*",
-    "eslint": "^8.38.0",
-    "tsup": "8.3.0",
-    "typescript": "^5.5.2"
   },
   "publishConfig": {
     "access": "public"

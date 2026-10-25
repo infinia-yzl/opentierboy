@@ -1,6 +1,7 @@
 {
   "name": "@dnd-kit/state",
   "version": "0.5.1",
+  "private": true,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -20,13 +21,6 @@
   "dependencies": {
     "@preact/signals-core": "^1.10.0",
     "tslib": "^2.6.2"
-  },
-  "devDependencies": {
-    "@dnd-kit/eslint-config": "*",
-    "bun-types": "^1.2.15",
-    "eslint": "^8.38.0",
-    "tsup": "8.3.0",
-    "typescript": "^5.5.2"
   },
   "publishConfig": {
     "access": "public"

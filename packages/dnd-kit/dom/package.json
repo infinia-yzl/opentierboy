@@ -1,6 +1,7 @@
 {
   "name": "@dnd-kit/dom",
   "version": "0.5.1",
+  "private": true,
   "type": "module",
   "main": "./index.cjs",
   "module": "./index.js",
@@ -80,13 +81,6 @@
     "@dnd-kit/geometry": "^0.5.1",
     "@dnd-kit/state": "^0.5.1",
     "tslib": "^2.6.2"
-  },
-  "devDependencies": {
-    "@dnd-kit/eslint-config": "*",
-    "bun-types": "^1.2.15",
-    "eslint": "^8.38.0",
-    "tsup": "8.3.0",
-    "typescript": "^5.5.2"
   },
   "publishConfig": {
     "access": "public"
