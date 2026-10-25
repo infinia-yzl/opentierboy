@@ -19,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
@@ -37,6 +36,8 @@ const ItemManager: React.FC = () => {
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
+  // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
+  const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
@@ -131,31 +132,30 @@ const ItemManager: React.FC = () => {
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}
-                                className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
-              >
-                Remove All
-              </DropdownMenuItem>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove all items from all tiers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
-                  Remove All Items
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
+                            className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
+          >
+            Remove All
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={isRemoveAllOpen} onOpenChange={setIsRemoveAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all items from all tiers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
+              Remove All Items
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isItemCreatorOpen} onOpenChange={setIsItemCreatorOpen}>
         <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">

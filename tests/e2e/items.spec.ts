@@ -78,17 +78,22 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
   });
 
-  test('undo after Remove All brings the items back', async ({tierList, page}) => {
+  test('undo after Remove All brings the items back', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.removeAllItems();
-    // Work around the frozen page (known bug below), so that this test checks Undo alone:
-    // Escape closes the menu that blocks the page.
-    await expect(page.getByRole('alertdialog')).toBeHidden();
-    await page.keyboard.press('Escape');
 
     await tierList.undoFromToast('All Items Deleted');
 
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+  });
+
+  test('the page responds to clicks again after Remove All', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+
+    await tierList.removeAllItems();
+
+    // A trial click runs every check of a real click, including that nothing covers the button.
+    await tierList.shareButton.click({trial: true, timeout: 3_000});
   });
 });
 
@@ -113,16 +118,6 @@ test.describe('Known bugs', () => {
     const image = reopened.item('red-square').getByRole('img');
     await expect(image).toBeVisible();
     await expect.poll(() => imageHasLoaded(image), {timeout: 3_000}).toBe(true);
-  });
-
-  test('the page responds to clicks again after Remove All', async ({tierList}) => {
-    test.fail(true, 'The confirm dialog sits inside the open menu, and the menu stays open and blocks the page.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-
-    await tierList.removeAllItems();
-
-    // A trial click runs every check of a real click, including that nothing covers the button.
-    await tierList.shareButton.click({trial: true, timeout: 3_000});
   });
 });
 
