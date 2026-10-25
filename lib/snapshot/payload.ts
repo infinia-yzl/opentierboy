@@ -33,6 +33,7 @@
 import {normalizeRankPath} from '@/lib/rankPath';
 import {isDeviceImageId} from '@/lib/state/deviceId';
 import {z} from '@/lib/zod';
+import {declaredImageSize, type ImageSize, JPEG_SIZE_SEARCH_BYTES, snapshotImageTypeOf} from './imageSize';
 import {SNAPSHOT_PNG_LIMITS} from './png';
 
 export const SNAPSHOT_PAYLOAD_VERSION = 1;
@@ -47,6 +48,8 @@ const MiB = 1024 * 1024;
  * - `maxImages`, `maxImageDataUrlChars`, `maxTotalImageDataUrlChars`: device images.
  *   8 MB of data URLs is about 6 MB of pictures, for example 300 pictures of 20 KB each.
  * - `maxLabelChars`: per image.
+ * - `maxImageSide`, `maxImagePixels`: the size an image's header declares (16 megapixels is
+ *   4096 x 4096). The app writes at most 512 pixels per side.
  * - `maxJsonTokens`: objects, arrays and commas outside strings, counted before JSON.parse.
  *   A payload with 500 images has about 2,000. The count stops JSON.parse and zod from
  *   building millions of tiny values: 9 MB of `{},` would otherwise take seconds.
@@ -58,6 +61,8 @@ export const SNAPSHOT_PAYLOAD_LIMITS = Object.freeze({
   maxImageDataUrlChars: 2 * MiB,
   maxTotalImageDataUrlChars: 8 * MiB,
   maxLabelChars: 1_000,
+  maxImageSide: 4096,
+  maxImagePixels: 4096 * 4096,
   maxJsonTokens: 100_000,
 });
 
@@ -120,7 +125,7 @@ const imageSchema = z.object({
     .string()
     .max(limits.maxImageDataUrlChars)
     .refine(value => rasterDataUrlType(value) !== null, {
-      message: 'must be a base64 data URL of a PNG, JPEG, WebP or GIF picture whose bytes match its type',
+      message: 'must be a base64 data URL of a PNG, JPEG, WebP or GIF picture of at most 4096 x 4096 pixels whose bytes match its type',
     }),
 });
 
@@ -213,11 +218,13 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
 }
 
 /**
- * The image type of a base64 data URL of a PNG, JPEG, WebP or GIF picture, or null.
- * The declared type must match the first bytes of the data. Only the first bytes are checked:
- * re-encode the image through a canvas before storing it.
+ * The type and declared size of a base64 data URL of a PNG, JPEG, WebP or GIF picture, or null.
+ * The declared type must match the first bytes of the data, and the size the header declares
+ * must be within `maxImageSide` and `maxImagePixels`: a tiny file can declare a huge picture,
+ * and the browser would decode it at full size (an image bomb). Nothing is decoded here. Only
+ * the header is checked, so re-encode the image through a canvas before storing it.
  */
-export function rasterDataUrlType(dataUrl: string): SnapshotImageType | null {
+export function rasterDataUrlInfo(dataUrl: string): {type: SnapshotImageType} & ImageSize | null {
   if (typeof dataUrl !== 'string' || dataUrl.length > limits.maxImageDataUrlChars) return null;
   const match = DATA_URL.exec(dataUrl);
   if (!match) return null;
@@ -225,26 +232,26 @@ export function rasterDataUrlType(dataUrl: string): SnapshotImageType | null {
   const base64 = match[2];
   if (base64.length < 16 || base64.length % 4 !== 0) return null;
 
-  let head: string;
+  // JPEG keeps its size after optional segments; the other types within the first 30 bytes.
+  const headChars = type === 'image/jpeg' ? Math.ceil(JPEG_SIZE_SEARCH_BYTES / 3) * 4 : 64;
+  let head: Uint8Array;
   try {
-    head = atob(base64.slice(0, 16));
+    const binary = atob(base64.slice(0, headChars));
+    head = Uint8Array.from(binary, char => char.charCodeAt(0));
   } catch {
     return null;
   }
-  const byte = (i: number) => head.charCodeAt(i);
-  const ascii = (from: number, to: number) => head.slice(from, to);
-  switch (type) {
-    case 'image/png':
-      return [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, i) => byte(i) === value) ? type : null;
-    case 'image/jpeg':
-      return byte(0) === 0xff && byte(1) === 0xd8 && byte(2) === 0xff ? type : null;
-    case 'image/gif':
-      return ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a' ? type : null;
-    case 'image/webp':
-      return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP' ? type : null;
-    default:
-      return null;
+  if (snapshotImageTypeOf(head) !== type) return null;
+  const size = declaredImageSize(head);
+  if (!size || size.width > limits.maxImageSide || size.height > limits.maxImageSide || size.width * size.height > limits.maxImagePixels) {
+    return null;
   }
+  return {type, ...size};
+}
+
+/** The image type of a valid snapshot image data URL (see rasterDataUrlInfo), or null. */
+export function rasterDataUrlType(dataUrl: string): SnapshotImageType | null {
+  return rasterDataUrlInfo(dataUrl)?.type ?? null;
 }
 
 /** A plain object with keys in a fixed order, so the same input always gives the same text. */

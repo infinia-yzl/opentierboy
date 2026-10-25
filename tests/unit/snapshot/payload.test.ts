@@ -8,16 +8,18 @@ import {
   type SnapshotImage,
 } from '@/lib/snapshot/payload';
 import {SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot/png';
+import {gifHeader, jpegHeader, pngHeader, webpHeader} from './imageHeaders';
 import {makePng} from './pngHelpers';
 
 const limits = SNAPSHOT_PAYLOAD_LIMITS;
 const STATE = '3.N4IgLgFgpgTg4mAdgVw';
 
+/** Image headers of 2 x 2 pictures: the payload reads only the type and the declared size. */
 const MAGIC = {
-  png: Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]),
-  jpeg: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1]),
-  gif: new TextEncoder().encode('GIF89a\x01\x00\x01\x00\x80\x00'),
-  webp: new TextEncoder().encode('RIFF\x24\x00\x00\x00WEBPVP8 '),
+  png: pngHeader(2, 2),
+  jpeg: jpegHeader(2, 2),
+  gif: gifHeader(2, 2),
+  webp: webpHeader(2, 2),
 };
 
 function dataUrl(type: keyof typeof MAGIC, padTo = 0, mime = `image/${type}`): string {

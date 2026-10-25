@@ -3,19 +3,10 @@
  *
  * Plain code: it uses `btoa` and `atob`, which browsers and Node 22 have, at call time only.
  */
+import {snapshotImageTypeOf} from './imageSize';
 import {rasterDataUrlType, type SnapshotImageType} from './payload';
 
-const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-
-/** The snapshot image type of these bytes from their first bytes, or null. */
-export function snapshotImageTypeOf(bytes: Uint8Array): SnapshotImageType | null {
-  const ascii = (from: number, to: number) => String.fromCharCode(...bytes.subarray(from, to));
-  if (bytes.length >= 8 && PNG.every((value, i) => bytes[i] === value)) return 'image/png';
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
-  if (bytes.length >= 6 && (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a')) return 'image/gif';
-  if (bytes.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp';
-  return null;
-}
+export {snapshotImageTypeOf};
 
 /** A data URL of a PNG, JPEG, WebP or GIF picture, typed by its first bytes. Null for any other bytes. */
 export function dataUrlFromImageBytes(bytes: Uint8Array): string | null {
