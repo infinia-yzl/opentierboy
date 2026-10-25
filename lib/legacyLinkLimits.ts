@@ -50,8 +50,8 @@ export function checkLegacyState(state: CanonicalState, limits: LegacyLinkLimits
   const raw = state as unknown as {version: unknown; title?: unknown; tiers: unknown};
   const fail = (reason: string): LegacyStateCheck => ({ok: false, reason});
 
-  if (!Array.isArray(raw.tiers)) return fail('the tiers are not a list');
-  if (raw.tiers.length === 0) return fail('the list has no tiers');
+  if (!Array.isArray(raw.tiers)) return fail('tiers that are not a list');
+  if (raw.tiers.length === 0) return fail('no tiers');
   if (raw.tiers.length > limits.maxTiers) return fail(`more than ${limits.maxTiers} tiers`);
 
   let title: string | undefined;
