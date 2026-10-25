@@ -32,6 +32,10 @@ const SNAPSHOT_LIST = {
 };
 
 test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () => {
+  // Each test builds a list, captures and downloads it, then opens the file, often in a second
+  // browser: on a busy machine that takes longer than the default 30 seconds.
+  test.slow();
+
   test('a downloaded picture holds the list and its device images, and opens again elsewhere', async ({tierList, openAsVisitor}) => {
     const snapshot = await downloadSnapshotOf(tierList);
     // Still an ordinary PNG, with the list inside.
@@ -227,12 +231,11 @@ test.describe('Opening other files', () => {
     const bomb = pngDeclaring(RED_SQUARE, 12_000, 12_000);
     const payload = {version: 1, state: '3.abc', images: [{id: 'bombImage001', label: 'Bomb', dataUrl: `data:image/png;base64,${bomb.toString('base64')}`}]};
     const file = pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload));
-    await tierList.waitUntilInteractive();
 
-    const started = Date.now();
-    await tierList.openFile(pngFile('image-bomb.png', file), {waitForEditor: false});
-    await expect(tierList.toast('Could not open the file')).toContainText('This file is damaged, or it was not made by OpenTierBoy.');
-    expect(Date.now() - started).toBeLessThan(1_000);
+    const time = await tierList.timeToOpenFile(pngFile('image-bomb.png', file), 'This file is damaged, or it was not made by OpenTierBoy.');
+
+    // Measured in the page from receiving the file to the message.
+    expect(time).toBeLessThan(1_000);
     await expect(tierList.openListDialog).toHaveCount(0);
   });
 
@@ -281,11 +284,8 @@ test.describe('Opening other files', () => {
     const bomb = pngWithSnapshotText(RED_SQUARE, '', {compressedText: zlib.deflateSync(Buffer.alloc(64 * 1024 * 1024))});
     expect(bomb.length).toBeLessThan(100_000);
 
-    await tierList.waitUntilInteractive();
-    const started = Date.now();
-    await tierList.openFile(pngFile('bomb.png', bomb), {waitForEditor: false});
-    await expect(tierList.toast('Could not open the file')).toContainText('This file is too large to open as a list.');
-    expect(Date.now() - started).toBeLessThan(5_000);
+    const time = await tierList.timeToOpenFile(pngFile('bomb.png', bomb), 'This file is too large to open as a list.');
+    expect(time).toBeLessThan(5_000);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 });

@@ -694,6 +694,35 @@ export class TierListPage {
   }
 
   /**
+   * Chooses a file with "Open file" and returns how long the page took, measured in the page,
+   * from receiving the file until a toast with `text` appeared (milliseconds). Playwright's own
+   * waiting is not part of the time.
+   */
+  async timeToOpenFile(file: {name: string; mimeType: string; buffer: Buffer}, text: string): Promise<number> {
+    await this.waitUntilInteractive();
+    await this.page.evaluate((expected) => {
+      const timing: {start?: number; end?: number} = {};
+      (window as unknown as {__openFileTiming: typeof timing}).__openFileTiming = timing;
+      document.addEventListener('change', () => {
+        timing.start ??= performance.now();
+      }, {capture: true, once: true});
+      const observer = new MutationObserver(() => {
+        if (timing.start !== undefined && document.body.textContent?.includes(expected)) {
+          timing.end = performance.now();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, {childList: true, subtree: true, characterData: true});
+    }, text);
+    await this.openFile(file, {waitForEditor: false});
+    await expect(this.toast(text)).toBeVisible();
+    return this.page.evaluate(() => {
+      const timing = (window as unknown as {__openFileTiming: {start?: number; end?: number}}).__openFileTiming;
+      return (timing.end ?? Number.NaN) - (timing.start ?? Number.NaN);
+    });
+  }
+
+  /**
    * The number of images in this browser's device image store. It reads the store's IndexedDB
    * database in the page directly: only the test looks, the app itself goes through
    * lib/images/deviceStore.ts.
