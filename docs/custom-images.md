@@ -78,6 +78,9 @@ To move the pin to a newer list:
 
 - Each image gets a local id of 16 letters, digits, `-` or `_`. A v3 link stores the id and
   the label. Other people who open the link do not have the image and see a label tile.
+- `isDeviceImageId` is the shared rule for these ids: 8 to 64 letters, digits, `-` or `_`,
+  and never a name such as `__proto__`. The v3 link format and the snapshot file use the same
+  function (amendment A40).
 - The store keeps the image bytes, never a `blob:` URL.
 - It accepts PNG, JPEG, WebP, GIF and AVIF, judged by the file's first bytes. Other formats
   (SVG, HEIC, BMP) must be converted first, for example drawn on a canvas and saved as PNG.

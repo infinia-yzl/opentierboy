@@ -136,7 +136,11 @@ const DEFAULT_OPEN_TIMEOUT_MS = 5_000;
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
-/** True for a device image id: 8 to 64 URL-safe characters. New ids have 16. */
+/**
+ * True for a device image id: 8 to 64 URL-safe characters. New ids have 16. This is the
+ * shared rule for device image ids: the v3 link format and the snapshot file use it too
+ * (amendment A40).
+ */
 export function isDeviceImageId(value: unknown): value is string {
   // Names such as __proto__ or constructor are refused, in case an id ever becomes an object key.
   return typeof value === 'string' && ID_PATTERN.test(value) && !Object.prototype.hasOwnProperty.call(Object.prototype, value);
