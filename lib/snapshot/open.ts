@@ -53,17 +53,49 @@ export interface SnapshotToOpen {
   images: SnapshotImage[];
 }
 
-/** Decodes a snapshot's list. Null when the link value does not decode as a versioned list. */
-export function snapshotToOpen(payload: SnapshotPayload): SnapshotToOpen | null {
+/**
+ * The longest link value a snapshot may open or write. A longer address makes the server answer
+ * "431 Request Header Fields Too Large" (a blank page): Node accepts about 16 KB of headers.
+ */
+export const MAX_SNAPSHOT_LINK_CHARS = 16_000;
+
+/** True when a link value is too long to open as an address (MAX_SNAPSHOT_LINK_CHARS). */
+export function snapshotLinkTooLong(state: string): boolean {
+  return state.length > MAX_SNAPSHOT_LINK_CHARS;
+}
+
+export type SnapshotToOpenResult = {ok: true; snapshot: SnapshotToOpen} | {ok: false; message: string};
+
+/**
+ * Decodes a snapshot's list. Refuses a link value that does not decode as a versioned list
+ * (damaged) or that is too long to open as an address (too large).
+ */
+export function snapshotToOpen(payload: SnapshotPayload): SnapshotToOpenResult {
+  if (snapshotLinkTooLong(payload.state)) return {ok: false, message: SNAPSHOT_MESSAGES.tooLarge};
   const list = decodeState(payload.state);
-  if (!list || list.version < 3) return null;
+  if (!list || list.version < 3) return {ok: false, message: SNAPSHOT_MESSAGES.damaged};
   const used = new Set(deviceItemIds(list));
   return {
-    list,
-    state: payload.state,
-    path: payload.path ?? '/rank',
-    images: payload.images.filter(image => used.has(image.id)),
+    ok: true,
+    snapshot: {
+      list,
+      state: payload.state,
+      path: payload.path ?? '/rank',
+      images: payload.images.filter(image => used.has(image.id)),
+    },
   };
+}
+
+/**
+ * The download name of a snapshot file: the title in lower case, letters and digits of any
+ * script joined by '-', at most 80 characters; `tier-list.png` when nothing is left.
+ */
+export function snapshotFileName(title: string): string {
+  // Built at call time: Unicode property escapes need a newer target than the build's ES2017.
+  const nonWord = new RegExp('[^\\p{L}\\p{N}]+', 'gu');
+  const slug = String(title).normalize('NFKC').toLowerCase().replace(nonWord, '-').replace(/^-+|-+$/g, '');
+  const short = Array.from(slug).slice(0, 80).join('').replace(/-+$/, '');
+  return `${short || 'tier-list'}.png`;
 }
 
 /** The ids of the device images (v3 `{d}` items) of a list, each once, in list order. */

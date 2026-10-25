@@ -50,8 +50,8 @@ async function checkFile(file: File): Promise<FileCheck> {
       const outcome = snapshotOpenOutcome(result.reason);
       return outcome.action === 'add-as-image' ? {kind: 'image'} : {kind: 'message', message: outcome.message};
     }
-    const snapshot = snapshotToOpen(result.payload);
-    return snapshot ? {kind: 'snapshot', snapshot} : {kind: 'message', message: SNAPSHOT_MESSAGES.damaged};
+    const opened = snapshotToOpen(result.payload);
+    return opened.ok ? {kind: 'snapshot', snapshot: opened.snapshot} : {kind: 'message', message: opened.message};
   } catch {
     return {kind: 'message', message: SNAPSHOT_MESSAGES.damaged};
   }

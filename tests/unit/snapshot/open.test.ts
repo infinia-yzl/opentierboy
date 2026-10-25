@@ -5,7 +5,10 @@ import {
   deviceItemIds,
   deviceImagesOfLink,
   SNAPSHOT_MESSAGES,
+  MAX_SNAPSHOT_LINK_CHARS,
+  snapshotFileName,
   snapshotLinkAfterImport,
+  snapshotLinkTooLong,
   snapshotOpenOutcome,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
@@ -34,6 +37,12 @@ function payload(overrides: Partial<SnapshotPayload> = {}): SnapshotPayload {
   return {version: 1, state: STATE, images: [], ...overrides};
 }
 
+function open(snapshot: SnapshotPayload) {
+  const result = snapshotToOpen(snapshot);
+  if (!result.ok) throw new Error(result.message);
+  return result.snapshot;
+}
+
 describe('snapshotOpenOutcome', () => {
   it('offers ordinary and slightly broken pictures as images', () => {
     for (const reason of ['no-snapshot', 'not-png', 'bad-structure', 'bad-crc'] as const) {
@@ -56,17 +65,24 @@ describe('snapshotOpenOutcome', () => {
 describe('snapshotToOpen', () => {
   it('decodes the list, keeps only the images its device items use, and defaults the path to /rank', () => {
     const images = [{id: CAT, label: 'Cat', dataUrl: png}, {id: 'unusedImage1', label: 'Unused', dataUrl: png}];
-    const opened = snapshotToOpen(payload({images}));
-    expect(opened?.path).toBe('/rank');
-    expect(opened?.state).toBe(STATE);
-    expect(opened?.images.map(image => image.id)).toEqual([CAT]);
-    expect(opened?.list.title).toBe('Pets');
-    expect(snapshotToOpen(payload({path: '/rank/overwatch/tank'}))?.path).toBe('/rank/overwatch/tank');
+    const opened = open(payload({images}));
+    expect(opened.path).toBe('/rank');
+    expect(opened.state).toBe(STATE);
+    expect(opened.images.map(image => image.id)).toEqual([CAT]);
+    expect(opened.list.title).toBe('Pets');
+    expect(open(payload({path: '/rank/overwatch/tank'})).path).toBe('/rank/overwatch/tank');
   });
 
-  it('refuses a link value that does not decode, or a legacy list', () => {
-    expect(snapshotToOpen(payload({state: '3.notAList'}))).toBeNull();
-    expect(snapshotToOpen(payload({state: '9.abc'}))).toBeNull();
+  it('refuses a link value that does not decode, or a legacy list, as damaged', () => {
+    expect(snapshotToOpen(payload({state: '3.notAList'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
+    expect(snapshotToOpen(payload({state: '9.abc'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
+  });
+
+  it('refuses a link value too long to open as an address, as too large', () => {
+    const long = `3.${'A'.repeat(MAX_SNAPSHOT_LINK_CHARS - 1)}`;
+    expect(snapshotLinkTooLong(long)).toBe(true);
+    expect(snapshotLinkTooLong(long.slice(1))).toBe(false);
+    expect(snapshotToOpen(payload({state: long}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.tooLarge});
   });
 });
 
@@ -78,19 +94,34 @@ describe('device image ids', () => {
   });
 
   it('keeps the file\'s link value when no id changed', () => {
-    const opened = snapshotToOpen(payload())!;
+    const opened = open(payload());
     expect(snapshotLinkAfterImport(opened, new Map([[CAT, CAT], [DOG, DOG]]))).toBe(STATE);
     expect(snapshotLinkAfterImport(opened, new Map())).toBe(STATE);
   });
 
   it('writes the list again with the new ids, and changes nothing else', () => {
-    const opened = snapshotToOpen(payload())!;
+    const opened = open(payload());
     const link = snapshotLinkAfterImport(opened, new Map([[CAT, 'newCatId0001'], [DOG, DOG]]));
     const decoded = decodeState(link)!;
     expect(deviceItemIds(decoded)).toEqual(['newCatId0001', DOG]);
     expect(decoded.tiers[0].items[1]).toEqual({id: 'image-overwatch-ana.webp'});
     expect(decoded.tiers[2].items).toEqual([{kind: 'device', id: DOG, content: 'Dog'}, {kind: 'device', id: 'newCatId0001', content: 'Cat again'}]);
     expect({...decoded, tiers: []}).toEqual({...decodeState(STATE)!, tiers: []});
+  });
+});
+
+describe('snapshotFileName', () => {
+  it('keeps letters and digits of any script, joined by dashes', () => {
+    expect(snapshotFileName('Tanks with a cat')).toBe('tanks-with-a-cat.png');
+    expect(snapshotFileName('  Ünïcödé — 名前 / Ελληνικά!! ')).toBe('ünïcödé-名前-ελληνικά.png');
+    expect(snapshotFileName('Ｆｕｌｌ　Ｗｉｄｔｈ')).toBe('full-width.png');
+    expect(snapshotFileName('../../etc/passwd')).toBe('etc-passwd.png');
+  });
+
+  it('falls back to tier-list.png and stays short', () => {
+    for (const title of ['', '   ', '!!!', '🧪🧪']) expect(snapshotFileName(title), title).toBe('tier-list.png');
+    const long = snapshotFileName('名'.repeat(200));
+    expect(Array.from(long.replace(/\.png$/, ''))).toHaveLength(80);
   });
 });
 
