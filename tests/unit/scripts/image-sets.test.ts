@@ -12,7 +12,9 @@ import {
   mergeConfig,
   officialPackages,
   splitPackages,
+  tagSlug,
 } from '@/scripts/lib/image-sets.mjs';
+import {createSEOFriendlyTagSlug} from '@/lib/utils';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 const LEGACY_SETS = ['image-set', 'image-wutheringwaves', 'image-webdev', 'image-supervive', 'image-helldivers2'];
@@ -91,6 +93,23 @@ describe('image sets in this repository', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const imageDependencies = Object.keys({...packageJson.dependencies, ...packageJson.devDependencies}).filter((name) => name.startsWith('image-'));
     expect(imageDependencies.sort()).toEqual([...OFFICIAL_SETS].sort());
+  });
+});
+
+describe('tagSlug (the gate\'s copy of createSEOFriendlyTagSlug)', () => {
+  it('gives the same URL form as the app for every tag and for odd names', () => {
+    const tags = Object.values(configPackages).flatMap((set) => Object.keys(set.tags));
+    const odd = ['', '_', '__', '-', '--x', 'x--', '_x_', '__a__b__', 'h_all', 'h-all', 'H_All', 'ALL', '_all_', 'a_l_l', 'Stratagems', 'c_rarity_5', 'a-_-b', 'ÄÖ_ü', '0', 'x'.repeat(64)];
+    expect(tags.length).toBeGreaterThan(50);
+    for (const tag of [...tags, ...odd]) expect(tagSlug(tag), JSON.stringify(tag)).toBe(createSEOFriendlyTagSlug(tag));
+  });
+
+  it('gives every tag of every set its own, non-empty URL form other than "all"', () => {
+    for (const [name, set] of Object.entries(configPackages)) {
+      const slugs = Object.keys(set.tags).map(tagSlug);
+      expect(slugs.filter((slug) => slug === '' || slug === 'all'), name).toEqual([]);
+      expect(new Set(slugs).size, name).toBe(slugs.length);
+    }
   });
 });
 

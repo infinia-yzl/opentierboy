@@ -33,7 +33,8 @@
  *       duplicate filename, no new filename that differs from another only in letter case,
  *       at most 2,000 new images; only known shapes, never "square" (the default is not
  *       stored); tag names of letters, digits, "_" and "-" (not all, __proto__, constructor or
- *       prototype); labels (at most 100 characters) and tag texts (at most 200) without control
+ *       prototype, in any letter case), each with its own non-empty URL form (tagSlug) other
+ *       than "all"; labels (at most 100 characters) and tag texts (at most 200) without control
  *       or invisible formatting characters and without leading or trailing spaces;
  *     - image-registry.lock.json: only new ids of images that PACKAGE adds (append-only);
  *     - image-aliases.json: only new aliases from an id that this update removes to an id that
@@ -66,6 +67,7 @@ import {
   PACKAGE_NAME,
   SHAPES,
   TAG_KEYS,
+  tagSlug,
 } from './lib/image-sets.mjs';
 
 /** x.y.z without leading zeros, each part at most 9 digits. */
@@ -383,10 +385,19 @@ export function checkPackageEntry(packageName, entry, custom, errors) {
 
   const tags = isPlainObject(entry.tags) ? entry.tags : {};
   if (!isPlainObject(entry.tags)) errors.push(`${where}: tags must be an object.`);
+  // /rank/<set>/<tag> opens the first tag whose URL form (tagSlug) matches, and "all" always
+  // opens every item: each tag needs its own, non-empty URL form other than "all".
+  const slugs = new Map();
   for (const [name, tag] of Object.entries(tags)) {
     const tagWhere = `${where}: tag ${quote(name)}`;
-    if (!TAG_NAME.test(name) || RESERVED_TAGS.has(name)) {
-      errors.push(`${tagWhere}: a tag name is 1 to 64 letters, digits, "_" or "-", and not ${[...RESERVED_TAGS].join(', ')}.`);
+    if (!TAG_NAME.test(name) || RESERVED_TAGS.has(name.toLowerCase())) {
+      errors.push(`${tagWhere}: a tag name is 1 to 64 letters, digits, "_" or "-", and not ${[...RESERVED_TAGS].join(', ')} (in any letter case).`);
+    } else {
+      const slug = tagSlug(name);
+      if (slug === '') errors.push(`${tagWhere}: its URL form is empty, so /rank/<set>/<tag> cannot open it.`);
+      else if (slug === 'all') errors.push(`${tagWhere}: its URL form is "all", which always opens every item.`);
+      else if (slugs.has(slug)) errors.push(`${tagWhere}: its URL form ${quote(slug)} is the same as tag ${quote(slugs.get(slug))}'s, so /rank/<set>/${slug} opens only one of them.`);
+      else slugs.set(slug, name);
     }
     if (!isPlainObject(tag)) {
       errors.push(`${tagWhere} must be an object.`);
@@ -631,11 +642,27 @@ function list(items, format) {
 const shownValue = (value) => (value === undefined ? 'none' : code(value));
 const names = (items) => (items.length === 0 ? 'none' : items.map(code).join(', '));
 
+/**
+ * The longest exact form of a text the gate accepts: at most 12 characters per character (an
+ * emoji is \ud83d\ude00), plus the quotes. Longer texts (from before the gate) are cut.
+ */
+const MAX_EXACT = 12 * Math.max(MAX_LABEL, MAX_TAG_TEXT) + 2;
+const isCut = (value) => value !== undefined && escapedText(value).length > MAX_EXACT;
+
 /** The exact, ASCII-only form of untrusted text in a code span (escapedText). */
 function exactCode(value) {
   if (value === undefined) return 'none';
   const exact = escapedText(value);
-  return `\`${exact.length > 1000 ? `${exact.slice(0, 1000)}...` : exact}\``;
+  return `\`${exact.length > MAX_EXACT ? `${exact.slice(0, MAX_EXACT)}...` : exact}\``;
+}
+
+/** The position (1-based, in characters) of the first difference between two texts. */
+function firstDifference(before, after) {
+  const a = [...String(before ?? '')];
+  const b = [...String(after ?? '')];
+  let index = 0;
+  while (index < a.length && index < b.length && a[index] === b[index]) index++;
+  return index + 1;
 }
 
 /** True when a code span would not show the text faithfully: other than printable ASCII (look-alike letters), backticks, or runs of spaces. */
@@ -652,7 +679,8 @@ const shownText = (value) => (needsExact(value) ? `${code(value)} (exact: ${exac
 function shownChange(before, after) {
   const plain = `${shownValue(before)} → ${shownValue(after)}`;
   if (shownValue(before) !== shownValue(after) && !needsExact(before) && !needsExact(after)) return plain;
-  return `${plain} (exact: ${exactCode(before)} → ${exactCode(after)})`;
+  const where = (isCut(before) || isCut(after)) && before !== after ? `; first difference at character ${firstDifference(before, after)}` : '';
+  return `${plain} (exact: ${exactCode(before)} → ${exactCode(after)}${where})`;
 }
 
 function formatTagChange(change) {

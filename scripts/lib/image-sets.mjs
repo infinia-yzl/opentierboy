@@ -13,6 +13,16 @@
  *                         the legacy entries, merged in the order of imageset.custom.json.
  */
 
+/**
+ * The URL form of a tag (category) in /rank/<set>/<tag>. A copy of createSEOFriendlyTagSlug in
+ * lib/utils.ts, because scripts cannot import TypeScript; tests/unit/scripts/image-sets.test.ts
+ * checks that the two agree. The rank page opens the first tag, in key order, whose URL form
+ * matches, and "all" always means every item.
+ */
+export function tagSlug(tag) {
+  return tag ? tag.toLowerCase().replace(/_+/g, '-').replace(/^-|-$/g, '') : '';
+}
+
 /** Tile shapes. Images and categories (tags) without a shape are square. */
 export const SHAPES = Object.freeze(['square', 'landscape', 'portrait']);
 export const DEFAULT_SHAPE = 'square';

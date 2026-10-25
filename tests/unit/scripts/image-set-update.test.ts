@@ -497,6 +497,19 @@ describe('scripts/image-set-update.mjs', () => {
       // Tag names.
       ...['all', '__proto__', 'constructor', 'prototype', 'two words', 'x'.repeat(65), 'héroes'].map((name): [string, () => void, string] => [`a tag named ${JSON.stringify(name.length > 20 ? `${name.slice(0, 8)}... (${name.length})` : name)}`, () => renameTag(name),
         `tag ${JSON.stringify(name.length > 64 ? `${name.slice(0, 64)}...` : name)}: a tag name is 1 to 64 letters, digits, "_" or "-"`]),
+      // URL forms of tags: /rank/<set>/<tag> opens the first tag whose URL form matches.
+      ['a tag whose URL form takes over another tag\'s page (h-all before h_all)', () => editEntry((entry) => {
+        const heroes = entry.tags.heroes;
+        entry.tags = {'h-all': {title: 'Takeover', description: 'Takeover', category: 'general'}, h_all: heroes};
+        for (const img of entry.images) img.tags = img.tags.map((tag: string) => (tag === 'heroes' ? 'h_all' : tag));
+        entry.images[0].tags.push('h-all');
+      }), 'tag "h_all": its URL form "h-all" is the same as tag "h-all"\'s, so /rank/<set>/h-all opens only one of them'],
+      ['a tag that "all" hides (ALL, a reserved name in capitals)', () => renameTag('ALL'), 'tag "ALL": a tag name is 1 to 64 letters, digits, "_" or "-", and not all'],
+      ['a tag that "all" hides (_all_)', () => renameTag('_all_'), 'tag "_all_": its URL form is "all", which always opens every item'],
+      ['a tag with an empty URL form (_)', () => renameTag('_'), 'tag "_": its URL form is empty'],
+      ['a tag with an empty URL form (-)', () => renameTag('-'), 'tag "-": its URL form is empty'],
+      ...['Constructor', '__PROTO__', 'PROTOTYPE', 'All'].map((name): [string, () => void, string] => [`the reserved tag name ${name} in another letter case`, () => renameTag(name),
+        `tag "${name}": a tag name is 1 to 64 letters, digits, "_" or "-", and not all, __proto__, constructor, prototype (in any letter case)`]),
       // Filenames.
       ['a new filename that differs from an old one only in letter case', () => editEntry((entry) => {
         entry.images.push(image('Ana.webp', 'Ana again'));
@@ -640,6 +653,23 @@ describe('labels in the pull request', () => {
     const body = pullRequestBody(report([{id: 'image-ow-a.webp', before: 'Mei', after: 'Mei-Ling'}], [{id: 'image-ow-b.webp', label: 'Kiriko'}]));
     expect(body).toContain('- `image-ow-a.webp`: `Mei` → `Mei-Ling`\n');
     expect(body).toContain('- `image-ow-b.webp`: `Kiriko`\n');
+  });
+
+  it('shows the whole exact form of the longest texts the gate accepts', () => {
+    const before = '😀'.repeat(200);
+    const after = `${'😀'.repeat(199)}😁`;
+    const body = pullRequestBody({...report([]), tagChanges: [{tag: 'h_all', kind: 'changed', fields: [{key: 'title', before, after}]}]});
+    expect(body).toContain(escapedText(before));
+    expect(body).toContain(escapedText(after));
+    expect(body).not.toContain('first difference');
+  });
+
+  it('says where longer texts from before the gate first differ', () => {
+    const before = '😀'.repeat(300);
+    const after = `${'😀'.repeat(299)}😁`;
+    const body = pullRequestBody(report([{id: 'image-ow-a.webp', before, after}]));
+    expect(body).not.toContain(escapedText(after));
+    expect(body).toContain('; first difference at character 300)');
   });
 
   it('escapes everything outside printable ASCII', () => {
