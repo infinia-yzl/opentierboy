@@ -173,3 +173,26 @@ test.describe('Browser history and settings', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
 });
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite stays green while the bug exists. See items.spec.ts for the convention.
+ */
+test.describe('Known bugs', () => {
+  test('on a slow connection, a change followed at once by Back is one Back step away', async ({tierList, page}) => {
+    test.fail(true, 'router.push adds the history entry only after the server answers, so Back pressed before that leaves from the entry before the change, and the change is lost. The fix considered was native history.pushState followed by a metadata refresh (still exactly one entry per change); the owner chose to keep the current behaviour on 2026-10-25.');
+    await page.goto('/about');
+    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
+    const opened = page.url();
+    await tierList.simulateSlowServer(400);
+
+    await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
+    await page.goBack();
+
+    // Short timeouts: these assertions are expected to fail until the bug is fixed.
+    await expect(page).toHaveURL(opened, {timeout: 3_000});
+    await expect(tierList.itemsIn('F')).toHaveCount(0, {timeout: 3_000});
+    await page.goForward();
+    await expect(tierList.itemsIn('F')).toHaveText(['Mauga'], {timeout: 3_000});
+  });
+});

@@ -107,6 +107,10 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
 
   // Store to address: push the oldest write once. When it reaches the address, the reducer
   // drops it from the queue, and this pushes the next one.
+  // Known limit, kept by the owner (2026-10-25): router.push adds the history entry only when
+  // the server answers, so Back pressed before that loses the change (known-bug test in
+  // tests/e2e/history.spec.ts). A fix would replace this call with history.pushState and a
+  // metadata refresh.
   const lastPushedWrite = useRef(-1);
   useEffect(() => {
     const next = state.writes[0];
