@@ -47,7 +47,7 @@ const RecentlyViewed: React.FC<RecentlyViewedProps> = ({pageNames}) => {
           const name = link.title.trim() || rankPageTitle(link.path, pageNames);
           return (
             <li key={recentLinkKey(link)} className="flex items-center gap-2 px-3 py-1">
-              <Link href={recentLinkHref(link)} className="min-w-0 grow truncate py-1 hover:underline">
+              <Link href={recentLinkHref(link)} prefetch={false} className="min-w-0 grow truncate py-1 hover:underline">
                 {name}
               </Link>
               <Button
