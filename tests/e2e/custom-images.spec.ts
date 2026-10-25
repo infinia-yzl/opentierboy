@@ -1,6 +1,6 @@
 import {expect, test} from '../support/test';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, imageFile, serveImageSite} from '../support/imageSites';
+import {BLUE_SQUARE, imageFile, RED_SQUARE, serveImageSite} from '../support/imageSites';
 
 const TANKS = '/rank/overwatch/tank';
 /** A trusted site (trusted-image-sites.json): its images load without asking. */
@@ -145,6 +145,27 @@ test.describe('Images from the device', () => {
     expect(await page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
     const link = await tierList.shareLink();
     expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
+  });
+
+  test('300 uploads show quickly after the page loads', async ({tierList, page}) => {
+    test.slow();
+    const count = 300;
+    const files = Array.from({length: count}, (_, index) => imageFile(`upload-${String(index + 1).padStart(3, '0')}.png`, RED_SQUARE));
+    await tierList.goto('/rank');
+
+    const addStarted = Date.now();
+    await tierList.addItemsFromDevice(files);
+    await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
+    const addMs = Date.now() - addStarted;
+
+    const loadStarted = Date.now();
+    await page.reload();
+    await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
+    const loadMs = Date.now() - loadStarted;
+
+    test.info().annotations.push({type: 'timing', description: `${count} uploads: added in ${addMs} ms, shown after a reload in ${loadMs} ms`});
+    // A generous bound: the images of a list are read in one go, and each tile renders once.
+    expect(loadMs, `${count} uploads should show within 20 s of a reload`).toBeLessThan(20_000);
   });
 
   test('other image formats are converted before they are kept', async ({tierList}) => {

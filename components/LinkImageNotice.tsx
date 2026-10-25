@@ -3,7 +3,7 @@
 import React from 'react';
 import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
 import {Button} from "@/components/ui/button";
-import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {useCustomImages, useHostsAwaitingConsent} from "@/contexts/CustomImagesContext";
 
 /**
  * Shown when the list holds images from sites that are neither trusted
@@ -12,7 +12,8 @@ import {useCustomImages} from "@/contexts/CustomImagesContext";
  * Until then their items show as label tiles.
  */
 const LinkImageNotice: React.FC = () => {
-  const {hostsAwaitingConsent, allowHosts} = useCustomImages();
+  const {allowHosts} = useCustomImages();
+  const hostsAwaitingConsent = useHostsAwaitingConsent();
   if (hostsAwaitingConsent.length === 0) return null;
 
   return (

@@ -375,6 +375,21 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000002']);
   });
 
+  it('reads many images in one go, and marks them as used', async () => {
+    const store = await open();
+    await store.put(image(32));
+    await store.put(image(33));
+    const found = await store.getMany(['img-00000002', 'img-00000001', 'img-00000009', 'bad id', 'img-00000002']);
+    expect([...found.keys()]).toEqual(['img-00000002', 'img-00000001']);
+    expect(found.get('img-00000001')).toMatchObject({type: 'image/png', size: 32});
+    expect(new Uint8Array(await found.get('img-00000002')!.blob.arrayBuffer())).toHaveLength(33);
+    expect((await store.list()).every(info => info.usedAt === 1002)).toBe(true);
+    expect(await store.getMany([])).toEqual(new Map());
+    const memory = createMemoryDeviceStore({createId: sequentialIds()});
+    await memory.put(image(10));
+    expect([...(await memory.getMany(['img-00000001', 'img-00000002'])).keys()]).toEqual(['img-00000001']);
+  });
+
   it('reports errors that the browser throws while writing', async () => {
     const store = await open();
     vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {

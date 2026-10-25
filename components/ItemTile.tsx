@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/context-menu";
 import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
-import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {useDeviceImage, useLinkImage} from "@/contexts/CustomImagesContext";
 import {itemDisplayLabel} from "@/lib/images/listImages";
 
 interface ItemTileProps extends Item {
@@ -28,10 +28,9 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   },
   showLabel = true,
 }) => {
-  const images = useCustomImages();
   const item: Item = {id, content, imageUrl, source, url};
-  const link = images.linkImage(item);
-  const device = images.deviceImage(item);
+  const link = useLinkImage(item);
+  const device = useDeviceImage(item);
   // Link images: a plain <img> (never the image optimizer, A8) once the site is allowed and the
   // image passed its check; until then, and when it fails, a label tile with the site's name.
   const linkSrc = link?.status === 'ready' ? link.src : undefined;

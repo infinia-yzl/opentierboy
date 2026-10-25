@@ -18,8 +18,7 @@ import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {DragSubject, dragEndMessage, dragStartMessage, dragUpdateMessage} from "@/lib/dragAnnouncements";
-import {useCustomImages} from "@/contexts/CustomImagesContext";
-import {itemDisplayLabel} from "@/lib/images/listImages";
+import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
 
 // Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
 // so an item id such as "__proto__" would never register as a draggable, and an item id equal
@@ -44,12 +43,11 @@ const TierItems = memo<{
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
 }>(({tier, showLabels, onDeleteItem}) => {
-  const images = useCustomImages();
   const descriptionIds = useId();
   // A link image names its site in the item's description, next to the drag instructions. The
   // descriptions sit in a hidden list after the row, so they stay out of the items' text.
   const sources = tier.items.map((item, itemIndex) => {
-    const domain = images.linkImage(item)?.domain;
+    const domain = linkImageOf(item)?.domain;
     return domain ? {id: `${descriptionIds}-${itemIndex}`, domain} : null;
   });
   return (

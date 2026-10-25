@@ -432,6 +432,15 @@ export class TierListPage {
     await expect(dialog).toBeHidden();
   }
 
+  /**
+   * How many item images show an upload from this browser (a loaded `blob:` image).
+   */
+  async loadedUploadImageCount(): Promise<number> {
+    return this.main.locator('img').evaluateAll((images) => images.filter((image) => (
+      image instanceof HTMLImageElement && image.currentSrc.startsWith('blob:') && image.complete && image.naturalWidth > 0
+    )).length);
+  }
+
   /** The "From a link" dialog. */
   get linkImageDialog(): Locator {
     return this.page.getByRole('dialog', {name: 'Add an Image from a Link'});

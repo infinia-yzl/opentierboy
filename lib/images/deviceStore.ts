@@ -105,6 +105,8 @@ export interface DeviceStore {
   put(blob: Blob, options?: DevicePutOptions): Promise<DevicePutResult>;
   /** The image with this id, or null. Marks it as used now. */
   get(id: string): Promise<DeviceImage | null>;
+  /** The images with these ids that the store has, marked as used now, read in one transaction. */
+  getMany(ids: readonly string[]): Promise<Map<string, DeviceImage>>;
   /** Every image's details without the bytes, most recently used first. */
   list(): Promise<DeviceImageInfo[]>;
   /** Number of images and their total size in bytes. */
@@ -294,6 +296,13 @@ export function createMemoryDeviceStore(options: Omit<OpenDeviceStoreOptions, 'i
   const createId = options.createId ?? (() => createDeviceImageId());
   const records = new Map<string, MemoryRecord>();
   let closed = false;
+  const read = (id: unknown): DeviceImage | null => {
+    const record = closed || typeof id !== 'string' ? undefined : records.get(id);
+    if (!record) return null;
+    record.usedAt = now();
+    const {data, ...info} = record;
+    return {...info, blob: new Blob([data], {type: record.type})};
+  };
 
   return {
     persistent: false,
@@ -311,11 +320,15 @@ export function createMemoryDeviceStore(options: Omit<OpenDeviceStoreOptions, 'i
       return {ok: true, id: prepared.id, type: prepared.type, size, evicted};
     },
     async get(id) {
-      const record = closed || typeof id !== 'string' ? undefined : records.get(id);
-      if (!record) return null;
-      record.usedAt = now();
-      const {data, ...info} = record;
-      return {...info, blob: new Blob([data], {type: record.type})};
+      return read(id);
+    },
+    async getMany(ids) {
+      const found = new Map<string, DeviceImage>();
+      for (const id of ids) {
+        const image = read(id);
+        if (image) found.set(id, image);
+      }
+      return found;
     },
     async list() {
       if (closed) return [];
@@ -490,6 +503,39 @@ class IndexedDbDeviceStore implements DeviceStore {
       });
     } catch {
       return null;
+    }
+  }
+
+  async getMany(ids: readonly string[]): Promise<Map<string, DeviceImage>> {
+    const wanted = Array.from(new Set(ids.filter((id) => isDeviceImageId(id))));
+    if (wanted.length === 0) return new Map();
+    try {
+      return await transact<Map<string, DeviceImage>>(this.db, 'readwrite', ({images, meta, setResult}) => {
+        const found = new Map<string, DeviceImage>();
+        setResult(found);
+        const time = this.now();
+        for (const id of wanted) {
+          const metaRequest = meta.get(id);
+          const imageRequest = images.get(id);
+          imageRequest.onsuccess = () => {
+            const record = metaRequest.result as unknown;
+            const image = imageRequest.result as Partial<ImageRecord> | undefined;
+            const valid = isMetaRecord(record) && record.id === id && image !== undefined && isArrayBuffer(image.data) && image.data.byteLength === record.size;
+            if (!valid) {
+              if (record !== undefined || image !== undefined) {
+                images.delete(id);
+                meta.delete(id);
+              }
+              return;
+            }
+            const updated: MetaRecord = {...metaOnly(record), usedAt: time};
+            meta.put(updated);
+            found.set(id, {...updated, blob: new Blob([image.data as ArrayBuffer], {type: record.type})});
+          };
+        }
+      });
+    } catch {
+      return new Map();
     }
   }
 
