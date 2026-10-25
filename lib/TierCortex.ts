@@ -401,6 +401,13 @@ export class TierCortex {
     return deviceId === null ? labelled : {kind: 'device', id: deviceId, content: item.content};
   }
 
+  /**
+   * An item of a legacy link (or a template image): the image-set item, also by an alias, or
+   * else an upload or an unknown id. Such an item shows under the id that a v3 link writes for
+   * it (A42: `legacy-<id>` for an upload id that breaks the device id rule), so the item keeps
+   * one id on screen across Back and Forward between legacy and v3 versions of the list. The
+   * upload is still found under its own id.
+   */
   private resolveItem(itemId: string, content?: string): Item {
     const packageItem = this.packageItemLookup.get(itemId);
     if (packageItem) return packageItem;
@@ -408,18 +415,19 @@ export class TierCortex {
     const renamedItem = this.resolveAlias(itemId);
     if (renamedItem) return renamedItem;
 
+    const shownId = deviceImageIdForUpload(itemId) ?? itemId;
     if (!this.isServer) {
       const customItem = this.customItemsMap.get(itemId);
       if (customItem) {
         return {
-          id: customItem.i,
+          id: shownId,
           content: content || customItem.c,
           imageUrl: customItem.d,
         };
       }
     }
 
-    return this.createPlaceholderItem(itemId, content || '');
+    return this.createPlaceholderItem(shownId, content || '');
   }
 
   /**

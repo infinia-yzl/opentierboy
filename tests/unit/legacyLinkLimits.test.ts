@@ -151,8 +151,9 @@ describe('legacy link type checks', () => {
 
   it('keep an empty title, empty names and empty labels', () => {
     const decoded = decode(v2([tier('', [{i: 'abc', c: ''}]), UNRANKED], ''));
+    // The unknown id shows as the device image id its v3 link writes (A42).
     expect(decoded).toEqual({title: '', tiers: [
-      {id: 'tier-s', name: '', items: [{id: 'abc', content: '', imageUrl: expect.any(String)}]},
+      {id: 'tier-s', name: '', items: [{id: 'legacy-abc', content: '', imageUrl: expect.any(String)}]},
       {id: 'uncategorized', name: '', items: [expect.objectContaining({id: 'image-overwatch-win.webp', content: 'Winston'})]},
     ]});
   });

@@ -167,6 +167,35 @@ describe('every change to the list writes one new link', () => {
 
 });
 
+describe('uploads with short legacy ids (A42)', () => {
+  it('keep one id on screen across legacy and v3 versions, so toast Undo never adds one twice', () => {
+    const names = ['S', 'A', 'B', 'C', 'F', ''];
+    const ids = ['tier-s', 'tier-a', 'tier-b', 'tier-c', 'tier-f', 'uncategorized'];
+    const v2 = lz({tiers: names.map((name, index) => ({i: ids[index], n: name,
+      t: name === 'S' ? [{i: 'ab3c9', c: 'My cat'}] : name === '' ? [{i: MAU}] : []}))});
+    const store = setup(v2);
+    expect(store.state.tiers[0].items.map(item => item.id)).toEqual(['legacy-ab3c9']);
+
+    store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-a', index: 0}});
+    const edited = store.links()[0];
+    store.visit(edited);
+    const deleted = findItemToDelete(store.state.tiers, 'legacy-ab3c9')!;
+    store.dispatch({type: 'itemDeleted', itemId: 'legacy-ab3c9'});
+    store.visit(store.links()[0]);
+
+    // Back to the v3 version and to the v2 version: the upload has the same id in both.
+    store.visit(edited);
+    expect(store.state.tiers[0].items.map(item => item.id)).toEqual(['legacy-ab3c9']);
+    store.visit(v2);
+    expect(store.state.tiers[0].items.map(item => item.id)).toEqual(['legacy-ab3c9']);
+    // Toast Undo of the delete: the list holds the upload already, so nothing changes.
+    const before = store.state;
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId});
+    expect(store.state).toBe(before);
+    expect(store.contents()[0]).toEqual(['My cat']);
+  });
+});
+
 describe('layout settings in links (A3)', () => {
   it('the owner chose to replace the current history entry (2026-10-25)', () => {
     expect(LAYOUT_LINK_WRITE).toBe('replace');

@@ -2653,5 +2653,46 @@
         }
       ]
     }
+  },
+  {
+    "id": "v3-legacy-upload-ids",
+    "format": "v3",
+    "description": "Uploads made before Phase 5c whose ids (Math.random().toString(36).slice(2, 11)) are shorter than the 8 characters the device id rule needs, written as legacy-<id> device images (A42), with and without a label; a 9-character legacy id stays as it is.",
+    "state": "3.N4IgLiBcIPIDYBMAEBXADnA9gQwQZxABpw0oBmYgJygG0aQBlIm0BKEOAUwHNsBjAJ4BabACMyfAJxEQfdgFkBSPtggBfYgEsAttm6chmAG6dKAd1V8AFiIB22AHRnOo0gF03hegEFmrdly8gkIArCBqHl4gAEJ+IGzQANZkAFaSAB4ADNgAjKIyctAAcpq2nMpW2JT8YKYEEZ70zB5uakA",
+    "expected": {
+      "version": 3,
+      "title": "Old uploads",
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"kind": "device", "id": "legacy-ab3c9", "content": "My cat"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"kind": "device", "id": "legacy-5", "content": ""}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"kind": "device", "id": "k3j9x0a1b", "content": "Nine characters"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
   }
 ]
