@@ -12,7 +12,7 @@ page link (`?state=`), and sharing the link shares the list.
 2. **Browser history is the undo feature.** Every change to the list pushes a new history
    entry (`router.push` with a new `?state=`). Back steps to the previous version. Never use
    `router.replace` or `history.replaceState` for list edits. Never merge or skip entries.
-3. **Every shared link ever made keeps working.** Link formats v0, v1 and v2 decode forever.
+3. **Every shared link ever made keeps working.** Link formats v0, v1, v2 and v3 decode forever.
    The golden fixtures in `tests/fixtures/` are append-only. See "Link contract" below.
 4. **Item ids are permanent.** An id is `<packageName>-<filename>`, for example
    `image-overwatch-ana.webp`. Never rename or remove a shipped id. Renames go through
@@ -87,7 +87,8 @@ lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom 
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
 lib/dragAnnouncements.ts  screen reader messages for drag and drop (labels, never ids)
 lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
-lib/state/            link format: decodeState (all formats), encodeState (v2); lz-string only
+lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
+lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
 lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
@@ -122,7 +123,13 @@ A later phase adds `trusted-image-sites.json`.
 - A shared link is `/rank/<set>/<tag>?state=<value>`. The value is lz-string
   `compressToEncodedURIComponent` of JSON.
 - Formats: v0 is an array of tiers; v1 and v2 are `{title?, tiers: [{i, n, t: [{i, c?}]}]}`.
-  The app writes v2 today. Future formats start with a version prefix (`3.`).
+  The app writes v3: `3.` + lz-string of `{t?, tp?, lp?, sl?, r}` (see `docs/link-format-v3.md`).
+  Rows are `[id?, name, items]`. An item is an image-set id, `{i, c}` (an id that names no
+  image-set item, with its label), `{u, c}` (link image) or `{d, c}` (device image).
+  `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format. v3 fixtures live in
+  `tests/fixtures/state/v3.json` (append-only).
+- Label position and label visibility are written with `router.replace`, so they add no Back
+  step (owner decision A3, 2026-10-25). Every list change pushes a new history entry.
 - Old formats are decoded forever. Never change what an old link decodes to.
 - `lib/state/` holds the format. It imports only `lz-string` (no React, `window`,
   `localStorage` or Node modules), because the edge OG route uses it too.
