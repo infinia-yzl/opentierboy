@@ -9,13 +9,22 @@ import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 
+// Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
+// so an item id such as "__proto__" would never register as a draggable, and an item id equal
+// to a tier id would clash. A prefix per kind keeps every id unique and harmless.
+const itemDragId = (itemId: string) => `item:${itemId}`;
+const rowDragId = (tierId: string) => `row:${tierId}`;
+const ROW_DROP_PREFIX = 'items:';
+const rowDropId = (tierId: string) => `${ROW_DROP_PREFIX}${tierId}`;
+const tierIdOfRowDrop = (dropId: string) => dropId.slice(ROW_DROP_PREFIX.length);
+
 const TierItems = memo<{
   tier: Tier;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
 }>(({tier, showLabels, onDeleteItem}) => {
   return (
-    <Droppable droppableId={tier.id} direction="horizontal">
+    <Droppable droppableId={rowDropId(tier.id)} direction="horizontal">
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -23,7 +32,7 @@ const TierItems = memo<{
           className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
         >
           {tier.items.map((item, itemIndex) => (
-            <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
+            <Draggable key={item.id} draggableId={itemDragId(item.id)} index={itemIndex}>
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
@@ -70,7 +79,7 @@ const TierRow = memo<{
   const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${index + 1}`);
 
   return (
-    <Draggable draggableId={tier.id} index={index}>
+    <Draggable draggableId={rowDragId(tier.id)} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -136,8 +145,8 @@ const DragDropTierList: React.FC = () => {
       moveTier(source.index, destination.index);
     } else {
       moveItem(
-        {tierId: source.droppableId, index: source.index},
-        {tierId: destination.droppableId, index: destination.index},
+        {tierId: tierIdOfRowDrop(source.droppableId), index: source.index},
+        {tierId: tierIdOfRowDrop(destination.droppableId), index: destination.index},
       );
     }
   }, [moveItem, moveTier]);
