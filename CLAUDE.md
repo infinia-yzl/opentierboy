@@ -292,6 +292,14 @@ docs/                 owner checklists
 - `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts` and the modules
   it binds, `lib/state/`) must not use Node APIs (`fs`, `path`) or browser APIs (`window`,
   `localStorage`) at import time. ESLint enforces this for `lib/state/` and `app/api/og/`.
+- Functional style (owner, A47): plain functions and readonly data. No classes in `app/`,
+  `components/`, `contexts/`, `lib/`, `models/` or `scripts/` (ESLint enforces it; tests may
+  use classes). The only exception is a class that a third-party API requires: it goes in a
+  file of its own, listed in `ALLOWED_CLASS_FILES` in `eslint.config.mjs`.
+- State that outlives a call lives in a factory function with closures (for example
+  `createTierCortex`, `createMemoryDeviceStore`). UI state lives in React hooks.
+- Errors are plain `Error` objects with a `name` and a `code` (see `pixelCapError()` in
+  `lib/images/prepareImage.ts`), or result objects. Never use `instanceof` on our own types.
 - Follow the patterns in nearby code. Keep changes small and focused on the task.
 - Never commit secrets. Never add tracking, analytics or ads.
 
