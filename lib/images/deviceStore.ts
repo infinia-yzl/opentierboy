@@ -32,9 +32,13 @@
  * convenience: the link stays the only save.
  */
 
-/** Image types the store accepts, detected from the file's first bytes. */
-export const DEVICE_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/avif'] as const;
-export type DeviceImageType = (typeof DEVICE_IMAGE_TYPES)[number];
+import {isDeviceImageId} from '@/lib/state/deviceId';
+import {RASTER_IMAGE_TYPES, type RasterImageType, sniffImageType} from './imageType';
+
+/** Image types the store accepts, detected from the file's first bytes (lib/images/imageType.ts). */
+export const DEVICE_IMAGE_TYPES = RASTER_IMAGE_TYPES;
+export type DeviceImageType = RasterImageType;
+export {sniffImageType};
 
 export interface DeviceStoreLimits {
   /** Largest single image, in bytes. */
@@ -134,17 +138,13 @@ const DEFAULT_OPEN_TIMEOUT_MS = 5_000;
 // Ids
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-const ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 /**
- * True for a device image id: 8 to 64 URL-safe characters. New ids have 16. This is the
- * shared rule for device image ids: the v3 link format and the snapshot file use it too
- * (amendment A40).
+ * The shared device image id rule (amendment A40) lives in lib/state/deviceId.ts, where the v3
+ * link decoder uses it: 8 to 64 URL-safe characters, never an Object.prototype member name.
+ * New ids have 16 characters.
  */
-export function isDeviceImageId(value: unknown): value is string {
-  // Names such as __proto__ or constructor are refused, in case an id ever becomes an object key.
-  return typeof value === 'string' && ID_PATTERN.test(value) && !Object.prototype.hasOwnProperty.call(Object.prototype, value);
-}
+export {isDeviceImageId};
 
 /**
  * A new random id: 12 random bytes as 16 URL-safe base64 characters (96 bits). Uses
@@ -160,33 +160,6 @@ export function createDeviceImageId(
     id += ID_ALPHABET[(chunk >> 18) & 63] + ID_ALPHABET[(chunk >> 12) & 63] + ID_ALPHABET[(chunk >> 6) & 63] + ID_ALPHABET[chunk & 63];
   }
   return id;
-}
-
-// ---------------------------------------------------------------------------------------
-// Image type detection
-
-const startsWith = (bytes: Uint8Array, signature: number[], offset = 0) =>
-  bytes.length >= offset + signature.length && signature.every((byte, index) => bytes[offset + index] === byte);
-const ascii = (bytes: Uint8Array, start: number, length: number) =>
-  String.fromCharCode(...Array.from(bytes.subarray(start, start + length)));
-
-/** The image type of a file from its first bytes, or null. Needs at least the first 32 bytes. */
-export function sniffImageType(bytes: Uint8Array): DeviceImageType | null {
-  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
-  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg';
-  if (bytes.length >= 6 && (ascii(bytes, 0, 6) === 'GIF87a' || ascii(bytes, 0, 6) === 'GIF89a')) return 'image/gif';
-  if (bytes.length >= 12 && ascii(bytes, 0, 4) === 'RIFF' && ascii(bytes, 8, 4) === 'WEBP') return 'image/webp';
-  // AVIF: an ISO BMFF "ftyp" box whose major or compatible brands include avif or avis.
-  if (bytes.length >= 16 && ascii(bytes, 4, 4) === 'ftyp') {
-    const boxSize = ((bytes[0] << 24) >>> 0) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3];
-    const end = Math.min(boxSize, bytes.length, 64);
-    for (let offset = 8; offset + 4 <= end; offset += 4) {
-      if (offset === 12) continue; // bytes 12-15 hold the minor version
-      const brand = ascii(bytes, offset, 4);
-      if (brand === 'avif' || brand === 'avis') return 'image/avif';
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------------------
