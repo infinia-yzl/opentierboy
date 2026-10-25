@@ -19,6 +19,7 @@ import {
 import {deviceImageKey, deviceImageKeys, hostsAwaitingConsent, isImageHostAllowed, linkImageOf} from '@/lib/images/listImages';
 import {DEVICE_IMAGE_REFUSAL_MESSAGES} from '@/lib/images/messages';
 import {prepareImageForStore} from '@/lib/images/prepareImage';
+import {snapshotImageId} from '@/lib/snapshot/imageId';
 
 /**
  * Images from the device and from links, for the tier list editor (#86, #67, #107).
@@ -90,9 +91,11 @@ interface CustomImagesContextValue {
   /**
    * Keeps the images of a snapshot file in the device store, one call at a time with
    * addDeviceImages and with the same protection: no image the list shows or that was handed
-   * out is removed to make room. Every image is drawn again first (A10). An image keeps its id,
-   * unless the store holds another image under that id: then it gets a new id. The same image
-   * under the same id is reused.
+   * out is removed to make room. Every image is drawn again first, at most 512 pixels on its
+   * longest side (A10), and stored under a content-addressed id (`snap-` and a hash of the drawn
+   * bytes, lib/snapshot/imageId.ts): opening the same file again stores nothing new and gives the
+   * same ids. An image the store already holds under that id is reused; a different picture under
+   * the same id (a hash collision) gets a random id.
    */
   importDeviceImages: (images: SnapshotDeviceImage[]) => Promise<ImportDeviceImagesResult>;
   /** The stored images with these ids (for a snapshot file). Missing images are left out. */
@@ -145,6 +148,9 @@ export function useLinkImage(item: Pick<Item, 'source' | 'url'>): LinkImageState
   const read = () => (link === null ? initial : linkStates.get(link.url) ?? initial);
   return useSyncExternalStore(subscribe, read, () => initial);
 }
+
+/** Longest side of a snapshot file's images in the store: the app writes them at most this size. */
+const SNAPSHOT_IMAGE_SIDE = 512;
 
 const NOT_PERSISTENT_MESSAGE = 'This browser does not let the site keep images. Images you add stay until you close this tab.';
 
@@ -385,18 +391,18 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
       }
 
       async function importOne(opened: DeviceStore, image: SnapshotDeviceImage) {
-        const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes, alwaysReencode: true});
+        const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes, maxSide: SNAPSHOT_IMAGE_SIDE, alwaysReencode: true});
         if (!prepared.ok) {
           errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
           return;
         }
-        const id = image.id;
+        const id = await snapshotImageId(new Uint8Array(await prepared.blob.arrayBuffer()));
         const existing = await opened.get(id);
         if (existing && await sameBytes(existing.blob, prepared.blob)) {
           handOut(image.id, id, existing.blob, existing.type);
           return;
         }
-        // Another image already has this id: store this one under a new id.
+        // A different picture under the same id (a hash collision): store it under a random id.
         // Never remove an image the list shows, or one handed out that it may not show yet.
         const result = await opened.put(prepared.blob, {id: existing ? undefined : id, keep: [...latestKeys.current, ...handedOut.current]});
         // Images removed to make room, also when the write failed after making room.
