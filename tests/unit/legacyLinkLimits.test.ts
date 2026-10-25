@@ -17,10 +17,12 @@ import {lzBomb, lzWithRun} from './support/lzStream';
 const lz = (value: unknown) => LZString.compressToEncodedURIComponent(JSON.stringify(value));
 
 const stateDir = path.resolve(__dirname, '../fixtures/state');
+// The legacy golden links. v3 links (tests/fixtures/state/v3.json) have their own limits.
 const GOLDEN = [
   ...sharedLinks.map(link => ({id: link.id, state: link.state})),
   ...fs.readdirSync(stateDir).filter(file => file.endsWith('.json'))
-    .flatMap(file => JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {id: string; state: string}[]),
+    .flatMap(file => JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {id: string; format: string; state: string}[])
+    .filter(entry => entry.format !== 'v3'),
 ];
 
 const L = LEGACY_LINK_LIMITS;

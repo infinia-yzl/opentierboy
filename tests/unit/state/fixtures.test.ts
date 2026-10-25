@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {type CanonicalState, decodeState, encodeV2} from '@/lib/state';
+import {type CanonicalState, decodeState, encodeV2, encodeV3} from '@/lib/state';
 import TierCortex from '@/lib/TierCortex';
 import sharedLinks from '../../fixtures/shared-links.json';
 
@@ -58,8 +58,40 @@ describe('golden state fixtures (tests/fixtures/state)', () => {
           expect(encodeV2(decodeState(entry.state)!)).toBe(withPlus(entry.state));
         });
       }
+
+      if (entry.format === 'v3') {
+        it('encodes back to the same text, from the expected state and from the decoded one', () => {
+          expect(encodeV3(entry.expected)).toBe(entry.state);
+          expect(encodeV3(decodeState(entry.state)!)).toBe(entry.state);
+        });
+      }
     });
   }
+
+  it('keep v3 entries in v3.json and legacy entries out of it (A25)', () => {
+    for (const {file, entry} of stateFixtures) {
+      expect(entry.format === 'v3', `${file} ${entry.id}`).toBe(file === 'v3.json');
+    }
+  });
+});
+
+describe('v3 link length (docs/link-format-v3.md)', () => {
+  const entry = (id: string) => stateFixtures.find(fixture => fixture.entry.id === id)!.entry;
+
+  it('is shorter than v2 for the 7-row list of all 430 items', () => {
+    const v2 = entry('v2-all-items-every-package');
+    const v3 = entry('v3-all-items-every-package');
+    expect(encodeV2(v3.expected)).toBe(v2.state);
+    expect(v3.state.length).toBe(6381);
+    expect(v2.state.length).toBe(6744);
+  });
+
+  it('is shorter than v2 for a typical 20-item list', () => {
+    const v3 = entry('v3-typical-20-items');
+    expect(v3.expected.tiers.flatMap(tier => tier.items)).toHaveLength(20);
+    expect(v3.state.length).toBe(392);
+    expect(encodeV2(v3.expected).length).toBe(507);
+  });
 });
 
 describe('golden shared links (tests/fixtures/shared-links.json)', () => {
