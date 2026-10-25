@@ -288,7 +288,13 @@ jobs:
             # An earlier run pushed this version. Stop if the branch has a pull request (open,
             # closed or merged). Otherwise that run stopped before opening it: open it now, but
             # only if the branch holds exactly this checked update on top of this commit.
-            prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state all --json number --jq length)
+            # A fork can open a pull request from a branch of the same name; only pull requests
+            # from this repository's own branch count.
+            gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state all --limit 100 \
+              --json number,headRepositoryOwner > "$RUNNER_TEMP/prs.json"
+            prs=$(jq --arg owner "$GITHUB_REPOSITORY_OWNER" \
+              '[.[] | select((.headRepositoryOwner.login | ascii_downcase) == ($owner | ascii_downcase))] | length' \
+              "$RUNNER_TEMP/prs.json")
             if [[ ! "$prs" =~ ^[0-9]+$ ]]; then
               echo "Unexpected answer from gh pr list" >&2
               exit 1
