@@ -26,6 +26,14 @@ function greenBmp(): Buffer {
   return file;
 }
 
+/** A small AVIF or HEIC file: an ISO base media "ftyp" box with that brand, then filler. */
+function isoMedia(brand: string): Buffer {
+  return Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from(`ftyp${brand}\0\0\0\0mif1${brand}`, 'latin1'), Buffer.alloc(64)]);
+}
+
+/** The refusal of "From your device" for AVIF and HEIC images. */
+const AVIF_HEIC_REFUSAL = 'AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.';
+
 /** Makes a snapshot file the way people do: a list with a device image, Capture Preview, Download. */
 async function downloadSnapshotOf(tierList: TierListPage): Promise<Buffer> {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks with a cat'));
@@ -130,6 +138,20 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     expect(tierList.page.url()).toBe(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
     expect(await tierList.deviceImageCount()).toBe(1);
     await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
+  });
+
+  test('an AVIF image under an id this browser holds is refused, and nothing is stored', async ({tierList}) => {
+    const snapshot = await downloadSnapshotOf(tierList);
+    // The file, edited: its image is now an AVIF file under the same id.
+    const payload = JSON.parse(snapshotTextOf(snapshot) ?? 'null');
+    payload.images[0].dataUrl = `data:image/avif;base64,${isoMedia('avif').toString('base64')}`;
+    await tierList.goto('/rank');
+
+    await tierList.openFile(pngFile('edited.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload))));
+    await tierList.confirmOpenList();
+
+    await expect(tierList.toast('Some images could not be added')).toContainText(`red-square: ${AVIF_HEIC_REFUSAL}`);
+    expect(await tierList.deviceImageCount()).toBe(1);
   });
 
   test('opening the same file again changes nothing: no new image, link or Recently viewed entry', async ({tierList, openAsVisitor}) => {
@@ -258,6 +280,33 @@ test.describe('Opening other files', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 
+  test('AVIF and HEIC images inside a snapshot get the refusal of "From your device"; the others open', async ({tierList}) => {
+    await tierList.goto('/rank');
+    const state = v3State({t: 'Mixed images', tp: 3, r: [
+      ['S', [{d: 'pngImage0001', c: 'Red'}, {d: 'avifImage001', c: 'Photo'}, {d: 'heicImage001', c: 'Phone'}]],
+      ['A', []], ['B', []], ['', []],
+    ]});
+    const payload = {version: 1, state, images: [
+      {id: 'pngImage0001', label: 'Red', dataUrl: `data:image/png;base64,${RED_SQUARE.toString('base64')}`},
+      {id: 'avifImage001', label: 'Photo', dataUrl: `data:image/avif;base64,${isoMedia('avif').toString('base64')}`},
+      // HEIC bytes that claim to be a PNG: the bytes decide.
+      {id: 'heicImage001', label: 'Phone', dataUrl: `data:image/png;base64,${isoMedia('heic').toString('base64')}`},
+    ]};
+
+    await tierList.openFile(pngFile('mixed.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload))));
+    await tierList.confirmOpenList();
+
+    const refused = tierList.toast('Some images could not be added');
+    await expect(refused).toContainText(`Photo: ${AVIF_HEIC_REFUSAL}`);
+    await expect(refused).toContainText(`Phone: ${AVIF_HEIC_REFUSAL}`);
+    await expect(tierList.itemsIn('S')).toHaveText(['Red', 'Photo', 'Phone']);
+    await expect.poll(() => tierList.itemShowsUpload('Red')).toBe(true);
+    // Only the PNG was stored; the refused images show no picture.
+    expect(await tierList.deviceImageCount()).toBe(1);
+    expect(await tierList.itemShowsUpload('Photo')).toBe(false);
+    expect(await tierList.itemShowsUpload('Phone')).toBe(false);
+  });
+
   test('an image bomb inside a snapshot is refused before it is decoded', async ({tierList}) => {
     await tierList.goto('/rank');
     // A tiny PNG that declares 12000 x 12000 pixels: decoding it would take seconds and gigabytes.
@@ -324,13 +373,11 @@ test.describe('Opening other files', () => {
 
   test('AVIF and HEIC files get the refusal of "From your device", and nothing is stored', async ({tierList}) => {
     await tierList.goto('/rank');
-    const isoMedia = (brand: string) => Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from(`ftyp${brand}\0\0\0\0mif1${brand}`, 'latin1'), Buffer.alloc(64)]);
-    const refusal = 'AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.';
 
     await tierList.dropFile({name: 'photo.heic', mimeType: 'image/heic', buffer: isoMedia('heic')});
-    await expect(tierList.toast('Some images could not be added').filter({hasText: 'photo'})).toContainText(refusal);
+    await expect(tierList.toast('Some images could not be added').filter({hasText: 'photo'})).toContainText(AVIF_HEIC_REFUSAL);
     await tierList.openFile({name: 'picture.avif', mimeType: 'image/avif', buffer: isoMedia('avif')});
-    await expect(tierList.toast('Some images could not be added').filter({hasText: 'picture'})).toContainText(refusal);
+    await expect(tierList.toast('Some images could not be added').filter({hasText: 'picture'})).toContainText(AVIF_HEIC_REFUSAL);
 
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     expect(await tierList.deviceImageCount()).toBe(0);
