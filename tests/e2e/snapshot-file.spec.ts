@@ -89,6 +89,25 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
   });
 
+  test('when an image of the file cannot be shown, opening says so, and opening again works', async ({tierList, openAsVisitor}) => {
+    const snapshot = await downloadSnapshotOf(tierList);
+    const friend = await openAsVisitor('/rank');
+    await friend.openFile(pngFile('snapshot.png', snapshot));
+    await expect(friend.openListDialog).toBeVisible();
+    // The first URL is the one the editor draws the image through; the second one shows the tile.
+    await friend.failObjectUrl({skip: 1});
+    await friend.confirmOpenList();
+
+    await expect(friend.toast('Some images could not be added')).toContainText('red-square: Your browser could not save the image.');
+    await expect(friend.itemsIn(friend.unranked)).toHaveText(['red-square']);
+    expect(await friend.itemShowsUpload('red-square')).toBe(false);
+
+    // Nothing is stuck: the same file opens again, with its image.
+    await friend.openFile(pngFile('snapshot.png', snapshot));
+    await friend.confirmOpenList();
+    await expect.poll(() => friend.itemShowsUpload('red-square')).toBe(true);
+  });
+
   test('opening a snapshot adds exactly one Back step', async ({tierList, openAsVisitor}) => {
     const snapshot = await downloadSnapshotOf(tierList);
     const friend = await openAsVisitor(`${TANKS}?state=${rankingState('image-overwatch', {B: ['D.Va']}, 'Before')}`);
