@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {test as base, expect, type Browser, type BrowserContext} from '@playwright/test';
 import {TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
@@ -29,6 +32,12 @@ type Fixtures = {
   site: SitePage;
   /** Opens a link in a fresh browser context, as a friend who receives the link would. */
   openAsVisitor: (link: string, options?: VisitorOptions) => Promise<TierListPage>;
+  /**
+   * Opens the editor in a Chromium profile on disk instead of an incognito context, for what
+   * only such a profile does: Chromium ignores a storage quota set through the DevTools
+   * Protocol in incognito contexts. Chromium only. The profile is removed after the test.
+   */
+  openInChromiumProfile: () => Promise<{tierList: TierListPage; context: BrowserContext}>;
   /**
    * Requests to hosts other than the site under test and local addresses that no test route
    * answered. They are blocked, and the test fails if there are any: tests never reach real
@@ -105,6 +114,23 @@ export const test = base.extend<Fixtures>({
       return visitor;
     });
     await Promise.all(contexts.map((context) => context.close()));
+  },
+  openInChromiumProfile: async ({playwright, baseURL, externalRequests, browserName}, use) => {
+    const opened: {context: BrowserContext; directory: string}[] = [];
+    await use(async () => {
+      if (browserName !== 'chromium') throw new Error('openInChromiumProfile works in Chromium only.');
+      const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-profile-'));
+      const context = await playwright.chromium.launchPersistentContext(directory, {baseURL});
+      opened.push({context, directory});
+      await blockExternalRequests(context, baseURL, externalRequests);
+      await sendBypassOnlyToSite(context, baseURL);
+      const page = context.pages()[0] ?? await context.newPage();
+      return {tierList: new TierListPage(page), context};
+    });
+    for (const {context, directory} of opened) {
+      await context.close();
+      fs.rmSync(directory, {recursive: true, force: true});
+    }
   },
   cspViolations: async ({page}, use) => {
     const violations: string[] = [];

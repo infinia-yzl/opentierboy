@@ -257,17 +257,21 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
         continue;
       }
       const result = await opened.put(prepared.blob, {keep: [...latestKeys.current, ...added]});
+      // Images removed to make room, also when the write failed after making room.
+      const removed = result.evicted ?? [];
+      if (result.ok || removed.length > 0) {
+        evicted.current = new Set(updateEvictedDeviceImages({evicted: removed, stored: result.ok ? [result.id] : []}));
+      }
+      removed.forEach((key) => {
+        registry.revoke(key);
+        if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
+      });
       if (!result.ok) {
         errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
         continue;
       }
       added.push(result.id);
-      evicted.current = new Set(updateEvictedDeviceImages({evicted: result.evicted, stored: [result.id]}));
       requestedKeys.current.add(result.id);
-      result.evicted.forEach((key) => {
-        registry.revoke(key);
-        if (deviceStates.get(key)) states.push([key, {status: 'evicted'}]);
-      });
       states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob, result.type)}]);
       items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
     }

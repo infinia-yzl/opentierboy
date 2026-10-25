@@ -355,6 +355,11 @@ describe('openDeviceStore with IndexedDB', () => {
    * fails a write request and aborts the transaction. fake-indexeddb runs each write through its
    * internal _rawObjectStore.storeRecord; the first write of each attempt fails once, and the
    * rollback after the abort uses the normal method again.
+   *
+   * fake-indexeddb has no quota, so it cannot reproduce what Chrome does on its own: abort the
+   * whole transaction with QuotaExceededError, which also undoes the removals made in it. The
+   * end-to-end test "when the browser is full, …" in tests/e2e/custom-images.spec.ts covers
+   * that with a real quota.
    */
   function failNextWrites(times: number) {
     const originalPut = IDBObjectStore.prototype.put;
@@ -383,14 +388,22 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000003', 'img-00000004']);
   });
 
-  it('reports storage-full when the retry fails too, and removes nothing then', async () => {
+  it('makes room in a transaction of its own, so the room stays made when the retry fails too', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     await store.put(image(40));
     await store.put(image(40));
     failNextWrites(2);
-    expect(await store.put(image(40))).toEqual({ok: false, reason: 'storage-full'});
-    // The oldest image would have made room. It is still there.
-    expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000002']);
+    // The oldest image was removed before the second write, and is reported with the refusal.
+    expect(await store.put(image(40))).toEqual({ok: false, reason: 'storage-full', evicted: ['img-00000001']});
+    expect((await store.list()).map(info => info.id)).toEqual(['img-00000002']);
+  });
+
+  it('does not retry when nothing can make room', async () => {
+    const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
+    await store.put(image(40));
+    failNextWrites(2);
+    expect(await store.put(image(40), {keep: ['img-00000001']})).toEqual({ok: false, reason: 'storage-full'});
+    expect((await store.list()).map(info => info.id)).toEqual(['img-00000001']);
   });
 
   it('reads many images in one go, and marks them as used', async () => {

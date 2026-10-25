@@ -1,6 +1,6 @@
 import {expect, test} from '../support/test';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, imageFile, RED_SQUARE, serveImageSite} from '../support/imageSites';
+import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
 
 const TANKS = '/rank/overwatch/tank';
 /** A trusted site (trusted-image-sites.json): its images load without asking. */
@@ -238,6 +238,38 @@ test.describe('Images from the device', () => {
     await expect(tierList.item('Old upload').getByRole('img')).toHaveCount(0);
     // An upload this browser never had keeps the placeholder image, as before.
     await expect.poll(() => tierList.itemImageHasLoaded('Not here')).toBe(true);
+  });
+
+  test('when the browser is full, older images that are not on screen make room for a new upload', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
+    test.skip(browserName !== 'chromium', 'Only Chromium lets a test cap the storage (DevTools Protocol).');
+    // Chromium ignores a storage cap in incognito contexts, and reads it when the site first
+    // opens its database: this test uses a real profile and sets the cap before the first page.
+    const {tierList, context} = await openInChromiumProfile();
+    const page = tierList.page;
+    const images = [1, 2, 3, 4, 5].map((seed) => noisePng(320, 320, seed)); // about 300 KB each
+    const cdp = await context.newCDPSession(page);
+    const origin = new URL(test.info().project.use.baseURL!).origin;
+    // Room for four of the images, not five: well below the store's own limits (100 MB).
+    await cdp.send('Storage.overrideQuotaForOrigin', {origin, quotaSize: Math.round(images[0].length * 4.5)});
+
+    // Four images in one list, then a new, empty list: they are not on screen.
+    await tierList.goto('/rank');
+    await tierList.addItemsFromDevice(['old-1', 'old-2', 'old-3', 'old-4'].map((name, index) => imageFile(`${name}.png`, images[index])));
+    await expect.poll(() => tierList.itemImageHasLoaded('old-4')).toBe(true);
+    const oldList = await tierList.shareLink();
+    await tierList.goto('/rank');
+    const newImage = images[4];
+
+    await tierList.addItemsFromDevice([imageFile('new.png', newImage)]);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['new']);
+    await expect.poll(() => tierList.itemImageHasLoaded('new')).toBe(true);
+    const evicted = await page.evaluate(() => JSON.parse(localStorage.getItem('evictedDeviceImages') ?? '[]') as string[]);
+    expect(evicted).toHaveLength(1);
+
+    // The old list: the oldest image made room and shows its name only; the others are there.
+    await tierList.gotoLink(oldList);
+    await expect(tierList.item('old-1').getByRole('img')).toHaveCount(0);
+    for (const name of ['old-2', 'old-3', 'old-4']) await expect.poll(() => tierList.itemImageHasLoaded(name)).toBe(true);
   });
 
   test('without IndexedDB, uploads still work for the tab, and the app says so once', async ({tierList, page}) => {
