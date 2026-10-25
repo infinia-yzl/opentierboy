@@ -46,14 +46,11 @@ export function encodeV2(state: EncodableState): string {
 export type WriteFormat = 2 | 3;
 
 /**
- * The link format encodeState writes by default. The app writes v2 today.
- *
- * The Phase 5b wiring step switches the app to v3 by changing this to 3, once TierCortex
- * resolves v3 items and the editor passes the layout fields (row template, label position,
- * label visibility) and marks custom items as device items. Until then keep it at 2:
- * TierListManager does not pass the layout fields yet.
+ * The link format encodeState writes by default: v3 since the Phase 5b wiring step.
+ * TierCortex.encodeListForURL writes the app's links in this format; changing it to 2 makes
+ * the app write v2 links exactly as before (layout settings then stay out of links).
  */
-export const DEFAULT_WRITE_FORMAT: WriteFormat = 2;
+export const DEFAULT_WRITE_FORMAT: WriteFormat = 3;
 
 export interface EncodeOptions {
   /** Overrides DEFAULT_WRITE_FORMAT. */
@@ -61,7 +58,7 @@ export interface EncodeOptions {
 }
 
 /**
- * Writes a list in the link format the app writes (DEFAULT_WRITE_FORMAT, v2 today).
+ * Writes a list in the link format the app writes (DEFAULT_WRITE_FORMAT: v3).
  * Decoding with decodeState and encoding again in the same format gives back the same text
  * for values that format's encoder wrote, so opening a link and saving it unchanged does
  * not change the URL.

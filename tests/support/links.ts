@@ -67,8 +67,9 @@ export function packageItemId(packageName: string, label: string): string {
 }
 
 /**
- * Builds a `state` value in the current (v2) link format, so a test can start from a
- * known ranking without dragging items through the UI first.
+ * Builds a `state` value in the v2 link format, so a test can start from a known ranking
+ * without dragging items through the UI first. The app writes v3 links since Phase 5b and
+ * reads v2 links forever.
  *
  * `tiers` maps a five-row tier label ('' for unranked) to the item labels it holds.
  */
@@ -89,7 +90,7 @@ export function rankingState(
 }
 
 /**
- * Builds a `state` value from raw link JSON in the current (v2) format, for lists that
+ * Builds a `state` value from raw link JSON in the v2 format, for lists that
  * `rankingState()` cannot express, such as uploaded items (`{i: id, c: label}`) or odd ids.
  */
 export function rawState(state: {title?: string; tiers: {i: string; n: string; t: {i: string; c?: string}[]}[]}): string {
@@ -102,6 +103,22 @@ export function rawState(state: {title?: string; tiers: {i: string; n: string; t
  */
 export function stateFromJson(json: unknown): string {
   return LZString.compressToEncodedURIComponent(JSON.stringify(json));
+}
+
+/**
+ * Builds a v3 `state` value (`3.` and lz-string of the JSON, docs/link-format-v3.md), for
+ * lists with layout settings, link images or device images.
+ */
+export function v3State(json: unknown): string {
+  return `3.${LZString.compressToEncodedURIComponent(JSON.stringify(json))}`;
+}
+
+/** The JSON a v3 link holds, read from a full link such as the one in the address bar. */
+export function v3LinkJson(link: string): unknown {
+  // URLSearchParams turns '+' into a space; lz-string reads a space as '+'.
+  const state = new URL(link).searchParams.get('state') ?? '';
+  if (!state.startsWith('3.')) throw new Error(`Not a v3 link: ${link}`);
+  return JSON.parse(LZString.decompressFromEncodedURIComponent(state.slice(2)) ?? 'null');
 }
 
 /**

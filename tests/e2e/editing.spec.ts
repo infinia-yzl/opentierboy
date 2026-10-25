@@ -1,4 +1,4 @@
-import {expect, expectTierNames, test} from '../support/test';
+import {expect, expectTierList, expectTierNames, test} from '../support/test';
 import {rankingState} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
@@ -92,6 +92,25 @@ test.describe('Row settings', () => {
     await expect(tierList.itemsIn('F')).toHaveText(['Sigma']);
   });
 
+  test('a shared list with moved rows switches to 7 rows like the list it came from (A2)', async ({tierList, openAsVisitor}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
+    // Moving row S onto A's place moves the items and the tier id; the labels stay in place.
+    await tierList.dragTierOnto('S', 'A');
+    await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+    const friend = await openAsVisitor(await tierList.shareLink());
+
+    // The switch puts items in the row with their tier id, so the link must keep the moved ids.
+    const expected = {tiers: [
+      {name: 'SS', items: []}, {name: 'S', items: ['Mauga']}, {name: 'A', items: ['Winston']}, {name: 'B', items: []},
+      {name: 'C', items: ['Sigma']}, {name: 'D', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
+    ]};
+    await tierList.chooseRowCount(7);
+    await expectTierList(tierList, expected);
+    await friend.chooseRowCount(7);
+    await expectTierList(friend, expected);
+  });
+
   test('hiding item labels keeps the items, without the captions', async ({tierList}) => {
     await tierList.goto(TANKS);
 
@@ -108,9 +127,7 @@ test.describe('Row settings', () => {
 
     await tierList.chooseLabelPosition('Top');
 
-    const label = await tierList.tier('S').getByRole('heading', {name: 'S'}).boundingBox();
-    const item = await tierList.item('Mauga').boundingBox();
-    expect(label && item && label.y + label.height <= item.y).toBe(true);
+    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
   });
 });
 

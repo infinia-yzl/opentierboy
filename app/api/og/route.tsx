@@ -88,10 +88,12 @@ export async function GET(request: Request) {
   const rows = tiers.slice(0, MAX_ROWS);
 
   const logoUrl = tierCortex.getAssetUrl(LOGO);
-  const imageSrc = await inlineLocalImages([
-    logoUrl,
-    ...rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
-  ]);
+  // Only image URLs that TierCortex builds for the app's own assets. Link images and device
+  // images have none (getOgSafeItem): the server never loads a link image's address (A8, A36).
+  const itemImageUrls = rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW)
+    .map((item) => tierCortex.getOgSafeItem(item).imageUrl)
+    .filter((url): url is string => url !== undefined));
+  const imageSrc = await inlineLocalImages([logoUrl, ...itemImageUrls]);
 
   const titleText = title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy';
 

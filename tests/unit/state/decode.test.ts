@@ -1,6 +1,6 @@
 import LZString from 'lz-string';
 import {describe, expect, it, vi} from 'vitest';
-import {decodeState, encodeState} from '@/lib/state';
+import {decodeState, encodeV2} from '@/lib/state';
 import sharedLinks from '../../fixtures/shared-links.json';
 import {randomAppStates, seededRandom, toCanonical} from '../support/randomStates';
 
@@ -54,7 +54,7 @@ describe('decodeState', () => {
     const payloads = sharedLinks.map(link => link.state);
 
     it('legacy values never start with a digit, so a prefix cannot be mistaken for one', () => {
-      const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeState(toCanonical(state)))];
+      const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeV2(toCanonical(state)))];
       for (const value of encoded) expect(value[0]).toBe('N');
     });
 

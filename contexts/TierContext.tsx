@@ -11,6 +11,7 @@ import {
   createTierListReducer,
   initialTierListState,
   ItemPosition,
+  ListEncoder,
   loadList,
   stateParam,
 } from "@/lib/tierListReducer";
@@ -26,10 +27,13 @@ import {
  *   writes one at a time with router.push, each as a new history entry (product rule 2: history
  *   is the undo). The next write is pushed only once the previous one has reached the address:
  *   Next.js drops a navigation that is still loading when a new one starts, so pushing them
- *   together lost entries on a slow connection (A44).
+ *   together lost entries on a slow connection (A44). A change to the layout settings is
+ *   written with router.replace (A3, LAYOUT_LINK_WRITE in lib/tierListReducer.ts), in the
+ *   same queue.
  *
- * Phase 5b hooks the link format in through TierCortex: encodeListForURL writes a link and
- * decodeTierStateFromURL reads one (loadList in lib/tierListReducer.ts).
+ * The link format comes through TierCortex: encodeListForURL writes a v3 link with the layout
+ * settings, and decodeTierStateFromURL reads every format (loadList in lib/tierListReducer.ts).
+ * A link's layout settings apply only when the editor starts with it (see lib/tierListReducer.ts).
  */
 export interface TierContext {
   tierCortex: TierCortex;
@@ -64,7 +68,7 @@ export interface TierContext {
   restoreTiers: (tiers: Tier[]) => void;
   /** Switches to another row template (3, 5 or 7 rows). */
   onTemplateChange: (template: readonly Tier[]) => void;
-  /** Layout settings: they never write the address. */
+  /** Layout settings: they replace the current history entry (A3, LAYOUT_LINK_WRITE). */
   setLabelPosition: (position: LabelPosition) => void;
   toggleLabels: () => void;
 }
@@ -96,7 +100,7 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
 
   const [{tierCortex, encode, reducer}] = useState(() => {
     const cortex = new TierCortex();
-    const encodeList = (title: string, tiers: Tier[]) => cortex.encodeListForURL(title, tiers);
+    const encodeList: ListEncoder = (title, tiers, layout) => cortex.encodeListForURL(title, tiers, layout);
     return {tierCortex: cortex, encode: encodeList, reducer: createTierListReducer(encodeList)};
   });
   const [state, dispatch] = useReducer(reducer, null, () => {
@@ -122,7 +126,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     const next = state.writes[0];
     if (!next || next.id <= lastPushedWrite.current) return;
     lastPushedWrite.current = next.id;
-    router.push(`${pathname}?state=${next.link}`, {scroll: false});
+    const href = `${pathname}?state=${next.link}`;
+    if (next.mode === 'replace') router.replace(href, {scroll: false});
+    else router.push(href, {scroll: false});
   }, [state.writes, router, pathname]);
 
   const actions = useMemo(() => ({

@@ -1,10 +1,21 @@
-import Tier, {DEFAULT_TIER_TEMPLATE} from "@/models/Tier";
+import Tier, {DEFAULT_TIER_TEMPLATE, LabelPosition} from "@/models/Tier";
 import Item, {DEFAULT_ITEM_SHAPE, isItemShape, ItemShape} from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
-import {type CanonicalItem, type CanonicalState, decodeState, encodeState} from "@/lib/state";
+import {
+  type CanonicalItem,
+  type CanonicalState,
+  decodeState,
+  DEFAULT_WRITE_FORMAT,
+  deviceImageIdForUpload,
+  type EncodableState,
+  encodeState,
+  encodeV3,
+  LEGACY_UPLOAD_ID_PREFIX,
+  type RowTemplate,
+} from "@/lib/state";
 import {isVersionedValue} from "@/lib/state/decode";
 import {measureDecompressedLength} from "@/lib/state/lz";
 import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
@@ -33,6 +44,22 @@ interface SimplifiedItem {
 
 export interface TierWithSimplifiedItems extends Omit<Tier, 'items'> {
   items: SimplifiedItem[];
+}
+
+/** The layout settings that a v3 link carries along with the list (A3). */
+export interface ListLayout {
+  labelPosition: LabelPosition;
+  showLabels: boolean;
+}
+
+/** The layout of a list whose link stores none: legacy links, template pages. */
+export const DEFAULT_LIST_LAYOUT: ListLayout = Object.freeze({labelPosition: 'left', showLabels: true});
+
+/** A list read from a link. `layout` is set only for v3 links, which store it. */
+export interface DecodedList {
+  title?: string;
+  tiers: Tier[];
+  layout?: ListLayout;
 }
 
 interface StoredCustomItem {
@@ -83,7 +110,10 @@ export class TierCortex {
     }
   }
 
-  // The link format lives in lib/state. This writes exactly the bytes it always wrote.
+  /**
+   * The v2 writer: exactly the bytes TierCortex always wrote before v3 (lib/state encodeV2).
+   * The app writes v3 now (encodeListForURL); this stays for DEFAULT_WRITE_FORMAT 2 and tests.
+   */
   public static encodeTierStateForURL(title: string | undefined, tiers: TierWithSimplifiedItems[]): string {
     return encodeState({
       title,
@@ -92,18 +122,39 @@ export class TierCortex {
         name: tier.name,
         items: tier.items.map(toCanonicalItem),
       })),
-    });
+    }, {format: 2});
   }
 
   /**
-   * The link of a list, in the format the app writes (v2 today, encodeTierStateForURL). Only
-   * custom items keep their label in the link; package items get theirs from the image set.
+   * The link of a list, in the format the app writes (DEFAULT_WRITE_FORMAT in lib/state).
+   *
+   * v3 (docs/link-format-v3.md) stores the layout and each item by kind:
+   * - image-set items, and image-set ids from v3 links that the image sets do not know, as
+   *   their id (the image set holds the label);
+   * - link images as their address and label;
+   * - uploads (custom items) as device images, by their device image id: an id from before
+   *   Phase 5c that breaks the device id rule gets the prefix `legacy-` (A42). An id that no
+   *   prefix makes valid (an unknown id with a dot, from a legacy link) stays as a plain id.
+   * The row template is the row count, as the "Number of Rows" menu shows it.
+   *
+   * v2 (the format before Phase 5b) stores the title and tiers only, with labels on custom
+   * items.
    */
-  public encodeListForURL(title: string, tiers: Tier[]): string {
-    return TierCortex.encodeTierStateForURL(title, tiers.map(tier => ({
-      ...tier,
-      items: tier.items.map(item => ({i: item.id, c: this.isCustomItem(item.id) ? item.content : undefined})),
-    })));
+  public encodeListForURL(title: string, tiers: Tier[], layout: ListLayout = DEFAULT_LIST_LAYOUT): string {
+    if (DEFAULT_WRITE_FORMAT === 2) {
+      return TierCortex.encodeTierStateForURL(title, tiers.map(tier => ({
+        ...tier,
+        items: tier.items.map(item => ({i: item.id, c: this.isCustomItem(item.id) ? item.content : undefined})),
+      })));
+    }
+    const list: EncodableState = {
+      title,
+      tiers: tiers.map(tier => ({id: tier.id, name: tier.name, items: tier.items.map(item => this.toV3Item(item))})),
+      rowTemplate: rowTemplateOf(tiers),
+      labelPosition: layout.labelPosition,
+      showLabels: layout.showLabels,
+    };
+    return encodeV3(list);
   }
 
   public isCustomItem(itemId: string): boolean {
@@ -121,7 +172,7 @@ export class TierCortex {
    * does not decode or breaks a limit, so callers fall back to the template and the default
    * preview image.
    */
-  public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
+  public decodeTierStateFromURL(encodedState: string): DecodedList | null {
     const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
 
     // A short link can decompress to a huge text, so legacy links are measured first (A29).
@@ -145,7 +196,14 @@ export class TierCortex {
     }
 
     try {
-      return {title: state.title, tiers: this.resolveTiers(state)};
+      const list: DecodedList = {title: state.title, tiers: this.resolveTiers(state)};
+      if (state.version === 3) {
+        list.layout = {
+          labelPosition: state.labelPosition ?? DEFAULT_LIST_LAYOUT.labelPosition,
+          showLabels: state.showLabels ?? DEFAULT_LIST_LAYOUT.showLabels,
+        };
+      }
+      return list;
     } catch (error) {
       logError(error);
       return null;
@@ -207,10 +265,18 @@ export class TierCortex {
     return url;
   }
 
+  /**
+   * The item as link previews draw it. Link images and device images get no image URL, so
+   * previews draw them as label tiles: the server never loads a link image's address (A8,
+   * A36), and device images exist only in someone's browser.
+   */
   public getOgSafeItem(item: Item): Item {
+    if (item.source === 'link' || item.source === 'device' || !item.imageUrl) {
+      return {...item, imageUrl: undefined};
+    }
     return {
       ...item,
-      imageUrl: this.getOgSafeImageUrl(item.imageUrl ?? '')
+      imageUrl: this.getOgSafeImageUrl(item.imageUrl)
     };
   }
 
@@ -276,13 +342,57 @@ export class TierCortex {
       id: tierIds[index],
       name: tier.name,
       items: tier.items
-        .map(item => this.resolveItem(item.id, item.content))
+        .map(item => this.resolveCanonicalItem(item, state.version))
         .filter(item => {
           if (seen.has(item.id)) return false;
           seen.add(item.id);
           return true;
         }),
     }));
+  }
+
+  /** An item from a decoded link: by its kind in v3 links, by its id in legacy links. */
+  private resolveCanonicalItem(item: CanonicalItem, version: CanonicalState['version']): Item {
+    if (item.kind === 'link') {
+      // A label tile until Phase 5c: no image URL, so nothing loads the address.
+      return {id: item.id, content: item.content, source: 'link', url: item.url};
+    }
+    if (item.kind === 'device') return this.resolveDeviceItem(item.id, item.content);
+    if (version === 3) {
+      // v3 writes uploads as device images, so a plain id is always an image-set id.
+      return this.resolvePackageItem(item.id) ?? {...this.createPlaceholderItem(item.id, ''), source: 'package'};
+    }
+    return this.resolveItem(item.id, item.content);
+  }
+
+  /** An image-set item, also by an old id that image-aliases.json maps to it. */
+  private resolvePackageItem(itemId: string): Item | undefined {
+    return this.packageItemLookup.get(itemId) ?? this.resolveAlias(itemId);
+  }
+
+  /**
+   * A device image from a v3 link: the upload this browser stored under that id, or under the
+   * id before the `legacy-` prefix (A42). Otherwise its label on the placeholder image, as for a
+   * legacy custom item that this browser does not have.
+   */
+  private resolveDeviceItem(id: string, content: string): Item {
+    let stored: StoredCustomItem | undefined;
+    if (!this.isServer) {
+      stored = this.customItemsMap.get(id);
+      if (!stored && id.startsWith(LEGACY_UPLOAD_ID_PREFIX)) {
+        stored = this.customItemsMap.get(id.slice(LEGACY_UPLOAD_ID_PREFIX.length));
+      }
+    }
+    if (stored) return {id, content: content || stored.c, imageUrl: stored.d, source: 'device'};
+    return {id, content, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'};
+  }
+
+  /** How v3 stores an item of the list on screen (see encodeListForURL). */
+  private toV3Item(item: Item): CanonicalItem {
+    if (item.source === 'link') return {kind: 'link', id: item.id, url: item.url ?? item.id, content: item.content};
+    if (item.source === 'package' || !this.isCustomItem(item.id)) return {id: item.id};
+    const deviceId = deviceImageIdForUpload(item.id);
+    return deviceId === null ? {id: item.id} : {kind: 'device', id: deviceId, content: item.content};
   }
 
   private resolveItem(itemId: string, content?: string): Item {
@@ -352,6 +462,19 @@ export class TierCortex {
 
   private getAbsoluteUrl(path: string): string {
     return new URL(path, this.baseUrl).toString();
+  }
+}
+
+/**
+ * The row template of a list, as the "Number of Rows" menu shows it: its row count without
+ * the Unranked row. Any other count is 'custom'.
+ */
+export function rowTemplateOf(tiers: readonly Tier[]): RowTemplate {
+  switch (tiers.length - 1) {
+    case 3: return '3rows';
+    case 5: return '5rows';
+    case 7: return '7rows';
+    default: return 'custom';
   }
 }
 
