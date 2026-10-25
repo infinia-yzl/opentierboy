@@ -3,13 +3,15 @@ import path from 'node:path';
 import {describe, expect, it} from 'vitest';
 
 /**
- * lib/snapshot and lib/recent are plain modules: no React, no Next, no Node modules, and no
- * browser globals at import time. They may import zod and files in their own folder only.
- * (Browser APIs such as CompressionStream or localStorage are used inside functions, at
- * call time; lib/recent receives its storage from the caller.)
+ * lib/snapshot, lib/recent and lib/rankPath.ts are plain modules: no React, no Next, no Node
+ * modules, and no browser globals at import time. They may import files in their own folder and
+ * a few plain app modules: zod through lib/zod (A39), the device id rule (A40) and the /rank
+ * path rule. (Browser APIs such as CompressionStream or localStorage are used inside functions,
+ * at call time; lib/recent receives its storage from the caller.)
  */
 const root = path.resolve(__dirname, '../..');
 const folders = ['lib/snapshot', 'lib/recent'];
+const ALLOWED_APP_MODULES = new Set(['@/lib/zod', '@/lib/state/deviceId', '@/lib/rankPath']);
 
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, {withFileTypes: true}).flatMap(entry => {
@@ -23,25 +25,31 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
-for (const folder of folders) {
+for (const folder of [...folders, 'lib/rankPath.ts']) {
+  const isFile = folder.endsWith('.ts');
+  // A single file may import no relative files at all: nothing starts with its own path.
   const dir = path.join(root, folder);
-  const files = sourceFiles(dir);
+  const files = isFile ? [dir] : sourceFiles(dir);
 
   describe(`${folder} stays plain`, () => {
     it('has source files', () => {
       expect(files.length).toBeGreaterThan(0);
     });
 
+    it('never imports zod directly (A39)', () => {
+      for (const file of files) expect(fs.readFileSync(file, 'utf8'), path.relative(root, file)).not.toMatch(/from\s*['"]zod['"]/);
+    });
+
     for (const file of files) {
       const name = path.relative(root, file);
       const code = withoutComments(fs.readFileSync(file, 'utf8'));
 
-      it(`${name} imports only zod and files of its folder`, () => {
+      it(`${name} imports only files of its folder and the allowed plain modules`, () => {
         const specifiers = Array.from(code.matchAll(/(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]/g)).map(
           match => match[1] ?? match[2] ?? match[3],
         );
         for (const specifier of specifiers) {
-          if (specifier === '@/lib/zod') continue;
+          if (ALLOWED_APP_MODULES.has(specifier)) continue;
           expect(specifier, `${name} imports ${specifier}`).toMatch(/^\.\.?\//);
           expect(path.resolve(path.dirname(file), specifier).startsWith(dir), `${name} imports ${specifier}`).toBe(true);
         }

@@ -17,6 +17,7 @@
  *
  * Plain code: zod only, no React. Nothing touches browser APIs at import time.
  */
+import {MAX_RANK_PATH_CHARS, normalizeRankPath} from '@/lib/rankPath';
 import {z} from '@/lib/zod';
 
 /** The local storage key. */
@@ -36,7 +37,7 @@ export const RECENT_UNPINNED_LIMIT = 30;
  * The 430-item test list has a state of about 12,000 characters.
  */
 export const RECENT_LINK_LIMITS = Object.freeze({
-  maxPathChars: 512,
+  maxPathChars: MAX_RANK_PATH_CHARS,
   maxStateChars: 16_384,
   /** Longer titles are shortened to this many characters when recorded. */
   maxTitleChars: 200,
@@ -117,19 +118,13 @@ const STORED_VERSION = 1;
 const MAX_STORED_LINKS = 2 * (RECENT_PIN_LIMIT + RECENT_UNPINNED_LIMIT);
 const EMPTY: readonly RecentLink[] = Object.freeze([]);
 
-/**
- * `/rank` and its sub-paths. Segments use the characters slugs and percent-encoding use.
- * No `//`, `\`, `?`, `#`, spaces or a scheme, so the path can never point to another site or run
- * script when used as a link.
- */
-const PATH = /^\/rank(?:\/[A-Za-z0-9._~%-]+)*$/;
 /** Printable ASCII without spaces: lz-string's URL-safe alphabet plus the version dot and the
  * odd trailing character of an old link. */
 const STATE = /^[\x21-\x7e]*$/;
 const time = z.number().int().nonnegative().max(8.64e15);
 
 const storedLinkSchema = z.object({
-  path: z.string().max(RECENT_LINK_LIMITS.maxPathChars).regex(PATH),
+  path: z.string().max(RECENT_LINK_LIMITS.maxPathChars).refine(path => normalizeRankPath(path) === path),
   state: z.string().max(RECENT_LINK_LIMITS.maxStateChars).regex(STATE),
   title: z.string().max(RECENT_LINK_LIMITS.maxTitleChars),
   openedAt: time,
@@ -338,16 +333,15 @@ function byOpenedDesc(a: RecentLink, b: RecentLink): number {
 }
 
 /**
- * Checks and normalises a link: a trailing '/' is dropped from the path, and spaces in the
- * state become '+' (URLSearchParams reads '+' in a link as a space). Returns null when invalid.
+ * Checks and normalises a link: the path must be a plain /rank path (lib/rankPath.ts; a trailing
+ * '/' is dropped), and spaces in the state become '+' (URLSearchParams reads '+' in a link as a
+ * space). Returns null when invalid.
  */
 function normalizeRef(ref: RecentLinkRef | null | undefined): {path: string; state: string} | null {
-  if (!ref || typeof ref.path !== 'string') return null;
-  const path = ref.path.length > 5 ? ref.path.replace(/\/+$/, '') : ref.path;
+  if (!ref) return null;
+  const path = normalizeRankPath(ref.path);
+  if (path === null) return null;
   const state = typeof ref.state === 'string' ? ref.state.replace(/ /g, '+') : '';
-  if (path.length > RECENT_LINK_LIMITS.maxPathChars || !PATH.test(path)) return null;
-  // Dot segments, plain or percent-encoded ('..', '%2e%2e', '.%2E'), would leave /rank.
-  if (path.split('/').some(segment => /^(?:\.|%2e)+$/i.test(segment))) return null;
   if (state.length > RECENT_LINK_LIMITS.maxStateChars || !STATE.test(state)) return null;
   return {path, state};
 }

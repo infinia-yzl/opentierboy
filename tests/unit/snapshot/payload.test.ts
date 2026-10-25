@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
+import {isDeviceImageId} from '@/lib/state/deviceId';
 import {
   buildSnapshotPayload,
-  isSnapshotImageId,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_PAYLOAD_LIMITS,
@@ -60,6 +60,16 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
     expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","images":[{"id":"image-one","label":"x","dataUrl":"${dataUrl('gif')}"}]}`);
     const again = buildSnapshotPayload({state: STATE, images: [{...shuffled}]});
     expect(again.ok && again.text).toBe(built.ok && built.text);
+  });
+
+  it('keeps the editor path of the list, normalised, and refuses anything else', () => {
+    const built = buildSnapshotPayload({state: STATE, path: '/rank/overwatch/tank/'});
+    expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","path":"/rank/overwatch/tank","images":[]}`);
+    expect(parseJson({version: 1, state: STATE, path: '/rank'})).toEqual({ok: true, payload: {version: 1, state: STATE, path: '/rank', images: []}});
+    for (const path of ['', '/', '/about', 'https://evil.example/rank', '//evil.example/rank', '/rank/../api/og', '/rank/%2e%2e/api', '/rank?x=1', '/rank/a b', 7, null]) {
+      expect(parseJson({version: 1, state: STATE, path}), String(path)).toMatchObject({ok: false, reason: 'invalid-payload'});
+      expect(buildSnapshotPayload({state: STATE, path: path as string}).ok, String(path)).toBe(false);
+    }
   });
 
   it('defaults to no images', () => {
@@ -129,8 +139,8 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     const badIds: unknown[] = [
       '',
       'k3J9x',
-      'a'.repeat(limits.minLocalIdChars - 1),
-      'a'.repeat(limits.maxLocalIdChars + 1),
+      'a'.repeat(7),
+      'a'.repeat(65),
       'abcd efgh',
       '../abcdef',
       'abcdefgé',
@@ -147,12 +157,12 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
       null,
     ];
     for (const id of badIds) {
-      expect(isSnapshotImageId(id), String(id)).toBe(false);
+      expect(isDeviceImageId(id), String(id)).toBe(false);
       const images = [{id, label: 'x', dataUrl: dataUrl('png')}];
       expect(parseJson({version: 1, state: STATE, images}), String(id)).toMatchObject({ok: false, reason: 'invalid-payload'});
     }
-    for (const id of ['a'.repeat(limits.minLocalIdChars), 'a'.repeat(limits.maxLocalIdChars), 'h3Kx9_Tq2LmZ-a8B', '0b8f6a62-6a0e-4c43-a3a8-3c2e7f0b1d9e', 'valueOfX']) {
-      expect(isSnapshotImageId(id), id).toBe(true);
+    for (const id of ['a'.repeat(8), 'a'.repeat(64), 'h3Kx9_Tq2LmZ-a8B', '0b8f6a62-6a0e-4c43-a3a8-3c2e7f0b1d9e', 'valueOfX', 'legacy-abc12']) {
+      expect(isDeviceImageId(id), id).toBe(true);
       expect(parseJson({version: 1, state: STATE, images: [image('ok', {id})]}).ok, id).toBe(true);
     }
   });

@@ -1,10 +1,10 @@
 /**
  * The snapshot payload: the text stored in a Freeze Frame PNG (see png.ts).
  *
- * It is JSON with three fields:
+ * It is JSON, for example:
  *
  * ```json
- * {"version":1,"state":"3.N4Ig...","images":[{"id":"h3Kx9_Tq2LmZ-a8B","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
+ * {"version":1,"state":"3.N4Ig...","path":"/rank/overwatch/tank","images":[{"id":"h3Kx9_Tq2LmZ-a8B","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
  * ```
  *
  * - `version`: the payload format version. This file writes and reads version 1. A file with
@@ -13,9 +13,10 @@
  *   The link format already has a decoder with size limits and golden fixtures, so the
  *   snapshot reuses it. This module checks only the shape of the value; the caller decodes it
  *   with `decodeState` from lib/state.
+ * - `path` (optional): the editor page of the list (`/rank/<set>/<tag>`), a plain /rank path
+ *   (lib/rankPath.ts). Opening the file goes there, or to `/rank` when it is missing.
  * - `images`: the device images the list uses, keyed by their local id (the `d` of a v3 item).
- *   An id has 8 to 64 characters from `A-Z a-z 0-9 - _`, and is never the name of an
- *   `Object.prototype` member such as `__proto__`: the same rule as the device store.
+ *   Ids follow the device id rule (`isDeviceImageId` in lib/state/deviceId.ts, A40).
  *   Each is a base64 data URL of a PNG, JPEG, WebP or GIF picture. SVG is never accepted,
  *   because SVG can carry scripts. The first bytes must match the declared type. Only the
  *   first bytes are checked, so the browser code re-encodes every image through a canvas
@@ -26,9 +27,11 @@
  * Old snapshot files must keep opening, like old links: never change what version 1 means.
  * A breaking change gets version 2 and a parser for it next to this one.
  *
- * Plain code: zod only, no React, nothing browser-specific. The functions return a result
- * object and never throw.
+ * Plain code: zod (through lib/zod, A39) and two small app rules, no React, nothing
+ * browser-specific. The functions return a result object and never throw.
  */
+import {normalizeRankPath} from '@/lib/rankPath';
+import {isDeviceImageId} from '@/lib/state/deviceId';
 import {z} from '@/lib/zod';
 import {SNAPSHOT_PNG_LIMITS} from './png';
 
@@ -44,7 +47,6 @@ const MiB = 1024 * 1024;
  * - `maxImages`, `maxImageDataUrlChars`, `maxTotalImageDataUrlChars`: device images.
  *   8 MB of data URLs is about 6 MB of pictures, for example 300 pictures of 20 KB each.
  * - `maxLabelChars`: per image.
- * - `minLocalIdChars`, `maxLocalIdChars`: the device store's id length (8 to 64).
  * - `maxJsonTokens`: objects, arrays and commas outside strings, counted before JSON.parse.
  *   A payload with 500 images has about 2,000. The count stops JSON.parse and zod from
  *   building millions of tiny values: 9 MB of `{},` would otherwise take seconds.
@@ -56,8 +58,6 @@ export const SNAPSHOT_PAYLOAD_LIMITS = Object.freeze({
   maxImageDataUrlChars: 2 * MiB,
   maxTotalImageDataUrlChars: 8 * MiB,
   maxLabelChars: 1_000,
-  minLocalIdChars: 8,
-  maxLocalIdChars: 64,
   maxJsonTokens: 100_000,
 });
 
@@ -78,11 +78,14 @@ export interface SnapshotPayload {
   version: typeof SNAPSHOT_PAYLOAD_VERSION;
   /** The `?state=` value of a link in a versioned format, for example `3.N4Ig...`. */
   state: string;
+  /** The editor page of the list, for example `/rank/overwatch/tank`. */
+  path?: string;
   images: SnapshotImage[];
 }
 
 export interface SnapshotPayloadInput {
   state: string;
+  path?: string;
   images?: readonly SnapshotImage[];
 }
 
@@ -108,15 +111,10 @@ const limits = SNAPSHOT_PAYLOAD_LIMITS;
 
 /** A versioned link value: version digits, a dot, then lz-string's URL-safe alphabet. */
 const VERSIONED_STATE = /^[1-9][0-9]{0,3}\.[A-Za-z0-9+$-]+$/;
-/**
- * Device image ids: 8 to 64 URL-safe characters. Same rule as `isDeviceImageId` in the device
- * store (5c, A40); at restack both use one shared definition.
- */
-const LOCAL_ID = /^[A-Za-z0-9_-]{8,64}$/;
 const DATA_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]*={0,2})$/;
 
 const imageSchema = z.object({
-  id: z.string().refine(isSnapshotImageId, {message: 'must be 8 to 64 characters from A-Z a-z 0-9 - _'}),
+  id: z.string().refine(isDeviceImageId, {message: 'must follow the device image id rule (8 to 64 characters from A-Z a-z 0-9 - _)'}),
   label: z.string().max(limits.maxLabelChars),
   dataUrl: z
     .string()
@@ -130,6 +128,7 @@ const payloadSchema = z
   .object({
     version: z.literal(SNAPSHOT_PAYLOAD_VERSION),
     state: z.string().max(limits.maxStateChars).regex(VERSIONED_STATE),
+    path: z.string().refine(path => normalizeRankPath(path) !== null, {message: 'must be a /rank path'}).optional(),
     images: z.array(imageSchema).max(limits.maxImages).default([]),
   })
   .superRefine((payload, ctx) => {
@@ -198,6 +197,7 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
     const candidate = {
       version: SNAPSHOT_PAYLOAD_VERSION,
       state: input.state,
+      ...(input.path === undefined ? {} : {path: input.path}),
       images: (input.images ?? []).map(image => ({id: image.id, label: image.label, dataUrl: image.dataUrl})),
     };
     const result = payloadSchema.safeParse(candidate);
@@ -210,14 +210,6 @@ export function buildSnapshotPayload(input: SnapshotPayloadInput): BuildSnapshot
   } catch {
     return {ok: false, reason: 'invalid-payload'};
   }
-}
-
-/**
- * True for a device image id: 8 to 64 characters from `A-Z a-z 0-9 - _`, and never the name
- * of an `Object.prototype` member (`__proto__`, `constructor`, `toString`...).
- */
-export function isSnapshotImageId(value: unknown): value is string {
-  return typeof value === 'string' && LOCAL_ID.test(value) && !Object.prototype.hasOwnProperty.call(Object.prototype, value);
 }
 
 /**
@@ -260,6 +252,7 @@ function normalize(data: z.infer<typeof payloadSchema>): SnapshotPayload {
   return {
     version: SNAPSHOT_PAYLOAD_VERSION,
     state: data.state,
+    ...(data.path === undefined ? {} : {path: normalizeRankPath(data.path) ?? undefined}),
     images: data.images.map(image => ({id: image.id, label: image.label, dataUrl: image.dataUrl})),
   };
 }

@@ -33,18 +33,20 @@ Only a downloaded file keeps it.
 JSON, for example:
 
 ```json
-{"version":1,"state":"3.N4Ig...","images":[{"id":"h3Kx9_Tq2LmZ-a8B","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
+{"version":1,"state":"3.N4Ig...","path":"/rank/overwatch/tank","images":[{"id":"h3Kx9_Tq2LmZ-a8B","label":"My cat","dataUrl":"data:image/webp;base64,UklGR..."}]}
 ```
 
 - `version`: the payload version. Today it is 1.
 - `state`: the list, as the `?state=` value of a link in a versioned format (`3.` and up).
   The app builds it with `encodeState(list, {format: 3})` and reads it with `decodeState`, so
   the link format's checks and limits apply.
+- `path` (optional): the editor page of the list. Opening the file goes there, or to `/rank`
+  when it is missing. It follows the same rule as Recently viewed paths (`lib/rankPath.ts`).
 - `images`: the device images the list uses. `id` is the image's local id (the `d` of a v3
-  item). It follows the device store's rule: 8 to 64 characters from `A-Z a-z 0-9 - _`, and
-  never a name such as `__proto__` or `constructor`. `dataUrl` is a base64 data URL of a PNG,
-  JPEG, WebP or GIF picture. The first bytes must match the declared type. SVG is never
-  accepted, because SVG can carry scripts.
+  item). It follows the device id rule (`isDeviceImageId` in `lib/state/deviceId.ts`): 8 to 64
+  characters from `A-Z a-z 0-9 - _`, and never a name such as `__proto__` or `constructor`.
+  `dataUrl` is a base64 data URL of a PNG, JPEG, WebP or GIF picture. The first bytes must
+  match the declared type. SVG is never accepted, because SVG can carry scripts.
 - Only the first bytes of an image are checked. So the app re-encodes every image through a
   canvas before it stores or shows it: when it writes a snapshot, and again when it opens one.
 - Unknown fields are ignored. A later version can add fields, and version 1 readers skip them.
@@ -66,7 +68,8 @@ refuse, so every file the app writes opens again.
 | One image data URL | 2 M characters |
 | All image data URLs together | 8 M characters |
 | Image label | 1,000 characters |
-| Image local id | 8 to 64 characters: letters, digits, `-`, `_` |
+| Image local id | the device id rule: 8 to 64 characters, letters, digits, `-`, `_` |
+| `path` | 512 characters, a plain `/rank` path |
 | JSON values (objects, arrays and commas outside strings) | 100,000 (a list with 500 images has about 2,000) |
 
 The reader also checks the PNG signature and the CRC of every chunk. It decompresses the text

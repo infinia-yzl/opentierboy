@@ -37,7 +37,6 @@ export type {
 } from './png';
 export {
   buildSnapshotPayload,
-  isSnapshotImageId,
   parseSnapshotPayload,
   rasterDataUrlType,
   SNAPSHOT_IMAGE_TYPES,
