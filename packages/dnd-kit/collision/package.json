@@ -1,0 +1,47 @@
+{
+  "name": "@dnd-kit/collision",
+  "type": "module",
+  "version": "0.5.1",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "license": "MIT",
+  "files": [
+    "LICENSE",
+    "dist/**"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --external react",
+    "dev": "tsup src/index.ts --format esm,cjs --watch --dts --external react",
+    "lint": "TIMING=1 eslint src/**/*.ts* --fix",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+  },
+  "dependencies": {
+    "@dnd-kit/abstract": "^0.5.1",
+    "@dnd-kit/geometry": "^0.5.1",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.9",
+    "@types/react-dom": "^18.0.4",
+    "eslint": "^8.38.0",
+    "@dnd-kit/eslint-config": "*",
+    "tsup": "8.3.0",
+    "typescript": "^5.5.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clauderic/dnd-kit"
+  }
+}

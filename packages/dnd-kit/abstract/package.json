@@ -1,0 +1,65 @@
+{
+  "name": "@dnd-kit/abstract",
+  "version": "0.5.1",
+  "type": "module",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "sideEffects": false,
+  "license": "MIT",
+  "files": [
+    "LICENSE",
+    "README.md",
+    "index.js",
+    "index.js.map",
+    "index.d.ts",
+    "index.d.cts",
+    "index.cjs",
+    "index.cjs.map",
+    "modifiers.js",
+    "modifiers.js.map",
+    "modifiers.d.ts",
+    "modifiers.d.cts",
+    "modifiers.cjs",
+    "modifiers.cjs.map"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "require": "./index.cjs"
+    },
+    "./modifiers": {
+      "types": "./modifiers.d.ts",
+      "import": "./modifiers.js",
+      "require": "./modifiers.cjs"
+    }
+  },
+  "scripts": {
+    "build": "bun build:core && bun build:modifiers",
+    "build:core": "tsup src/core/index.ts",
+    "build:modifiers": "tsup --entry.modifiers src/modifiers/index.ts",
+    "dev": "bun build:core --watch & bun build:modifiers --watch",
+    "test": "bun test",
+    "lint": "TIMING=1 eslint src/**/*.ts* --fix",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+  },
+  "dependencies": {
+    "@dnd-kit/geometry": "^0.5.1",
+    "@dnd-kit/state": "^0.5.1",
+    "tslib": "^2.6.2"
+  },
+  "devDependencies": {
+    "@dnd-kit/eslint-config": "*",
+    "eslint": "^8.38.0",
+    "tsup": "8.3.0",
+    "typescript": "^5.5.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clauderic/dnd-kit"
+  }
+}
