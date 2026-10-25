@@ -28,7 +28,7 @@ const slugify = (text) => text.toString().toLowerCase()
   .replace(/\s+/g, '-').replace(/[^\w-]+/g, '').replace(/--+/g, '-');
 const seoTagSlug = (tag) => tag ? tag.toLowerCase().replace(/_+/g, '-').replace(/^-|-$/g, '') : '';
 
-// Same rule as TierCortex.initializePackageItemLookup at the time of capture.
+// Same rule as packageItemLookup (lib/packageItems.ts) at the time of capture.
 const packageLabels = new Map();
 for (const [packageName, data] of Object.entries(config.packages)) {
   for (const image of data.images) {

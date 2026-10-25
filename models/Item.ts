@@ -26,11 +26,11 @@ export default interface Item {
   id: string;
   content: string;
   imageUrl?: string;
-  /** Tile shape. TierCortex sets it only on package images that are not square. Read it with itemShape(). */
+  /** Tile shape. packageItemLookup (lib/packageItems.ts) sets it only on package images that are not square. Read it with itemShape(). */
   shape?: ItemShape;
   /**
    * How a v3 link stores the item. Unset for image-set items and for items from legacy links:
-   * TierCortex.encodeListForURL tells those apart by their id. New uploads and pasted images
+   * encodeListForURL (lib/listLink.ts) tells those apart by their id. New uploads and pasted images
    * have 'device', new link images 'link'.
    */
   source?: ItemSource;

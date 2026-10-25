@@ -357,8 +357,8 @@ async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
 }
 
 /**
- * The placeholder tile of an unknown item, at preview size for link previews (TierCortex maps
- * /placeholder-image.png to this copy). The app itself shows public/placeholder-image.png.
+ * The placeholder tile of an unknown item, at preview size for link previews (getOgSafeImageUrl
+ * in lib/linkPreview.ts maps /placeholder-image.png to this copy). The app itself shows public/placeholder-image.png.
  */
 const PLACEHOLDER = path.join(ROOT, 'public', 'placeholder-image.png');
 const PLACEHOLDER_PREVIEW = path.join(ROOT, 'public', 'placeholder-image.preview.png');

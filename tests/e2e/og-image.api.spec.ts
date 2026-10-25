@@ -10,9 +10,9 @@ import {lzBomb, lzWithRun} from '../unit/support/lzStream';
  */
 test.describe('Link preview images', () => {
   // The preview route loads item images from http://localhost:3000 when it runs outside
-  // Vercel (TierCortex.baseUrl). A local server on any other port cannot draw a ranking.
+  // Vercel (defaultBaseUrl in lib/linkPreview.ts). A local server on any other port cannot draw a ranking.
   test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
-    'Preview images need the local server on port 3000, see TierCortex.baseUrl.');
+    'Preview images need the local server on port 3000, see defaultBaseUrl in lib/linkPreview.ts.');
 
   let defaultImage: Buffer;
 
@@ -222,7 +222,7 @@ const listsAtLimits = [
 
 test.describe('Link previews at the limits', () => {
   test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
-    'Preview images need the local server on port 3000, see TierCortex.baseUrl.');
+    'Preview images need the local server on port 3000, see defaultBaseUrl in lib/linkPreview.ts.');
 
   for (const list of listsAtLimits) {
     test(`a list with ${list.name} gets its preview quickly`, async ({request}) => {
