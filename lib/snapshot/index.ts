@@ -58,7 +58,7 @@ export type ReadSnapshotFileResult =
   | {ok: false; reason: ExtractSnapshotReason | SnapshotPayloadReason; detail?: string};
 
 export type WriteSnapshotFileResult =
-  | {ok: true; png: Uint8Array}
+  | {ok: true; png: Uint8Array<ArrayBuffer>}
   | {ok: false; reason: EmbedSnapshotReason | 'payload-too-large' | 'invalid-payload'; detail?: string};
 
 /**

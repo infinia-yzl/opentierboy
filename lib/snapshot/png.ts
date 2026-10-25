@@ -94,7 +94,7 @@ export type EmbedSnapshotReason =
   | 'compression-failed';
 
 export type ExtractSnapshotResult = {ok: true; text: string} | {ok: false; reason: ExtractSnapshotReason};
-export type EmbedSnapshotResult = {ok: true; png: Uint8Array} | {ok: false; reason: EmbedSnapshotReason};
+export type EmbedSnapshotResult = {ok: true; png: Uint8Array<ArrayBuffer>} | {ok: false; reason: EmbedSnapshotReason};
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 /** iTXt layout: keyword, 0, compression flag, compression method, language tag, 0, translated keyword, 0, text. */
