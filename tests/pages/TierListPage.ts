@@ -574,7 +574,7 @@ export class TierListPage {
    * started in the browser; a paste event before that finds no listener. Opening the items menu
    * proves the page has started.
    */
-  private async waitUntilInteractive() {
+  async waitUntilInteractive() {
     const menu = this.page.getByRole('menu');
     await expect(async () => {
       if (!(await menu.isVisible())) await this.manageItemsButton.click();

@@ -6,6 +6,7 @@ import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import {ItemSet} from "@/models/ItemSet";
 import TierCortex from "@/lib/TierCortex";
+import {recordRecentLink} from "@/components/useRecentLinks";
 import {
   addressNeedsLoading,
   createTierListReducer,
@@ -108,6 +109,14 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     const address = stateParam(initialState);
     return initialTierListState(loadList(tierCortex, address, initialItemSet, pageTitle), address, encode);
   });
+
+  // Recently viewed: a list opened fresh (this editor started with a link that holds a list) is
+  // recorded once. Edits, Back and Forward are not.
+  const [openedLink] = useState(() =>
+    state.address && state.addressHoldsList ? {path: pathname, state: state.address, title: state.title} : null);
+  useEffect(() => {
+    if (openedLink) recordRecentLink(openedLink);
+  }, [openedLink]);
 
   // Address to store, during render, so the screen never shows a list from another address.
   const address = stateParam(searchParams.get('state'));
