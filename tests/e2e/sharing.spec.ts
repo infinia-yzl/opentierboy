@@ -34,4 +34,26 @@ test.describe('Sharing', () => {
     const friend = await openAsVisitor(linkInMarkdown!);
     await expect(friend.itemsIn('S')).toHaveText(['Mauga']);
   });
+
+  test('on a slow connection, Copy Markdown right after quick changes shares the latest list', async ({
+    tierList,
+    context,
+    browserName,
+    openAsVisitor,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Only Chromium lets a test grant clipboard read access.');
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
+    await tierList.simulateSlowServer(400);
+
+    // The links reach the address one at a time; the share text must not wait for them.
+    for (const name of ['Mauga', 'Winston', 'Sigma']) {
+      await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
+    }
+    await tierList.copyMarkdown();
+
+    const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
+    const friend = await openAsVisitor(linkInMarkdown!);
+    await expect(friend.itemsIn('F')).toHaveCount(3);
+  });
 });
