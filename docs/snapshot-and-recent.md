@@ -11,25 +11,32 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   the list inside: the link Share hands out, the editor page, and the device images the list
   uses, all as they were when the picture was taken. Each device image is drawn again at most
   512 pixels on its longest side (256 when all images together are too large). When the list
-  does not fit, or its link is longer than 16,000 characters, a message offers the picture
+  does not fit, or its link is longer than 13,000 characters, a message offers the picture
   without the list. The file name comes from the title (letters and digits of any script), or
   `tier-list.png`. This button is new (A10): Copy Image cannot carry the list.
 - **Open file** (the folder button next to Share), **dropping a file** onto the editor and
   **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
-  - Chosen and dropped files must be PNG, JPEG, WebP, GIF or AVIF pictures by their first bytes;
-    other files get a message. Drops do nothing while a dialog is open. Files that arrive while
-    another file is still opening are ignored.
+  - All three take the same files as "From your device": a PNG, JPEG, WebP, GIF or AVIF picture
+    by its first bytes is stored as it is (within the pixel caps), and any other file the browser
+    calls an image (SVG, BMP, HEIC where the browser can show it) is drawn again and stored as a
+    plain picture. Other files get the message "This file is not a picture." Drops do nothing
+    while a dialog, a menu or a list box is open. Files that arrive while another file is still
+    opening are ignored.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
-    away." Open list shows "Opening the list…", draws its images again (at most 512 pixels),
-    stores them under content-addressed ids (`snap-` and a SHA-256 prefix of the drawn bytes,
-    so the list's `{d}` items follow), and goes to the list with one `router.push`. Opening the
-    same file again stores nothing new and gives the same link; when the address already shows
-    that list, nothing changes. Cancel changes nothing. Focus returns to Open file.
+    away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
+    An image this browser already holds under the file's own id is used as it is: the file was
+    made here, so the link stays the file's own (a file that reuses such an id on purpose can
+    only show the visitor's own picture). Any other image is drawn again (at most 512 pixels)
+    and stored under a content-addressed id (`snap-` and a SHA-256 prefix of the drawn bytes),
+    and the list's `{d}` items follow. Opening the same file again stores nothing new and gives
+    the same link; when the address already shows that list, nothing changes. Cancel changes
+    nothing. Focus returns to Open file.
   - A PNG without a list, any other picture, and a PNG with bytes after its end or a damaged
     minor chunk become items, like "From your device".
   - Anything else shows a plain message (damaged, too large, made by a newer version). A list
-    whose link is longer than 16,000 characters is too large: the server refuses such long
-    addresses.
+    whose link (the `state` value) is longer than 13,000 characters is too large: with the page
+    path and the site address the whole URL would pass Vercel's limit of about 14 KB (and
+    `next start` answers 431 at about 15,850 characters).
 - **Recently viewed** on the landing page, below "Create a New Tier List", shows the lists this
   browser opened, pinned ones first, with pin, unpin and remove, and a one-line hint to use
   bookmarks. It is hidden while empty. The editor records a list when it opens with a link that
