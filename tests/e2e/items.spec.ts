@@ -144,8 +144,7 @@ test.describe('Uploads from before v3 links', () => {
 
     await tierList.goto(TANKS, linkWithUpload('ab3c9', 'My cat'));
     await tierList.dragItemToTier('My cat', 'S');
-    // The moved tile renders in the browser, with the upload kept under its short id. (Right
-    // after a page load the tile shows the placeholder: see Known bugs.)
+    // The upload moved from localStorage into the device image store, under "legacy-ab3c9".
     await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
 
     const link = await tierList.shareLink();
@@ -195,22 +194,21 @@ test.describe('Unknown items in v3 links', () => {
 });
 
 /**
- * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
- * suite stays green while the bug exists. When a fix lands, the test starts to pass,
- * Playwright reports "Expected to fail, but passed", and the marker must be removed.
+ * Uploads live in the device image store (IndexedDB) since Phase 5c. The editor loads them in an
+ * effect, after the page has started, so the server and the browser render the same list.
  */
-test.describe('Known bugs', () => {
+test.describe('Uploads kept in this browser', () => {
   test('an upload kept in this browser shows its image right after the page loads', async ({tierList, page}) => {
-    test.fail(true, 'The server renders the list without the uploads of this browser, so the tile gets the placeholder image. When the page starts in the browser, React keeps the image address from the server, so the tile shows the placeholder until it renders again. Today uploads are blob: URLs that do not survive a page load anyway (#86); Phase 5c loads uploads in an effect, after the page has started.');
     await keepUploadInThisBrowser(page, {i: 'k3j9x0a1b', c: 'My cat', d: redSquareDataUrl()});
     await tierList.goto(TANKS, linkWithUpload('k3j9x0a1b', 'My cat'));
-    await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat')), {timeout: 3_000}).toBe(true);
+    await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
+    // The upload moved into the device image store.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
   });
 
   test('uploaded images still show after the tab is closed and reopened', {
     annotation: {type: 'issue', description: 'https://github.com/infinia-yzl/opentierboy/issues/86'},
   }, async ({tierList, context}) => {
-    test.fail(true, 'Uploads are kept as blob: URLs, which stop working once the tab closes.');
     await tierList.goto('/rank');
     await tierList.addItemsFromDevice([path.join(IMAGES, 'red-square.png')]);
     const link = await tierList.shareLink();
@@ -223,7 +221,7 @@ test.describe('Known bugs', () => {
     await expect(image).toBeVisible();
     // The tile must show the uploaded red square. Checking only that an image loaded is not
     // enough: an item the app cannot find shows the placeholder image, which loads too.
-    await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square')), {timeout: 3_000}).toBe(true);
+    await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square'))).toBe(true);
   });
 
 });

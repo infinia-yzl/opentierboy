@@ -422,14 +422,108 @@ export class TierListPage {
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
   }
 
-  /** Uploads images from the device. Item names default to the file names. */
-  async addItemsFromDevice(files: string[]) {
+  /** Uploads images from the device: file paths, or files made in the test. Item names default to the file names. */
+  async addItemsFromDevice(files: string[] | {name: string; mimeType: string; buffer: Buffer}[]) {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'From your device'}).click();
     const dialog = this.page.getByRole('dialog', {name: 'Add New Items'});
     await dialog.getByLabel('Upload Images').setInputFiles(files);
     await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
     await expect(dialog).toBeHidden();
+  }
+
+  /** The "From a link" dialog. */
+  get linkImageDialog(): Locator {
+    return this.page.getByRole('dialog', {name: 'Add an Image from a Link'});
+  }
+
+  /** Opens "From a link", fills in the address (and a name), and presses the add button. Leaves the dialog open. */
+  async submitLinkImage(address: string, name?: string) {
+    if (!(await this.linkImageDialog.isVisible())) {
+      await this.openItemsMenu();
+      await this.page.getByRole('menuitem', {name: 'From a link'}).click();
+    }
+    const dialog = this.linkImageDialog;
+    await dialog.getByLabel('Image address').fill(address);
+    if (name !== undefined) await dialog.getByLabel('Name (optional)').fill(name);
+    await dialog.getByRole('button', {name: /^Add (Item|Anyway)$/}).click();
+  }
+
+  /** Adds an image from a link and waits until the dialog has closed. */
+  async addItemFromLink(address: string, name?: string) {
+    await this.submitLinkImage(address, name);
+    await expect(this.linkImageDialog).toBeHidden();
+  }
+
+  /** After an image failed its check: adds it anyway, as a label tile. */
+  async confirmAddAnyway() {
+    await this.linkImageDialog.getByRole('button', {name: 'Add Anyway'}).click();
+    await expect(this.linkImageDialog).toBeHidden();
+  }
+
+  /** The message the "From a link" dialog shows about the address or the image. */
+  get linkImageMessage(): Locator {
+    return this.linkImageDialog.getByRole('alert');
+  }
+
+  /** The notice about images from sites that are not trusted, with [Load] and [Always allow these sites]. */
+  get imageSitesNotice(): Locator {
+    return this.page.getByRole('region', {name: 'Images from other sites'});
+  }
+
+  async loadImagesFromOtherSites() {
+    await this.imageSitesNotice.getByRole('button', {name: 'Load', exact: true}).click();
+    await expect(this.imageSitesNotice).toBeHidden();
+  }
+
+  async alwaysAllowImageSites() {
+    await this.imageSitesNotice.getByRole('button', {name: 'Always allow these sites'}).click();
+    await expect(this.imageSitesNotice).toBeHidden();
+  }
+
+  /**
+   * Waits until the editor responds to input. The server-rendered rows show before the page has
+   * started in the browser; a paste event before that finds no listener. Opening the items menu
+   * proves the page has started.
+   */
+  private async waitUntilInteractive() {
+    const menu = this.page.getByRole('menu');
+    await expect(async () => {
+      if (!(await menu.isVisible())) await this.manageItemsButton.click();
+      await expect(menu).toBeVisible({timeout: 1_000});
+    }).toPass();
+    await this.page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+  }
+
+  /** The text an item's right-click (or long-press) menu shows about the image's site, if any. */
+  async itemImageSite(itemName: string): Promise<string | null> {
+    await this.item(itemName).click({button: 'right'});
+    const menu = this.page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    const site = menu.getByText(/^Image from /);
+    const text = (await site.count()) > 0 ? await site.textContent() : null;
+    await this.page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    return text;
+  }
+
+  /**
+   * Pastes image files into the editor (or into `target`, for example a text field), as a paste
+   * from the clipboard would. The test builds the paste event: browsers do not let tests write
+   * images to the real clipboard.
+   */
+  async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
+    // A target (such as a text field the test typed into) proves the page has started already.
+    if (!target) await this.waitUntilInteractive();
+    await (target ?? this.page.locator('body')).evaluate((element, payload) => {
+      const transfer = new DataTransfer();
+      for (const file of payload) {
+        const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
+        transfer.items.add(new File([bytes], file.name, {type: file.mimeType}));
+      }
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, files.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
   }
 
   async deleteItem(itemName: string) {

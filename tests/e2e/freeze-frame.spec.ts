@@ -1,5 +1,6 @@
 import {expect, test} from '../support/test';
-import {rankingState} from '../support/links';
+import {packageItemId, rankingState, v3State} from '../support/links';
+import {serveImageSite} from '../support/imageSites';
 import type {CaptureMethod} from '../pages/TierListPage';
 
 const TANKS = '/rank/overwatch/tank';
@@ -49,3 +50,29 @@ for (const colorScheme of ['light', 'dark'] as const) {
     }
   });
 }
+
+// Link images come from other sites. A canvas that draws an image without its site's consent
+// (CORS) cannot be exported, so the capture draws such images as label tiles (A10).
+test.describe('Freeze Frame with link images', () => {
+  for (const method of METHODS) {
+    test(`Capture Preview with ${method} succeeds with link images on screen`, async ({tierList, page, consoleErrors}) => {
+      await serveImageSite(page, 'i.imgur.com');
+      await serveImageSite(page, 'upload.wikimedia.org', {cors: false});
+      await tierList.goto(TANKS, v3State({t: 'Link images', tp: 3, r: [
+        ['S', [packageItemId('image-overwatch', 'Mauga'), {u: 'https://i.imgur.com/red.png', c: 'With CORS'}]],
+        ['A', [{u: 'https://upload.wikimedia.org/red.png', c: 'Without CORS'}]], ['B', []], ['', []],
+      ]}));
+      await expect.poll(() => tierList.itemImageHasLoaded('With CORS')).toBe(true);
+      await expect.poll(() => tierList.itemImageHasLoaded('Without CORS')).toBe(true);
+
+      await tierList.capturePreview(method);
+
+      await expect(tierList.toast('Failed to capture image')).toHaveCount(0);
+      await expect(tierList.toast('Image captured successfully')).toBeVisible();
+      const image = await tierList.capturedImageDetails();
+      expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
+      // The browser reports the refused CORS check of the site without CORS; nothing else may fail.
+      expect(consoleErrors.filter((error) => !error.includes('upload.wikimedia.org') && !error.includes('net::ERR_FAILED')), 'errors in the browser console').toEqual([]);
+    });
+  }
+});

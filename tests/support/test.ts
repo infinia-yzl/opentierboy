@@ -26,6 +26,11 @@ type Fixtures = {
   openAsVisitor: (link: string) => Promise<TierListPage>;
   /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
+  /**
+   * Reads the Content Security Policy violations that the page reported so far (the
+   * `securitypolicyviolation` events of every page load in this test).
+   */
+  cspViolations: () => Promise<string[]>;
 };
 
 export const test = base.extend<Fixtures>({
@@ -51,6 +56,17 @@ export const test = base.extend<Fixtures>({
       return visitor;
     });
     await Promise.all(contexts.map((context) => context.close()));
+  },
+  cspViolations: async ({page}, use) => {
+    const violations: string[] = [];
+    await page.exposeBinding('__reportCspViolation', (_source, text: string) => void violations.push(text));
+    await page.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', (event) => {
+        (window as unknown as {__reportCspViolation: (text: string) => void})
+          .__reportCspViolation(`${event.violatedDirective} blocked ${event.blockedURI || 'inline code'} on ${location.pathname}`);
+      });
+    });
+    await use(async () => [...violations]);
   },
   consoleErrors: async ({page}, use) => {
     const errors: string[] = [];
