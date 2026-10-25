@@ -1,5 +1,6 @@
 import type Item from "@/models/Item";
 import type Tier from "@/models/Tier";
+import {itemDisplayLabel} from "@/lib/images/listImages";
 
 /**
  * What screen readers hear during a drag (the live region of @hello-pangea/dnd). The library's
@@ -27,9 +28,12 @@ export function tierPhrase(tiers: readonly Tier[], index: number): string {
   return `tier ${label}`;
 }
 
-/** An item's name: its label, or "Unnamed item" when the label is empty. */
-export function itemLabel(item: Pick<Item, 'content'> | undefined): string {
-  return trimmed(item?.content) || 'Unnamed item';
+/**
+ * An item's name: its label (for a link image without one, its site), or "Unnamed item" when
+ * there is none.
+ */
+export function itemLabel(item: Pick<Item, 'content' | 'source' | 'url'> | undefined): string {
+  return trimmed(item ? itemDisplayLabel(item) : undefined) || 'Unnamed item';
 }
 
 /** Where an item is: the id of its tier and its index in that tier. */

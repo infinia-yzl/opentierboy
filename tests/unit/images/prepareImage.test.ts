@@ -1,0 +1,106 @@
+import {describe, expect, it, vi} from 'vitest';
+import {type CanvasLike, type DecodedImage, prepareImageForStore} from '@/lib/images/prepareImage';
+
+const HEADERS: Record<string, number[]> = {
+  'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  'image/jpeg': [0xff, 0xd8, 0xff, 0xe0],
+  'image/webp': [...'RIFF\0\0\0\0WEBPVP8 '].map((c) => c.charCodeAt(0)),
+};
+
+function fileOf(type: string, size: number, mime = type): Blob {
+  const bytes = new Uint8Array(size).fill(7);
+  bytes.set(HEADERS[type] ?? []);
+  return new Blob([bytes], {type: mime});
+}
+
+/** A canvas that "encodes" to a file of the size `sizeFor` gives for the type and canvas size. */
+function fakeCanvas(sizeFor: (type: string, width: number, height: number) => number, writes: string[] = ['image/webp', 'image/jpeg']) {
+  const drawn: {width: number; height: number}[] = [];
+  const createCanvas = (): CanvasLike => {
+    const canvas: CanvasLike = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => drawn.push({width: canvas.width, height: canvas.height}),
+        fillRect: () => undefined,
+        fillStyle: '',
+      }),
+      toBlob: (callback, type = 'image/png') => {
+        // A browser that cannot write a type writes PNG instead.
+        const written = writes.includes(type) ? type : 'image/png';
+        callback(fileOf(written, sizeFor(written, canvas.width, canvas.height)));
+      },
+    };
+    return canvas;
+  };
+  return {createCanvas, drawn};
+}
+
+const decodeAs = (width: number, height: number) => {
+  const release = vi.fn();
+  const decode = vi.fn(async (): Promise<DecodedImage> => ({source: {} as CanvasImageSource, width, height, release}));
+  return {decode, release};
+};
+
+describe('prepareImageForStore', () => {
+  it('keeps a file the store accepts exactly as it is', async () => {
+    const file = fileOf('image/png', 1000);
+    const {decode} = decodeAs(10, 10);
+    expect(await prepareImageForStore(file, {maxBytes: 5000, decode})).toEqual({ok: true, blob: file, reencoded: false});
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('draws other formats again as WebP, at most 2,048 pixels on the longest side', async () => {
+    const svg = new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="1024"><script>alert(1)</script></svg>'], {type: 'image/svg+xml'});
+    const {decode, release} = decodeAs(4096, 1024);
+    const {createCanvas, drawn} = fakeCanvas(() => 2000);
+    const result = await prepareImageForStore(svg, {maxBytes: 5000, decode, createCanvas});
+    expect(result).toMatchObject({ok: true, reencoded: true});
+    expect(result.ok && result.blob.type).toBe('image/webp');
+    expect(drawn[0]).toEqual({width: 2048, height: 512});
+    expect(release).toHaveBeenCalled();
+  });
+
+  it('writes PNG where the browser cannot write WebP, and JPEG when that is still too large', async () => {
+    const big = fileOf('image/png', 9000);
+    const {decode} = decodeAs(1000, 1000);
+    const noWebp = fakeCanvas((type) => (type === 'image/png' ? 3000 : 1000), ['image/jpeg']);
+    expect(await prepareImageForStore(big, {maxBytes: 5000, decode, createCanvas: noWebp.createCanvas}))
+      .toMatchObject({ok: true, blob: {type: 'image/png'}, reencoded: true});
+    const tooBigPng = fakeCanvas((type) => (type === 'image/jpeg' ? 4000 : 8000));
+    expect(await prepareImageForStore(big, {maxBytes: 5000, decode, createCanvas: tooBigPng.createCanvas}))
+      .toMatchObject({ok: true, blob: {type: 'image/jpeg'}});
+  });
+
+  it('tries half the size before giving up', async () => {
+    const big = fileOf('image/jpeg', 9000);
+    const {decode} = decodeAs(4000, 3000);
+    const halfFits = fakeCanvas((type, width) => (width > 1024 ? 9000 : 4000));
+    const result = await prepareImageForStore(big, {maxBytes: 5000, decode, createCanvas: halfFits.createCanvas});
+    expect(result).toMatchObject({ok: true, reencoded: true});
+    expect(halfFits.drawn.at(-1)).toEqual({width: 1024, height: 768});
+    const never = fakeCanvas(() => 9000);
+    expect(await prepareImageForStore(big, {maxBytes: 5000, decode, createCanvas: never.createCanvas})).toEqual({ok: false, reason: 'too-large'});
+  });
+
+  it('refuses empty files, files it cannot decode, and huge files without decoding them', async () => {
+    const {decode} = decodeAs(10, 10);
+    expect(await prepareImageForStore(new Blob([]), {maxBytes: 5000, decode})).toEqual({ok: false, reason: 'empty'});
+    const failing = vi.fn(async () => {
+      throw new Error('cannot decode');
+    });
+    expect(await prepareImageForStore(new Blob(['<html>']), {maxBytes: 5000, decode: failing})).toEqual({ok: false, reason: 'unreadable'});
+    expect(await prepareImageForStore(fileOf('image/png', 2000), {maxBytes: 1000, maxInputBytes: 1500, decode})).toEqual({ok: false, reason: 'too-large'});
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it('never keeps a canvas result that is not an image', async () => {
+    const {decode} = decodeAs(10, 10);
+    const createCanvas = (): CanvasLike => ({
+      width: 0, height: 0,
+      getContext: () => ({drawImage: () => undefined, fillRect: () => undefined, fillStyle: ''}),
+      toBlob: (callback) => callback(new Blob(['not an image'])),
+    });
+    expect(await prepareImageForStore(new Blob(['<svg/>']), {maxBytes: 5000, decode, createCanvas})).toEqual({ok: false, reason: 'too-large'});
+  });
+});
