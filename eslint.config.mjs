@@ -2,6 +2,47 @@ import {defineConfig, globalIgnores} from 'eslint/config';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import prettier from 'eslint-config-prettier/flat';
 
+// Import rules (amendments A12 and A31). For one file, ESLint uses the options of the last
+// matching block that sets a rule, so every block below lists all groups for its files.
+
+/** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
+const INDEXED_DB_LIBRARIES = {
+  regex: '^(?:dexie|idb|idb-keyval|localforage|fake-indexeddb)(?:/.*)?$',
+  message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB libraries. Use that module instead.',
+};
+
+/** Node built-in modules, which the edge runtime does not have. */
+const NODE_BUILT_INS = {
+  regex: '^(?:node:.*|os|crypto|fs|path|child_process)(?:/.*)?$',
+  message: 'This code runs in the edge runtime (the OG preview route): no Node built-in modules.',
+};
+
+/** lib/state may import lz-string and its own files only (tests/unit/state/purity.test.ts checks the full rule). */
+const STATE_FRAMEWORKS = {
+  group: ['react', 'react-dom', 'react-dom/*', 'next', 'next/*', '@/*'],
+  message: 'lib/state runs in the browser, on the server and in the edge OG route. It imports only lz-string and lib/state files: no React, Next or @/ app imports.',
+};
+
+/** A relative path with "x/.." in it, such as "./../utils": never needed inside lib/state. */
+const STATE_ROUNDABOUT_PATH = {
+  regex: '(?:^|/)(?!\\.\\.(?:/|$))[^/]+/\\.\\.(?:/|$)',
+  message: 'Write relative imports in lib/state without "x/.." detours. lib/state imports only its own files.',
+};
+
+/** Blocks relative imports that climb out of lib/state from a file `depth` folders below it. */
+function stateEscape(depth) {
+  return {
+    regex: `^(?:\\.\\./){${depth + 1},}`,
+    message: 'lib/state imports only its own files and lz-string. Do not import code from outside lib/state.',
+  };
+}
+
+const stateImportRules = (depth) => ({
+  'no-restricted-imports': ['error', {
+    patterns: [STATE_FRAMEWORKS, NODE_BUILT_INS, INDEXED_DB_LIBRARIES, STATE_ROUNDABOUT_PATH, stateEscape(depth)],
+  }],
+});
+
 export default defineConfig([
   // Generated files: Playwright reports and traces, Vercel output, the image sets that the
   // build copies into public/images.
@@ -19,27 +60,35 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
     },
   },
+  // Everywhere: no IndexedDB libraries outside the device image store.
   {
-    files: ['lib/state/**/*.ts'],
+    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+    ignores: ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'],
     rules: {
-      'no-restricted-imports': ['error', {
-        patterns: [{
-          group: ['react', 'react-dom', 'react-dom/*', 'next', 'next/*', 'fs', 'fs/*', 'path', 'child_process', 'node:*', 'idb', 'idb-keyval', '@/*'],
-          message: 'lib/state runs in the browser, on the server and in the edge OG route. ESLint blocks React, Next, Node modules, IndexedDB libraries and @/ app imports here; tests/unit/state/purity.test.ts enforces the full rule (only lz-string and lib/state files).',
-        }],
-      }],
+      'no-restricted-imports': ['error', {patterns: [INDEXED_DB_LIBRARIES]}],
+    },
+  },
+  // lib/state: pure code for the browser, the server and the edge runtime.
+  {
+    files: ['lib/state/**/*.{ts,tsx}'],
+    rules: {
       'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage', 'indexedDB', 'navigator', 'process'],
     },
   },
+  {files: ['lib/state/*.{ts,tsx}'], rules: stateImportRules(0)},
+  {files: ['lib/state/*/*.{ts,tsx}'], rules: stateImportRules(1)},
+  {files: ['lib/state/*/*/*.{ts,tsx}'], rules: stateImportRules(2)},
+  {files: ['lib/state/*/*/*/**/*.{ts,tsx}'], rules: stateImportRules(3)},
+  // The edge OG route, and TierCortex, which it imports.
   {
-    files: ['app/api/og/**/*.ts', 'app/api/og/**/*.tsx'],
+    files: ['app/api/og/**/*.{ts,tsx}', 'lib/TierCortex.ts'],
     rules: {
-      'no-restricted-imports': ['error', {
-        patterns: [{
-          group: ['fs', 'fs/*', 'path', 'child_process', 'node:*', 'idb', 'idb-keyval'],
-          message: 'The OG route runs in the edge runtime: no Node modules and no IndexedDB.',
-        }],
-      }],
+      'no-restricted-imports': ['error', {patterns: [NODE_BUILT_INS, INDEXED_DB_LIBRARIES]}],
+    },
+  },
+  {
+    files: ['app/api/og/**/*.{ts,tsx}'],
+    rules: {
       'no-restricted-globals': ['error', 'window', 'document', 'localStorage', 'sessionStorage', 'indexedDB'],
     },
   },

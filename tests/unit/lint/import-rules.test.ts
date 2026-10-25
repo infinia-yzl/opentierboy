@@ -1,0 +1,57 @@
+import path from 'node:path';
+import {ESLint} from 'eslint';
+import {beforeAll, describe, expect, it} from 'vitest';
+
+/**
+ * The import rules in eslint.config.mjs (amendments A12 and A31). Each case lints a small
+ * piece of code as if it lived at the given path, and lists the import lines ESLint blocks.
+ */
+const repoRoot = path.resolve(__dirname, '../../..');
+let eslint: ESLint;
+
+beforeAll(async () => {
+  eslint = new ESLint({cwd: repoRoot});
+  // Load the config and plugins once, outside the test timeouts.
+  await eslint.calculateConfigForFile(path.join(repoRoot, 'lib/state/index.ts'));
+}, 90_000);
+
+async function blockedLines(filePath: string, imports: string[]): Promise<number[]> {
+  const code = imports.map((source, index) => `import x${index} from '${source}';`).join('\n') + '\n';
+  const [result] = await eslint.lintText(code, {filePath: path.join(repoRoot, filePath)});
+  return result.messages.filter(message => message.ruleId === 'no-restricted-imports').map(message => message.line);
+}
+
+// Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
+describe('ESLint import rules', {timeout: 90_000}, () => {
+  it('keep lib/state free of outside code, at every folder depth', async () => {
+    expect(await blockedLines('lib/state/probe.ts', [
+      './decode', './decoders/legacy', 'lz-string', // allowed
+      '../utils', '../../models/Tier', './decoders/../decode', './../TierCortex',
+      'react', 'next/server', '@/lib/utils', 'node:crypto', 'os', 'fs/promises', 'idb',
+    ])).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(await blockedLines('lib/state/decoders/probe.ts', [
+      './legacy', '../encode', '../types', // allowed
+      '../../utils', '../../../package.json', './../decode', '../decoders/../encode',
+    ])).toEqual([4, 5, 6, 7]);
+    expect(await blockedLines('lib/state/a/b/probe.ts', ['../../encode', '../../../utils'])).toEqual([2]);
+  });
+
+  it('allow IndexedDB libraries only in the device image store and its tests', async () => {
+    const libraries = ['dexie', 'idb', 'idb/with-async-ittr', 'idb-keyval', 'localforage', 'fake-indexeddb', 'fake-indexeddb/auto'];
+    expect(await blockedLines('components/Probe.tsx', [...libraries, 'idbx', '@/lib/images/deviceStore'])).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(await blockedLines('lib/images/linkImage.ts', libraries)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(await blockedLines('tests/unit/images/other.test.ts', libraries)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(await blockedLines('lib/images/deviceStore.ts', libraries)).toEqual([]);
+    expect(await blockedLines('tests/unit/images/deviceStore.test.ts', libraries)).toEqual([]);
+  });
+
+  it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {
+    const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
+    const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
+    expect(await blockedLines('app/api/og/probe.ts', imports)).toEqual(blocked);
+    expect(await blockedLines('app/api/og/route.tsx', imports)).toEqual(blocked);
+    expect(await blockedLines('lib/TierCortex.ts', imports)).toEqual(blocked);
+    // Elsewhere Node modules stay allowed, for example in scripts and tests.
+    expect(await blockedLines('tests/unit/probe.test.ts', ['os', 'node:fs', 'path'])).toEqual([]);
+  });
+});
