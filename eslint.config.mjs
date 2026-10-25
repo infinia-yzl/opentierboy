@@ -177,12 +177,15 @@ const CLASSES_ALLOWED_IN = ['tests/**', 'packages/**', ...ROOT_CONFIG_FILES];
 
 /**
  * Files of our own code that may declare a class because a third-party API requires one. Each
- * such file holds only that class and says in a comment which API needs it. Add the file here;
- * never turn the rule off with a comment.
+ * such file declares only that class and says in a comment which API needs it. Add the file
+ * here; never turn the rule off with a comment.
+ *
+ * - lib/dnd/dndKit.ts: HoldThenMoveConstraint, because dnd-kit's ActivationConstraint API
+ *   requires a subclass (tests/unit/lint/no-classes.test.ts checks it is the only class).
  *
  * @type {string[]}
  */
-export const ALLOWED_CLASS_FILES = [];
+export const ALLOWED_CLASS_FILES = ['lib/dnd/dndKit.ts'];
 
 const NO_CLASS_MESSAGE = 'Our code is functional, with no classes (A47, "Code conventions" in CLAUDE.md). '
   + 'Write plain functions, and a factory function with closures for state. A class that a third-party '
