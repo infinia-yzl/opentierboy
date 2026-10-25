@@ -38,6 +38,36 @@ const uint16LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[o
 const uint24LE = (bytes: Uint8Array, offset: number) => bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
 
 /**
+ * A GIF's size: its logical screen, enlarged to its first frame where that frame reaches
+ * further (Chrome shows such a GIF at the frame's size). Null when the bytes end, or are
+ * damaged, before the first frame's image descriptor.
+ */
+function readGifSize(bytes: Uint8Array): {width: number; height: number} | null {
+  if (bytes.length < 13) return null;
+  let width = uint16LE(bytes, 6);
+  let height = uint16LE(bytes, 8);
+  const flags = bytes[10];
+  // The global colour table follows the logical screen descriptor when its flag is set.
+  let offset = 13 + (flags & 0x80 ? 3 * 2 ** ((flags & 7) + 1) : 0);
+  while (offset < bytes.length) {
+    const block = bytes[offset];
+    if (block === 0x2c) {
+      // Image descriptor: left, top, width, height (little-endian), then flags.
+      if (offset + 9 > bytes.length) return null;
+      width = Math.max(width, uint16LE(bytes, offset + 1) + uint16LE(bytes, offset + 5));
+      height = Math.max(height, uint16LE(bytes, offset + 3) + uint16LE(bytes, offset + 7));
+      return {width, height};
+    }
+    if (block !== 0x21) return null; // the trailer (0x3b) or damage: no frame
+    // Extension: introducer, label, then data sub-blocks until a zero-length one.
+    offset += 2;
+    while (offset < bytes.length && bytes[offset] !== 0) offset += bytes[offset] + 1;
+    offset += 1;
+  }
+  return null;
+}
+
+/**
  * The width and height that a PNG, GIF, WebP, JPEG or AVIF file declares in its header,
  * without decoding it, or null when the header does not say (damaged or cut-off files). A file
  * can declare a huge size in a few bytes (a "decompression bomb"), so the size is checked
@@ -50,9 +80,7 @@ export function readImageSize(bytes: Uint8Array): {width: number; height: number
     if (bytes.length < 24 || ascii(bytes, 12, 4) !== 'IHDR') return null;
     return {width: uint32BE(bytes, 16), height: uint32BE(bytes, 20)};
   }
-  if (type === 'image/gif') {
-    return bytes.length < 10 ? null : {width: uint16LE(bytes, 6), height: uint16LE(bytes, 8)};
-  }
+  if (type === 'image/gif') return readGifSize(bytes);
   if (type === 'image/webp') {
     const chunk = bytes.length >= 16 ? ascii(bytes, 12, 4) : '';
     if (chunk === 'VP8 ' && bytes.length >= 30) {

@@ -8,7 +8,10 @@ describe('readImageSize', () => {
   it('reads PNG, GIF, WebP and JPEG headers', () => {
     const png = bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13], 'IHDR', [0, 0, 0x01, 0x2c, 0, 0, 0, 0xc8, 8, 6, 0, 0, 0]);
     expect(readImageSize(png)).toEqual({width: 300, height: 200});
-    expect(readImageSize(bytes('GIF89a', [0x40, 0x01, 0xf0, 0x00], new Array(10).fill(0)))).toEqual({width: 320, height: 240});
+    // GIF: the logical screen, then (without a colour table) the first frame's image descriptor.
+    const frame = (left: number, top: number, width: number, height: number) =>
+      [0x2c, left & 255, left >> 8, top & 255, top >> 8, width & 255, width >> 8, height & 255, height >> 8, 0];
+    expect(readImageSize(bytes('GIF89a', [0x40, 0x01, 0xf0, 0x00, 0, 0, 0], frame(0, 0, 320, 240)))).toEqual({width: 320, height: 240});
     const vp8 = bytes('RIFF', [0, 0, 0, 0], 'WEBPVP8 ', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x02, 0xe0, 0x01]);
     expect(readImageSize(vp8)).toEqual({width: 640, height: 480});
     // VP8L: width-1 and height-1 in 14 bits each, after the 0x2f signature byte.
@@ -24,6 +27,26 @@ describe('readImageSize', () => {
     const bomb = new Uint8Array(688);
     bomb.set(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13], 'IHDR', [0, 0, 0x2e, 0xe0, 0, 0, 0x2e, 0xe0, 8, 6, 0, 0, 0]));
     expect(readImageSize(bomb)).toEqual({width: 12_000, height: 12_000});
+  });
+
+  it('enlarges a GIF to its first frame, past a colour table and extensions', () => {
+    const frame = (left: number, top: number, width: number, height: number) =>
+      [0x2c, left & 255, left >> 8, top & 255, top >> 8, width & 255, width >> 8, height & 255, height >> 8, 0];
+    // A 1 x 1 screen with a 10,000 x 10,000 first frame: Chrome decodes it at the frame's size.
+    expect(readImageSize(bytes('GIF89a', [1, 0, 1, 0, 0, 0, 0], frame(0, 0, 10_000, 10_000)))).toEqual({width: 10_000, height: 10_000});
+    // A global colour table of 4 colours (flags 0x81), a graphic control extension and a
+    // comment of two sub-blocks, then a frame placed at 100, 50.
+    const table = new Array(12).fill(0);
+    const control = [0x21, 0xf9, 4, 0, 0, 0, 0, 0];
+    const comment = [0x21, 0xfe, 3, 0x61, 0x62, 0x63, 2, 0x64, 0x65, 0];
+    expect(readImageSize(bytes('GIF89a', [64, 0, 32, 0, 0x81, 0, 0], table, control, comment, frame(100, 50, 64, 32))))
+      .toEqual({width: 164, height: 82});
+    // A frame inside the screen leaves the screen size.
+    expect(readImageSize(bytes('GIF89a', [64, 0, 32, 0, 0, 0, 0], frame(8, 8, 16, 16)))).toEqual({width: 64, height: 32});
+    // Cut off before the first frame, or no frame at all: the size is unknown.
+    expect(readImageSize(bytes('GIF89a', [64, 0, 32, 0, 0, 0, 0], control))).toBeNull();
+    expect(readImageSize(bytes('GIF89a', [64, 0, 32, 0, 0, 0, 0], [0x3b]))).toBeNull();
+    expect(readImageSize(bytes('GIF89a', [1, 0, 1, 0, 0, 0, 0], [0x2c, 0, 0, 0, 0]))).toBeNull();
   });
 
   it('reads the largest "ispe" size of an AVIF file', () => {
