@@ -144,6 +144,24 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('The tracker list holds no domains')});
     });
 
+    it('fails when an entry with "subdomains": true is a public suffix', () => {
+      fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({sites: [
+        {host: 'github.io', subdomains: true, reason: 'test'},
+        {host: 'co.uk', subdomains: true, reason: 'test'},
+        {host: 'example.co.uk', subdomains: true, reason: 'test'},
+        {host: 'pages.dev', reason: 'exact host only'},
+      ]}));
+      const result = check();
+      expect(result.status).toBe(1);
+      expect(result.output).toContain('github.io is a public suffix. "subdomains": true would trust everyone\'s sites under it.');
+      expect(result.output).toContain('co.uk is a public suffix.');
+      expect(result.output).not.toContain('example.co.uk is a public suffix');
+      expect(result.output).not.toContain('pages.dev');
+      // A registrable domain with subdomains passes.
+      fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({sites: [{host: 'thefinals.wiki', subdomains: true, reason: 'test'}]}));
+      expect(check().status).toBe(0);
+    });
+
     it('fails when the trusted sites file is missing or malformed', () => {
       fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({hosts: ['i.imgur.com']}));
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('must be an object with a "sites" array')});

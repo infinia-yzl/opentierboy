@@ -20,8 +20,9 @@
  * Registrable domains come from the Public Suffix List (the tldts package, with private
  * suffixes such as github.io), so `images.example.co.uk` and `ads.other.co.uk` do not match.
  *
- * It also fails when a file is missing or malformed, when the list holds no domains, or when
- * the downloaded file does not match the pinned SHA-256.
+ * It also fails when an entry with "subdomains": true is a public suffix (github.io, co.uk),
+ * which would trust everyone's sites under it, when a file is missing or malformed, when the
+ * list holds no domains, or when the downloaded file does not match the pinned SHA-256.
  *
  * Without network (git cannot download the list and no verified copy is cached), it prints a
  * warning and exits 0, so `npm run check` stays usable offline. With CI=true (GitHub Actions
@@ -170,18 +171,26 @@ function trackerDomains(list) {
   return domains;
 }
 
-/** The hosts in trusted-image-sites.json. The unit tests check the rest of the format. */
-function trustedHosts(file) {
+/** The sites in trusted-image-sites.json. The unit tests check the rest of the format. */
+function trustedSites(file) {
   if (!isPlainObject(file) || !Array.isArray(file.sites)) fail(['trusted-image-sites.json must be an object with a "sites" array.']);
   return file.sites.map((site, index) => {
     if (!isPlainObject(site) || typeof site.host !== 'string' || normalise(site.host) === '') {
       fail([`trusted-image-sites.json entry ${index + 1} needs a "host" string.`]);
     }
-    return normalise(site.host);
+    return {host: normalise(site.host), subdomains: site.subdomains === true};
   });
 }
 
-const hosts = trustedHosts(readJson(sitesPath));
+const sites = trustedSites(readJson(sitesPath));
+const hosts = sites.map((site) => site.host);
+
+// A public suffix with "subdomains": true would trust everyone's sites under it. This needs
+// no tracker list, so it runs before the download.
+const publicSuffixes = sites.filter((site) => site.subdomains && getDomain(site.host, {allowPrivateDomains: true}) === null);
+if (publicSuffixes.length > 0) {
+  fail(publicSuffixes.map((site) => `${site.host} is a public suffix. "subdomains": true would trust everyone's sites under it.`));
+}
 
 let listText;
 let listLabel;

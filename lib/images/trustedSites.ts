@@ -32,11 +32,21 @@ const ENTRY_KEYS = new Set(['host', 'subdomains', 'reason']);
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+export interface TrustedSitesParseOptions {
+  /**
+   * True when a host is a public suffix (`co.uk`, `github.io`). An entry with
+   * `subdomains: true` must not be one: it would trust everyone's sites under it. The app
+   * passes nothing, to keep the Public Suffix List out of the page; the unit tests and
+   * scripts/check-trusted-sites.mjs pass a check built on tldts.
+   */
+  isPublicSuffix?: (host: string) => boolean;
+}
+
 /**
  * Reads the contents of trusted-image-sites.json. Entries with problems are left out and
- * reported in `errors`. Never throws.
+ * reported in `errors`. Never throws (unless `isPublicSuffix` throws).
  */
-export function parseTrustedSites(data: unknown): TrustedSitesParseResult {
+export function parseTrustedSites(data: unknown, options: TrustedSitesParseOptions = {}): TrustedSitesParseResult {
   const sites: TrustedImageSite[] = [];
   const errors: string[] = [];
   if (!isPlainObject(data) || !Array.isArray(data.sites)) {
@@ -78,6 +88,10 @@ export function parseTrustedSites(data: unknown): TrustedSitesParseResult {
     }
     if (check.host !== host) {
       errors.push(`${where}: write "${host}" as "${check.host}" (lowercase punycode, no trailing dot).`);
+      return;
+    }
+    if (subdomains && options.isPublicSuffix?.(host)) {
+      errors.push(`${where}: "${host}" is a public suffix. "subdomains": true would trust everyone's sites under it.`);
       return;
     }
     if (seen.has(host)) {

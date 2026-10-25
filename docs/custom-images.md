@@ -42,7 +42,9 @@ cdn.deadlock.wiki, static.wikia.nocookie.net, upload.wikimedia.org and i.imgur.c
 
 - A host matches exactly. `i.imgur.com` does not match `imgur.com` or `x.i.imgur.com`.
 - An entry with `"subdomains": true` also matches names under it. Only thefinals.wiki has it,
-  because the wiki serves its images from `www.thefinals.wiki`.
+  because the wiki serves its images from `www.thefinals.wiki`. Such an entry must be a
+  registrable domain: a public suffix such as `github.io` or `co.uk` would trust everyone's
+  sites under it, so the file check and `npm run check:trusted-sites` refuse it.
 - Every entry needs a `reason`.
 
 To add a site, add an entry, then run `npm run check:trusted-sites`. The check fails when the

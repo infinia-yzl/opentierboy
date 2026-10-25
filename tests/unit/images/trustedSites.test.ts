@@ -1,3 +1,4 @@
+import {getDomain} from 'tldts';
 import {describe, expect, it} from 'vitest';
 import trustedSitesFile from '@/trusted-image-sites.json';
 import {
@@ -10,10 +11,12 @@ import {
 } from '@/lib/images/trustedSites';
 
 const site = (host: string, subdomains = false): TrustedImageSite => ({host, subdomains, reason: 'test'});
+/** The same public suffix check as scripts/check-trusted-sites.mjs. */
+const isPublicSuffix = (host: string) => getDomain(host, {allowPrivateDomains: true}) === null;
 
 describe('trusted-image-sites.json', () => {
   it('is valid', () => {
-    expect(parseTrustedSites(trustedSitesFile).errors).toEqual([]);
+    expect(parseTrustedSites(trustedSitesFile, {isPublicSuffix}).errors).toEqual([]);
   });
 
   it('lists exactly the agreed sites, with subdomains only for thefinals.wiki', () => {
@@ -102,6 +105,28 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
 });
 
 describe('parseTrustedSites', () => {
+  it('refuses "subdomains": true on a public suffix, when given a public suffix check', () => {
+    const data = {
+      sites: [
+        {host: 'github.io', subdomains: true, reason: 'r'},
+        {host: 'co.uk', subdomains: true, reason: 'r'},
+        {host: 'blogspot.com', subdomains: true, reason: 'r'},
+        {host: 'example.co.uk', subdomains: true, reason: 'r'},
+        {host: 'someone.github.io', subdomains: true, reason: 'r'},
+        {host: 'pages.dev', reason: 'r'},
+      ],
+    };
+    const result = parseTrustedSites(data, {isPublicSuffix});
+    expect(result.sites.map(({host}) => host)).toEqual(['example.co.uk', 'someone.github.io', 'pages.dev']);
+    expect(result.errors).toEqual([
+      'Entry 1: "github.io" is a public suffix. "subdomains": true would trust everyone\'s sites under it.',
+      'Entry 2: "co.uk" is a public suffix. "subdomains": true would trust everyone\'s sites under it.',
+      'Entry 3: "blogspot.com" is a public suffix. "subdomains": true would trust everyone\'s sites under it.',
+    ]);
+    // Without the check (the app at run time) the entry is read as written.
+    expect(parseTrustedSites(data).errors).toEqual([]);
+  });
+
   it('reads a valid file', () => {
     expect(parseTrustedSites({$comment: 'x', sites: [{host: 'a.example.org', reason: 'r'}, {host: 'b.example.org', subdomains: true, reason: 'r'}]})).toEqual({
       sites: [{host: 'a.example.org', subdomains: false, reason: 'r'}, {host: 'b.example.org', subdomains: true, reason: 'r'}],
