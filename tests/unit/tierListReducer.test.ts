@@ -187,6 +187,22 @@ describe('the address', () => {
     expect(addressNeedsLoading(store.state, stateParam(asRead))).toBe(false);
   });
 
+  it('writes nothing when a change gives back the link the address holds, with no write waiting', () => {
+    // A link without a title shows the page title; clearing the title gives back that link.
+    const untitled = fiveRowLink({S: [MAU]});
+    const store = setup(untitled);
+    store.dispatch({type: 'titleChanged', title: ''});
+    expect(store.state.link).toBe(untitled);
+    expect(store.state.writes).toEqual([]);
+    expect(store.state.title).toBe('');
+
+    // With a write still on its way, the same change is a write: the address will move on.
+    store.dispatch({type: 'titleChanged', title: 'Mine'});
+    store.dispatch({type: 'titleChanged', title: ''});
+    expect(store.links()).toHaveLength(2);
+    expect(store.links()[1]).toBe(untitled);
+  });
+
   it('Back and Forward show the list of the address and write nothing', () => {
     const start = fiveRowLink({'': [MAU, WIN]});
     const store = setup(start);

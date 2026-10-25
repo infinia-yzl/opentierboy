@@ -22,8 +22,11 @@ import {
  * - Address to store: when the `state` parameter changes (opening a link, Back, Forward, an
  *   own write arriving), the store loads the list from it, or the template's starting list
  *   when there is none. Loading never writes the address (A1).
- * - Store to address: every change to the list records a write, and an effect pushes each one
- *   with router.push as a new history entry (product rule 2: history is the undo).
+ * - Store to address: every change to the list records a write, and an effect pushes the
+ *   writes one at a time with router.push, each as a new history entry (product rule 2: history
+ *   is the undo). The next write is pushed only once the previous one has reached the address:
+ *   Next.js drops a navigation that is still loading when a new one starts, so pushing them
+ *   together lost entries on a slow connection (A44).
  *
  * Phase 5b hooks the link format in through TierCortex: encodeListForURL writes a link and
  * decodeTierStateFromURL reads one (loadList in lib/tierListReducer.ts).
@@ -102,14 +105,14 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     dispatch({type: 'addressChanged', address, loaded});
   }
 
-  // Store to address: push every write once, in order, each as a new history entry.
+  // Store to address: push the oldest write once. When it reaches the address, the reducer
+  // drops it from the queue, and this pushes the next one.
   const lastPushedWrite = useRef(-1);
   useEffect(() => {
-    for (const write of state.writes) {
-      if (write.id <= lastPushedWrite.current) continue;
-      lastPushedWrite.current = write.id;
-      router.push(`${pathname}?state=${write.link}`, {scroll: false});
-    }
+    const next = state.writes[0];
+    if (!next || next.id <= lastPushedWrite.current) return;
+    lastPushedWrite.current = next.id;
+    router.push(`${pathname}?state=${next.link}`, {scroll: false});
   }, [state.writes, router, pathname]);
 
   const actions = useMemo(() => ({

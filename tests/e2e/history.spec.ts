@@ -53,6 +53,44 @@ test.describe('Browser history', () => {
   });
 });
 
+/**
+ * On a slow connection, each change still gets its own history entry (A44). The app pushes the
+ * links one at a time: Next.js drops a navigation that is still loading when the next starts.
+ */
+test.describe('Browser history on a slow connection', () => {
+  test('quick moves each get their own history entry, and Back steps through them', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
+    const entries = await tierList.historyLength();
+    await tierList.simulateSlowServer(400);
+
+    for (const name of ['Mauga', 'Winston', 'Sigma']) {
+      await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
+    }
+    await expect(tierList.itemsIn('F')).toHaveCount(3);
+    await expect.poll(() => tierList.historyLength(), {message: 'one history entry per move'}).toBe(entries + 3);
+
+    for (const count of [2, 1, 0]) {
+      await page.goBack();
+      await expect(tierList.itemsIn('F')).toHaveCount(count);
+    }
+  });
+
+  test('quick renames each get their own history entry', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    const entries = await tierList.historyLength();
+    await tierList.simulateSlowServer(400);
+
+    await tierList.renameTier('S', 'First', 'First', {waitForLink: false});
+    await tierList.renameTier('First', 'Second', 'Second', {waitForLink: false});
+    await expect.poll(() => tierList.historyLength(), {message: 'one history entry per rename'}).toBe(entries + 2);
+
+    await page.goBack();
+    await expect(tierList.tiers.first()).toHaveAccessibleName('First');
+    await page.goBack();
+    await expect(tierList.tiers.first()).toHaveAccessibleName('S');
+  });
+});
+
 test.describe('Browser history and the template page', () => {
   test('Back to a template page without a link shows the template again', async ({tierList, page}) => {
     await tierList.goto(TANKS);

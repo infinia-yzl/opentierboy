@@ -10,7 +10,8 @@ import type TierCortex from "@/lib/TierCortex";
  *
  * The address is the save and the undo (product rule 2):
  * - Every change to the list (tiers, items, tier names, title) records a write: the new link.
- *   The provider pushes each write as a new history entry, in order, never merged.
+ *   The provider pushes each write as a new history entry, one at a time and in order, never
+ *   merged: the next one when the previous one has reached the address.
  * - A change that leaves the link as it was writes nothing: an unchanged rename, a drop on
  *   the same place, a layout setting (label position, labels shown).
  * - Opening a link writes nothing (A1). Back, Forward and opening a link change the address;
@@ -127,6 +128,12 @@ export function createTierListReducer(encode: ListEncoder) {
   const edit = (state: TierListState, tiers: Tier[], title: string = state.title): TierListState => {
     const link = encode(title, tiers);
     if (link === state.link) return state;
+    if (link === state.address && state.writes.length === 0) {
+      // The address already holds this link (for example a link without a title, after the
+      // title is cleared). Pushing it would not change the address, so the write would never
+      // arrive and would hold up every later write.
+      return {...state, tiers, title, link, addressHoldsList: true};
+    }
     const write = {id: state.nextWriteId, link};
     return {
       ...state,

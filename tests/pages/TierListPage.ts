@@ -133,6 +133,19 @@ export class TierListPage {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
   }
 
+  /**
+   * Makes the server's answers to page navigations (the React Server Components requests that
+   * every new address of the editor makes) arrive `delayMs` later, like a slow connection.
+   */
+  async simulateSlowServer(delayMs: number) {
+    await this.page.route('**/*', async (route) => {
+      if (route.request().headers()['rsc'] === '1') {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      await route.fallback();
+    });
+  }
+
   /** The number of entries in the tab's history (window.history.length). */
   async historyLength(): Promise<number> {
     return this.page.evaluate(() => window.history.length);
@@ -245,9 +258,12 @@ export class TierListPage {
   /**
    * Moves an item with the keyboard, as a keyboard or screen-reader user would:
    * focus the item, Space to lift, arrow keys to move, Space to drop.
+   * With `waitForLink: false` it returns once the drop is announced, before the link is in
+   * the address bar (for quick changes one after another).
    */
-  async moveItemWithKeyboard(itemName: string, keys: string[]) {
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys));
+  async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
+    const move = () => this.moveWithKeyboard(this.item(itemName), keys);
+    await (waitForLink ? this.changeAndWaitForLink(move) : move());
   }
 
   /** Moves a whole row with the keyboard, using its row handle. */
@@ -283,13 +299,16 @@ export class TierListPage {
   /**
    * Renames a tier and confirms with Enter. A row with an empty label is named after its
    * position, for example "Tier 2", so pass that as `nameAfter` when clearing a label.
+   * With `waitForLink: false` it returns as soon as the new name shows, before the link is in
+   * the address bar (for quick changes one after another).
    */
-  async renameTier(currentName: string, newName: string, nameAfter = newName) {
-    await this.changeAndWaitForLink(async () => {
+  async renameTier(currentName: string, newName: string, nameAfter = newName, {waitForLink = true} = {}) {
+    const rename = async () => {
       const input = await this.typeTierName(currentName, newName);
       await input.press('Enter');
       await expect(this.tier(nameAfter)).toBeVisible();
-    });
+    };
+    await (waitForLink ? this.changeAndWaitForLink(rename) : rename());
   }
 
   /** Opens the editor of a tier label and types a new name, without confirming it. */
