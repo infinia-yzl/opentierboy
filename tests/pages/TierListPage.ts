@@ -422,14 +422,17 @@ export class TierListPage {
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
   }
 
-  /** Uploads images from the device: file paths, or files made in the test. Item names default to the file names. */
-  async addItemsFromDevice(files: string[] | {name: string; mimeType: string; buffer: Buffer}[]) {
+  /**
+   * Uploads images from the device: file paths, or files made in the test. Item names default to
+   * the file names. `timeout`: how long adding may take (hundreds of files take a while).
+   */
+  async addItemsFromDevice(files: string[] | {name: string; mimeType: string; buffer: Buffer}[], {timeout}: {timeout?: number} = {}) {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'From your device'}).click();
     const dialog = this.page.getByRole('dialog', {name: 'Add New Items'});
     await dialog.getByLabel('Upload Images').setInputFiles(files);
     await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
-    await expect(dialog).toBeHidden();
+    await expect(dialog).toBeHidden({timeout});
   }
 
   /**

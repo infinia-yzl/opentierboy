@@ -168,7 +168,7 @@ test.describe('Images from the device', () => {
     await tierList.goto('/rank');
 
     const addStarted = Date.now();
-    await tierList.addItemsFromDevice(files);
+    await tierList.addItemsFromDevice(files, {timeout: 60_000});
     await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
     const addMs = Date.now() - addStarted;
 
