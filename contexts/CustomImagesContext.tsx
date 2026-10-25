@@ -250,21 +250,39 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   }, [links, allowedHosts, checkedCount, linkStates]);
 
   const addDeviceImages = useCallback((images: NewDeviceImage[]): Promise<AddDeviceImagesResult> => {
-    const run = addQueue.current.then(() => addNow(images));
-    addQueue.current = run.catch(() => undefined);
+    // The result never rejects: anything unexpected becomes the usual message for each file.
+    const failed = (): AddDeviceImagesResult => ({items: [], errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)});
+    const run = addQueue.current.then(() => addNow(images)).catch(failed);
+    addQueue.current = run;
     return run;
 
     async function addNow(images: NewDeviceImage[]): Promise<AddDeviceImagesResult> {
       const items: Item[] = [];
       const errors: string[] = [];
       const opened = store ?? await storePromise.current;
-      if (!opened) return {items, errors: images.map((image) => `${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`)};
+      if (!opened) return failed();
       const states: [string, DeviceImageState][] = [];
       for (const image of images) {
+        // Whatever throws for one image (a browser that cannot make an object URL) becomes the
+        // usual message for that file, so callers always get a result.
+        try {
+          await addOne(opened, image);
+        } catch {
+          errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES['storage-error']}`);
+        }
+      }
+      deviceStates.setMany(states);
+      if (items.length > 0 && !opened.persistent && !warnedNotPersistent.current) {
+        warnedNotPersistent.current = true;
+        toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
+      }
+      return {items, errors};
+
+      async function addOne(opened: DeviceStore, image: NewDeviceImage) {
         const prepared = await prepareImageForStore(image.blob, {maxBytes: opened.limits.maxImageBytes});
         if (!prepared.ok) {
           errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[prepared.reason]}`);
-          continue;
+          return;
         }
         // Never remove an image the list shows, or one handed out that it may not show yet.
         const result = await opened.put(prepared.blob, {keep: [...latestKeys.current, ...handedOut.current]});
@@ -279,19 +297,15 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
         });
         if (!result.ok) {
           errors.push(`${image.label}: ${DEVICE_IMAGE_REFUSAL_MESSAGES[result.reason]}`);
-          continue;
+          return;
         }
+        // The URL first: when it cannot be made, the image is not handed out at all.
+        const url = registry.urlFor(result.id, prepared.blob, result.type);
         handedOut.current.add(result.id);
         requestedKeys.current.add(result.id);
-        states.push([result.id, {status: 'ready', url: registry.urlFor(result.id, prepared.blob, result.type)}]);
+        states.push([result.id, {status: 'ready', url}]);
         items.push({id: result.id, content: image.label, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'});
       }
-      deviceStates.setMany(states);
-      if (items.length > 0 && !opened.persistent && !warnedNotPersistent.current) {
-        warnedNotPersistent.current = true;
-        toast('Images are kept only for this tab', {description: NOT_PERSISTENT_MESSAGE});
-      }
-      return {items, errors};
     }
   }, [store, registry, deviceStates]);
 

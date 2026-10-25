@@ -481,6 +481,22 @@ export class TierListPage {
     return image.evaluate((img: HTMLImageElement) => img.currentSrc.startsWith('blob:') && img.complete && img.naturalWidth > 0);
   }
 
+  /**
+   * Makes one later URL.createObjectURL() call throw, as a browser that cannot make an object URL
+   * would: the call after `skip` calls that still work. Calls after it work again.
+   */
+  async failObjectUrl({skip = 0}: {skip?: number} = {}) {
+    await this.page.evaluate((callsBefore) => {
+      const original = URL.createObjectURL;
+      let left = callsBefore;
+      URL.createObjectURL = (object: Blob | MediaSource) => {
+        if (left-- > 0) return original(object);
+        URL.createObjectURL = original;
+        throw new Error('This browser could not make an object URL.');
+      };
+    }, skip);
+  }
+
   // ---- Data kept in this browser -------------------------------------------------------------
 
   /**

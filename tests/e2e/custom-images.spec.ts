@@ -357,6 +357,30 @@ test.describe('Pasting images', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);
   });
 
+  test('when an image cannot be shown, a paste says so and the next paste still works', async ({tierList}) => {
+    await tierList.goto('/rank');
+    // The first URL is the one the editor reads the file through; the second one shows the tile.
+    await tierList.failObjectUrl({skip: 1});
+    await tierList.pasteImages([imageFile('My cat.png')]);
+    await expect(tierList.toast('Some images could not be added')).toContainText('My cat: Your browser could not save the image.');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+
+    await tierList.pasteImages([imageFile('My dog.png', BLUE_SQUARE)]);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['My dog']);
+    await expect.poll(() => tierList.itemShowsUpload('My dog')).toBe(true);
+  });
+
+  test('when an image cannot be shown, the upload dialog says so and can be used again', async ({tierList}) => {
+    await tierList.goto('/rank');
+    const dialog = await tierList.chooseFilesFromDevice([imageFile('red-square.png')]);
+    await expect(dialog.getByRole('img', {name: 'red-square'})).toBeVisible();
+    // The first URL is the one the editor reads the file through; the second one shows the tile.
+    await tierList.failObjectUrl({skip: 1});
+    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
+    await expect(dialog.getByRole('alert')).toHaveText('red-square: Your browser could not save the image.');
+    await expect(dialog.getByRole('button', {name: 'Add 1 Item'})).toBeEnabled();
+  });
+
   test('a paste into a text field is left alone', async ({tierList}) => {
     await tierList.goto('/rank');
     const input = await tierList.typeTitle('My list');
