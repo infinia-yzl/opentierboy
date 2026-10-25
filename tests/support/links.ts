@@ -95,3 +95,11 @@ export function rawState(state: {title?: string; tiers: {i: string; n: string; t
 export function stateFromJson(json: unknown): string {
   return LZString.compressToEncodedURIComponent(JSON.stringify(json));
 }
+
+/**
+ * A short `state` value (under 2,000 characters) that decompresses to a list with a
+ * 300,000-character tier name: far more than any real list, so the app rejects it (A29).
+ */
+export function hugeTierNameState(): string {
+  return stateFromJson({tiers: [{i: 'tier-s', n: 'x'.repeat(300_000), t: []}, {i: 'uncategorized', n: '', t: []}]});
+}

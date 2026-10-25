@@ -1,5 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {rawState, stateFromJson, templateItemCount} from '../support/links';
+import {hugeTierNameState, rawState, stateFromJson, templateItemCount} from '../support/links';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -71,14 +71,9 @@ test.describe('Links with item ids named like built-in object members', () => {
   }
 });
 
-/**
- * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
- * suite stays green while the bug exists. When a fix lands, the test starts to pass,
- * Playwright reports "Expected to fail, but passed", and the marker must be removed.
- */
-test.describe('Known bugs', () => {
-  // Links that decode but hold data the app never writes. The page should still work: fall
-  // back to the template, or show the list without the bad field.
+// Links that decode but hold data the app never writes, or far more data than any real list.
+// The page still works: it falls back to the template, like a damaged link.
+test.describe('Links with bad data', () => {
   const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
   const badLinks = [
     {
@@ -93,13 +88,19 @@ test.describe('Known bugs', () => {
   ];
   for (const link of badLinks) {
     test(`a link with ${link.name} still opens a tier list`, async ({tierList}) => {
-      test.fail(true, 'The editor assumes every decoded field has the right type and that there is at least one tier, so the page crashes with "Application error" (a tier name that is an object also aborts /api/og).');
       await tierList.gotoAndSettle('/rank/overwatch/tank', stateFromJson(link.json));
 
-      // Short timeouts: these assertions are expected to fail until the bug is fixed.
-      await expect(tierList.crashMessage).toBeHidden({timeout: 3_000});
-      await expect(tierList.title).toBeVisible({timeout: 3_000});
-      await expect(tierList.tiers.first()).toBeVisible({timeout: 3_000});
+      await expect(tierList.crashMessage).toBeHidden();
+      await expect(tierList.title).toBeVisible();
+      await expect(tierList.tiers.first()).toBeVisible();
     });
   }
+
+  test('a link with a huge tier name falls back to the template', async ({tierList}) => {
+    // 300,000 characters of tier name in a link of under 2,000 characters.
+    await tierList.goto('/rank/overwatch/tank', hugeTierNameState());
+
+    await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
+  });
 });

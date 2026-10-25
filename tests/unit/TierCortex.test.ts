@@ -11,6 +11,11 @@ import {randomAppStates, seededRandom} from './support/randomStates';
  * TierCortex now hands the link format to lib/state. These tests prove that nothing a user
  * can see changed: the same links are written, and every link decodes to the same items,
  * compared with a frozen copy of TierCortex from before the change.
+ *
+ * Phase 5a changed some results on purpose, and the comparison allows exactly these:
+ * - links with bad data no longer decode (A29, lib/legacyLinkLimits.ts): no tiers, or a value
+ *   that is not text where text belongs;
+ * - a link that is not complete lz-string data stops before the decoder, with its own message.
  */
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
@@ -62,6 +67,36 @@ function decodeWithBoth(input: string) {
   }
 }
 
+const LOG_PREFIX = 'Failed to decode tier state from URL:';
+
+type DecodedForComparison = {title?: unknown; tiers: {id: unknown; name: unknown; items: {id: unknown; content: unknown}[]}[]};
+
+/** True for a list that the frozen copy decodes but Phase 5a rejects on purpose (A29). */
+function breaksLegacyRules(decoded: DecodedForComparison): boolean {
+  const isTextOrAbsent = (value: unknown) => value === undefined || value === null || typeof value === 'string';
+  return decoded.tiers.length === 0 || !isTextOrAbsent(decoded.title) || decoded.tiers.some(tier =>
+    typeof tier.id !== 'string' || typeof tier.name !== 'string'
+    || tier.items.some(item => typeof item.id !== 'string' || typeof item.content !== 'string'));
+}
+
+/** Decodes with both implementations and expects the same result, apart from Phase 5a's changes. */
+function expectSameAsBefore(input: string, label: string) {
+  const {before, after, beforeLogs, afterLogs} = decodeWithBoth(input);
+  if (before !== null && breaksLegacyRules(before)) {
+    expect(after, label).toBeNull();
+    expect(afterLogs, label).toEqual([[LOG_PREFIX, expect.stringContaining('Error: The link holds ')]]);
+    return;
+  }
+  expect(after, label).toStrictEqual(before);
+  // A link that does not decode logs one error. The message is the same, unless the size check
+  // stopped the link before the decoder because it is not complete lz-string data.
+  expect(afterLogs.length, label).toBe(beforeLogs.length);
+  if (afterLogs.length > 0) {
+    expect(afterLogs[0][0], label).toBe(LOG_PREFIX);
+    if (afterLogs[0][1] !== beforeLogs[0][1]) expect(afterLogs[0][1], label).toContain('not complete lz-string data');
+  }
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -79,9 +114,7 @@ describe('TierCortex after moving the link format to lib/state', () => {
   it('decodes every link to the same items, and logs the same errors, on the server', () => {
     const inputs = decodeInputs();
     for (let index = 0; index < inputs.length; index++) {
-      const {before, after, beforeLogs, afterLogs} = decodeWithBoth(inputs[index]);
-      expect(after, `input #${index}: ${inputs[index].slice(0, 40)}`).toStrictEqual(before);
-      expect(afterLogs, `input #${index}`).toEqual(beforeLogs);
+      expectSameAsBefore(inputs[index], `input #${index}: ${inputs[index].slice(0, 40)}`);
     }
   });
 
@@ -100,10 +133,17 @@ describe('TierCortex after moving the link format to lib/state', () => {
       .toBe('data:image/png;base64,AAAA');
 
     for (const input of [...sharedLinks.map(link => link.state), ...fixtureStates, ...MALFORMED]) {
-      const {before, after, beforeLogs, afterLogs} = decodeWithBoth(input);
-      expect(after, input.slice(0, 40)).toStrictEqual(before);
-      expect(afterLogs).toEqual(beforeLogs);
+      expectSameAsBefore(input, input.slice(0, 40));
     }
+  });
+
+  it('still compares the links that Phase 5a rejects on purpose', () => {
+    // Guards the comparison above: these inputs must reach the "rejected on purpose" branch.
+    const rejected = [...MALFORMED, ...decodeInputs()].filter(input => {
+      const {before} = decodeWithBoth(input);
+      return before !== null && breaksLegacyRules(before);
+    });
+    expect(rejected.length).toBeGreaterThanOrEqual(4);
   });
 
   it('starts template pages and shared links with the same tiers', () => {
@@ -204,25 +244,23 @@ describe('TierCortex follows image-aliases.json for renamed images', () => {
   });
 });
 
-/**
- * Known bugs. Each test describes the correct behaviour and is marked `it.fails`, so the suite
- * stays green while the bug exists. When a fix lands, Vitest reports the test as failing:
- * then change `it.fails` to `it` and move the test next to the others.
- */
-describe('Known bugs', () => {
+describe('TierCortex limits for legacy links (A29)', () => {
   // Links are compressed, so a short link can hold a huge list: the review found a 5,760-character
   // link that holds a 5-million-character tier name (it blocked /api/og and every other request
   // to `next start` for over a minute), and a 12 KB link that expands to 10 MB of JSON. Never
-  // send such a link to a server in a test. Phase 5a adds limits at this boundary (TierCortex,
-  // never the frozen legacy decoder); this modest case keeps the test fast.
-  it.fails('rejects a link whose decoded list is far larger than any real list', () => {
-    const hugeName = 'x'.repeat(300_000);
-    const state = lz(JSON.stringify({tiers: [{i: 'tier-s', n: hugeName, t: []}, {i: 'uncategorized', n: '', t: []}]}));
-    expect(state.length).toBeLessThan(2_000);
+  // send such a link to a server in a test. This modest case keeps the test fast.
+  const hugeName = 'x'.repeat(300_000);
+  const state = lz(JSON.stringify({tiers: [{i: 'tier-s', n: hugeName, t: []}, {i: 'uncategorized', n: '', t: []}]}));
 
+  it('the test link with a huge tier name is short', () => {
+    expect(state.length).toBeLessThan(2_000);
+  });
+
+  it('rejects a link whose decoded list is far larger than any real list', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       expect(new TierCortex().decodeTierStateFromURL(state)).toBeNull();
+      expect(errorSpy).toHaveBeenCalledWith(LOG_PREFIX, expect.any(Error));
     } finally {
       errorSpy.mockRestore();
     }

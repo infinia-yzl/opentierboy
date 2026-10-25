@@ -1,5 +1,6 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
 import {LEGACY_SETS, legacyItems, packageItemId, stateFromJson} from '../support/links';
+import {lzBomb, lzWithRun} from '../unit/support/lzStream';
 
 /**
  * The preview image that chat apps and social sites show for a shared link.
@@ -80,23 +81,46 @@ test.describe('Link preview images', () => {
     });
   }
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
-   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
-   */
-  test.describe('Known bugs', () => {
-    test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
-      test.fail(true, 'The route draws the tier name as text, and an object there aborts the response.');
-      const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
-      const response = await request.get(previewPath(json), {timeout: 10_000});
+  test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
+    const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
+    const response = await request.get(previewPath(json), {timeout: 10_000});
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+    const image = await response.body();
+    expect(pngSize(image)).toEqual({width: 1200, height: 630});
+    // The link breaks the type checks (A29), so it gets the preview of a link that does not decode.
+    expect(image.equals(defaultImage), 'default preview').toBe(true);
+  });
+
+  // Links made to hang or crash the server (A29). Each one must get the default preview quickly,
+  // and the server must keep answering other requests. The links are built here in milliseconds
+  // (tests/unit/support/lzStream.ts); lz-string itself would take seconds to compress them.
+  const HOSTILE_TIMEOUT = 5_000;
+  const hostileLinks = [
+    {name: 'a 5-million-character tier name', state: () => lzWithRun(HUGE_NAME_JSON, 'x', 5_000_000).input},
+    {name: 'data that expands to 12 million characters', state: () => lzBomb(5_000).input},
+    {name: 'no tiers', state: () => stateFromJson({tiers: []})},
+    {name: 'a title that is an object', state: () => stateFromJson({title: {text: 'x'}, tiers: [UNRANKED]})},
+    // The same id 5,001 times keeps the link short (the item cap counts before duplicates go).
+    {name: 'more items than any list can hold', state: () => stateFromJson({tiers: [
+      {i: 'tier-s', n: 'S', t: Array.from({length: 5_001}, () => ({i: 'x'}))}, UNRANKED,
+    ]})},
+  ];
+  for (const link of hostileLinks) {
+    test(`a link with ${link.name} gets the default preview quickly`, async ({request}) => {
+      const response = await request.get(`/api/og?state=${encodeURIComponent(link.state())}`, {timeout: HOSTILE_TIMEOUT});
 
       expect(response.status()).toBe(200);
-      expect(response.headers()['content-type']).toBe('image/png');
-      expect(pngSize(await response.body())).toEqual({width: 1200, height: 630});
+      expect((await response.body()).equals(defaultImage), 'default preview').toBe(true);
+      const next = await request.get(previewPath(oddIdLink('unknown-item-x')), {timeout: HOSTILE_TIMEOUT});
+      expect(next.status(), 'the server still answers').toBe(200);
     });
-  });
+  }
 });
+
+/** A list whose tier name is the run of characters that lzWithRun() writes in place of {run}. */
+const HUGE_NAME_JSON = '{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}';
 
 const UNRANKED = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
 

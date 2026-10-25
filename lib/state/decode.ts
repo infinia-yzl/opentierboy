@@ -50,3 +50,12 @@ function findVersionedDecoder(raw: string): {decode: VersionedDecoder; payload: 
   if (!Object.prototype.hasOwnProperty.call(VERSIONED_DECODERS, version)) return null;
   return {decode: VERSIONED_DECODERS[version], payload: raw.slice(match[0].length)};
 }
+
+/**
+ * True when decodeState hands `raw` to a versioned decoder (it starts with a known version and
+ * a dot), false when it goes to the legacy decoder. TierCortex uses it to apply the legacy
+ * link limits only to legacy values.
+ */
+export function isVersionedValue(raw: string): boolean {
+  return findVersionedDecoder(raw) !== null;
+}

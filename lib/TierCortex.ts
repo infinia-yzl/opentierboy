@@ -4,7 +4,10 @@ import imagesetConfig from "@/imageset.config.json";
 import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
-import {type CanonicalItem, decodeState, encodeState} from "@/lib/state";
+import {type CanonicalItem, type CanonicalState, decodeState, encodeState} from "@/lib/state";
+import {isVersionedValue} from "@/lib/state/decode";
+import {measureDecompressedLength} from "@/lib/state/lz";
+import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -98,20 +101,37 @@ export class TierCortex {
     return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
-  // lib/state decodes every link format; TierCortex turns the stored item ids into items.
+  /**
+   * lib/state decodes every link format; TierCortex checks legacy links against
+   * LEGACY_LINK_LIMITS and turns the stored item ids into items. Returns null for a link that
+   * does not decode or breaks a limit, so callers fall back to the template and the default
+   * preview image.
+   */
   public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
     const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
-    const state = decodeState(encodedState, {onError: logError});
-    if (!state) return null;
+
+    // A short link can decompress to a huge text, so legacy links are measured first (A29).
+    const isLegacy = !isVersionedValue(encodedState);
+    if (isLegacy && measureDecompressedLength(encodedState, LEGACY_LINK_LIMITS.maxJsonLength) === null) {
+      logError(new Error(`The link is not complete lz-string data, or holds more than ${LEGACY_LINK_LIMITS.maxJsonLength} characters`));
+      return null;
+    }
+
+    const decoded = decodeState(encodedState, {onError: logError});
+    if (!decoded) return null;
+
+    let state: CanonicalState = decoded;
+    if (isLegacy) {
+      const check = checkLegacyState(decoded);
+      if (!check.ok) {
+        logError(new Error(`The link holds ${check.reason}`));
+        return null;
+      }
+      state = check.state;
+    }
 
     try {
-      const tiers = state.tiers.map(tier => ({
-        id: tier.id,
-        name: tier.name,
-        items: tier.items.map(item => this.resolveItem(item.id, item.content))
-      }));
-
-      return {title: state.title, tiers};
+      return {title: state.title, tiers: this.resolveTiers(state)};
     } catch (error) {
       logError(error);
       return null;
@@ -221,6 +241,14 @@ export class TierCortex {
       const customItems = this.loadCustomItemsFromLocalStorage();
       customItems.forEach(item => this.customItemsMap.set(item.i, item));
     }
+  }
+
+  private resolveTiers(state: CanonicalState): Tier[] {
+    return state.tiers.map(tier => ({
+      id: tier.id,
+      name: tier.name,
+      items: tier.items.map(item => this.resolveItem(item.id, item.content)),
+    }));
   }
 
   private resolveItem(itemId: string, content?: string): Item {
