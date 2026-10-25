@@ -191,14 +191,16 @@ export default async function TierListPage(
   const searchParams = await props.searchParams;
   const params = await props.params;
   const [nameOrPackage, tagSlug] = params.slug || [];
+  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
-  // If no slug is provided, render an empty tier list
+  // If no slug is provided, render an empty tier list, or the list of its link. The editor
+  // starts with the link, so the link's label settings apply (opened fresh, A3).
   if (!nameOrPackage) {
     return (
       <div className="flex flex-col items-center justify-center">
         <TierListManager
           initialItemSet={undefined}
-          initialState={undefined}
+          initialState={initialState}
           title="Custom Tier List"
         />
       </div>
@@ -220,7 +222,6 @@ export default async function TierListPage(
   const title = itemSet
     ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}`
     : 'Custom Tier List';
-  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
   return (
     <div className="flex flex-col items-center justify-center">

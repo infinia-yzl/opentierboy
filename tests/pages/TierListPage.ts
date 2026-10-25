@@ -76,6 +76,12 @@ export class TierListPage {
     return this.page.getByRole('heading', {name: /Application error/});
   }
 
+  /** Reloads the page, and waits until the editor shows the list again. */
+  async reload() {
+    await this.page.reload();
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
   /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
     await this.page.goto(link);

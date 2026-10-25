@@ -98,6 +98,20 @@ test.describe('Sharing', () => {
     await expect(friend.item('Mauga')).toHaveText('');
   });
 
+  test('a blank list link (/rank/?state=) opens with its label settings, also after a reload', async ({tierList}) => {
+    // The landing page's "Create Blank List" opens /rank/; its links carry the settings too.
+    const mauga = packageItemId('image-overwatch', 'Mauga');
+    await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
+
+    await expect(tierList.title).toHaveText('Blank list');
+    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+
+    await tierList.reload();
+    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await expect(tierList.item('Mauga')).toHaveText('');
+  });
+
   test('a v3 link with labels on Top opens with them on Top', {tag: '@mobile'}, async ({tierList}) => {
     const mauga = packageItemId('image-overwatch', 'Mauga');
     await tierList.goto(TANKS, v3State({tp: 5, lp: 'top', r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
