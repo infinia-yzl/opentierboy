@@ -83,6 +83,15 @@ export type TierListAction =
   | {type: 'labelPositionChanged'; labelPosition: LabelPosition}
   | {type: 'labelsToggled'};
 
+/**
+ * The `state` parameter as the store compares it. URLSearchParams reads a '+' in the address as
+ * a space. A link never holds a space, and every decoder reads a space as '+', so putting the '+'
+ * back changes nothing about the list, and the store recognises its own writes when they arrive.
+ */
+export function stateParam(value: string | null | undefined): string | null {
+  return value === null || value === undefined ? null : value.replace(/ /g, '+');
+}
+
 /** Writes the link of a list (TierCortex: the current link format). */
 export type ListEncoder = (title: string, tiers: Tier[]) => string;
 

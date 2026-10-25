@@ -9,6 +9,7 @@ import {
   findItemToDelete,
   initialTierListState,
   loadList,
+  stateParam,
   type TierListAction,
   type TierListState,
 } from '@/lib/tierListReducer';
@@ -169,6 +170,21 @@ describe('the address', () => {
     expect(store.state.tiers).toBe(tiers);
     expect(store.state.writes).toEqual([]);
     expect(store.state.addressHoldsList).toBe(true);
+  });
+
+  it('recognises an own write that the address reports with spaces for "+"', () => {
+    // URLSearchParams reads '+' as a space; the provider puts it back with stateParam().
+    const store = setup(fiveRowLink({'': [MAU, WIN, SIG]}));
+    let index = 0;
+    while (!store.state.writes.some(write => write.link.includes('+'))) {
+      store.dispatch({type: 'titleChanged', title: `Title ${index++}`});
+    }
+    const withPlus = store.state.writes.find(write => write.link.includes('+'))!.link;
+    const asRead = withPlus.replace(/\+/g, ' ');
+    expect(stateParam(asRead)).toBe(withPlus);
+    expect(stateParam(null)).toBeNull();
+    expect(stateParam(undefined)).toBeNull();
+    expect(addressNeedsLoading(store.state, stateParam(asRead))).toBe(false);
   });
 
   it('Back and Forward show the list of the address and write nothing', () => {

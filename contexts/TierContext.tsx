@@ -12,6 +12,7 @@ import {
   initialTierListState,
   ItemPosition,
   loadList,
+  stateParam,
 } from "@/lib/tierListReducer";
 
 /**
@@ -77,15 +78,6 @@ interface TierListProviderProps {
   /** The page title: the title of a list whose link has none. */
   pageTitle: string;
   children: React.ReactNode;
-}
-
-/**
- * The `state` parameter as the store compares it. URLSearchParams reads a '+' in the address as
- * a space. A link never holds a space, and every decoder reads a space as '+', so putting the '+'
- * back changes nothing about the list, and the store recognises its own writes when they arrive.
- */
-function stateParam(value: string | null | undefined): string | null {
-  return value === null || value === undefined ? null : value.replace(/ /g, '+');
 }
 
 export function TierListProvider({initialItemSet, initialState, pageTitle, children}: TierListProviderProps) {
