@@ -117,6 +117,11 @@ describe('recording links', () => {
       {path: '/rank/../../etc'},
       {path: '/rank/..'},
       {path: '/rank/.'},
+      {path: '/rank/%2e%2e/%2e%2e/api/og'},
+      {path: '/rank/%2E%2E'},
+      {path: '/rank/x/%2e'},
+      {path: '/rank/.%2e/x'},
+      {path: '/rank/%2e./x'},
       {path: '/about'},
       {path: '/'},
       {path: ''},
@@ -140,6 +145,8 @@ describe('recording links', () => {
     }
     expect(storage.values.size).toBe(0);
     expect(recent.record({path: '/rank/x', state: 'a'.repeat(RECENT_LINK_LIMITS.maxStateChars)}).ok).toBe(true);
+    // A dot or %2e inside a longer segment is an ordinary name.
+    expect(recent.record({path: '/rank/a%2eb/v1.2'}).ok).toBe(true);
   });
 
   it('shortens long titles without cutting an emoji in half', () => {
@@ -357,6 +364,7 @@ describe('untrusted stored data', () => {
       {...valid, path: 'javascript:alert(1)'},
       {...valid, path: '//evil.example/rank'},
       {...valid, path: '/rank/../x'},
+      {...valid, path: '/rank/%2e%2e/%2e%2e/api/og'},
       {...valid, state: 'a\nb'},
       {...valid, state: 7},
       {...valid, title: 7},
@@ -371,6 +379,17 @@ describe('untrusted stored data', () => {
     ];
     const good = {...valid, path: '/rank/good'};
     expect(load({version: 1, links: [...bad, good]})).toEqual([good]);
+  });
+
+  it('checks only the first stored entries, so a huge stored array stays cheap', () => {
+    const raw = JSON.stringify({version: 1, links: [valid, ...Array(100_000).fill({})]});
+    let started = performance.now();
+    JSON.parse(raw);
+    const parseTime = performance.now() - started;
+    started = performance.now();
+    expect(load(raw)).toEqual([valid]);
+    // Checking every entry took about 18 times as long as JSON.parse.
+    expect(performance.now() - started).toBeLessThan(parseTime * 3 + 300);
   });
 
   it('ignores unknown fields and prototype keys', () => {

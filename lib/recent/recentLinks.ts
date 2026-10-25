@@ -109,6 +109,12 @@ export interface RecentLinksOptions {
 }
 
 const STORED_VERSION = 1;
+/**
+ * The most stored entries read back. The list writes at most RECENT_PIN_LIMIT +
+ * RECENT_UNPINNED_LIMIT, pinned ones first; twice that leaves room for duplicates and for a
+ * pin limit that was lowered later. Anything beyond is never parsed.
+ */
+const MAX_STORED_LINKS = 2 * (RECENT_PIN_LIMIT + RECENT_UNPINNED_LIMIT);
 const EMPTY: readonly RecentLink[] = Object.freeze([]);
 
 /**
@@ -129,11 +135,6 @@ const storedLinkSchema = z.object({
   openedAt: time,
   pinned: z.boolean(),
   pinnedAt: time.optional(),
-});
-
-const storedSchema = z.object({
-  version: z.literal(STORED_VERSION),
-  links: z.array(z.unknown()),
 });
 
 /**
@@ -274,11 +275,13 @@ function parseStored(raw: string | null): RecentLink[] {
   } catch {
     return [];
   }
-  const stored = storedSchema.safeParse(json);
-  if (!stored.success) return [];
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) return [];
+  const {version, links} = json as {version?: unknown; links?: unknown};
+  if (version !== STORED_VERSION || !Array.isArray(links)) return [];
 
   const byKey = new Map<string, RecentLink>();
-  for (const candidate of stored.data.links) {
+  // Slice before checking entries, so a huge stored array costs no time.
+  for (const candidate of links.slice(0, MAX_STORED_LINKS)) {
     const parsed = storedLinkSchema.safeParse(candidate);
     if (!parsed.success) continue;
     const normal = normalizeRef(parsed.data);
@@ -343,7 +346,8 @@ function normalizeRef(ref: RecentLinkRef | null | undefined): {path: string; sta
   const path = ref.path.length > 5 ? ref.path.replace(/\/+$/, '') : ref.path;
   const state = typeof ref.state === 'string' ? ref.state.replace(/ /g, '+') : '';
   if (path.length > RECENT_LINK_LIMITS.maxPathChars || !PATH.test(path)) return null;
-  if (path.split('/').some(segment => /^\.+$/.test(segment))) return null;
+  // Dot segments, plain or percent-encoded ('..', '%2e%2e', '.%2E'), would leave /rank.
+  if (path.split('/').some(segment => /^(?:\.|%2e)+$/i.test(segment))) return null;
   if (state.length > RECENT_LINK_LIMITS.maxStateChars || !STATE.test(state)) return null;
   return {path, state};
 }
