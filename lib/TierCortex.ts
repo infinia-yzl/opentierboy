@@ -333,7 +333,8 @@ export class TierCortex {
    * Resolves the items of every tier. Duplicate ids break drag and drop, so:
    * - an item id that appears twice, also after following an alias (an old id and its new id
    *   in one list), keeps only its first place (A32);
-   * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38).
+   * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38);
+   * - an empty tier id gets a new id too, because a v3 link needs one (A40).
    */
   private resolveTiers(state: CanonicalState): Tier[] {
     const seen = new Set<string>();
@@ -480,24 +481,32 @@ export function rowTemplateOf(tiers: readonly Tier[]): RowTemplate {
 
 /**
  * The tier ids with each later duplicate renamed to `<id>~2`, `<id>~3`... (the first number not
- * used by any tier), so every row has its own id. The first row with an id keeps it. The same
- * ids always give the same result.
+ * used by any tier), so every row has its own id. The first row with an id keeps it. An empty
+ * id (only in hand-made links) becomes `tier~1`, `tier~2`..., because v3 links refuse empty
+ * ids: a list opened from such a link must be able to write a v3 link that opens again. The
+ * same ids always give the same result.
  */
 export function uniqueTierIds(ids: readonly string[]): string[] {
   const taken = new Set(ids);
   const seen = new Set<string>();
+  const newId = (base: string, firstNumber: number) => {
+    let number = firstNumber;
+    while (taken.has(`${base}~${number}`)) number++;
+    const id = `${base}~${number}`;
+    taken.add(id);
+    return id;
+  };
   return ids.map(id => {
+    if (id === '') return newId(EMPTY_TIER_ID_BASE, 1);
     if (!seen.has(id)) {
       seen.add(id);
       return id;
     }
-    let number = 2;
-    while (taken.has(`${id}~${number}`)) number++;
-    const newId = `${id}~${number}`;
-    taken.add(newId);
-    return newId;
+    return newId(id, 2);
   });
 }
+
+const EMPTY_TIER_ID_BASE = 'tier';
 
 function toCanonicalItem(item: SimplifiedItem): CanonicalItem {
   return item.c === undefined ? {id: item.i} : {id: item.i, content: item.c};

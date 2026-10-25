@@ -230,7 +230,9 @@ describe('TierCortex with repeated tier ids (A38)', () => {
     expect(uniqueTierIds(['tier-s', 'tier-a', 'tier-s', 'tier-s', 'uncategorized'])).toEqual(['tier-s', 'tier-a', 'tier-s~2', 'tier-s~3', 'uncategorized']);
     // A new id never takes an id that another row already has.
     expect(uniqueTierIds(['x', 'x', 'x~2', 'x'])).toEqual(['x', 'x~3', 'x~2', 'x~4']);
-    expect(uniqueTierIds(['', ''])).toEqual(['', '~2']);
+    // An empty id gets a new id too: v3 links refuse empty ids (A40).
+    expect(uniqueTierIds(['', ''])).toEqual(['tier~1', 'tier~2']);
+    expect(uniqueTierIds(['tier~1', '', 'x'])).toEqual(['tier~1', 'tier~2', 'x']);
     expect(uniqueTierIds(['a', 'b'])).toEqual(['a', 'b']);
   });
 
@@ -464,6 +466,15 @@ describe('TierCortex with v3 links', () => {
       const opened = cortex.decodeTierStateFromURL(state)!;
       expect(cortex.encodeListForURL(opened.title ?? '', opened.tiers, opened.layout), id).toBe(state);
     }
+  });
+
+  it('writes a link that opens again for a legacy list with an empty tier id', () => {
+    const legacy = lz(JSON.stringify({tiers: [{i: '', n: 'S', t: [{i: 'image-overwatch-mau.webp'}]}, {i: '', n: 'A', t: []}, {i: 'uncategorized', n: '', t: []}]}));
+    const cortex = new TierCortex();
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    expect(opened.tiers.map(tier => tier.id)).toEqual(['tier~1', 'tier~2', 'uncategorized']);
+    const reopened = cortex.decodeTierStateFromURL(cortex.encodeListForURL('', opened.tiers));
+    expect(reopened?.tiers.map(tier => [tier.name, tier.items.map(item => item.content)])).toEqual([['S', ['Mauga']], ['A', []], ['', []]]);
   });
 
   it('settles every golden link in one save: saving the reopened list writes the same link', () => {
