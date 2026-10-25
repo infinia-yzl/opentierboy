@@ -1,7 +1,9 @@
 import {ImageResponse} from 'next/og';
 import {TierCortex} from '@/lib/TierCortex';
 import {inlineLocalImages} from './local-images';
+import {inlineTrustedLinkImages} from './link-images';
 import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
+import {itemDisplayLabel} from '@/lib/images/listImages';
 
 export const runtime = 'edge';
 
@@ -88,12 +90,21 @@ export async function GET(request: Request) {
   const rows = tiers.slice(0, MAX_ROWS);
 
   const logoUrl = tierCortex.getAssetUrl(LOGO);
+  const drawnItems = rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW));
   // Only image URLs that TierCortex builds for the app's own assets. Link images and device
-  // images have none (getOgSafeItem): the server never loads a link image's address (A8, A36).
-  const itemImageUrls = rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW)
+  // images have none (getOgSafeItem): link image addresses never reach this (A8, A36).
+  const itemImageUrls = drawnItems
     .map((item) => tierCortex.getOgSafeItem(item).imageUrl)
-    .filter((url): url is string => url !== undefined));
-  const imageSrc = await inlineLocalImages([logoUrl, ...itemImageUrls]);
+    .filter((url): url is string => url !== undefined);
+  // Link images on trusted sites, loaded with caps (link-images.ts). Any other link image, and
+  // every device image, is a label tile.
+  const linkImageUrls = drawnItems
+    .filter((item) => item.source === 'link' && item.url !== undefined)
+    .map((item) => item.url as string);
+  const [imageSrc, linkImageSrc] = await Promise.all([
+    inlineLocalImages([logoUrl, ...itemImageUrls]),
+    inlineTrustedLinkImages(linkImageUrls),
+  ]);
 
   const titleText = title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy';
 
@@ -129,15 +140,16 @@ export async function GET(request: Request) {
               <div tw="flex-1 flex flex-wrap">
                 {tier.items.slice(0, ITEMS_PER_ROW).map((item) => {
                   const safeItem = tierCortex.getOgSafeItem(item);
-                  const label = shorten(safeItem.content, MAX_TEXT_LENGTH);
+                  const label = shorten(itemDisplayLabel(item), MAX_TEXT_LENGTH);
+                  const linkSrc = item.source === 'link' ? linkImageSrc(item.url) : undefined;
                   return (
                     <div
                       key={safeItem.id}
                       tw="w-16 h-16 m-1 rounded-md overflow-hidden bg-gray-200 flex items-center justify-center"
                     >
-                      {safeItem.imageUrl ? (
+                      {linkSrc || safeItem.imageUrl ? (
                         <img
-                          src={imageSrc(safeItem.imageUrl)}
+                          src={linkSrc ?? imageSrc(safeItem.imageUrl as string)}
                           alt={label}
                           tw="w-full h-full object-cover"
                         />
