@@ -45,6 +45,18 @@ function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+test.describe('Unknown items', () => {
+  test('an item the app does not know shows its label on the placeholder image', {tag: '@mobile'}, async ({tierList}) => {
+    // For example an image from a set that was removed, or an upload from another device.
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [{i: 'tier-s', n: 'S', t: [{i: 'unknown-item-x', c: 'Mystery'}]}, {i: 'uncategorized', n: '', t: []}],
+    }));
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mystery']);
+    await expect.poll(() => tierList.itemImageHasLoaded('Mystery'), {message: 'placeholder image'}).toBe(true);
+  });
+});
+
 // Names that every JavaScript object has. A link may hold them as item ids, and they must work
 // like any other unknown id: a placeholder tile with the stored label, which can be dragged.
 test.describe('Links with item ids named like built-in object members', () => {
@@ -59,6 +71,7 @@ test.describe('Links with item ids named like built-in object members', () => {
       }));
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Mystery', 'my cat']);
+      await expect.poll(() => tierList.itemImageHasLoaded('Mystery'), {message: 'placeholder image'}).toBe(true);
 
       // The tile can be dragged like any other, and the next saved link keeps the item.
       await tierList.dragItemToTier('Mystery', 'Unranked');

@@ -10,6 +10,7 @@ import {measureDecompressedLength} from "@/lib/state/lz";
 import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
+const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const MAX_ALIAS_STEPS = 10;
 
@@ -301,11 +302,17 @@ export class TierCortex {
     return undefined;
   }
 
+  /**
+   * An unknown item: its stored label on the placeholder image. The image URL is relative, like
+   * the package images, so next/image loads it on every host (A37). An absolute URL went
+   * through the image optimizer as a remote image, which refused every host but localhost:3000,
+   * so on Vercel the tile showed no image. Link previews make it absolute (getOgSafeImageUrl).
+   */
   private createPlaceholderItem(itemId: string, content: string): Item {
     return {
       id: itemId,
       content,
-      imageUrl: this.getAbsoluteUrl('/placeholder-image.png'),
+      imageUrl: PLACEHOLDER_IMAGE_URL,
     };
   }
 

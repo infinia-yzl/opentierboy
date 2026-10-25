@@ -16,7 +16,8 @@ import {randomAppStates, seededRandom} from './support/randomStates';
  * - links with bad data no longer decode (A29, lib/legacyLinkLimits.ts): no tiers, or a value
  *   that is not text where text belongs;
  * - a link that is not complete lz-string data stops before the decoder, with its own message;
- * - an item id that appears twice keeps only its first place (A32).
+ * - an item id that appears twice keeps only its first place (A32);
+ * - the placeholder tile of an unknown item uses a relative image URL (A37).
  */
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
@@ -91,6 +92,15 @@ function withoutDuplicateIds<T extends {tiers: {items: {id: string}[]}[]}>(decod
   })}))};
 }
 
+/** The frozen copy's placeholder URLs were absolute. Phase 5a makes them relative (A37). */
+const ABSOLUTE_PLACEHOLDER = /^(http:\/\/localhost:3000|https:\/\/opentierboy\.com)\/placeholder-image\.png$/;
+function withRelativePlaceholders<T extends {tiers: {items: {imageUrl?: string}[]}[]}>(decoded: T | null): T | null {
+  if (decoded === null) return null;
+  return {...decoded, tiers: decoded.tiers.map(tier => ({...tier, items: tier.items.map(item => (
+    item.imageUrl !== undefined && ABSOLUTE_PLACEHOLDER.test(item.imageUrl) ? {...item, imageUrl: '/placeholder-image.png'} : item
+  ))}))};
+}
+
 /** Decodes with both implementations and expects the same result, apart from Phase 5a's changes. */
 function expectSameAsBefore(input: string, label: string) {
   const {before, after, beforeLogs, afterLogs} = decodeWithBoth(input);
@@ -99,7 +109,7 @@ function expectSameAsBefore(input: string, label: string) {
     expect(afterLogs, label).toEqual([[LOG_PREFIX, expect.stringContaining('Error: The link holds ')]]);
     return;
   }
-  expect(after, label).toStrictEqual(withoutDuplicateIds(before));
+  expect(after, label).toStrictEqual(withRelativePlaceholders(withoutDuplicateIds(before)));
   // A link that does not decode logs one error. The message is the same, unless the size check
   // stopped the link before the decoder because it is not complete lz-string data.
   expect(afterLogs.length, label).toBe(beforeLogs.length);
@@ -162,9 +172,9 @@ describe('TierCortex after moving the link format to lib/state', () => {
     for (const state of [undefined, '', 'not-a-state', sharedLinks[0].state, sharedLinks[11].state]) {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       expect(new TierCortex().getInitialTiers(state, itemSet))
-        .toStrictEqual(new PreRefactorTierCortex().getInitialTiers(state, itemSet));
+        .toStrictEqual(withRelativePlaceholders({tiers: new PreRefactorTierCortex().getInitialTiers(state, itemSet)})!.tiers);
       expect(new TierCortex().getInitialTiers(state, undefined))
-        .toStrictEqual(new PreRefactorTierCortex().getInitialTiers(state, undefined));
+        .toStrictEqual(withRelativePlaceholders({tiers: new PreRefactorTierCortex().getInitialTiers(state, undefined)})!.tiers);
       errorSpy.mockRestore();
     }
   });
@@ -200,12 +210,31 @@ describe('TierCortex with item ids named like built-in object members', () => {
   });
 });
 
+describe('TierCortex placeholder tiles (A37)', () => {
+  const unknownLink = lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [{i: 'unknown-item-x', c: 'Mystery'}]}]}));
+
+  it('give an unknown item a relative image URL, the same on the server and in the browser', () => {
+    const onServer = new TierCortex().decodeTierStateFromURL(unknownLink)!.tiers[0].items[0];
+    vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
+    vi.stubGlobal('localStorage', {getItem: () => null, setItem: () => undefined});
+    const inBrowser = new TierCortex().decodeTierStateFromURL(unknownLink)!.tiers[0].items[0];
+    expect(onServer).toEqual({id: 'unknown-item-x', content: 'Mystery', imageUrl: '/placeholder-image.png'});
+    expect(inBrowser).toEqual(onServer);
+  });
+
+  it('give link previews an absolute URL for the placeholder', () => {
+    const cortex = new TierCortex();
+    const item = cortex.decodeTierStateFromURL(unknownLink)!.tiers[0].items[0];
+    expect(cortex.getOgSafeItem(item).imageUrl).toBe('http://localhost:3000/placeholder-image.png');
+  });
+});
+
 describe('TierCortex follows image-aliases.json for renamed images', () => {
   const MAUGA = {id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'};
   const link = (...itemIds: string[]) =>
     lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: itemIds.map(id => ({i: id, c: `stored ${id}`}))}]}));
   const itemsOf = (cortex: TierCortex, state: string) => cortex.decodeTierStateFromURL(state)!.tiers[0].items;
-  const placeholder = (id: string) => ({id, content: `stored ${id}`, imageUrl: 'http://localhost:3000/placeholder-image.png'});
+  const placeholder = (id: string) => ({id, content: `stored ${id}`, imageUrl: '/placeholder-image.png'});
 
   it('ships with no aliases', async () => {
     expect((await import('@/image-aliases.json')).default).toEqual({});
