@@ -99,7 +99,7 @@ export interface UseSnapshotFiles {
    * asks whether to open the list; pictures become items; other files show a message. Files wait
    * their turn, each until the previous add is in the address. Files that wait while a list is
    * being asked about or opened, or across Back or Forward, are not added ("Files not added");
-   * when the editor closes, waiting files are dropped quietly.
+   * when the visitor leaves the editor, waiting files are dropped quietly.
    */
   openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
@@ -136,6 +136,8 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const queue = useRef<Promise<void>>(Promise.resolve());
   /** False once the editor has closed: waiting files are dropped, quietly. */
   const alive = useRef(true);
+  /** True once a link to another page was clicked: waiting files are dropped, quietly. */
+  const leaving = useRef(false);
   /** Counts Back and Forward: files that waited across one are dropped. */
   const historyMoves = useRef(0);
   /** The names in each "Files not added" message on screen. */
@@ -148,11 +150,25 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       historyMoves.current += 1;
     };
     window.addEventListener('popstate', onHistoryMove);
+    // A click on a link to another page starts a navigation that the next add would cancel
+    // (Next.js drops a navigation still loading when another starts): stop adding.
+    const onLinkClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin === window.location.origin && url.pathname !== window.location.pathname) leaving.current = true;
+    };
+    document.addEventListener('click', onLinkClick, true);
     return () => {
       alive.current = false;
       window.removeEventListener('popstate', onHistoryMove);
+      document.removeEventListener('click', onLinkClick, true);
     };
   }, []);
+
+  /** True once the editor closed or is being left: nothing more is added or opened. */
+  const gone = useCallback(() => !alive.current || leaving.current, []);
 
   /** Says which waiting files were not added, and why: one message per reason, growing. */
   const notAdded = useCallback((files: File[], reason: NotAddedReason) => {
@@ -205,7 +221,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       return {blob: file, label};
     });
     const {items, errors} = await add(images);
-    if (!alive.current) return;
+    if (gone()) return;
     // Back or Forward while the images were stored: the list on screen is another version now.
     if (historyMoves.current !== moves) {
       notAdded(files, 'history');
@@ -218,10 +234,12 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     // The next file waits until this change is in the address: each add is its own Back step
     // (product rule 2), however many files wait.
     await untilWritten();
-  }, [untilWritten, notAdded]);
+  }, [untilWritten, notAdded, gone]);
 
   const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || !alive.current) return;
+    // New files: the visitor stays (a click on a link that went nowhere).
+    leaving.current = false;
     if (busy.current) {
       notAdded(files, 'list');
       return;
@@ -232,9 +250,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
-      // The editor closed, or Back or Forward showed another version while these files waited:
-      // they are not added (the version they were meant for is not on screen).
-      if (!alive.current) return;
+      // The editor closed or is being left, or Back or Forward showed another version while
+      // these files waited: they are not added (the version they were meant for is not on screen).
+      if (gone()) return;
       if (historyMoves.current !== moves) {
         notAdded(files, 'history');
         return;
@@ -245,7 +263,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         return;
       }
       const checks = await Promise.all(files.map(isPictureFile));
-      if (!alive.current) return;
+      if (gone()) return;
       const pictures = files.filter((_, index) => checks[index]);
       const refused = files.filter((_, index) => !checks[index]);
       if (refused.length > 0) {
@@ -256,7 +274,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       if (pictures.length === 0) return;
       if (pictures.length === 1) {
         const check = await checkFile(pictures[0]);
-        if (!alive.current) return;
+        if (gone()) return;
         if (check.kind === 'snapshot') {
           busy.current = true;
           setPending(check.snapshot);
@@ -269,7 +287,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       }
       await addAsItems(pictures, moves);
     }
-  }, [addAsItems, notAdded]);
+  }, [addAsItems, notAdded, gone]);
 
   /** Ends the opening: the dialog closes, and files are handled again. */
   const finishOpening = useCallback(() => {
@@ -286,10 +304,18 @@ export function useSnapshotFiles(): UseSnapshotFiles {
    */
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     setOpening(true);
+    const moves = historyMoves.current;
+    /** True when the opening must stop: the visitor left, or went Back or Forward meanwhile. */
+    const abandoned = () => {
+      if (!alive.current) return true;
+      if (!leaving.current && historyMoves.current === moves) return false;
+      finishOpening();
+      return true;
+    };
     try {
       const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
-      // Closed meanwhile (another page): never pull the visitor back into the editor.
-      if (!alive.current) return;
+      // Never pull a visitor who left back into the editor, or over a version they went to.
+      if (abandoned()) return;
       const state = snapshotLinkAfterImport(snapshot, ids);
       if (snapshotLinkTooLong(state)) {
         toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.tooLarge});
@@ -300,7 +326,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       // A change made just before Open list may still be on its way to the address: a push now
       // would cancel it.
       await untilWritten();
-      if (!alive.current) return;
+      if (abandoned()) return;
       const here = latest.current;
       const title = snapshot.list.title ?? '';
       if (here.pathname === snapshot.path && here.address === state) {

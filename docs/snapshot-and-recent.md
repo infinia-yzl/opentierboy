@@ -27,14 +27,15 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     waits until the previous add is in the address (TierContext's `writing`), so every add is
     its own Back step, however many files wait. Waiting files are not added when Back or
     Forward shows another version of the list, or while a list file is being asked about or
-    opened: a "Files not added" message names them. When the editor closes (another page),
-    waiting files are dropped quietly.
+    opened: a "Files not added" message names them. When the visitor leaves the editor (a click
+    on a link to another page), waiting files are dropped quietly, so no later add cancels that
+    navigation.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list goes to the list with one `router.push`. The dialog stays open, saying
     "Opening the list…", until the list is in the address: nothing can change the list
     meanwhile, so no later change cancels the navigation. It waits first for changes still on
-    their way to the address. Back or Forward during the round trip ends the opening, and
-    leaving the editor ends it without bringing the visitor back.
+    their way to the address. Back or Forward during the opening ends it, and leaving the editor
+    ends it without bringing the visitor back.
     The images go into the device store one call at a time with "From your device", with the
     same protection: nothing the list on screen shows, or that was just added, is removed to
     make room. An image this browser already holds under the file's own id is used as it is,
