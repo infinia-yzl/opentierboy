@@ -143,12 +143,12 @@ const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles}) => {
             <DropdownMenuItem onSelect={() => setIsLinkCreatorOpen(true)}>
               From a link
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+              Import a saved list from image files
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
-          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-            Load a saved list
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
+          <DropdownMenuItem onSelect={handleReset}>Reset rankings</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
                             className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
           >
