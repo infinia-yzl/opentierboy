@@ -269,6 +269,12 @@ export class TierListPage {
     );
   }
 
+  /** Drags an item with the mouse a little and drops it back where it started. The list stays as it was. */
+  async dragItemAndDropInPlace(itemName: string) {
+    await this.dragWithMouse(this.item(itemName), this.item(itemName), centerOfBox);
+    await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\. It stays in `));
+  }
+
   /** Drags a whole row by its handle and drops it on the position of another row. */
   async dragTierOnto(tierName: string, targetTierName: string) {
     await this.changeAndWaitForLink(() =>
@@ -361,13 +367,23 @@ export class TierListPage {
     await (waitForLink ? this.changeAndWaitForLink(move) : move());
   }
 
+  /**
+   * Moves an item with the keyboard and checks what screen readers hear after each arrow key:
+   * returns the announcements, the drop included.
+   */
+  async moveItemWithKeyboardAndListen(itemName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
+    return heard;
+  }
+
   /** Moves a whole row with the keyboard, using its row handle. */
   async moveTierWithKeyboard(tierName: string, keys: string[]) {
     // The labels stay in place, so the moved row's handle has the name of its new position.
     await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
   }
 
-  private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp) {
+  private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
     const keyboard = this.page.keyboard;
     // The editor announces every step to screen readers. Waiting for those announcements
     // keeps the test in step with the app without fixed sleeps.
@@ -380,14 +396,97 @@ export class TierListPage {
       const before = await this.dragAnnouncer.textContent();
       await keyboard.press(key);
       await expect(this.dragAnnouncer).not.toHaveText(before ?? '');
+      heard.push(await this.dragAnnouncer.textContent() ?? '');
     }
     await keyboard.press('Space');
     await expect(this.dragAnnouncer).toContainText('Dropped');
+    heard.push(await this.dragAnnouncer.textContent() ?? '');
     // The drop animates for about 300 ms; then focus goes back to the item or handle, and the
     // next action can start.
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
       message: 'focus should come back to what was moved',
     }).toMatch(typeof focusAfter === 'string' ? new RegExp(`^${escapeRegExp(focusAfter)}$`) : focusAfter);
+  }
+
+  // ---- Touch (Chromium only: touch events through the Chrome DevTools Protocol) --------------
+
+  /**
+   * Touches an item, holds it still, then drags it to the end of a tier and lifts the finger.
+   * The hold is in the event times (300 ms between touching and moving), so the test does not
+   * wait for it. The drag starts after a 250 ms hold (lib/dnd/activation.ts).
+   */
+  async touchDragItemToTier(itemName: string, tierName: string) {
+    await this.changeAndWaitForLink(async () => {
+      const touch = await this.touchscreen();
+      const item = this.item(itemName);
+      await item.scrollIntoViewIfNeeded();
+      const from = await centerOf(item);
+      const start = Date.now() / 1000;
+      await touch('touchStart', from, start);
+      // Still after the hold, then a few pixels: the drag starts.
+      await touch('touchMove', {x: from.x, y: from.y + 1}, start + 0.3);
+      await touch('touchMove', {x: from.x, y: from.y - 10}, start + 0.32);
+      await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(itemName)},`));
+      const box = await boxOf(this.tier(tierName));
+      const to = {x: box.x + box.width - 80, y: box.y + box.height / 2};
+      for (let step = 1; step <= 10; step++) {
+        await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
+        await this.scrollPositionAfterFrames(2);
+      }
+      await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
+      await touch('touchEnd', null, start + 0.7);
+    });
+  }
+
+  /**
+   * Touches an item and holds the finger still until its menu opens (a long press), then lifts
+   * the finger. Returns the menu.
+   */
+  async longPressItem(itemName: string): Promise<Locator> {
+    const touch = await this.touchscreen();
+    const item = this.item(itemName);
+    await item.scrollIntoViewIfNeeded();
+    await touch('touchStart', await centerOf(item));
+    const menu = this.page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', {name: 'Delete'})).toBeVisible();
+    await touch('touchEnd', null);
+    return menu;
+  }
+
+  /**
+   * A quick swipe up that starts on an item, as when scrolling the page: the finger moves at
+   * once, before any hold. Returns how far the page scrolled.
+   */
+  async swipeUpFromItem(itemName: string, distance: number): Promise<number> {
+    const touch = await this.touchscreen();
+    const item = this.item(itemName);
+    await item.scrollIntoViewIfNeeded();
+    const scrollBefore = await this.scrollPosition();
+    const from = await centerOf(item);
+    const start = Date.now() / 1000;
+    await touch('touchStart', from, start);
+    for (let step = 1; step <= 10; step++) {
+      await touch('touchMove', {x: from.x, y: from.y - distance * step / 10}, start + step * 0.01);
+    }
+    await touch('touchEnd', null, start + 0.12);
+    let scrolled = 0;
+    await expect.poll(async () => {
+      scrolled = (await this.scrollPosition()).y - scrollBefore.y;
+      return scrolled;
+    }, {message: 'the page should scroll'}).toBeGreaterThan(distance / 2);
+    return scrolled;
+  }
+
+  /** Sends touch events to the page (one finger), with optional event times in seconds. */
+  private async touchscreen() {
+    const cdp = await this.page.context().newCDPSession(this.page);
+    return async (type: 'touchStart' | 'touchMove' | 'touchEnd', point: Point | null, timestamp?: number) => {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: point ? [{x: point.x, y: point.y}] : [],
+        ...(timestamp !== undefined && {timestamp}),
+      });
+    };
   }
 
   /** The live region where the editor announces lifts, moves and drops (dnd-kit's Accessibility plugin). */
@@ -440,6 +539,47 @@ export class TierListPage {
   // ---- Row and label settings ------------------------------------------------------------
 
   /** Switches the row template. A new history entry, like any change to the list. */
+  /** Adds an empty row above Unranked, from the row options menu (#182). */
+  async addTierRow() {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitem', {name: 'Add a row'}).click();
+    });
+  }
+
+  /** Removes a ranked row from the row options menu (#182). Its items go to Unranked. */
+  async removeTierRow(tierName: string) {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitem', {name: 'Remove a row'}).click();
+      await this.page.getByRole('menu').getByRole('menuitem', {name: tierName, exact: true}).click();
+    });
+  }
+
+  /**
+   * What the row options menu offers: whether "Add a row" and "Remove a row" can be chosen, and
+   * the rows "Remove a row" lists. Closes the menu again.
+   */
+  async rowChanges(): Promise<{canAdd: boolean; canRemove: boolean; removable: string[]}> {
+    await this.rowOptionsButton.click();
+    const add = this.page.getByRole('menuitem', {name: 'Add a row'});
+    const remove = this.page.getByRole('menuitem', {name: 'Remove a row'});
+    await expect(add).toBeVisible();
+    const canAdd = await add.isEnabled();
+    const canRemove = await remove.isEnabled();
+    let removable: string[] = [];
+    if (canRemove) {
+      await remove.click();
+      const submenu = this.page.getByRole('menu').filter({hasNot: add});
+      await expect(submenu.getByRole('menuitem').first()).toBeVisible();
+      removable = await submenu.getByRole('menuitem').allTextContents();
+    }
+    await this.page.keyboard.press('Escape');
+    await this.page.keyboard.press('Escape');
+    await expect(add).toBeHidden();
+    return {canAdd, canRemove, removable};
+  }
+
   async chooseRowCount(count: RowCount) {
     await this.changeAndWaitForLink(async () => {
       await this.rowOptionsButton.click();
