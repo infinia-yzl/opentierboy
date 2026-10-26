@@ -122,16 +122,16 @@ drag the editor shows the list as it would be after the drop: rows and items mov
 way of the dragged one. The list itself changes only on the drop, with one history entry.
 
 - **Mouse.** `TierListPage.dragWithMouse` presses, moves a few pixels (a mouse drag starts
-  after 5 px) and waits for the lift announcement. A press while the previous drop still
-  animates (about 300 ms) starts no drag, so the helper presses again until the drag starts.
+  after 5 px) and waits for the lift announcement. After the drop it waits until the drop
+  animation (about 300 ms) ends: until then a press starts no drag and the drag library blocks
+  text selection on the page, so typing into a label would go nowhere.
 - **Where to aim.** Drops on a row (its free space, or the place of another row) measure the
   drop point once, before the drag starts: a row measured during the drag has already moved.
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
   it stays put: an item goes before or after the item under the pointer, by the half the
   pointer is over, so following the target settles.
 - **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
-  after each key, and after the drop for focus to come back to the item or row handle (the
-  drop animates first).
+  after each key, and after the drop for focus to come back to the item or row handle.
 - **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with
   `dnd-kit-announcement`). dnd-kit reads moves after 500 ms, so wait for the text.
 - **Touch.** `touchDragItemToTier`, `longPressItem` and `swipeUpFromItem` send touch events

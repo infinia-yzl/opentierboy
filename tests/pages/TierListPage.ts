@@ -341,6 +341,19 @@ export class TierListPage {
       }
     }).toPass({timeout: 15_000});
     await mouse.up();
+    await this.dropSettled();
+  }
+
+  /**
+   * Waits until a drop has finished animating (about 300 ms). Until then the drag library
+   * blocks text selection on the whole page (typing into a label right away goes nowhere) and
+   * a press starts no new drag.
+   */
+  private async dropSettled() {
+    await expect.poll(() => this.page.evaluate(() => document.getAnimations()
+      .filter((animation) => animation.playState === 'running' && animation.effect?.getTiming().iterations !== Infinity).length), {
+      message: 'the drop animation should end',
+    }).toBe(0);
   }
 
   private async scrollPosition(): Promise<Point> {
@@ -401,8 +414,7 @@ export class TierListPage {
     await keyboard.press('Space');
     await expect(this.dragAnnouncer).toContainText('Dropped');
     heard.push(await this.dragAnnouncer.textContent() ?? '');
-    // The drop animates for about 300 ms; then focus goes back to the item or handle, and the
-    // next action can start.
+    // Then focus goes back to the item or handle (in the next frame), and the next action can start.
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
       message: 'focus should come back to what was moved',
     }).toMatch(typeof focusAfter === 'string' ? new RegExp(`^${escapeRegExp(focusAfter)}$`) : focusAfter);
@@ -435,6 +447,7 @@ export class TierListPage {
       }
       await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
       await touch('touchEnd', null, start + 0.7);
+      await this.dropSettled();
     });
   }
 
