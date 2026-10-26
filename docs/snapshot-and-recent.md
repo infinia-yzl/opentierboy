@@ -19,8 +19,9 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   - All three take the same files as "From your device", through the same code: a PNG, JPEG,
     WebP or GIF picture by its first bytes is stored as it is (within the pixel caps), and any
     other file the browser calls an image (SVG, BMP) is drawn again and stored as a plain picture.
-    AVIF and HEIC files get the refusal of "From your device" ("AVIF and HEIC images cannot be
-    added yet...") and nothing is stored. Other files get the message "This file is not a
+    AVIF and HEIC files, by their type or by their bytes (a browser may give a .heic file no
+    type), get the refusal of "From your device" ("AVIF and HEIC images cannot be added
+    yet...") and nothing is stored. Other files get the message "This file is not a
     picture." Drops do nothing while a dialog, a menu or a list box is open. Files are handled
     one call at a time, in the order they arrive, so quick pastes each get added. Files that
     arrive while a list is being asked about or opened are ignored.

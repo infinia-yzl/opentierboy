@@ -17,7 +17,7 @@ import {useTierContext} from '@/contexts/TierContext';
 import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImagesContext';
 import {useAddItemsWithUndo} from '@/components/useAddItems';
 import {recordRecentLink} from '@/components/useRecentLinks';
-import {sniffImageType} from '@/lib/images/imageType';
+import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
 import {readSnapshotFile, SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot';
 import {imageBytesFromDataUrl} from '@/lib/snapshot/dataUrl';
@@ -43,10 +43,12 @@ type FileCheck =
 async function isPictureFile(file: File): Promise<boolean> {
   // The rule of "From your device" (prepareImageForStore): a raster picture by its bytes, or a
   // file the browser calls an image (SVG, BMP), which is drawn again before it is stored. AVIF
-  // and HEIC pass here and get prepareImageForStore's own refusal message.
+  // and HEIC pass here, also by their bytes alone (a browser may give a .heic file no type),
+  // and get prepareImageForStore's own refusal message.
   if (file.type.startsWith('image/')) return true;
   try {
-    return sniffImageType(new Uint8Array(await file.slice(0, 64).arrayBuffer())) !== null;
+    const head = new Uint8Array(await file.slice(0, 64).arrayBuffer());
+    return sniffImageType(head) !== null || isIsoMediaFile(head);
   } catch {
     return false;
   }

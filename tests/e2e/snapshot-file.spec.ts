@@ -399,6 +399,9 @@ test.describe('Opening other files', () => {
     await expect(tierList.toast('Some images could not be added').filter({hasText: 'photo'})).toContainText(AVIF_HEIC_REFUSAL);
     await tierList.openFile({name: 'picture.avif', mimeType: 'image/avif', buffer: isoMedia('avif')});
     await expect(tierList.toast('Some images could not be added').filter({hasText: 'picture'})).toContainText(AVIF_HEIC_REFUSAL);
+    // A browser may give a .heic file no type at all: its bytes decide.
+    await tierList.dropFile({name: 'IMG_0001.HEIC', mimeType: '', buffer: isoMedia('heic')});
+    await expect(tierList.toast('Some images could not be added').filter({hasText: 'IMG_0001'})).toContainText(AVIF_HEIC_REFUSAL);
 
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     expect(await tierList.deviceImageCount()).toBe(0);
