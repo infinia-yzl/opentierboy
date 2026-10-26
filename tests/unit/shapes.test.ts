@@ -10,8 +10,8 @@ import {buildPackageEntry, imageShape, SHAPES, tagShape} from '@/scripts/lib/ima
 /**
  * Tile shapes (square, landscape, portrait) travel from the image set packages through
  * scripts/prepareImages.js and imageset.config.json to the items TierCortex resolves. No
- * published set uses a non-square shape yet, so these tests use a made-up config. Tiles still
- * render square until the drag and drop update (revamp Phase 5e).
+ * published set uses a non-square shape yet, so these tests use a made-up config. Tiles render
+ * at their shape since the drag and drop update (revamp Phase 5e, lib/tileSize.ts).
  */
 
 const CONFIG = {
@@ -159,10 +159,11 @@ describe('scripts/prepareImages.js shapes (scripts/lib/image-sets.mjs)', () => {
   });
 });
 
-// Guard test: revamp Phase 5e removes this describe block when tiles render landscape and portrait shapes.
-describe('imageset.config.json before the drag and drop update', () => {
-  // Tiles and link previews draw every image as a square until revamp Phase 5e. Image sets
-  // must not publish other shapes before then (docs/setup-checklist.md).
+// Guard test. Tiles render landscape and portrait shapes since revamp Phase 5e, but link
+// previews (app/api/og) still draw every image as a square and crop it. Remove this block when
+// the owner lets image sets publish other shapes (docs/setup-checklist.md).
+describe('imageset.config.json while link previews draw squares', () => {
+  // Image sets must not publish other shapes until then (docs/setup-checklist.md).
   it('has only square images and categories', () => {
     const packages = (imagesetConfig as ImageSetConfig).packages;
     const shaped = Object.entries(packages).flatMap(([name, set]) => [

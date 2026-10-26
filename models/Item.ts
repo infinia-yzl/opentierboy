@@ -1,7 +1,7 @@
 /**
  * Tile shapes. An image set may declare a shape per image and per category (tag) in
- * imageset.config.json; anything without one is square. Tiles still render square until the
- * drag and drop update (revamp Phase 5e) adapts them to these shapes.
+ * imageset.config.json; anything without one is square. Tiles render at their shape
+ * (lib/tileSize.ts); link previews still draw every image as a square.
  */
 export const ITEM_SHAPES = ['square', 'landscape', 'portrait'] as const;
 export type ItemShape = typeof ITEM_SHAPES[number];

@@ -12,6 +12,7 @@ import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
 import {useDeviceImage, useLinkImage} from "@/contexts/CustomImagesContext";
 import {itemDisplayLabel} from "@/lib/images/listImages";
+import {tileSize} from "@/lib/tileSize";
 
 interface ItemTileProps extends Item {
   onDelete?: (id: string) => void;
@@ -24,6 +25,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   imageUrl,
   source,
   url,
+  shape,
   onDelete = () => {
   },
   showLabel = true,
@@ -40,6 +42,8 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const tileImageUrl = link ? undefined : device?.status === 'evicted' ? undefined : deviceSrc ?? imageUrl;
   const domain = link?.domain ?? '';
   const label = itemDisplayLabel(item);
+  // Tiles render at their shape (square, landscape or portrait), all with the same height.
+  const size = tileSize({shape});
 
   const [isZenMode, setIsZenMode] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -78,7 +82,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md"
+    <div className={`relative ${size.className} overflow-hidden rounded-md`}
          title={domain ? `Image from ${domain}` : undefined}>
       {linkSrc || tileImageUrl ? (
         <>
@@ -99,7 +103,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
                 src={tileImageUrl as string}
                 alt={label}
                 fill
-                sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
+                sizes={size.sizes}
                 style={{
                   objectFit: "contain"
                 }}
