@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {useRouter} from 'next/navigation';
+import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {toast} from 'sonner';
 import {
   AlertDialog,
@@ -92,10 +92,6 @@ function snapshotImages(snapshot: SnapshotToOpen): SnapshotDeviceImage[] {
   });
 }
 
-/** True when the address already shows this list: opening it again changes nothing. */
-function addressShows(path: string, state: string): boolean {
-  return window.location.pathname === path && stateParam(new URLSearchParams(window.location.search).get('state')) === state;
-}
 
 export interface UseSnapshotFiles {
   /**
@@ -117,22 +113,27 @@ export interface UseSnapshotFiles {
  *
  * Opening a snapshot asks first. Then its images are drawn again (A10) and stored in the device
  * store under content-addressed ids (the list's `{d}` items follow), and the editor goes to the
- * list with one router.push: the list on screen before stays one Back step away. Opening the same
- * file again stores nothing new, and when the address already shows the list nothing changes.
+ * list with one router.push: the list on screen before stays one Back step away. The dialog
+ * stays open ("Opening the list…") until the list is in the address. Opening the same file again
+ * stores nothing new, and when the address already shows the list nothing changes.
  */
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
+  const pathname = usePathname();
+  const address = stateParam(useSearchParams().get('state'));
   const {tiers, writing} = useTierContext();
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
+  /** True from Open list until the list is in the address (or the opening ends otherwise). */
+  const [opening, setOpening] = useState(false);
+  /** Where the opening list goes, and the address it leaves. */
+  const target = useRef<{path: string; state: string; from: string; title: string} | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
   /** True while the dialog asks about a list and while that list opens: files are ignored then. */
   const busy = useRef(false);
   /** Files are handled one call at a time, in the order they arrive. */
   const queue = useRef<Promise<void>>(Promise.resolve());
-  /** True from Open list until the list has opened. */
-  const openingRef = useRef(false);
   /** False once the editor has closed: waiting files are dropped, quietly. */
   const alive = useRef(true);
   /** Counts Back and Forward: files that waited across one are dropped. */
@@ -168,11 +169,11 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     });
   }, []);
 
-  // The handlers below run after awaits: read the latest list and helpers through refs.
-  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo});
+  // The handlers below run after awaits: read the latest list, address and helpers through refs.
+  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, pathname, address});
   useEffect(() => {
-    latest.current = {tiers, addDeviceImages, addItemsWithUndo};
-  }, [tiers, addDeviceImages, addItemsWithUndo]);
+    latest.current = {tiers, addDeviceImages, addItemsWithUndo, pathname, address};
+  }, [tiers, addDeviceImages, addItemsWithUndo, pathname, address]);
 
   /** Callers waiting until the address shows the list on screen. */
   const waiters = useRef<(() => void)[]>([]);
@@ -270,30 +271,73 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     }
   }, [addAsItems, notAdded]);
 
+  /** Ends the opening: the dialog closes, and files are handled again. */
+  const finishOpening = useCallback(() => {
+    target.current = null;
+    busy.current = false;
+    setOpening(false);
+    setPending(null);
+  }, []);
+
+  /**
+   * Opens a snapshot's list. The dialog stays open, saying "Opening the list…", until the address
+   * shows the list: nothing can change the list meanwhile, so no later change replaces the
+   * navigation (Next.js drops a navigation still loading when another starts).
+   */
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
-    const loading = toast.loading('Opening the list…');
+    setOpening(true);
     try {
       const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
+      // Closed meanwhile (another page): never pull the visitor back into the editor.
+      if (!alive.current) return;
       const state = snapshotLinkAfterImport(snapshot, ids);
       if (snapshotLinkTooLong(state)) {
         toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.tooLarge});
+        finishOpening();
         return;
       }
-      if (!addressShows(snapshot.path, state)) router.push(`${snapshot.path}?state=${state}`);
-      recordRecentLink({path: snapshot.path, state, title: snapshot.list.title ?? ''});
       if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-    } finally {
-      toast.dismiss(loading);
-      busy.current = false;
+      // A change made just before Open list may still be on its way to the address: a push now
+      // would cancel it.
+      await untilWritten();
+      if (!alive.current) return;
+      const here = latest.current;
+      const title = snapshot.list.title ?? '';
+      if (here.pathname === snapshot.path && here.address === state) {
+        // The address shows this list already: opening it again changes nothing.
+        recordRecentLink({path: snapshot.path, state, title});
+        finishOpening();
+        return;
+      }
+      target.current = {path: snapshot.path, state, from: `${here.pathname}?state=${here.address}`, title};
+      router.push(`${snapshot.path}?state=${state}`);
+    } catch {
+      if (!alive.current) return;
+      toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.damaged});
+      finishOpening();
     }
-  }, [importDeviceImages, router]);
+  }, [importDeviceImages, router, untilWritten, finishOpening]);
+
+  // The opening ends when the address shows the list: Recently viewed records it then (on
+  // another editor page, the new editor records it as a list opened fresh). It also ends when
+  // another address replaces the one it left (Back or Forward during the round trip).
+  useEffect(() => {
+    const opened = target.current;
+    if (!opened) return;
+    if (pathname === opened.path && address === opened.state) {
+      recordRecentLink({path: opened.path, state: opened.state, title: opened.title});
+      finishOpening();
+    } else if (`${pathname}?state=${address}` !== opened.from) {
+      finishOpening();
+    }
+  }, [pathname, address, finishOpening]);
 
   const dialog = (
     <AlertDialog open={pending !== null} onOpenChange={(open) => {
-      if (open) return;
+      // While the list opens, the dialog stays (Escape and Cancel do nothing).
+      if (open || opening) return;
       setPending(null);
-      // Cancel ends the wait here; Open list ends it when the list has opened (openPending).
-      if (!openingRef.current) busy.current = false;
+      busy.current = false;
     }}>
       <AlertDialogContent onCloseAutoFocus={(event) => {
         // The dialog has no trigger of its own: give focus back to the Open file button.
@@ -302,18 +346,20 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       }}>
         <AlertDialogHeader>
           <AlertDialogTitle>Open the list in this file?</AlertDialogTitle>
-          <AlertDialogDescription>Your current list stays one Back step away.</AlertDialogDescription>
+          <AlertDialogDescription aria-live="polite">
+            {opening ? 'Opening the list…' : 'Your current list stays one Back step away.'}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={() => {
-            if (!pending) return;
-            openingRef.current = true;
-            void openPending(pending).finally(() => {
-              openingRef.current = false;
-            });
+          {/* aria-disabled, not disabled: focus stays in the dialog while the list opens. */}
+          <AlertDialogCancel aria-disabled={opening}>Cancel</AlertDialogCancel>
+          <AlertDialogAction aria-disabled={opening} onClick={(event) => {
+            // The dialog closes once the list is in the address (finishOpening), not now.
+            event.preventDefault();
+            if (!pending || opening) return;
+            void openPending(pending);
           }}>
-            Open list
+            {opening ? 'Opening…' : 'Open list'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

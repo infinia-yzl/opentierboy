@@ -30,7 +30,11 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     opened: a "Files not added" message names them. When the editor closes (another page),
     waiting files are dropped quietly.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
-    away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
+    away." Open list goes to the list with one `router.push`. The dialog stays open, saying
+    "Opening the list…", until the list is in the address: nothing can change the list
+    meanwhile, so no later change cancels the navigation. It waits first for changes still on
+    their way to the address. Back or Forward during the round trip ends the opening, and
+    leaving the editor ends it without bringing the visitor back.
     The images go into the device store one call at a time with "From your device", with the
     same protection: nothing the list on screen shows, or that was just added, is removed to
     make room. An image this browser already holds under the file's own id is used as it is,
@@ -58,9 +62,9 @@ Two ways to keep lists on this device. Neither sends anything to a server.
 - **Recently viewed** on the landing page, below "Create a New Tier List", shows the lists this
   browser opened, pinned ones first, with pin, unpin and remove, and a one-line hint to use
   bookmarks. It is hidden while empty. The editor records a list when it opens with a link that
-  holds a list, and when a snapshot file opens. Edits, and Back and Forward inside the editor,
-  record nothing. A list
-  without its own title shows its page name, for example "OVERWATCH - Tank".
+  holds a list, and when a snapshot file's list arrives in the address. Edits, and Back and
+  Forward inside the editor, record nothing. A list without its own title shows its page name,
+  for example "OVERWATCH - Tank".
 
 ## Snapshot file
 

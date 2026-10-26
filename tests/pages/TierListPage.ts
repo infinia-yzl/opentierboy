@@ -693,17 +693,22 @@ export class TierListPage {
   }
 
   /**
-   * Confirms "Open the list in this file?" and waits until the list's link is in the address bar.
-   * With `newAddress: false` (the address already shows that list), it waits until the opening
-   * has finished instead.
+   * Confirms "Open the list in this file?" and waits until the list's link is in the address bar:
+   * the dialog says "Opening the list…" until then. With `newAddress: false` (the address already
+   * shows that list), it waits until the opening has finished instead.
    */
   async confirmOpenList({newAddress = true} = {}) {
     const before = this.page.url();
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
     await expect(this.openListDialog).toBeHidden();
     if (newAddress) await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
-    await expect(this.toast('Opening the list')).toHaveCount(0);
     await expect(this.tiers.first()).toBeVisible();
+  }
+
+  /** Clicks Open list and leaves the dialog to open the list (it says "Opening the list…"). */
+  async startOpeningList() {
+    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
+    await expect(this.openListDialog).toContainText('Opening the list…');
   }
 
   /**
