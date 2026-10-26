@@ -32,7 +32,11 @@ import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
 import {useAddItemsWithUndo} from "@/components/useAddItems";
 
-const ItemManager: React.FC = () => {
+interface ItemManagerProps {
+  onOpenFiles: (files: File[]) => void;
+}
+
+const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles}) => {
   const {tiers, tierCortex, resetRankings, removeAllItems, restoreTiers} = useTierContext();
   const addItemsWithUndo = useAddItemsWithUndo();
   const showGradientBorder = tiers.every(tier => tier.items.length === 0);
@@ -43,6 +47,7 @@ const ItemManager: React.FC = () => {
   // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
   const manageItemsButton = useRef<HTMLButtonElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
@@ -140,6 +145,9 @@ const ItemManager: React.FC = () => {
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+            Open saved list
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
                             className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
@@ -200,6 +208,17 @@ const ItemManager: React.FC = () => {
         onSelectItemSet={handleItemSetSelect}
         open={isItemSetSelectorOpen}
         onOpenChange={setIsItemSetSelectorOpen}
+      />
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          event.target.value = '';
+          if (files.length > 0) onOpenFiles(files);
+        }}
       />
     </>
   );

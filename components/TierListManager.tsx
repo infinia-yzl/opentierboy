@@ -7,7 +7,6 @@ import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
 import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
-import OpenFileButton from "@/components/OpenFileButton";
 import TierTemplateSelector from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
 import ItemManager from "@/components/ItemManager";
@@ -36,7 +35,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
+  const {openFiles, dialog: openListDialog} = useSnapshotFiles();
   usePasteImages(openFiles);
   useFileDrop(openFiles);
 
@@ -49,9 +48,8 @@ const TierListEditor: React.FC = () => {
       <div className="flex flex-col items-center hide-in-zen">
         <div className="flex space-x-2" id="settings" data-html2canvas-ignore>
           <TierTemplateSelector/>
-          <ItemManager/>
+          <ItemManager onOpenFiles={openFiles}/>
           <ShareButton title={title}/>
-          <OpenFileButton onFiles={openFiles} buttonRef={openFileButtonRef}/>
         </div>
         <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
