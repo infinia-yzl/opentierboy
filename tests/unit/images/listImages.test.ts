@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import type Item from '@/models/Item';
 import type Tier from '@/models/Tier';
 import {deviceImageKey, deviceImageKeys, hostsAwaitingConsent, isImageHostAllowed, itemDisplayLabel, linkImageOf, pastedImageLabel} from '@/lib/images/listImages';
-import {itemLabel} from '@/lib/dragAnnouncements';
+import {itemLabel} from '@/lib/dnd/labels';
 
 const isPackageItem = (id: string) => id.startsWith('image-overwatch-');
 const tier = (id: string, items: Item[]): Tier => ({id, name: id, items});
@@ -69,7 +69,8 @@ describe('itemDisplayLabel', () => {
   });
 
   it('names link images without a label by their site in drag announcements', () => {
-    expect(itemLabel(link('https://images.example.org/a.png', ''))).toBe('images.example.org');
+    // The editor hands lib/dnd the display label of each item (components/DragDropTierList.tsx).
+    expect(itemLabel({content: itemDisplayLabel(link('https://images.example.org/a.png', ''))})).toBe('images.example.org');
     expect(itemLabel({content: ''})).toBe('Unnamed item');
   });
 });
