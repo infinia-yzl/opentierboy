@@ -4,6 +4,7 @@ import type {LabelPosition} from "@/models/Tier";
 import type {ItemSet} from "@/models/ItemSet";
 import type {TierCortex} from "@/lib/TierCortex";
 import type {ListLayout} from "@/lib/listLink";
+import {moveItem, reorderRows} from "@/lib/dnd/moves";
 
 /**
  * The tier list editor's state and every change to it, as a pure reducer (no React, no
@@ -229,7 +230,9 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
       case 'itemMoved':
         return edit(state, moveItem(state.tiers, action.from, action.to));
       case 'tierMoved':
-        return edit(state, moveTier(state.tiers, action.from, action.to));
+        // Tier labels describe positions (product rule 6): the contents and the tier id move,
+        // the names stay in place from top to bottom.
+        return edit(state, reorderRows(state.tiers, action.from, action.to));
       case 'tierRenamed':
         return edit(state, state.tiers.map((tier, index) => (index === action.index ? {...tier, name: action.name} : tier)));
       case 'itemDeleted':
@@ -273,44 +276,6 @@ export function findItemToDelete(tiers: Tier[], itemId: string): {item: Item; ti
     if (item) return {item, tierId: tiers[index].id};
   }
   return null;
-}
-
-function reorder<T>(list: readonly T[], startIndex: number, endIndex: number): T[] {
-  const result = Array.from(list);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
-  return result;
-}
-
-/** Moves an item within its tier or into another tier (a drop of drag and drop). */
-function moveItem(tiers: Tier[], from: ItemPosition, to: ItemPosition): Tier[] {
-  const sourceIndex = tiers.findIndex(tier => tier.id === from.tierId);
-  const destinationIndex = tiers.findIndex(tier => tier.id === to.tierId);
-  if (sourceIndex === -1 || destinationIndex === -1) return tiers;
-  const source = tiers[sourceIndex];
-  if (from.index < 0 || from.index >= source.items.length) return tiers;
-
-  if (sourceIndex === destinationIndex) {
-    const items = reorder(source.items, from.index, to.index);
-    return tiers.map((tier, index) => (index === sourceIndex ? {...tier, items} : tier));
-  }
-  const sourceItems = [...source.items];
-  const [moved] = sourceItems.splice(from.index, 1);
-  const destinationItems = [...tiers[destinationIndex].items];
-  destinationItems.splice(to.index, 0, moved);
-  return tiers.map((tier, index) => {
-    if (index === sourceIndex) return {...tier, items: sourceItems};
-    if (index === destinationIndex) return {...tier, items: destinationItems};
-    return tier;
-  });
-}
-
-/**
- * Moves a row. Tier labels describe positions (product rule 6): the contents and the tier id
- * move, the names stay in place from top to bottom.
- */
-function moveTier(tiers: Tier[], from: number, to: number): Tier[] {
-  return reorder(tiers, from, to).map((tier, index) => ({...tier, name: tiers[index].name}));
 }
 
 /** Removes the item from every tier that holds it (its first place in each). */
