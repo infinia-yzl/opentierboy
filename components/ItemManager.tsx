@@ -146,7 +146,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles}) => {
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
           <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
-            Open saved list
+            Load a saved list
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
