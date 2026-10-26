@@ -16,6 +16,7 @@ import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import {
   accessibilityIds,
   activationConstraintsFor,
+  chooseDropAnimation,
   createAnnouncements,
   createPlugins,
   createPointerSensor,
@@ -233,6 +234,11 @@ describe('plugins', () => {
       expect(manager.registry.plugins.get(Accessibility)).toBeDefined();
       expect(manager.registry.plugins.get(Feedback)?.options).toEqual({dropAnimation: DROP_ANIMATION});
       expect(manager.registry.sensors.get(PointerSensor)?.options?.activationConstraints).toBeTypeOf('function');
+      // Keyboard drags drop without the animation; pointer drags use DROP_ANIMATION.
+      chooseDropAnimation(manager, true);
+      expect(manager.registry.plugins.get(Feedback)?.dropAnimation).toBeTypeOf('function');
+      chooseDropAnimation(manager, false);
+      expect(manager.registry.plugins.get(Feedback)?.dropAnimation).toBeUndefined();
     } finally {
       manager.destroy();
     }

@@ -15,6 +15,7 @@ import {
 import {useSortable} from '@dnd-kit/react/sortable';
 import {
   accessibilityIds,
+  chooseDropAnimation,
   createAnnouncements,
   createPlugins,
   createSensors,
@@ -111,6 +112,12 @@ type SessionProps<T extends TierLike> = Pick<TierDragDropProps<T>, 'tiers' | 'on
 function createDragSession<T extends TierLike>(id: string) {
   let props: SessionProps<T> = {tiers: [], onItemMove: () => {}, onRowMove: () => {}};
   let drag: Drag<T> | null = null;
+  /**
+   * True from the start of a drag to its end. `drag` and `latest` stay after the end for the
+   * drop announcement, but events that arrive after the end (a last pointer move) must not
+   * bring a preview back.
+   */
+  let active = false;
   /** The newest preview. */
   let latest: T[] | null = null;
   /** The preview the page shows. Keyboard moves measure the page, so they wait until it is drawn. */
@@ -126,7 +133,7 @@ function createDragSession<T extends TierLike>(id: string) {
   const project = (type: 'over' | 'move', event: DragOverEvent | DragMoveEvent, manager: DragDropManager): Projection<T> | undefined => {
     const cached = projections.get(event);
     if (cached) return cached;
-    if (!drag || event.operation.source?.id !== drag.dndId) return undefined;
+    if (!active || !drag || event.operation.source?.id !== drag.dndId) return undefined;
     const before = latest ?? drag.tiers;
     let next = before;
     if (!drag.keyboard && (type === 'over' || drag.kind === 'item')) {
@@ -171,10 +178,12 @@ function createDragSession<T extends TierLike>(id: string) {
       if (parsed?.kind !== 'item' && parsed?.kind !== 'row') return null;
       const keyboard = isKeyboardDrag(manager);
       drag = {kind: parsed.kind, id: parsed.id, dndId: String(event.operation.source?.id), tiers: props.tiers, keyboard};
+      active = true;
       latest = drawn = props.tiers;
       keyboardMoveManager = null;
       stopAutoScrollPause();
       if (keyboard) resumeAutoScroll = pauseAutoScroll(manager);
+      chooseDropAnimation(manager, keyboard);
       return {kind: parsed.kind, id: parsed.id, preview: props.tiers};
     },
     /** A pointer drag moves over something: the new preview, or null when nothing changes. */
@@ -189,7 +198,7 @@ function createDragSession<T extends TierLike>(id: string) {
      * nothing changes.
      */
     move(event: DragMoveEvent, manager: DragDropManager): T[] | null {
-      if (!drag) return null;
+      if (!active || !drag) return null;
       if (drag.keyboard) {
         if (!keyboardDirection(event)) return null;
         // The adapter decides where an arrow key goes; dnd-kit's own small step must not happen.
@@ -213,6 +222,7 @@ function createDragSession<T extends TierLike>(id: string) {
         }
       }
       // `drag` and `latest` stay until the next drag: the drop announcement may read them after this.
+      active = false;
       keyboardMoveManager = null;
       stopAutoScrollPause();
     },

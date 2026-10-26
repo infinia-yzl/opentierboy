@@ -258,10 +258,13 @@ Decisions in the adapter:
   also stops the drag. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as
   before. These numbers are constants in `activation.ts` for a test on a real phone. Items and
   row handles turn off text selection and the iOS touch callout (CSS).
-- **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before.
-  dnd-kit skips it when the user prefers reduced motion. After a keyboard drop, focus goes
-  back to the item or row handle once the animation ends. A press during the animation starts
-  no drag (dnd-kit waits for the drop to finish). Auto-scroll is dnd-kit's default.
+- **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before, for
+  pointer drops. dnd-kit skips it when the user prefers reduced motion. Keyboard drops have no
+  animation (each arrow key already put the element on its place), so focus comes back to the
+  item or row handle at once; with the animation it came back 300 ms later and could pull
+  focus out of a dialog opened in the meantime. During a pointer drop's animation a press
+  starts no drag and dnd-kit still blocks text selection. Events that arrive after the drop
+  never bring a preview back. Auto-scroll is dnd-kit's default.
 - **Manual tiers (#182).** `addTier` puts a new empty row just above Unranked (or at a given
   position, never below Unranked), with a fresh id (`tier-1`, `tier-2`...; the template ids use
   letters) and Unranked's label position. The editor labels it "Tier <its row number>", so the

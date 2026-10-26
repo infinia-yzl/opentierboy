@@ -8,6 +8,7 @@ import {
   Scroller,
   type DragDropManager,
   type DragEndEvent,
+  type DropAnimation,
   type DropAnimationOptions,
 } from '@dnd-kit/dom';
 import {DOMRectangle, isKeyboardEvent, scrollIntoViewIfNeeded} from '@dnd-kit/dom/utilities';
@@ -221,6 +222,20 @@ export function createPlugins(announcements: Announcements, {id}: {id?: string} 
     }),
     configure(Feedback, {dropAnimation: DROP_ANIMATION}),
   ];
+}
+
+/** A drop with no animation: dnd-kit then gives focus back in the next frame. */
+const INSTANT_DROP: DropAnimation = () => {};
+
+/**
+ * A keyboard drag drops without the animation: each arrow key already put the dragged element
+ * on its new place, and focus comes back to it at once. With the animation, focus came back
+ * 300 ms later and could pull it out of a dialog opened in the meantime. Pointer drags keep
+ * DROP_ANIMATION. Call when a drag starts.
+ */
+export function chooseDropAnimation(manager: DragDropManager, keyboard: boolean): void {
+  const feedback = manager.registry.plugins.get(Feedback);
+  if (feedback) feedback.dropAnimation = keyboard ? INSTANT_DROP : undefined;
 }
 
 /** True while the drag in progress was started with the keyboard. */
