@@ -25,8 +25,10 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     picture." Drops do nothing while a dialog, a menu or a list box is open. Files are handled
     one call at a time, in the order they arrive, so quick pastes each get added. The next file
     waits until the previous add is in the address (TierContext's `writing`), so every add is
-    its own Back step, however many files wait. Files that
-    arrive while a list is being asked about or opened are ignored.
+    its own Back step, however many files wait. Waiting files are not added when Back or
+    Forward shows another version of the list, or while a list file is being asked about or
+    opened: a "Files not added" message names them. When the editor closes (another page),
+    waiting files are dropped quietly.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list shows "Opening the list…" and goes to the list with one `router.push`.
     The images go into the device store one call at a time with "From your device", with the

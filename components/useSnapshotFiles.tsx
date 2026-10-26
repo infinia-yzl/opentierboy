@@ -34,6 +34,13 @@ import {stateParam} from '@/lib/tierListReducer';
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const NOT_A_PICTURE = 'This file is not a picture.';
 
+/** Why waiting files were not added (the "Files not added" message). */
+const NOT_ADDED = {
+  history: 'You went Back or Forward before they were added:',
+  list: 'A list file was being opened, so they were not added:',
+} as const;
+type NotAddedReason = keyof typeof NOT_ADDED;
+
 type FileCheck =
   | {kind: 'snapshot'; snapshot: SnapshotToOpen}
   | {kind: 'image'}
@@ -93,9 +100,10 @@ function addressShows(path: string, state: string): boolean {
 export interface UseSnapshotFiles {
   /**
    * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
-   * asks whether to open the list; pictures become items; other files show a message. Files that
-   * arrive while a list is being asked about or opened are ignored; others wait their turn, each
-   * until the previous add is in the address.
+   * asks whether to open the list; pictures become items; other files show a message. Files wait
+   * their turn, each until the previous add is in the address. Files that wait while a list is
+   * being asked about or opened, or across Back or Forward, are not added ("Files not added");
+   * when the editor closes, waiting files are dropped quietly.
    */
   openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
@@ -125,6 +133,40 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const queue = useRef<Promise<void>>(Promise.resolve());
   /** True from Open list until the list has opened. */
   const openingRef = useRef(false);
+  /** False once the editor has closed: waiting files are dropped, quietly. */
+  const alive = useRef(true);
+  /** Counts Back and Forward: files that waited across one are dropped. */
+  const historyMoves = useRef(0);
+  /** The names in each "Files not added" message on screen. */
+  const notAddedNames = useRef<Record<NotAddedReason, string[]>>({history: [], list: []});
+
+  useEffect(() => {
+    alive.current = true;
+    // Next.js moves through history with pushState; only Back and Forward fire popstate.
+    const onHistoryMove = () => {
+      historyMoves.current += 1;
+    };
+    window.addEventListener('popstate', onHistoryMove);
+    return () => {
+      alive.current = false;
+      window.removeEventListener('popstate', onHistoryMove);
+    };
+  }, []);
+
+  /** Says which waiting files were not added, and why: one message per reason, growing. */
+  const notAdded = useCallback((files: File[], reason: NotAddedReason) => {
+    const names = notAddedNames.current[reason];
+    names.push(...files.map((file) => file.name));
+    const clear = () => {
+      notAddedNames.current[reason] = [];
+    };
+    toast('Files not added', {
+      id: `files-not-added-${reason}`,
+      description: `${NOT_ADDED[reason]} ${names.join(', ')}.`,
+      onDismiss: clear,
+      onAutoClose: clear,
+    });
+  }, []);
 
   // The handlers below run after awaits: read the latest list and helpers through refs.
   const latest = useRef({tiers, addDeviceImages, addItemsWithUndo});
@@ -153,7 +195,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     setWaitTick((tick) => tick + 1);
   }), []);
 
-  const addAsItems = useCallback(async (files: File[]) => {
+  const addAsItems = useCallback(async (files: File[], moves: number) => {
     const {tiers: current, addDeviceImages: add} = latest.current;
     const taken = new Set(current.flatMap((tier) => tier.items.map((item) => item.content)));
     const images = files.map((file) => {
@@ -162,6 +204,12 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       return {blob: file, label};
     });
     const {items, errors} = await add(images);
+    if (!alive.current) return;
+    // Back or Forward while the images were stored: the list on screen is another version now.
+    if (historyMoves.current !== moves) {
+      notAdded(files, 'history');
+      return;
+    }
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
     if (items.length === 0) return;
     // The list may have changed while the images were stored: add them to the latest one.
@@ -169,18 +217,34 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     // The next file waits until this change is in the address: each add is its own Back step
     // (product rule 2), however many files wait.
     await untilWritten();
-  }, [untilWritten]);
+  }, [untilWritten, notAdded]);
 
   const openFiles = useCallback((files: File[]) => {
-    if (files.length === 0 || busy.current) return;
+    if (files.length === 0 || !alive.current) return;
+    if (busy.current) {
+      notAdded(files, 'list');
+      return;
+    }
     // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
+    const moves = historyMoves.current;
     const run = queue.current.then(() => openNow(files));
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
+      // The editor closed, or Back or Forward showed another version while these files waited:
+      // they are not added (the version they were meant for is not on screen).
+      if (!alive.current) return;
+      if (historyMoves.current !== moves) {
+        notAdded(files, 'history');
+        return;
+      }
       // A list was found in an earlier file and is being asked about or opened.
-      if (busy.current) return;
+      if (busy.current) {
+        notAdded(files, 'list');
+        return;
+      }
       const checks = await Promise.all(files.map(isPictureFile));
+      if (!alive.current) return;
       const pictures = files.filter((_, index) => checks[index]);
       const refused = files.filter((_, index) => !checks[index]);
       if (refused.length > 0) {
@@ -191,6 +255,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       if (pictures.length === 0) return;
       if (pictures.length === 1) {
         const check = await checkFile(pictures[0]);
+        if (!alive.current) return;
         if (check.kind === 'snapshot') {
           busy.current = true;
           setPending(check.snapshot);
@@ -201,9 +266,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
           return;
         }
       }
-      await addAsItems(pictures);
+      await addAsItems(pictures, moves);
     }
-  }, [addAsItems]);
+  }, [addAsItems, notAdded]);
 
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     const loading = toast.loading('Opening the list…');
