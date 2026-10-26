@@ -1,11 +1,8 @@
 # Drag and drop: the dnd-kit fork and lib/dnd
 
-OpenTierBoy is moving its drag and drop from `@hello-pangea/dnd` to dnd-kit. `@hello-pangea/dnd`
-cannot handle rows that wrap onto several lines (#142). This document covers the copy of
-dnd-kit in `packages/dnd-kit` and the adapter in `lib/dnd`.
-
-The app does not use either yet. The editor still runs on `@hello-pangea/dnd`. A later step
-("wiring", see the checklist at the end) switches it over.
+The editor's drag and drop runs on dnd-kit. It replaced `@hello-pangea/dnd`, which cannot
+handle rows that wrap onto several lines (#142). This document covers the copy of dnd-kit in
+`packages/dnd-kit` and the adapter in `lib/dnd`, which is the only code that uses it.
 
 ## What is vendored, and why
 
@@ -69,10 +66,9 @@ matching such a range, npm quietly installs a second copy from the registry. Two
   each package to its folder and has no other `@dnd-kit` copy, there is one
   `@preact/signals-core`, every internal range matches, and the built entry files exist.
 
-**Dependabot:** it may propose a registry update for `@dnd-kit/*` (for example 0.5.2), which
-would replace the link with a registry copy. Close such pull requests, and update through
-"Updating from upstream" below. Adding `@dnd-kit/*` to the `ignore` list in
-`.github/dependabot.yml` stops them (an owner decision).
+**Dependabot:** a registry update for `@dnd-kit/*` (for example 0.5.2) would replace the link
+with a registry copy. `.github/dependabot.yml` ignores `@dnd-kit/*` (an owner decision), so
+Dependabot proposes none. Update through "Updating from upstream" below.
 
 ## Building
 
@@ -185,7 +181,7 @@ Upstream details worth knowing:
   bundles a copy of `move()` into `sortable.js`. `build.mjs` therefore orders builds by the
   imports in `src/` as well as by `dependencies`.
 - tsup drops the `"use client"` lines from the `@dnd-kit/react` output (a warning during the
-  build). The npm release has the same output, so the wiring step marks its own components
+  build). The npm release has the same output, so `lib/dnd/react.tsx` marks itself
   `'use client'`.
 
 ## lib/dnd: the adapter
@@ -195,95 +191,139 @@ Upstream details worth knowing:
 tests in `tests/unit/dnd/` may import `@dnd-kit/*`. Every `no-restricted-imports` setting in
 `eslint.config.mjs` comes from `restrictImports()`, which always adds the rules that apply
 everywhere (IndexedDB, zod, dnd-kit), so a later config block cannot drop the dnd-kit pattern.
-`tests/unit/lint/dnd-kit-imports.test.ts` checks it. Inside `lib/dnd`, only `dndKit.ts`
-imports dnd-kit; the other files are pure functions (no React, no DOM), checked by
+`tests/unit/lint/dnd-kit-imports.test.ts` checks it. Inside `lib/dnd`, only `dndKit.ts` and
+`react.tsx` import dnd-kit; the other files are pure functions (no React, no DOM), checked by
 `tests/unit/dnd/purity.test.ts`.
 
 | File | What it does |
 | --- | --- |
 | `model.ts` | Types: `ItemPosition`, `ItemMove`, `RowMove`, `Direction` |
 | `moves.ts` | `moveItem`, `reorderRows`, `addTier`, `removeTier`, `findItem`, limits |
-| `sortable.ts` | Read a finished dnd-kit drag (`source`) as an `ItemMove` or `RowMove` |
+| `preview.ts` | The list as a drag shows it, and the move it makes on drop |
 | `keyboard.ts` | Arrow key targets in wrapping rows with mixed tile shapes |
 | `labels.ts` | Row and item names ("tier S", "Unranked", "Tier 3") |
 | `announcements.ts` | Screen reader texts and instructions |
-| `activation.ts` | When a press becomes a drag (mouse, touch hold, long-press menu) |
+| `activation.ts` | When a press becomes a drag (mouse, touch hold, long-press menu): rules and a reducer |
 | `ids.ts` | The ids dnd-kit sees: `item:<id>`, `row:<tier id>`, `tier:<tier id>` |
-| `dndKit.ts` | dnd-kit sensors, activation constraint and plugins built from the above |
+| `dndKit.ts` | dnd-kit sensors, activation constraint, plugins and page measurements |
+| `react.tsx` | The React components and hooks the editor uses (client module) |
+
+`lib/tierListReducer.ts` (the editor store) applies the moves with `moveItem`, `reorderRows`,
+`addTier` and `removeTier` from `moves.ts`, so the editor has one implementation of each.
+
+**The one class (A47).** Our code has no classes (CLAUDE.md, "Code conventions"), with one
+exception: `HoldThenMoveConstraint` in `dndKit.ts`. dnd-kit's `ActivationConstraint` API needs
+a subclass: sensors call its methods, and the base class keeps its controller in a private
+class field that only a real subclass has. The gesture itself is the pure reducer
+`holdThenMoveReducer` in `activation.ts`; the class only feeds it pointer events.
+`ALLOWED_CLASS_FILES` in `eslint.config.mjs` lists `lib/dnd/dndKit.ts`, and
+`tests/unit/lint/no-classes.test.ts` checks that it is the only class there and that no other
+lib/dnd file may declare one.
 
 Decisions in the adapter:
 
 - **History stays the undo.** The list changes only on drop: one `moveItem` or `reorderRows`,
-  one `router.push`. During a drag, dnd-kit moves the elements in the page (optimistic
-  sorting) and the list stays as it was. The move functions return the input array itself
-  when nothing changes, so a drop where the drag started adds no history entry.
-- **Labels stay in place.** `reorderRows` moves a row's contents (items, id and every other
-  field) and leaves each label at its position, exactly like the editor today, Unranked row
-  included.
+  one `router.push`. During a drag the editor renders a preview (`preview.ts`): a copy of the
+  list that follows the pointer or the arrow keys. React draws every change; dnd-kit's
+  optimistic sorting, which moves elements behind React's back (and breaks when an item moves
+  to another row), is not used. On drop, `itemMoveFromPreview` or `rowMoveFromPreview` gives
+  the one move from the list to the preview, or nothing when the item or row ends where it
+  started, so such a drop adds no history entry.
+- **Where an item goes.** Over another item, the dragged item goes just before it or just
+  after it, by the half of that item under the pointer, in its own row as in another one.
+  Over the free space of another row (or an empty row), it goes to the end of that row. The
+  place depends only on where the pointer is, so with tiles of different widths the preview
+  settles instead of flipping back and forth. A pointer drag released over nothing that takes
+  it (outside the rows) changes nothing, as before.
+- **Rows** take the place of the row they move onto, with their label while dragging. On drop
+  `reorderRows` moves the contents (items, id and every other field) and leaves each label at
+  its position, exactly as before, Unranked row included (product rule 6).
 - **Keyboard.** Left and Right follow reading order across wrapped lines. Up and Down go to
   the nearest line above or below, keeping the horizontal place; inside a wrapping row the
   function replays the wrapping, so tiles of mixed shapes cannot pull the item back onto its
-  old line. Rows move one place per key press.
-- **Announcements** name rows and items by their labels, never by ids. The list the texts use
-  is the one from the start of the drag.
+  old line. Rows move one place per key press. dnd-kit's `SortableKeyboardPlugin` is not used:
+  `react.tsx` listens to the keyboard moves, measures the rows (`measureRows`), asks
+  `keyboardItemTarget` or `keyboardRowTarget`, draws the new preview, and then moves the
+  dragged element onto its new place. Auto-scroll is off during keyboard drags; the move
+  scrolls the new place into view.
+- **Announcements** name rows and items by their labels, never by ids (the editor hands in
+  each item's display label, so a link image without a label is named by its site). They
+  count positions in the list from the start of the drag and name the place the preview
+  shows after the event, so a move is announced as the screen shows it. A pointer drag
+  released over nothing is announced as cancelled. dnd-kit waits 500 ms before it reads a
+  move, so quick moves are read once.
 - **Touch.** Hold an item still for 250 ms, then move to drag. Moving earlier scrolls the
   page. Holding still for 700 ms opens the item menu (Radix ContextMenu: Delete) and then no
-  drag starts. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as today.
-  These numbers are constants in `activation.ts` for a test on a real phone.
-- **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's current values.
-  dnd-kit skips it when the user prefers reduced motion. Auto-scroll is dnd-kit's default.
+  drag starts; a browser that opens a context menu earlier on a long press (Chrome on Android)
+  also stops the drag. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as
+  before. These numbers are constants in `activation.ts` for a test on a real phone. Items and
+  row handles turn off text selection and the iOS touch callout (CSS).
+- **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before.
+  dnd-kit skips it when the user prefers reduced motion. After a keyboard drop, focus goes
+  back to the item or row handle once the animation ends. A press during the animation starts
+  no drag (dnd-kit waits for the drop to finish). Auto-scroll is dnd-kit's default.
 - **Manual tiers (#182).** `addTier` puts a new empty row just above Unranked (or at a given
   position, never below Unranked), with a fresh id (`tier-1`, `tier-2`...; the template ids use
-  letters) and Unranked's label position. `removeTier` moves the row's items to the end of
-  Unranked; Unranked cannot be removed, and one ranked row always stays. At most
+  letters) and Unranked's label position. The editor labels it "Tier <its row number>", so the
+  label shows and can be clicked to rename it. `removeTier` moves the row's items to the end
+  of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
-  exceed the row cap of the link decoder.
-- **Mixed tile shapes** need no settings: dnd-kit and the keyboard code work from measured
-  boxes.
+  exceed the row cap of the link decoder (`tests/unit/dnd/listIds.test.ts` checks it). The
+  row options menu offers "Add a row" and "Remove a row" (a submenu of the ranked rows), each
+  one history entry.
+- **Mixed tile shapes.** Tiles render at their shape with one height (`lib/tileSize.ts`), and
+  dnd-kit and the keyboard code work from measured boxes.
 
-### Planned React API (wiring step)
+### React API
 
-These do not exist yet. They wrap `@dnd-kit/react` inside `lib/dnd`, so components never
-import dnd-kit:
+`lib/dnd/react.tsx` wraps `@dnd-kit/react`, so components never import dnd-kit:
 
-```ts
-// Around the rows. Calls DragDropProvider with createSensors() and createPlugins(getTiers);
-// onDragEnd reads the source with itemMoveFromSortable / rowMoveFromSortable, applies
-// moveItem / reorderRows, and calls onTiersChange only when the list changed.
-<TierDragDrop tiers={tiers} onTiersChange={onTiersUpdate}>...</TierDragDrop>
+```tsx
+// Around the rows. children receives the tiers to show: the list, or the preview during a
+// drag. onItemMove and onRowMove are called once per drop, and only when something moved.
+<TierDragDrop tiers={tiers} onItemMove={move => ...} onRowMove={move => ...} itemLabel={item => ...}>
+  {(shownTiers) => shownTiers.map((tier, index) => <Row key={tier.id} .../>)}
+</TierDragDrop>
 
-// A row: useSortable({id: rowDndId(tierId), index, group: ROWS_GROUP, type: 'row', accept: 'row'}).
+// A row, sortable by its handle: ref on the row, handleRef on the handle.
 useTierRow({tierId, index}): {ref, handleRef, isDragging}
 
-// The item area of a row, for drops on empty space and empty rows:
-// useDroppable({id: tierItemsDndId(tierId), accept: 'item'}) with a low collision priority.
+// The item area of a row: takes items over its free space and over an empty row
+// (low collision priority). isDropTarget: the dragged item would land in this row.
 useTierItems({tierId}): {ref, isDropTarget}
 
-// An item: useSortable({id: itemDndId(itemId), index, group: tierItemsDndId(tierId),
-// type: 'item', accept: 'item'}), with a keyboard plugin that uses keyboardItemTarget.
-useTierItem({itemId, tierId, index}): {ref, isDragging, isDropping}
+// An item tile, sortable inside and between rows. describedBy: the keyboard instructions,
+// for aria-describedby.
+useTierItem({itemId, tierId, index}): {ref, isDragging, isDropping, describedBy}
+
+// describedBy for row handles, and rowDrag (true during a row drag).
+useTierDragState(): {describedBy, rowDrag}
 ```
 
-### Wiring checklist
+`components/DragDropTierList.tsx` and `components/RowHandle.tsx` use these. They keep the
+accessible names: a row is a `group` named by its label, an item a `button` named by its
+label, a handle a `button` named `Move tier <label>`. dnd-kit adds `aria-roledescription`
+and `aria-pressed`; the editor sets `role`, `tabIndex` and `aria-describedby` itself, so the
+server-rendered page has them too.
 
-- Replace `@hello-pangea/dnd` in `components/DragDropTierList.tsx` and `components/RowHandle.tsx`
-  with the hooks above; remove the dependency.
-- Write the keyboard plugin: on a keyboard move, measure the rows (item boxes and the item
-  area's content width), call `keyboardItemTarget`, and move the sortable there. Use it in
-  place of dnd-kit's `SortableKeyboardPlugin` for items; rows use `keyboardRowTarget`.
-- Check that the `dragover` announcement reads the position after optimistic sorting.
-- Keep the accessible names the tests use: row `group` named by `tierLabel`, item `button`
-  named by its label, handle `Move tier <label>`. dnd-kit adds `aria-roledescription`,
-  `aria-describedby` and `aria-pressed`.
-- On touch: check that the item menu (long press, Delete) and hold-to-drag both work, and that
-  iOS shows no text selection or callout on a long press.
-- Update only the drag methods in `tests/pages/TierListPage.ts` (the live region and its texts
-  change), then add end-to-end tests for inserting into a wrapping row, mixed shapes,
-  add/remove tier and touch with the long-press menu.
-- Measure dragging with 200 tiles (a trace).
-- Add a unit test that `MAX_TIER_ROWS <= V3_LIMITS.maxRows` (the row cap of the v3 link
-  decoder from 5b), so a list with added rows always fits in a link.
-- The moves assume unique tier ids and unique item ids. 5a makes duplicate tier ids unique in
-  TierCortex (A38) and drops duplicate item ids (A32); check both still hold where the editor
-  hands its list to `lib/dnd`.
-- Update `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop section).
+### Wiring checklist (done)
+
+- [x] `@hello-pangea/dnd` replaced in `components/DragDropTierList.tsx` and
+  `components/RowHandle.tsx`; the dependency is removed.
+- [x] Keyboard moves with `keyboardItemTarget` for items and `keyboardRowTarget` for rows, in
+  place of dnd-kit's `SortableKeyboardPlugin`.
+- [x] The `dragover` announcement reads the position after the move (the preview), as the
+  screen shows it.
+- [x] Accessible names kept (row `group`, item `button`, handle `Move tier <label>`).
+- [x] Touch: hold-to-drag and the long-press menu (Delete) both work; no text selection or
+  callout on a long press (CSS); a swipe that starts on an item scrolls the page. Tested in
+  Chromium's phone emulation; a real phone is still to be tried.
+- [x] Only the drag methods of `tests/pages/TierListPage.ts` changed, plus new methods for the
+  new tests: `tests/e2e/drag-and-drop.spec.ts` (wrapping rows, drops that change nothing,
+  announcements, touch), `tests/e2e/tier-rows.spec.ts` (add and remove rows) and
+  `tests/e2e/tile-shapes.spec.ts` (mixed shapes, with a made-up config: see
+  `tests/README.md`).
+- [x] Dragging with 200 tiles measured with a Chrome trace (in the pull request).
+- [x] `MAX_TIER_ROWS <= V3_LIMITS.maxRows` and unique tier and item ids where the editor
+  hands its list to `lib/dnd` (`tests/unit/dnd/listIds.test.ts`).
+- [x] `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop) updated.

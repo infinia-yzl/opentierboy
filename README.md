@@ -92,8 +92,8 @@ including but not limited to:
 
 - [Next.js](https://nextjs.org/) - The React framework for production.
 - [shadcn/ui](https://ui.shadcn.com/) - Beautifully designed components built with Radix UI and Tailwind CSS.
-- [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) - Beautiful and accessible drag and drop for lists with
-  React.
+- [dnd-kit](https://github.com/clauderic/dnd-kit) - Drag and drop toolkit for React (a copy lives in
+  `packages/dnd-kit`, see [docs/dnd-fork.md](docs/dnd-fork.md)).
 - [html2canvas-pro](https://yorickshan.github.io/html2canvas-pro/) & [html2canvas](https://html2canvas.hertzen.com/) -
   Screenshots with JavaScript.
 - [lz-string](https://github.com/pieroxy/lz-string/) - LZ-based compression algorithm for JavaScript.
