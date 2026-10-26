@@ -161,12 +161,19 @@ const EDGE_FILES = [
   'lib/images/listImages.ts',
 ];
 
+/** Every JavaScript and TypeScript file. */
+const CODE_FILES = '**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}';
+
 /**
- * Our own code: functional, with no classes (A47, CLAUDE.md "Code conventions"). tests/ may use
- * classes, and so may the config files at the root.
+ * Our own code is functional, with no classes (A47, CLAUDE.md "Code conventions"). The rule
+ * covers every code file, so a new folder or a new file at the root is covered too. Classes stay
+ * allowed in tests, in the vendored dnd-kit fork (packages/, Phase 5e) and in these config
+ * files at the root, which tools load.
+ *
+ * @type {string[]}
  */
-const OWN_CODE = ['app', 'components', 'contexts', 'lib', 'models', 'scripts']
-  .map((folder) => `${folder}/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}`);
+export const ROOT_CONFIG_FILES = ['eslint.config.mjs', 'next.config.ts', 'playwright.config.ts', 'postcss.config.mjs', 'vitest.config.mts', 'next-env.d.ts'];
+const CLASSES_ALLOWED_IN = ['tests/**', 'packages/**', ...ROOT_CONFIG_FILES];
 
 /**
  * Files of our own code that may declare a class because a third-party API requires one. Each
@@ -204,7 +211,7 @@ export default defineConfig([
   },
   // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts.
   {
-    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+    files: [CODE_FILES],
     ignores: [...INDEXED_DB_FILES, ...ZOD_FILES],
     rules: {...restrictImports(), ...restrictGlobals(), ...restrictSyntax()},
   },
@@ -242,6 +249,6 @@ export default defineConfig([
   // Our own code: no classes (A47). These come after every other block that sets
   // no-restricted-syntax for these files, and restrictSyntax() keeps the zod selectors.
   // lib/zod.ts keeps its zod exemption.
-  {files: OWN_CODE, ignores: [...ALLOWED_CLASS_FILES, ...ZOD_FILES], rules: restrictSyntax(NO_CLASSES)},
-  {files: ZOD_FILES, ignores: ['tests/**', ...ALLOWED_CLASS_FILES], rules: restrictSyntax(NO_CLASSES, {allow: ['zod']})},
+  {files: [CODE_FILES], ignores: [...CLASSES_ALLOWED_IN, ...ALLOWED_CLASS_FILES, ...ZOD_FILES], rules: restrictSyntax(NO_CLASSES)},
+  {files: ZOD_FILES, ignores: [...CLASSES_ALLOWED_IN, ...ALLOWED_CLASS_FILES], rules: restrictSyntax(NO_CLASSES, {allow: ['zod']})},
 ]);
