@@ -179,8 +179,32 @@ export class TierListPage {
   }
 
   /** The number of entries in the tab's history (window.history.length). */
+  /** Leaves the editor for the landing page with the site's logo link in the header. */
+  async leaveForHome() {
+    await this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'}).click();
+    await expect(this.page).toHaveURL(/^[^?]*\/$/);
+  }
+
   async historyLength(): Promise<number> {
     return this.page.evaluate(() => window.history.length);
+  }
+
+  /**
+   * Starts counting the history entries this page adds from now on (history.pushState calls, as
+   * Next.js makes one per router.push). Browsers keep at most 50 entries, so history.length
+   * cannot count more. Returns a function that reads the count.
+   */
+  async countNewHistoryEntries(): Promise<() => Promise<number>> {
+    await this.page.evaluate(() => {
+      const counted = window as unknown as {newHistoryEntries: number};
+      counted.newHistoryEntries = 0;
+      const push = window.history.pushState.bind(window.history);
+      window.history.pushState = (...args: Parameters<History['pushState']>) => {
+        counted.newHistoryEntries += 1;
+        push(...args);
+      };
+    });
+    return () => this.page.evaluate(() => (window as unknown as {newHistoryEntries: number}).newHistoryEntries);
   }
 
   /** The link a visitor would share. The app keeps it in the address bar. */
@@ -776,6 +800,22 @@ export class TierListPage {
     await expect(button).toBeEnabled();
     const download = this.page.waitForEvent('download');
     await button.click();
+    const file = await download;
+    return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
+  }
+
+  /**
+   * Freeze Frame's Download when the list does not fit into the picture: checks the message that
+   * says so, takes its "Download picture" and returns that file.
+   */
+  async downloadCapturedImageWithoutList(): Promise<{name: string; buffer: Buffer}> {
+    const button = this.sharePanel.getByRole('button', {name: 'Download', exact: true});
+    await expect(button).toBeEnabled();
+    await button.click();
+    const offer = this.toast('This list is too large to keep in the picture');
+    await expect(offer).toContainText('Download the picture without the list?');
+    const download = this.page.waitForEvent('download');
+    await offer.getByRole('button', {name: 'Download picture'}).click();
     const file = await download;
     return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
   }

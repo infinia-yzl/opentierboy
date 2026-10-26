@@ -1,7 +1,7 @@
 import zlib from 'node:zlib';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, imageFile, RED_SQUARE, serveImageSite} from '../support/imageSites';
+import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshotFiles';
 import type {TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
@@ -33,6 +33,61 @@ function isoMedia(brand: string): Buffer {
 
 /** The refusal of "From your device" for AVIF and HEIC images. */
 const AVIF_HEIC_REFUSAL = 'AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.';
+
+/** A snapshot file as another browser could write it: these device images in row S. */
+function listFile(name: string, {title, path, images}: {title: string; path?: string; images: {id: string; label: string; png: Buffer}[]}) {
+  const state = v3State({t: title, tp: 3, r: [['S', images.map(({id, label}) => ({d: id, c: label}))], ['A', []], ['B', []], ['', []]]});
+  const payload = {
+    version: 1,
+    state,
+    ...(path ? {path} : {}),
+    images: images.map(({id, label, png}) => ({id, label, dataUrl: `data:image/png;base64,${png.toString('base64')}`})),
+  };
+  return pngFile(name, pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload)));
+}
+
+/** Seeded random text from the id alphabet: it compresses badly, as long real lists do. */
+function randomText(seed: number) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let state = seed;
+  return (length: number) => Array.from({length}, () => {
+    // A 32-bit linear congruential generator; its high bits are the random ones.
+    state = (Math.imul(state, 1103515245) + 12345) >>> 0;
+    return alphabet[state >>> 26];
+  }).join('');
+}
+
+type V3Json = {r: unknown[][]};
+
+/**
+ * The `state` value of a v3 list with filler items (ids no image set has, random labels) added to
+ * its first row, as many as fit under `limit` characters.
+ */
+function stateNearCap(json: V3Json, limit: number, seed = 5): string {
+  const text = randomText(seed);
+  const copy = JSON.parse(JSON.stringify(json)) as V3Json;
+  const row = copy.r[0];
+  const items = row[row.length - 1] as unknown[];
+  let state = v3State(copy);
+  for (let step = 16; step >= 1; step = Math.floor(step / 2)) {
+    for (;;) {
+      const added = Array.from({length: step}, () => ({i: `x-${text(14)}`, c: text(48)}));
+      items.push(...added);
+      const next = v3State(copy);
+      if (next.length > limit) {
+        items.splice(items.length - step, step);
+        break;
+      }
+      state = next;
+    }
+  }
+  return state;
+}
+
+/** The device images (`{d}` items) of a v3 link in the address bar. */
+function deviceItemsOf(url: string): number {
+  return (v3LinkJson(url) as V3Json).r.flatMap((row) => row[row.length - 1] as object[]).filter((item) => 'd' in item).length;
+}
 
 /** Makes a snapshot file the way people do: a list with a device image, Capture Preview, Download. */
 async function downloadSnapshotOf(tierList: TierListPage): Promise<Buffer> {
@@ -254,6 +309,174 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await friend.pasteImages([pngFile('snapshot.png', snapshot)]);
     await friend.confirmOpenList();
     await expectTierList(friend, SNAPSHOT_LIST);
+  });
+});
+
+test.describe('Snapshot links near the cap of 13,000 characters', () => {
+  test.slow();
+
+  test('a file whose link would pass the cap once its images get their ids here is refused before anything is stored', async ({tierList}) => {
+    await tierList.goto('/rank');
+    const text = randomText(11);
+    // 50 images with 16-character ids, as the store makes them; here they would get 27 characters.
+    const images = Array.from({length: 50}, (_, index) => ({id: `img${String(index).padStart(3, '0')}${text(10)}`, label: `Image ${index}`, png: RED_SQUARE}));
+    const json = {t: 'Near the cap', tp: 3, r: [['A', []], ['S', images.map(({id, label}) => ({d: id, c: label}))], ['B', []], ['', []]]};
+    const state = stateNearCap(json, 13_000);
+    expect(state.length).toBeGreaterThan(12_800);
+    const payload = {version: 1, state, images: images.map(({id, label, png}) => ({id, label, dataUrl: `data:image/png;base64,${png.toString('base64')}`}))};
+
+    await tierList.openFile(pngFile('near-cap.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload))));
+
+    await expect(tierList.toast('Could not open the file')).toContainText('This file is too large to open as a list.');
+    await expect(tierList.openListDialog).toHaveCount(0);
+    expect(await tierList.deviceImageCount()).toBe(0);
+  });
+
+  test('Download keeps the list only when it opens in any browser, and such a file opens elsewhere', async ({tierList, page, openAsVisitor}) => {
+    await tierList.goto('/rank');
+    const files = Array.from({length: 30}, (_, index) => imageFile(`pic${String(index).padStart(2, '0')}.png`, noisePng(12, 12, index + 1)));
+    await tierList.addItemsFromDevice(files, {timeout: 60_000});
+    await expect.poll(() => deviceItemsOf(page.url())).toBe(30);
+    const json = v3LinkJson(page.url()) as V3Json;
+
+    // Just under the cap as written: opened elsewhere, the images' longer ids would pass it.
+    const written = stateNearCap(json, 13_000);
+    expect(written.length).toBeGreaterThan(12_800);
+    await tierList.goto('/rank', written);
+    await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
+    await tierList.capturePreview();
+    const picture = await tierList.downloadCapturedImageWithoutList();
+    expect(snapshotTextOf(picture.buffer)).toBeNull();
+
+    // Further under the cap: the file keeps the list, and a friend opens it with its images.
+    await tierList.goto('/rank', stateNearCap(json, 12_300));
+    await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
+    await tierList.capturePreview();
+    const file = await tierList.downloadCapturedImage();
+    expect(snapshotTextOf(file.buffer)).not.toBeNull();
+    const friend = await openAsVisitor('/rank');
+    await friend.openFile(pngFile(file.name, file.buffer));
+    await friend.confirmOpenList();
+    await expect.poll(() => deviceItemsOf(friend.page.url())).toBe(30);
+    await expect.poll(() => friend.itemShowsUpload('pic29')).toBe(true);
+  });
+});
+
+test.describe('Opening a list while the server is slow', () => {
+  test.slow();
+
+  test('Open list holds the editor until the list is in the address; a paste right after goes onto it', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
+    const before = await tierList.historyLength();
+    await tierList.simulateSlowServer(1_000);
+    await tierList.openFile(listFile('snapshot.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]}));
+
+    await tierList.startOpeningList();
+    // Meanwhile a paste (it lands in the dialog) adds nothing, and Escape does not close it.
+    await tierList.pasteImages([imageFile('early.png', BLUE_SQUARE)], tierList.openListDialog);
+    await page.keyboard.press('Escape');
+    await expect(tierList.openListDialog).toContainText('Opening the list…');
+    await expect(tierList.openListDialog).toBeHidden();
+    await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
+    await expect(tierList.title).toHaveText('Snapshot list');
+
+    // Right after: a paste goes onto the opened list, as its own Back step.
+    await tierList.pasteImages([imageFile('late.png', BLUE_SQUARE)]);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['late']);
+    await expect.poll(() => tierList.historyLength(), {timeout: 15_000}).toBe(before + 2);
+    await page.goBack();
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
+    await page.goBack();
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.title).toHaveText('Old list');
+
+    // Recently viewed has the file's list (recorded once it was in the address).
+    const site = new SitePage(page);
+    await site.gotoHome();
+    await expect(site.recentLinks.filter({hasText: 'Snapshot list'})).toHaveCount(1);
+  });
+});
+
+test.describe('Files in turn', () => {
+  test.slow();
+
+  test('on a slow server, 55 quick pastes each become their own history entry', async ({tierList, page}) => {
+    await tierList.goto('/rank');
+    await tierList.simulateSlowServer(200);
+    // More than the 50 writes the editor keeps waiting: none may be merged.
+    const newEntries = await tierList.countNewHistoryEntries();
+    const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
+
+    await tierList.pasteImagesAtOnce(groups);
+
+    await expect.poll(newEntries, {timeout: 60_000}).toBe(55);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(55);
+    await expect.poll(() => deviceItemsOf(page.url())).toBe(55);
+    // Back undoes the last paste only.
+    await page.goBack();
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(54);
+  });
+
+  test('Back while pastes wait: the rest are not added, and Forward still leads to the first', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    const before = await tierList.historyLength();
+    // The first picture is tiny; the second is large, so it is still being stored at Back.
+    await tierList.pasteImagesAtOnce([
+      [imageFile('b00.png', noisePng(8, 8, 1))],
+      [imageFile('b01.png', noisePng(1600, 1600, 2))],
+      [imageFile('b02.png', noisePng(8, 8, 3))],
+      [imageFile('b03.png', noisePng(8, 8, 4))],
+    ]);
+    await expect.poll(() => tierList.historyLength(), {intervals: [50]}).toBe(before + 1);
+
+    await page.goBack();
+
+    const notAdded = tierList.toast('Files not added');
+    await expect(notAdded).toContainText('You went Back or Forward before they were added:');
+    await expect(notAdded).toContainText('b03.png');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    // Nothing replaced the Forward entry: it holds the first picture only.
+    await page.goForward();
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['b00']);
+    expect(await tierList.historyLength()).toBe(before + 1);
+  });
+
+  test('leaving the editor while pastes wait reaches the other page: no later add cancels the way out', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
+    const before = await tierList.historyLength();
+    // Each picture takes a moment to store, so most still wait when the visitor leaves.
+    await tierList.pasteImagesAtOnce(Array.from({length: 8}, (_, index) => [imageFile(`l${index}.png`, noisePng(700, 700, index + 1))]));
+    await expect.poll(() => tierList.historyLength()).toBeGreaterThan(before);
+
+    await tierList.leaveForHome();
+
+    const site = new SitePage(page);
+    await expect(site.recentLinks.filter({hasText: 'Leaving'})).toHaveCount(1);
+    await expect(page).toHaveURL(/^[^?]*\/$/);
+  });
+
+  test('pictures waiting behind a list file are not added, and a message says so', async ({tierList, page}) => {
+    await tierList.goto('/rank');
+    const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
+    await tierList.waitUntilInteractive();
+    // A paste, a dropped list file and another paste, all at once.
+    await page.locator('body').evaluate((element, files) => {
+      const transfer = (name: string, base64: string) => {
+        const data = new DataTransfer();
+        data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: 'image/png'}));
+        return data;
+      };
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer('first.png', files.first), bubbles: true, cancelable: true}));
+      element.dispatchEvent(new DragEvent('drop', {dataTransfer: transfer('list.png', files.list), bubbles: true, cancelable: true}));
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer('second.png', files.second), bubbles: true, cancelable: true}));
+    }, {first: BLUE_SQUARE.toString('base64'), list: snapshot.buffer.toString('base64'), second: RED_SQUARE.toString('base64')});
+
+    await expect(tierList.openListDialog).toBeVisible();
+    await expect(tierList.toast('Files not added')).toContainText('A list file was being opened, so they were not added: second.png.');
+    await tierList.cancelOpenList();
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['first']);
   });
 });
 
