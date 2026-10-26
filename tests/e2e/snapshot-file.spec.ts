@@ -3,7 +3,7 @@ import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshotFiles';
-import type {TierListPage} from '../pages/TierListPage';
+import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
 
 const TANKS = '/rank/overwatch/tank';
@@ -298,7 +298,8 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await expect.poll(() => friend.itemImageHasLoaded('blue-square')).toBe(true);
   });
 
-  test('dropping or pasting a snapshot file asks to open its list too', async ({tierList, openAsVisitor}) => {
+  test('dropping or pasting a snapshot file asks to open its list too', async ({tierList, openAsVisitor, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     const snapshot = await downloadSnapshotOf(tierList);
     const friend = await openAsVisitor('/rank');
 
@@ -365,7 +366,8 @@ test.describe('Snapshot links near the cap of 13,000 characters', () => {
 test.describe('Opening a list while the server is slow', () => {
   test.slow();
 
-  test('Open list holds the editor until the list is in the address; a paste right after goes onto it', async ({tierList, page}) => {
+  test('Open list holds the editor until the list is in the address; a paste right after goes onto it', async ({tierList, page, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
     const before = await tierList.historyLength();
     await tierList.simulateSlowServer(1_000);
@@ -401,7 +403,8 @@ test.describe('Opening a list while the server is slow', () => {
 test.describe('Files in turn', () => {
   test.slow();
 
-  test('on a slow server, 55 quick pastes each become their own history entry', async ({tierList, page}) => {
+  test('on a slow server, 55 quick pastes each become their own history entry', async ({tierList, page, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
     await tierList.simulateSlowServer(200);
     // More than the 50 writes the editor keeps waiting: none may be merged.
@@ -418,7 +421,8 @@ test.describe('Files in turn', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(54);
   });
 
-  test('Back while pastes wait: the rest are not added, and Forward still leads to the first', async ({tierList, page}) => {
+  test('Back while pastes wait: the rest are not added, and Forward still leads to the first', async ({tierList, page, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     const before = await tierList.historyLength();
     // The first picture is tiny; the second is large, so it is still being stored at Back.
@@ -443,7 +447,8 @@ test.describe('Files in turn', () => {
     expect(await tierList.historyLength()).toBe(before + 1);
   });
 
-  test('leaving the editor while pastes wait reaches the other page: no later add cancels the way out', async ({tierList, page}) => {
+  test('leaving the editor while pastes wait reaches the other page: no later add cancels the way out', async ({tierList, page, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
     const before = await tierList.historyLength();
     // Each picture takes a moment to store, so most still wait when the visitor leaves.
@@ -457,7 +462,8 @@ test.describe('Files in turn', () => {
     await expect(page).toHaveURL(/^[^?]*\/$/);
   });
 
-  test('pictures waiting behind a list file are not added, and a message says so', async ({tierList, page}) => {
+  test('pictures waiting behind a list file are not added, and a message says so', async ({tierList, page, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
     const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
     await tierList.waitUntilInteractive();

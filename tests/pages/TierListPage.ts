@@ -22,6 +22,14 @@ export interface CapturedImage {
 }
 
 /**
+ * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
+ * one), so a test cannot paste files there. Paste tests skip Firefox with this reason.
+ */
+export const SCRIPTED_PASTE_SKIP = 'Firefox drops the files of a paste event made by a test (ClipboardEvent clipboardData).';
+/** WebKit refuses page.goto() of a blob: URL in a new tab, which openImageInNewTab needs. */
+export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a new tab.';
+
+/**
  * Page object for the tier list editor at /rank/...
  *
  * Locators follow https://playwright.dev/docs/locators#quick-guide: they use roles and
@@ -654,7 +662,8 @@ export class TierListPage {
   /**
    * Pastes image files into the editor (or into `target`, for example a text field), as a paste
    * from the clipboard would. The test builds the paste event: browsers do not let tests write
-   * images to the real clipboard.
+   * images to the real clipboard. Firefox ignores the files in such an event, so paste tests skip
+   * Firefox (SCRIPTED_PASTE_SKIP).
    */
   async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
     // A target (such as a text field the test typed into) proves the page has started already.

@@ -1,4 +1,5 @@
 import {expect, test} from '../support/test';
+import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP} from '../pages/TierListPage';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
@@ -153,7 +154,8 @@ test.describe('Images from the device', () => {
     expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
   });
 
-  test('an upload always shows as the image type of its bytes, so a disguised page never runs', async ({tierList}) => {
+  test('an upload always shows as the image type of its bytes, so a disguised page never runs', async ({tierList, browserName}) => {
+    test.skip(browserName === 'webkit', BLOB_TAB_SKIP);
     // A PNG followed by a script, named evil.html: the browser reports text/html for it.
     const script = Buffer.from('<script>localStorage.setItem("pwned", "yes")</script>');
     const evil = imageFile('evil.html', Buffer.concat([RED_SQUARE, script]), 'text/html');
@@ -344,7 +346,8 @@ test.describe('Images from the device', () => {
 });
 
 test.describe('Pasting images', () => {
-  test('paste images into the editor to add them as items, then undo', async ({tierList}) => {
+  test('paste images into the editor to add them as items, then undo', async ({tierList, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
 
     await tierList.pasteImages([imageFile('image.png')]);
@@ -357,7 +360,8 @@ test.describe('Pasting images', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);
   });
 
-  test('when an image cannot be shown, a paste says so and the next paste still works', async ({tierList}) => {
+  test('when an image cannot be shown, a paste says so and the next paste still works', async ({tierList, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
     // The first URL is the one the editor reads the file through; the second one shows the tile.
     await tierList.failObjectUrl({skip: 1});
@@ -381,7 +385,8 @@ test.describe('Pasting images', () => {
     await expect(dialog.getByRole('button', {name: 'Add 1 Item'})).toBeEnabled();
   });
 
-  test('a paste into a text field is left alone', async ({tierList}) => {
+  test('a paste into a text field is left alone', async ({tierList, browserName}) => {
+    test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
     const input = await tierList.typeTitle('My list');
     await tierList.pasteImages([imageFile('image.png')], input);

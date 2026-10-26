@@ -106,6 +106,12 @@ tests/
   image).
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
+- **Some input cannot be simulated in every browser.** Firefox drops the files of a paste event
+  that a test makes (`new ClipboardEvent('paste', {clipboardData})`), so tests that paste skip
+  Firefox with `test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP)`. WebKit refuses
+  `page.goto()` of a `blob:` URL in a new tab, so the test that opens an upload's image in a
+  tab skips WebKit (`BLOB_TAB_SKIP`). Both reasons live in `tests/pages/TierListPage.ts`. These
+  are limits of the test tools; Chromium runs every one of these tests.
 - **Run a new test under load before you commit it**, for example
   `npx playwright test --workers=4 --repeat-each=5 path/to.spec.ts`.
 
