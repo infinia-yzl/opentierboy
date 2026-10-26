@@ -15,10 +15,14 @@ const MAX_ALIAS_STEPS = 10;
 export type ItemAliases = Readonly<Record<string, string>>;
 
 /**
- * Package items by id. A Map, so that an id from a link such as `constructor` or `__proto__`
+ * Package items by id, read-only: every caller shares one lookup, so it offers only `get` and
+ * `has`. A Map holds the items, so that an id from a link such as `constructor` or `__proto__`
  * finds nothing, like any other unknown id (a plain object would return its built-in members).
  */
-export type PackageItemLookup = ReadonlyMap<string, Item>;
+export interface PackageItemLookup {
+  readonly get: (id: string) => Item | undefined;
+  readonly has: (id: string) => boolean;
+}
 
 /** What item resolution needs: the image-set items, and the aliases of renamed ones. */
 export interface ItemCatalog {
@@ -33,6 +37,10 @@ const lookups = new WeakMap<ImageSetConfig, PackageItemLookup>();
  * The package items of an image-set config, by id. Built once per config object, so every
  * caller shares one lookup. The items are frozen, because every list that shows them shares
  * them too.
+ *
+ * The lookup is built on first use and never rebuilt: a config object must not change after
+ * it was first passed in (imageset.config.json never does; a test that needs other items
+ * passes a new config object).
  */
 export function packageItemLookup(config: ImageSetConfig): PackageItemLookup {
   const known = lookups.get(config);
@@ -43,13 +51,13 @@ export function packageItemLookup(config: ImageSetConfig): PackageItemLookup {
 }
 
 function buildPackageItemLookup(config: ImageSetConfig): PackageItemLookup {
-  const lookup = new Map<string, Item>();
+  const items = new Map<string, Item>();
   for (const [packageName, packageData] of Object.entries(config.packages)) {
     for (const image of packageData.images) {
       const id = `${packageName}-${image.filename}`;
       // Square is the default, so only other shapes are stored on the item.
       const shape = isItemShape(image.shape) && image.shape !== DEFAULT_ITEM_SHAPE ? image.shape : undefined;
-      lookup.set(id, Object.freeze({
+      items.set(id, Object.freeze({
         id,
         content: image.label || image.filename.split('.')[0],
         imageUrl: `/images/${packageName}/${image.filename}`,
@@ -57,7 +65,10 @@ function buildPackageItemLookup(config: ImageSetConfig): PackageItemLookup {
       }));
     }
   }
-  return lookup;
+  return Object.freeze({
+    get: (id: string) => items.get(id),
+    has: (id: string) => items.has(id),
+  });
 }
 
 /** True for an id that names no image-set item: an upload, a link image, an unknown id. */

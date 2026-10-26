@@ -34,12 +34,25 @@ describe('createTierCortex', () => {
     // Another config object, even with the same content, gets its own lookup.
     const copy = structuredClone(TINY_CONFIG);
     expect(packageItemLookup(copy)).not.toBe(packageItemLookup(TINY_CONFIG));
-    expect(packageItemLookup(copy)).toEqual(packageItemLookup(TINY_CONFIG));
+    expect(packageItemLookup(copy).get('image-tiny-one.webp')).toEqual(packageItemLookup(TINY_CONFIG).get('image-tiny-one.webp'));
 
     const [first] = createTierCortex().resolveItemsFromPackage('image-overwatch', ['mau.webp']);
     const [second] = createTierCortex().resolveItemsFromPackage('image-overwatch', ['mau.webp']);
     expect(first).toEqual({id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'});
     expect(second).toBe(first);
+  });
+
+  it('hands out the shared lookup read-only, with get and has only', () => {
+    const lookup = packageItemLookup(TINY_CONFIG);
+    expect(Object.keys(lookup).sort()).toEqual(['get', 'has']);
+    expect(Object.isFrozen(lookup)).toBe(true);
+    expect(lookup.has('image-tiny-one.webp')).toBe(true);
+    expect(lookup.get('image-tiny-one.webp')).toEqual({id: 'image-tiny-one.webp', content: 'One', imageUrl: '/images/image-tiny/one.webp'});
+    // Ids named like built-in object members find nothing, like any unknown id.
+    for (const id of ['constructor', '__proto__', 'toString', 'set', 'clear']) {
+      expect(lookup.has(id), id).toBe(false);
+      expect(lookup.get(id), id).toBeUndefined();
+    }
   });
 
   it('freezes the shared items and the TierCortex itself', () => {
