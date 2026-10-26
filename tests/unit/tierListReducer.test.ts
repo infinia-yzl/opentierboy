@@ -18,6 +18,7 @@ import {
   type TierListAction,
   type TierListState,
 } from '@/lib/tierListReducer';
+import {MAX_TIER_ROWS} from '@/lib/dnd/moves';
 import sharedLinks from '../fixtures/shared-links.json';
 
 /**
@@ -385,6 +386,45 @@ describe('list changes', () => {
     expect(store.state.tiers.map(tier => tier.id).slice(0, 2)).toEqual(['tier-a', 'tier-s']);
   });
 
+  it('adding a row puts an empty row labelled after its position above Unranked: one new link', () => {
+    const store = setup(fiveRowLink({S: [MAU], '': [WIN]}));
+    store.dispatch({type: 'tierAdded'});
+    expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], [], [], ['Winston']]);
+    expect(store.state.tiers[5].id).toBe('tier-1');
+    expect(store.state.writes).toHaveLength(1);
+    // The link keeps the new row.
+    expect(decoded(store.links()[0]).tiers.map(tier => tier.name)).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
+  });
+
+  it('adding stops at MAX_TIER_ROWS rows, and then writes nothing', () => {
+    const store = setup(fiveRowLink({}));
+    while (store.state.tiers.length < MAX_TIER_ROWS) store.dispatch({type: 'tierAdded'});
+    const writes = store.state.writes.length;
+    const full = store.dispatch({type: 'tierAdded'});
+    expect(full.tiers).toHaveLength(MAX_TIER_ROWS);
+    expect(full.writes).toHaveLength(writes);
+  });
+
+  it('removing a row moves its items to the end of Unranked: one new link', () => {
+    const store = setup(fiveRowLink({S: [MAU], B: [WIN, SIG]}));
+    store.dispatch({type: 'tierRemoved', tierId: 'tier-b'});
+    expect(store.names()).toEqual(['S', 'A', 'C', 'F', '']);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], ['Winston', 'Sigma']]);
+    expect(store.state.writes).toHaveLength(1);
+  });
+
+  it('Unranked, unknown rows and the last ranked row stay, and write nothing', () => {
+    const store = setup(fiveRowLink({S: [MAU]}));
+    store.dispatch({type: 'tierRemoved', tierId: 'uncategorized'});
+    store.dispatch({type: 'tierRemoved', tierId: 'nope'});
+    expect(store.state.writes).toHaveLength(0);
+    for (const tierId of ['tier-a', 'tier-b', 'tier-c', 'tier-f', 'tier-s']) store.dispatch({type: 'tierRemoved', tierId});
+    expect(store.names()).toEqual(['S', '']);
+    expect(store.contents()).toEqual([['Mauga'], []]);
+    expect(store.state.writes).toHaveLength(4);
+  });
+
   it('Reset, then Undo from the toast, restores the ranking as a new change', () => {
     const store = setup(fiveRowLink({S: [MAU], A: [WIN], '': [SIG]}));
     const before = store.state.tiers;
@@ -482,6 +522,8 @@ describe('list changes', () => {
       {type: 'itemMoved', from: {tierId: 'tier-s', index: 0}, to: {tierId: 'uncategorized', index: 0}},
       {type: 'itemMoved', from: {tierId: 'tier-s', index: 0}, to: {tierId: 'tier-s', index: 1}},
       {type: 'tierMoved', from: 0, to: 5},
+      {type: 'tierAdded'},
+      {type: 'tierRemoved', tierId: 'tier-s'},
       {type: 'itemDeleted', itemId: WIN},
       {type: 'itemsAdded', items: [{id: 'new-one', content: 'New'}]},
       {type: 'rankingsReset'},

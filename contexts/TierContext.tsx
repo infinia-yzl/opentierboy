@@ -62,6 +62,10 @@ export interface TierContext {
   moveItem: (from: ItemPosition, to: ItemPosition) => void;
   /** Moves a row; the tier names stay in place (product rule 6). */
   moveTier: (from: number, to: number) => void;
+  /** Adds an empty row above Unranked (#182), labelled "Tier <n>", up to MAX_TIER_ROWS (lib/dnd/moves.ts). */
+  addTier: () => void;
+  /** Removes a ranked row (#182); its items go to the end of Unranked. */
+  removeTier: (tierId: string) => void;
   renameTier: (index: number, name: string) => void;
   deleteItem: (itemId: string) => void;
   /** Puts a deleted item back at the end of the tier it came from (toast Undo). */
@@ -151,6 +155,8 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     setTitle: (title: string) => dispatch({type: 'titleChanged', title}),
     moveItem: (from: ItemPosition, to: ItemPosition) => dispatch({type: 'itemMoved', from, to}),
     moveTier: (from: number, to: number) => dispatch({type: 'tierMoved', from, to}),
+    addTier: () => dispatch({type: 'tierAdded'}),
+    removeTier: (tierId: string) => dispatch({type: 'tierRemoved', tierId}),
     renameTier: (index: number, name: string) => dispatch({type: 'tierRenamed', index, name}),
     deleteItem: (itemId: string) => dispatch({type: 'itemDeleted', itemId}),
     restoreItem: (item: Item, tierId: string) => dispatch({type: 'itemRestored', item, tierId}),

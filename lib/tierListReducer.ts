@@ -4,7 +4,7 @@ import type {LabelPosition} from "@/models/Tier";
 import type {ItemSet} from "@/models/ItemSet";
 import type {TierCortex} from "@/lib/TierCortex";
 import type {ListLayout} from "@/lib/listLink";
-import {moveItem, reorderRows} from "@/lib/dnd/moves";
+import {addTier, moveItem, removeTier, reorderRows} from "@/lib/dnd/moves";
 
 /**
  * The tier list editor's state and every change to it, as a pure reducer (no React, no
@@ -104,6 +104,10 @@ export type TierListAction =
   | {type: 'titleChanged'; title: string}
   | {type: 'itemMoved'; from: ItemPosition; to: ItemPosition}
   | {type: 'tierMoved'; from: number; to: number}
+  /** Adds an empty row above Unranked (#182), labelled "Tier <n>", up to MAX_TIER_ROWS rows. */
+  | {type: 'tierAdded'}
+  /** Removes a ranked row (#182); its items go to the end of Unranked. */
+  | {type: 'tierRemoved'; tierId: string}
   | {type: 'tierRenamed'; index: number; name: string}
   | {type: 'itemDeleted'; itemId: string}
   | {type: 'itemRestored'; item: Item; tierId: string}
@@ -233,6 +237,11 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
         // Tier labels describe positions (product rule 6): the contents and the tier id move,
         // the names stay in place from top to bottom.
         return edit(state, reorderRows(state.tiers, action.from, action.to));
+      case 'tierAdded':
+        // The new row gets a visible label to click and rename: "Tier <its row number>".
+        return edit(state, addTier(state.tiers, {name: `Tier ${state.tiers.length}`})?.tiers ?? state.tiers);
+      case 'tierRemoved':
+        return edit(state, removeTier(state.tiers, state.tiers.findIndex(tier => tier.id === action.tierId)));
       case 'tierRenamed':
         return edit(state, state.tiers.map((tier, index) => (index === action.index ? {...tier, name: action.name} : tier)));
       case 'itemDeleted':
