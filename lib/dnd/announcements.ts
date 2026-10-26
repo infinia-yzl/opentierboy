@@ -2,7 +2,6 @@ import {parseDndId} from './ids';
 import {itemLabel, tierPhrase} from './labels';
 import {findItem} from './moves';
 import type {ItemPosition, TierLike} from './model';
-import type {SortableSnapshot} from './sortable';
 
 /**
  * What screen readers hear while someone drags with the keyboard (or a pointer). The texts
@@ -10,8 +9,8 @@ import type {SortableSnapshot} from './sortable';
  * never by internal ids. Positions count from 1.
  *
  * `tiers` is always the list as it was when the drag started: the list itself changes only
- * on drop (one history entry per change, product rule 2), while dnd-kit moves the elements
- * in the page during the drag.
+ * on drop (one history entry per change, product rule 2), while the editor shows a preview
+ * during the drag (lib/dnd/preview.ts).
  */
 
 /** Read once when a draggable gets focus (aria-describedby). */
@@ -85,22 +84,28 @@ export function rowAnnouncement(
 }
 
 /**
- * The announcement for a dnd-kit sortable (an item or a row, told apart by its id), or
- * undefined. The start comes from the list; the current position from the sortable.
+ * The announcement for a drag by the dnd-kit id of what is dragged (an item or a row), or
+ * undefined. `tiers` is the list from the start of the drag; `preview` is the list as the
+ * drag shows it now (lib/dnd/preview.ts), so 'over' and 'drop' name the position after the
+ * move, as the screen shows it.
  */
-export function sortableAnnouncement(phase: DragPhase, tiers: readonly TierLike[], source: SortableSnapshot): string | undefined {
-  const parsed = parseDndId(source.id);
+export function previewAnnouncement(
+  phase: DragPhase,
+  tiers: readonly TierLike[],
+  preview: readonly TierLike[],
+  dndId: unknown,
+): string | undefined {
+  const parsed = parseDndId(dndId);
   if (parsed?.kind === 'item') {
     const from = findItem(tiers, parsed.id);
     if (!from) return undefined;
-    const group = parseDndId(source.group);
-    const to = group?.kind === 'tier' ? {tierId: group.id, index: source.index} : null;
-    return itemAnnouncement(phase, tiers, parsed.id, from, to);
+    return itemAnnouncement(phase, tiers, parsed.id, from, findItem(preview, parsed.id));
   }
   if (parsed?.kind === 'row') {
     const from = tiers.findIndex(tier => tier.id === parsed.id);
     if (from < 0) return undefined;
-    return rowAnnouncement(phase, tiers, from, source.index);
+    const to = preview.findIndex(tier => tier.id === parsed.id);
+    return rowAnnouncement(phase, tiers, from, to < 0 ? null : to);
   }
   return undefined;
 }

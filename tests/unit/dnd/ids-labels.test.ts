@@ -1,7 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {itemDndId, parseDndId, rowDndId, tierItemsDndId} from '@/lib/dnd/ids';
 import {itemLabel, tierLabel, tierPhrase} from '@/lib/dnd/labels';
-import {itemMoveFromSortable, rowMoveFromSortable, toSortableSnapshot} from '@/lib/dnd/sortable';
 
 const tiers = [
   {id: 'tier-s', name: 'S', items: []},
@@ -54,36 +53,5 @@ describe('labels', () => {
     expect(itemLabel({content: ' Mauga '})).toBe('Mauga');
     expect(itemLabel({content: ''})).toBe('Unnamed item');
     expect(itemLabel(undefined)).toBe('Unnamed item');
-  });
-});
-
-describe('sortable snapshots', () => {
-  it('reads the sortable fields of a dnd-kit draggable', () => {
-    const source = {id: 'item:a', index: 2, group: 'tier:tier-s', initialIndex: 0, initialGroup: 'tier:tier-a', element: {}};
-    expect(toSortableSnapshot(source)).toEqual({id: 'item:a', index: 2, group: 'tier:tier-s', initialIndex: 0, initialGroup: 'tier:tier-a'});
-    expect(toSortableSnapshot({id: 'item:a'})).toBeNull();
-    expect(toSortableSnapshot(null)).toBeNull();
-    expect(toSortableSnapshot('item:a')).toBeNull();
-  });
-
-  it('turns a finished item drag into a move', () => {
-    expect(itemMoveFromSortable({id: 'item:a', initialGroup: 'tier:tier-a', initialIndex: 0, group: 'tier:tier-s', index: 2}))
-      .toEqual({itemId: 'a', from: {tierId: 'tier-a', index: 0}, to: {tierId: 'tier-s', index: 2}});
-    expect(itemMoveFromSortable({id: 'item:a', initialGroup: 'tier:tier-s', initialIndex: 3, group: 'tier:tier-s', index: 1}))
-      .toEqual({itemId: 'a', from: {tierId: 'tier-s', index: 3}, to: {tierId: 'tier-s', index: 1}});
-  });
-
-  it('gives no item move for a drop where the drag started, or for odd snapshots', () => {
-    expect(itemMoveFromSortable({id: 'item:a', initialGroup: 'tier:t', initialIndex: 1, group: 'tier:t', index: 1})).toBeNull();
-    expect(itemMoveFromSortable({id: 'row:t', initialGroup: 'tier:t', initialIndex: 1, group: 'tier:t', index: 2})).toBeNull();
-    expect(itemMoveFromSortable({id: 'item:a', initialGroup: 'rows', initialIndex: 1, group: 'tier:t', index: 2})).toBeNull();
-    expect(itemMoveFromSortable({id: 'item:a', initialGroup: 'tier:t', initialIndex: 1.5, group: 'tier:t', index: 2})).toBeNull();
-  });
-
-  it('turns a finished row drag into a row move', () => {
-    expect(rowMoveFromSortable({id: 'row:tier-s', group: 'rows', initialGroup: 'rows', initialIndex: 0, index: 1})).toEqual({from: 0, to: 1});
-    expect(rowMoveFromSortable({id: 'row:tier-s', initialIndex: 2, index: 2})).toBeNull();
-    expect(rowMoveFromSortable({id: 'item:a', initialIndex: 0, index: 1})).toBeNull();
-    expect(rowMoveFromSortable({id: 'row:a', initialIndex: 0, index: Number.NaN})).toBeNull();
   });
 });

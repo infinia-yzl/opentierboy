@@ -2,10 +2,11 @@ import {describe, expect, it} from 'vitest';
 import {
   itemAnnouncement,
   rowAnnouncement,
+  previewAnnouncement,
   SCREEN_READER_INSTRUCTIONS,
-  sortableAnnouncement,
   type DragPhase,
 } from '@/lib/dnd/announcements';
+import {moveRowInPreview, previewItemOver} from '@/lib/dnd/preview';
 
 const tiers = [
   {id: 'tier-s', name: 'S', items: [{id: 'image-overwatch-mauga.webp', content: 'Mauga'}, {id: 'w', content: 'Winston'}]},
@@ -81,21 +82,32 @@ describe('row announcements', () => {
   });
 });
 
-describe('sortable announcements', () => {
-  it('reads items and rows from dnd-kit sortables', () => {
-    expect(sortableAnnouncement('start', tiers, {id: 'item:image-overwatch-mauga.webp', group: 'tier:tier-s', index: 0, initialGroup: 'tier:tier-s', initialIndex: 0}))
-      .toBe('Picked up Mauga, in tier S, position 1 of 2.');
-    expect(sortableAnnouncement('over', tiers, {id: 'item:o', group: 'tier:tier-a', index: 0, initialGroup: 'tier:uncategorized', initialIndex: 2}))
-      .toBe('Orisa moves to tier A, position 1 of 1.');
-    expect(sortableAnnouncement('drop', tiers, {id: 'row:tier-a', group: 'rows', index: 0, initialGroup: 'rows', initialIndex: 1}))
-      .toBe('Dropped. The items of tier A are now in tier S.');
+describe('preview announcements', () => {
+  it('name the position in the preview, as the screen shows it during the drag', () => {
+    const preview = previewItemOver(tiers, 'o', {kind: 'tier', tierId: 'tier-a'});
+    expect(previewAnnouncement('start', tiers, tiers, 'item:image-overwatch-mauga.webp')).toBe('Picked up Mauga, in tier S, position 1 of 2.');
+    expect(previewAnnouncement('over', tiers, preview, 'item:o')).toBe('Orisa moves to tier A, position 1 of 1.');
+    expect(previewAnnouncement('drop', tiers, preview, 'item:o')).toBe('Dropped Orisa in tier A, position 1 of 1.');
+    expect(previewAnnouncement('cancel', tiers, preview, 'item:o')).toBe('Move cancelled. Orisa is back in Unranked, position 3 of 3.');
+    const inRow = previewItemOver(tiers, 'o', {kind: 'item', itemId: 's', after: false});
+    expect(previewAnnouncement('over', tiers, inRow, 'item:o')).toBe('Orisa moves to Unranked, position 1 of 3.');
+    expect(previewAnnouncement('over', tiers, tiers, 'item:o')).toBe('Orisa is back in Unranked, position 3 of 3.');
   });
 
-  it('says nothing for unknown sortables', () => {
-    expect(sortableAnnouncement('start', tiers, {id: 'item:nope', index: 0, initialIndex: 0})).toBeUndefined();
-    expect(sortableAnnouncement('start', tiers, {id: 'row:nope', index: 0, initialIndex: 0})).toBeUndefined();
-    expect(sortableAnnouncement('start', tiers, {id: 'tier:tier-s', index: 0, initialIndex: 0})).toBeUndefined();
-    expect(sortableAnnouncement('over', tiers, {id: 'item:o', group: 'rows', index: 0, initialIndex: 2})).toBeUndefined();
+  it('name rows by the labels of the positions, which stay in place', () => {
+    const preview = moveRowInPreview(tiers, 1, 0);
+    expect(previewAnnouncement('start', tiers, tiers, 'row:tier-a')).toBe('Picked up the items of tier A, row 2 of 4. The tier labels stay in place.');
+    expect(previewAnnouncement('over', tiers, preview, 'row:tier-a')).toBe('The items of tier A move to tier S, row 1 of 4.');
+    expect(previewAnnouncement('drop', tiers, preview, 'row:tier-a')).toBe('Dropped. The items of tier A are now in tier S.');
+  });
+
+  it('say nothing for ids that are not in the list', () => {
+    expect(previewAnnouncement('start', tiers, tiers, 'item:nope')).toBeUndefined();
+    expect(previewAnnouncement('start', tiers, tiers, 'row:nope')).toBeUndefined();
+    expect(previewAnnouncement('start', tiers, tiers, 'tier:tier-s')).toBeUndefined();
+    expect(previewAnnouncement('start', tiers, tiers, 'o')).toBeUndefined();
+    expect(previewAnnouncement('over', tiers, [], 'item:o')).toBeUndefined();
+    expect(previewAnnouncement('over', tiers, [], 'row:tier-a')).toBeUndefined();
   });
 
   it('has instructions for keyboard users', () => {
