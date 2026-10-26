@@ -94,7 +94,8 @@ export interface UseSnapshotFiles {
   /**
    * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
    * asks whether to open the list; pictures become items; other files show a message. Files that
-   * arrive while a list is being asked about or opened are ignored; others wait their turn.
+   * arrive while a list is being asked about or opened are ignored; others wait their turn, each
+   * until the previous add is in the address.
    */
   openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
@@ -113,7 +114,7 @@ export interface UseSnapshotFiles {
  */
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
-  const {tiers} = useTierContext();
+  const {tiers, writing} = useTierContext();
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
@@ -131,6 +132,27 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     latest.current = {tiers, addDeviceImages, addItemsWithUndo};
   }, [tiers, addDeviceImages, addItemsWithUndo]);
 
+  /** Callers waiting until the address shows the list on screen. */
+  const waiters = useRef<(() => void)[]>([]);
+  const [waitTick, setWaitTick] = useState(0);
+  useEffect(() => {
+    if (writing || waiters.current.length === 0) return;
+    waiters.current.splice(0).forEach((resolve) => resolve());
+  }, [writing, waitTick]);
+  useEffect(() => () => {
+    // The editor closed: nothing waits for its address any more.
+    waiters.current.splice(0).forEach((resolve) => resolve());
+  }, []);
+  /**
+   * Resolves once the address shows the list on screen, with every change made before the call
+   * (TierContext's `writing` is false again). The tick makes a render after those changes, so the
+   * effect above sees them.
+   */
+  const untilWritten = useCallback(() => new Promise<void>((resolve) => {
+    waiters.current.push(resolve);
+    setWaitTick((tick) => tick + 1);
+  }), []);
+
   const addAsItems = useCallback(async (files: File[]) => {
     const {tiers: current, addDeviceImages: add} = latest.current;
     const taken = new Set(current.flatMap((tier) => tier.items.map((item) => item.content)));
@@ -140,10 +162,14 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       return {blob: file, label};
     });
     const {items, errors} = await add(images);
-    // The list may have changed while the images were stored: add them to the latest one.
-    if (items.length > 0) latest.current.addItemsWithUndo(items);
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-  }, []);
+    if (items.length === 0) return;
+    // The list may have changed while the images were stored: add them to the latest one.
+    latest.current.addItemsWithUndo(items);
+    // The next file waits until this change is in the address: each add is its own Back step
+    // (product rule 2), however many files wait.
+    await untilWritten();
+  }, [untilWritten]);
 
   const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || busy.current) return;

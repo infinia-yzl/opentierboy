@@ -51,6 +51,12 @@ export interface TierContext {
    * stays as it is on screen).
    */
   shareLink: string;
+  /**
+   * True while changes to the list are still on their way to the address (each becomes its own
+   * history entry, one at a time). Code that makes a series of changes, such as queued pastes,
+   * waits for false between them, so each change stays its own Back step.
+   */
+  writing: boolean;
 
   setTitle: (title: string) => void;
   moveItem: (from: ItemPosition, to: ItemPosition) => void;
@@ -175,8 +181,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     showLabels: state.showLabels,
     urlLength,
     shareLink,
+    writing: state.writes.length > 0,
     ...actions,
-  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, actions]);
+  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, state.writes.length, actions]);
 
   return <TierContext.Provider value={value}>{children}</TierContext.Provider>;
 }
