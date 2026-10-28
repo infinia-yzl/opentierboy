@@ -72,16 +72,24 @@ interface Projection<T> {
   next: T[];
 }
 
-interface TierDragDropState {
-  /** aria-describedby for draggables: the hidden instructions. */
-  describedBy: string;
+/**
+ * aria-describedby for draggables: the hidden instructions. It never changes during a drag, so
+ * it has a context of its own: every item tile reads it, and a change of the drop target must
+ * not render the tiles again.
+ */
+const TierDragDescriptionContext = createContext<string>('');
+
+interface TierDragTargetState {
   /** The tier id of the row that holds the dragged item in the preview, during an item drag. */
   itemTargetTierId: string | null;
   /** True during a row drag. */
   rowDrag: boolean;
+  /** True during any drag, from pick-up to drop. */
+  dragging: boolean;
 }
 
-const TierDragDropContext = createContext<TierDragDropState>({describedBy: '', itemTargetTierId: null, rowDrag: false});
+/** What changes during a drag. Only the rows and the row list read it, never the item tiles. */
+const TierDragTargetContext = createContext<TierDragTargetState>({itemTargetTierId: null, rowDrag: false, dragging: false});
 
 export interface TierDragDropProps<T extends TierLike> {
   /** The list as the store holds it. */
@@ -288,42 +296,52 @@ export function TierDragDrop<T extends TierLike>({tiers, onItemMove, onRowMove, 
     () => (active?.kind === 'item' && preview ? findItem(preview, active.id)?.tierId ?? null : null),
     [active, preview],
   );
-  const state = useMemo<TierDragDropState>(() => ({
-    describedBy: accessibilityIds(idPrefix).description,
-    itemTargetTierId,
-    rowDrag: active?.kind === 'row',
-  }), [idPrefix, itemTargetTierId, active]);
+  const describedBy = accessibilityIds(idPrefix).description;
+  const rowDrag = active?.kind === 'row';
+  const dragging = active !== null;
+  const target = useMemo<TierDragTargetState>(() => ({itemTargetTierId, rowDrag, dragging}), [itemTargetTierId, rowDrag, dragging]);
 
   return (
-    <TierDragDropContext.Provider value={state}>
+    <TierDragDescriptionContext.Provider value={describedBy}>
+    <TierDragTargetContext.Provider value={target}>
       <DragDropProvider
         sensors={session.sensors}
         plugins={session.plugins}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <DragMoves onMove={handleDragMove}/>
+        <DragMoves onOver={handleDragOver} onMove={handleDragMove}/>
         {children(shown)}
       </DragDropProvider>
-    </TierDragDropContext.Provider>
+    </TierDragTargetContext.Provider>
+    </TierDragDescriptionContext.Provider>
   );
 }
 
 /**
- * Listens to dragmove events: arrow keys, and pointer moves within one item. A separate
- * listener, because a DragDropProvider handler for dragmove would start a React transition
- * on every pointer move, even when nothing changes.
+ * Listens to dragover and dragmove events (a new drop target; arrow keys, and pointer moves
+ * within one item) on the manager's monitor. DragDropProvider's own onDragOver and onDragMove
+ * props run their handler inside a React transition: React may then hold the preview back
+ * while the pointer keeps moving, and the dragged item trails behind the pointer. Here the
+ * preview update has the priority of the pointer event, so the next frame shows it.
  */
-function DragMoves({onMove}: {onMove: (event: DragMoveEvent, manager: DragDropManager) => void}) {
+function DragMoves({onOver, onMove}: {
+  onOver: (event: DragOverEvent, manager: DragDropManager) => void;
+  onMove: (event: DragMoveEvent, manager: DragDropManager) => void;
+}) {
   const manager = useDragDropManager();
-  const handler = useRef(onMove);
+  const handlers = useRef({onOver, onMove});
   useLayoutEffect(() => {
-    handler.current = onMove;
+    handlers.current = {onOver, onMove};
   });
   useEffect(() => {
     if (!manager) return;
-    return manager.monitor.addEventListener('dragmove', (event, eventManager) => handler.current(event, eventManager));
+    const stopOver = manager.monitor.addEventListener('dragover', (event, eventManager) => handlers.current.onOver(event, eventManager));
+    const stopMove = manager.monitor.addEventListener('dragmove', (event, eventManager) => handlers.current.onMove(event, eventManager));
+    return () => {
+      stopOver();
+      stopMove();
+    };
   }, [manager]);
   return null;
 }
@@ -380,7 +398,7 @@ export function useTierItems({tierId}: {tierId: string}) {
     accept: DND_TYPES.item,
     collisionPriority: CollisionPriority.Low,
   });
-  const {itemTargetTierId} = useContext(TierDragDropContext);
+  const {itemTargetTierId} = useContext(TierDragTargetContext);
   return {ref, isDropTarget: itemTargetTierId === tierId};
 }
 
@@ -397,12 +415,17 @@ export function useTierItem({itemId, tierId, index}: {itemId: string; tierId: st
     accept: DND_TYPES.item,
     plugins: NO_SORTABLE_PLUGINS,
   });
-  const {describedBy} = useContext(TierDragDropContext);
+  const describedBy = useContext(TierDragDescriptionContext);
   return {ref, isDragging, isDropping, describedBy};
 }
 
-/** The row handle's and the list's drag state: `describedBy` for the handle, `rowDrag` during a row drag. */
+/** `describedBy` for a row handle: the keyboard instructions. Never changes during a drag. */
+export function useTierDragDescription(): string {
+  return useContext(TierDragDescriptionContext);
+}
+
+/** The list's drag state: `rowDrag` is true during a row drag, `dragging` during any drag. */
 export function useTierDragState() {
-  const {describedBy, rowDrag} = useContext(TierDragDropContext);
-  return {describedBy, rowDrag};
+  const {rowDrag, dragging} = useContext(TierDragTargetContext);
+  return {rowDrag, dragging};
 }

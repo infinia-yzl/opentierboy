@@ -1,4 +1,4 @@
-import React, {useCallback, memo, useId, useMemo} from 'react';
+import React, {useCallback, memo, useId, useLayoutEffect, useMemo, useRef} from 'react';
 import {toast} from "sonner";
 import {useTierContext} from "@/contexts/TierContext";
 import Tier, {LabelPosition} from "@/models/Tier";
@@ -9,7 +9,7 @@ import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
-import {TierDragDrop, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
+import {TierDragDrop, useTierDragDescription, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
 import type {ItemMove, RowMove} from "@/lib/dnd/model";
 
 /**
@@ -97,7 +97,7 @@ const TierRow = memo<{
   onDeleteItem: (itemId: string) => void;
 }>(({tier, index, listIndex, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
   const {ref, handleRef, isDragging} = useTierRow({tierId: tier.id, index});
-  const {describedBy} = useTierDragState();
+  const describedBy = useTierDragDescription();
   const tierGradient = getTierGradient(listIndex, tiersLength);
   // Accessible name for the row. The unnamed last row holds unranked items; any other
   // row whose label was cleared is named after its position.
@@ -150,9 +150,14 @@ const TierRow = memo<{
 TierRow.displayName = 'TierRow';
 
 const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
-  const {rowDrag} = useTierDragState();
+  const {rowDrag, dragging} = useTierDragState();
   return (
-    <div className={`pt-4 py-4 ${rowDrag ? 'ring-2 ring-accent-foreground rounded' : ''}`}>
+    // data-dragging turns off the tile label blur during a drag (app/globals.css), as scrolling
+    // does: hundreds of blurred layers made every frame of a drag slow.
+    <div
+      className={`pt-4 py-4 ${rowDrag ? 'ring-2 ring-accent-foreground rounded' : ''}`}
+      data-dragging={dragging || undefined}
+    >
       {children}
     </div>
   );
@@ -165,8 +170,16 @@ const DragDropTierList: React.FC = () => {
   const listIndexOf = useMemo(() => new Map(tiers.map((tier, index) => [tier.id, index])), [tiers]);
   const handleRowMove = useCallback((move: RowMove) => moveTier(move.from, move.to), [moveTier]);
 
+  // The list as of the last render, for the delete handler. Reading it from a ref keeps the
+  // handler the same function across list changes, so a drop or a delete renders only the
+  // rows that changed (the tiles are memoised), and every other tile stays as it is.
+  const tiersRef = useRef(tiers);
+  useLayoutEffect(() => {
+    tiersRef.current = tiers;
+  }, [tiers]);
+
   const handleDeleteItem = useCallback((itemId: string) => {
-    const deleted = findItemToDelete(tiers, itemId);
+    const deleted = findItemToDelete(tiersRef.current, itemId);
     if (!deleted) return;
     deleteItem(itemId);
 
@@ -186,7 +199,7 @@ const DragDropTierList: React.FC = () => {
         },
       },
     });
-  }, [tiers, deleteItem, restoreItem]);
+  }, [deleteItem, restoreItem]);
 
   return (
     // Announcements name rows and items by their labels, never by internal ids.
