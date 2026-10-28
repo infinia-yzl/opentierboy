@@ -119,6 +119,7 @@ export class DragActions<
         dragOperation.status.set(StatusValue.InitializationPending);
         dragOperation.shape = null;
         dragOperation.canceled = false;
+        dragOperation.ending = false;
         dragOperation.activatorEvent = nativeEvent ?? null;
         dragOperation.position.reset(coordinates);
       });
@@ -266,6 +267,8 @@ export class DragActions<
       };
 
       controller.abort();
+      // OpenTierBoy fork: see DragOperation.ending.
+      dragOperation.ending = true;
 
       const end = () => {
         this.manager.renderer.rendering.then(() => {

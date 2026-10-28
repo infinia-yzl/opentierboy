@@ -2446,7 +2446,7 @@ var Droppable = class extends (_c2 = abstract.Droppable, _element_dec2 = [state.
             const { dragOperation } = manager2;
             const { source } = dragOperation;
             observePosition.value = Boolean(
-              source && dragOperation.status.initialized && element2 && !this.disabled && this.accepts(source)
+              source && dragOperation.status.initialized && !dragOperation.ending && !dragOperation.status.dropped && element2 && !this.disabled && this.accepts(source)
             );
           },
           () => {

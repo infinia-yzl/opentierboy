@@ -152,8 +152,10 @@ TierRow.displayName = 'TierRow';
 const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
   const {rowDrag, dragging} = useTierDragState();
   return (
-    // data-dragging turns off the tile label blur during a drag (app/globals.css), as scrolling
-    // does: hundreds of blurred layers made every frame of a drag slow.
+    // data-dragging turns off the tile label blur during a drag and its drop animation
+    // (app/globals.css), as scrolling does: hundreds of blurred layers made every frame of a
+    // drag slow. The blur comes back once the item has landed: at the release, the labels'
+    // transitions back to the blur made the drop animation slow.
     <div
       className={`pt-4 py-4 ${rowDrag ? 'ring-2 ring-accent-foreground rounded' : ''}`}
       data-dragging={dragging || undefined}
