@@ -58,6 +58,7 @@ npm run check:trusted-sites   # no trusted image site is on the pinned tracker l
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
+npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tiles (needs a running build)
 ```
 
 - Run `npm run check` before every commit. CI runs the same script.
@@ -80,8 +81,11 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 ```
 app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (link preview
                       image, edge runtime), /blog, /about, sitemap
+proxy.ts              HTTP status of /rank paths, decided before the page streams (308 for old
+                      tag paths, 404 for templates that do not exist, noindex for legacy sets)
 components/           React components; components/ui/ is shadcn/ui; DragDropTierList.tsx is the
-                      editor's rows (drag and drop through lib/dnd/react.tsx)
+                      editor's rows (drag and drop through lib/dnd/react.tsx); usePageState.ts:
+                      one scroll listener and one zen-mode observer shared by every tile
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
                       syncs it with the address (one router.push per list change, one at a time;
                       label settings use router.replace, owner decision A3)
@@ -112,6 +116,7 @@ lib/snapshot/         snapshot files: the list inside a Freeze Frame PNG (iTXt c
                       reader, zod payload), and what opening a file does
 lib/recent/           Recently viewed: links this browser opened, in local storage (pins, caps)
 lib/rankPath.ts       the /rank path rule for stored paths, and page names for lists without a title
+lib/rankRoute.ts      the set and tag a /rank path names, and its HTTP answer (page and proxy.ts)
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
@@ -121,6 +126,7 @@ scripts/prepareImages.js   builds imageset.config.json and public/images from th
 scripts/lib/image-sets.mjs   shared rules: official vs legacy, config entries, shapes
 scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
 scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
+scripts/bench-drag.mjs   drag performance benchmark (docs/dnd-fork.md, "Performance")
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
 trusted-image-sites.json   sites whose link images load without asking
