@@ -3,7 +3,7 @@ import {useTierContext} from '@/contexts/TierContext';
 import {useCustomImages} from '@/contexts/CustomImagesContext';
 import {deviceImageKey, itemDisplayLabel, linkImageOf} from '@/lib/images/listImages';
 import {getOgTierGradient} from '@/lib/linkPreview';
-import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
+import {MAX_LABEL_LENGTH, MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 import {listCardData, type ListCardData, type ListCardTile} from '@/lib/listCard/model';
 import type Item from '@/models/Item';
 
@@ -43,7 +43,7 @@ export function useListCardData(): () => ListCardData {
       rows: ranked,
       height: 'auto',
       background: getOgTierGradient,
-      rowName: (row) => row.name,
+      rowName: (row) => shorten(row.name, MAX_LABEL_LENGTH),
       tile: tileFor,
     });
   }, [tiers, title, tierCortex, tileFor]);

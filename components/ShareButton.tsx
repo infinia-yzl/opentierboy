@@ -60,12 +60,30 @@ function captureScale(width: number, height: number): number {
   return width * height * wanted * wanted <= MAX_CANVAS_PIXELS ? wanted : 1;
 }
 
-/** Waits until the card's fonts and images are ready to draw. */
+/**
+ * How long Freeze Frame waits for one card image. A server that never answers would otherwise
+ * keep the capture waiting; after this time the image draws as it stands (html2canvas has its own
+ * image timeout, and link images without CORS become label tiles).
+ */
+const IMAGE_WAIT_MS = 5_000;
+
+/** Resolves when the promise settles or after `ms`, whichever comes first. */
+function settledWithin(promise: Promise<unknown>, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    promise.then(
+      () => { clearTimeout(timer); resolve(); },
+      () => { clearTimeout(timer); resolve(); },
+    );
+  });
+}
+
+/** Waits until the card's fonts and images are ready to draw, or until each wait times out. */
 async function cardReady(element: HTMLElement): Promise<void> {
   const family = listCardFont.style.fontFamily;
-  await Promise.all(['400', '600', '900'].map((weight) => document.fonts.load(`${weight} 24px ${family}`).catch(() => [])));
+  await Promise.all(['400', '600', '900'].map((weight) => settledWithin(document.fonts.load(`${weight} 24px ${family}`), IMAGE_WAIT_MS)));
   await Promise.all(Array.from(element.querySelectorAll('img')).map((image) =>
-    image.complete ? Promise.resolve() : image.decode().catch(() => undefined)));
+    image.complete ? Promise.resolve() : settledWithin(image.decode(), IMAGE_WAIT_MS)));
 }
 
 type SocialPlatform = 'facebook' | 'twitter';

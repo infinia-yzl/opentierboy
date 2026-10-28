@@ -3,7 +3,7 @@ import {createTierCortex} from '@/lib/TierCortex';
 import {getOgTierGradient} from '@/lib/linkPreview';
 import {inlineLocalImages} from './local-images';
 import {inlineTrustedLinkImages} from './link-images';
-import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
+import {MAX_LABEL_LENGTH, MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 import {itemDisplayLabel} from '@/lib/images/listImages';
 import {LIST_CARD, listCardData, type ListCardTile} from '@/lib/listCard/model';
 import {ListCard, LIST_CARD_COLORS} from '@/components/ListCard';
@@ -24,8 +24,6 @@ const LOGO = 'brand/otb-logo-wide.png';
 // the tiles drawn in all, so a preview loads at most that many images. Images come at preview
 // size (scripts/prepareImages.js), which keeps each tile cheap to draw.
 const MAX_TILES = 96;
-/** Tier names and item labels. */
-const MAX_TEXT_LENGTH = 40;
 
 // Previews use static instances of Geologica (the revamp's font), cut to Latin characters:
 // 900 with Sharpness at full for titles and tier names, 600 and 400 for the rest. Satori cannot
@@ -154,7 +152,7 @@ export async function GET(request: Request) {
   // Fit first, so only the tiles that show load their images.
   const tileFor = (item: Item): ListCardTile => {
     const safeItem = tierCortex.getOgSafeItem(item);
-    return {key: safeItem.id, label: shorten(itemDisplayLabel(item), MAX_TEXT_LENGTH), src: safeItem.imageUrl};
+    return {key: safeItem.id, label: shorten(itemDisplayLabel(item), MAX_LABEL_LENGTH), src: safeItem.imageUrl};
   };
   const draft = listCardData({
     title: title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy',
@@ -163,7 +161,7 @@ export async function GET(request: Request) {
     height: LIST_CARD.previewHeight,
     maxTiles: MAX_TILES,
     background: getOgTierGradient,
-    rowName: (row) => shorten(row.name, MAX_TEXT_LENGTH),
+    rowName: (row) => shorten(row.name, MAX_LABEL_LENGTH),
     tile: tileFor,
   });
   const drawnItems = ranked.flatMap((row, index) => row.items.slice(0, draft.rows[index]?.tiles.length ?? 0));

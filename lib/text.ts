@@ -9,6 +9,12 @@
 export const MAX_TITLE_LENGTH = 100;
 
 /**
+ * Tier names and item labels on the list card (link previews and Freeze Frame). No real list
+ * reaches it (golden tier names: 33 characters at most).
+ */
+export const MAX_LABEL_LENGTH = 40;
+
+/**
  * The text, or its first characters and an ellipsis, `maxLength` characters in all. Counts
  * code points, so an emoji or another character outside the Basic Multilingual Plane is never
  * cut in half.
