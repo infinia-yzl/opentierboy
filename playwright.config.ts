@@ -41,7 +41,9 @@ export default defineConfig({
 
   use: {
     baseURL,
-    trace: 'on-first-retry',
+    // A trace records request headers. With the Vercel bypass secret set, no trace is kept,
+    // so the secret cannot reach an uploaded report.
+    trace: secret ? 'off' : 'on-first-retry',
     screenshot: 'only-on-failure',
     extraHTTPHeaders: sharedHeaders,
   },

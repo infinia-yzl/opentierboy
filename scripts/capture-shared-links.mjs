@@ -115,11 +115,14 @@ const source = args[sourceIndex + 1];
 const links = args.filter((_, i) => i !== sourceIndex && i !== sourceIndex + 1);
 
 const existing = fs.existsSync(fixturePath) ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : [];
-const known = new Set(existing.map((entry) => entry.state));
+// One entry per page and state: the same state under another template path can expect another
+// page title, so it is a different test.
+const keyOf = (entry) => `${entry.path}\n${entry.state}`;
+const known = new Set(existing.map(keyOf));
 let added = 0;
 for (const link of links) {
   const entry = capture(link, source);
-  const key = entry.state;
+  const key = keyOf(entry);
   if (known.has(key)) continue;
   known.add(key);
   existing.push({id: `link-${String(existing.length + 1).padStart(3, '0')}`, ...entry});

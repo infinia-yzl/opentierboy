@@ -248,6 +248,23 @@ function isRed(color: [number, number, number] | null) {
   return color !== null && color[0] > 200 && color[1] < 60 && color[2] < 60;
 }
 
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite passes while the bug exists. When a fix lands, remove the marker and move the test.
+ */
+test.describe('Known bugs', () => {
+  test('undo puts a deleted item back where it was', async ({tierList}) => {
+    test.fail(true, 'Undo adds the restored item at the end of its tier (itemRestored in lib/tierListReducer.ts).');
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+
+    await tierList.deleteItem('Mauga');
+    await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+    await tierList.undoFromToast('Item deleted');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston'], {timeout: 3_000});
+  });
+});
+
 /** True when the browser decoded the image, so a broken image counts as not loaded. */
 async function imageHasLoaded(image: import('@playwright/test').Locator) {
   return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
