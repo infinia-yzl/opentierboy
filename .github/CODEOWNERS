@@ -2,8 +2,11 @@
 # old shared links and item ids working, and the repository's automation.
 # Some paths do not exist yet; later phases add them.
 
-# Link format: encoders and decoders for the ?state= value.
+# Link format: encoders and decoders for the ?state= value, and the code that turns a link
+# into the list on screen and back.
 /lib/state/                  @infinia-yzl
+/lib/TierCortex.ts           @infinia-yzl
+/lib/listLink.ts             @infinia-yzl
 # Golden shared links and state fixtures (append-only).
 /tests/fixtures/             @infinia-yzl
 # Item id registry and renames (ids are permanent).
