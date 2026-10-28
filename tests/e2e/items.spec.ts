@@ -254,13 +254,15 @@ function isRed(color: [number, number, number] | null) {
  */
 test.describe('Known bugs', () => {
   test('undo puts a deleted item back where it was', async ({tierList}) => {
-    test.fail(true, 'Undo adds the restored item at the end of its tier (itemRestored in lib/tierListReducer.ts).');
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 
     await tierList.deleteItem('Mauga');
     await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
     await tierList.undoFromToast('Item deleted');
+    await expect(tierList.itemsIn('S')).toHaveCount(2);
 
+    // Marked here, after the steps that must work: a failure above fails the test as usual.
+    test.fail(true, 'Undo adds the restored item at the end of its tier (itemRestored in lib/tierListReducer.ts).');
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston'], {timeout: 3_000});
   });
 });
