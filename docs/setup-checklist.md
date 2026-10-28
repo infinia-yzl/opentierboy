@@ -118,8 +118,10 @@ so create any of these that are missing:
 
 ## 6. Tests against Vercel deployments
 
-`playwright.yml` runs the end-to-end tests against every successful Vercel deployment. It runs
-only for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
+`playwright.yml` runs the end-to-end tests against every successful Vercel production
+deployment, with the tests from `main`. Preview deployments of pull requests skip it, because
+their code can be newer than `main`'s tests; CI tests each pull request instead. It runs only
+for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
 
 1. Vercel: **Project → Settings → Git**. Keep **deployment_status Events** on. The workflow
    starts from these events.
@@ -130,8 +132,9 @@ only for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
 3. If Vercel Deployment Protection is on for previews: Vercel **Project → Settings →
    Deployment Protection → Protection Bypass for Automation** → create a secret and copy it.
 4. GitHub: **Settings → Environments → New environment**. Name: `vercel-e2e`.
-   - Deployment branches and tags: **No restriction**. Preview deployments come from any
-     branch.
+   - Deployment branches and tags: **Selected branches and tags** → add `main` only. The
+     job runs for production deployments, which come from `main`, and other branches then
+     cannot read the secret.
    - Under **Environment secrets**, add `VERCEL_AUTOMATION_BYPASS_SECRET` with the value
      from step 3. Skip this if Deployment Protection is off.
 5. Vercel: **Project → Settings → Security**. Keep **Git Fork Protection** on.
