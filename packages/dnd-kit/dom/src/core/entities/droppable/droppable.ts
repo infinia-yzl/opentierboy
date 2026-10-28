@@ -5,13 +5,34 @@ import type {
 } from '@dnd-kit/abstract';
 import {defaultCollisionDetection} from '@dnd-kit/collision';
 import type {CollisionDetector} from '@dnd-kit/collision';
-import {reactive, signal, untracked} from '@dnd-kit/state';
+import {batch, reactive, signal, untracked} from '@dnd-kit/state';
 import type {BoundingRectangle, Shape} from '@dnd-kit/geometry';
-import {DOMRectangle, PositionObserver} from '@dnd-kit/dom/utilities';
+import {DOMRectangle, PositionObserver, Scheduler} from '@dnd-kit/dom/utilities';
 
 import type {DragDropManager} from '../../manager/manager.ts';
 
 type OptionalInput = 'collisionDetector';
+
+/*
+ * OpenTierBoy fork (docs/dnd-fork.md, "Local changes"): position changes in batches.
+ *
+ * Upstream updates a droppable's shape inside its position observer's callback. Each new shape
+ * runs collision detection for every droppable at once, so a render that moves 60 droppables
+ * ran collision detection 60 times, each over all droppables. Here a droppable that already
+ * has a shape queues its update, and one task after the observer callbacks measures all queued
+ * droppables in one batch: collision detection runs once. The first shape of a drag, and a
+ * droppable leaving the screen, still update at once.
+ */
+const pendingShapeUpdates = new Map<object, () => void>();
+const shapeUpdates = new Scheduler((callback) => setTimeout(callback, 0));
+
+function flushShapeUpdates() {
+  const updates = [...pendingShapeUpdates.values()];
+  pendingShapeUpdates.clear();
+  batch(() => {
+    for (const update of updates) update();
+  });
+}
 
 export interface Input<T extends Data = Data>
   extends Omit<AbstractDroppableInput<T>, OptionalInput> {
@@ -79,11 +100,24 @@ export class Droppable<T extends Data = Data> extends AbstractDroppable<
             if (observePosition.value && element) {
               const positionObserver = new PositionObserver(
                 element,
-                updateShape
+                (boundingClientRect) => {
+                  if (
+                    boundingClientRect === null ||
+                    untracked(() => this.shape) === undefined
+                  ) {
+                    pendingShapeUpdates.delete(this);
+                    updateShape(boundingClientRect);
+                    return;
+                  }
+
+                  pendingShapeUpdates.set(this, () => updateShape());
+                  shapeUpdates.schedule(flushShapeUpdates);
+                }
               );
 
               return () => {
                 positionObserver.disconnect();
+                pendingShapeUpdates.delete(this);
                 this.shape = undefined;
               };
             }

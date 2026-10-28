@@ -2405,6 +2405,15 @@ _element = new WeakMap();
 __decorateElement(_init5, 4, "handle", _handle_dec, Draggable, _handle);
 __decorateElement(_init5, 4, "element", _element_dec, Draggable, _element);
 __decoratorMetadata(_init5, Draggable);
+var pendingShapeUpdates = /* @__PURE__ */ new Map();
+var shapeUpdates = new utilities.Scheduler((callback) => setTimeout(callback, 0));
+function flushShapeUpdates() {
+  const updates = [...pendingShapeUpdates.values()];
+  pendingShapeUpdates.clear();
+  state.batch(() => {
+    for (const update of updates) update();
+  });
+}
 var _proxy_dec, _element_dec2, _c2, _init6, _element2, _d, element_get, element_set, _Droppable_instances, _proxy;
 var Droppable = class extends (_c2 = abstract.Droppable, _element_dec2 = [state.reactive], _proxy_dec = [state.reactive], _c2) {
   constructor(_a5, manager) {
@@ -2445,10 +2454,19 @@ var Droppable = class extends (_c2 = abstract.Droppable, _element_dec2 = [state.
             if (observePosition.value && element2) {
               const positionObserver = new utilities.PositionObserver(
                 element2,
-                updateShape
+                (boundingClientRect) => {
+                  if (boundingClientRect === null || state.untracked(() => this.shape) === void 0) {
+                    pendingShapeUpdates.delete(this);
+                    updateShape(boundingClientRect);
+                    return;
+                  }
+                  pendingShapeUpdates.set(this, () => updateShape());
+                  shapeUpdates.schedule(flushShapeUpdates);
+                }
               );
               return () => {
                 positionObserver.disconnect();
+                pendingShapeUpdates.delete(this);
                 this.shape = void 0;
               };
             }

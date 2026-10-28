@@ -2,7 +2,7 @@ import { WeakStore, effect, batch, untracked, reactive } from '@dnd-kit/state';
 import { Plugin, resolveCustomizable } from '@dnd-kit/abstract';
 import { closestCorners, defaultCollisionDetection } from '@dnd-kit/collision';
 import { Scroller, Draggable, Droppable, Feedback } from '@dnd-kit/dom';
-import { isKeyboardEvent, DOMRectangle, getVisibleBoundingRectangle, scrollIntoViewIfNeeded, getComputedStyles, computeTranslate, prefersReducedMotion, getWindow, animateTransform, ProxiedElements } from '@dnd-kit/dom/utilities';
+import { isKeyboardEvent, DOMRectangle, getVisibleBoundingRectangle, scrollIntoViewIfNeeded, ProxiedElements, getComputedStyles, computeTranslate, prefersReducedMotion, getWindow, animateTransform } from '@dnd-kit/dom/utilities';
 import { Rectangle } from '@dnd-kit/geometry';
 
 var __create = Object.create;
@@ -749,45 +749,7 @@ var Sortable2 = class {
       if (!shape || !transition || idle && !transition.idle) {
         return;
       }
-      manager.renderer.rendering.then(() => {
-        const { element } = this;
-        if (!element) {
-          return;
-        }
-        for (const animation of element.getAnimations()) {
-          if ("transitionProperty" in animation && (animation.transitionProperty === "transform" || animation.transitionProperty === "translate" || animation.transitionProperty === "scale")) {
-            animation.cancel();
-          }
-        }
-        const updatedShape = this.refreshShape();
-        if (!updatedShape) {
-          return;
-        }
-        const delta = {
-          x: shape.boundingRectangle.left - updatedShape.boundingRectangle.left,
-          y: shape.boundingRectangle.top - updatedShape.boundingRectangle.top
-        };
-        const { translate } = getComputedStyles(element);
-        const currentTranslate = computeTranslate(element, translate, false);
-        const finalTranslate = computeTranslate(element, translate);
-        if (delta.x || delta.y) {
-          const resolvedTransition = prefersReducedMotion(getWindow(element)) ? __spreadProps(__spreadValues({}, transition), { duration: 0 }) : transition;
-          animateTransform({
-            element,
-            keyframes: {
-              translate: [
-                `${currentTranslate.x + delta.x}px ${currentTranslate.y + delta.y}px ${currentTranslate.z}`,
-                `${finalTranslate.x}px ${finalTranslate.y}px ${finalTranslate.z}`
-              ]
-            },
-            options: resolvedTransition
-          }).then(() => {
-            if (!manager.dragOperation.status.dragging) {
-              this.droppable.shape = void 0;
-            }
-          });
-        }
-      });
+      scheduleIndexAnimation(manager, this, shape, transition);
     });
   }
   get manager() {
@@ -965,6 +927,69 @@ var SortableDroppable = class extends Droppable {
     return this.sortable.group;
   }
 };
+var pendingIndexAnimations = /* @__PURE__ */ new WeakMap();
+function scheduleIndexAnimation(manager, sortable, shape, transition) {
+  const pending = pendingIndexAnimations.get(manager);
+  if (pending) {
+    if (!pending.has(sortable)) pending.set(sortable, { sortable, shape, transition });
+    return;
+  }
+  const animations = /* @__PURE__ */ new Map([[sortable, { sortable, shape, transition }]]);
+  pendingIndexAnimations.set(manager, animations);
+  manager.renderer.rendering.then(() => {
+    pendingIndexAnimations.delete(manager);
+    runIndexAnimations(manager, [...animations.values()]);
+  });
+}
+var TRANSFORM_PROPERTIES = ["transform", "translate", "scale"];
+function runIndexAnimations(manager, entries) {
+  for (const { sortable } of entries) {
+    const { element } = sortable;
+    if (!element) continue;
+    for (const animation of element.getAnimations()) {
+      if ("transitionProperty" in animation && TRANSFORM_PROPERTIES.includes(animation.transitionProperty)) {
+        animation.cancel();
+      }
+    }
+  }
+  const moves = [];
+  batch(() => {
+    for (const { sortable, shape, transition } of entries) {
+      const { element } = sortable;
+      if (!element) continue;
+      const updatedShape = sortable.refreshShape();
+      if (!updatedShape) continue;
+      const delta = {
+        x: shape.boundingRectangle.left - updatedShape.boundingRectangle.left,
+        y: shape.boundingRectangle.top - updatedShape.boundingRectangle.top
+      };
+      if (!delta.x && !delta.y) continue;
+      const { translate } = getComputedStyles(element);
+      const currentTranslate = computeTranslate(element, translate, false);
+      const finalTranslate = computeTranslate(element, translate);
+      moves.push({
+        sortable,
+        element,
+        transition: prefersReducedMotion(getWindow(element)) ? __spreadProps(__spreadValues({}, transition), { duration: 0 }) : transition,
+        translate: [
+          `${currentTranslate.x + delta.x}px ${currentTranslate.y + delta.y}px ${currentTranslate.z}`,
+          `${finalTranslate.x}px ${finalTranslate.y}px ${finalTranslate.z}`
+        ]
+      });
+    }
+  });
+  for (const { sortable, element, transition, translate } of moves) {
+    animateTransform({
+      element,
+      keyframes: { translate },
+      options: transition
+    }).then(() => {
+      if (!manager.dragOperation.status.dragging) {
+        sortable.droppable.shape = void 0;
+      }
+    });
+  }
+}
 
 export { OptimisticSortingPlugin, Sortable2 as Sortable, SortableDraggable, SortableDroppable, SortableKeyboardPlugin, defaultSortableTransition, isSortable, isSortableOperation, resolveSortableTransition };
 //# sourceMappingURL=sortable.js.map

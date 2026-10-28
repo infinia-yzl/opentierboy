@@ -1,7 +1,6 @@
-import * as _dnd_kit_geometry from '@dnd-kit/geometry';
-import { Alignment } from '@dnd-kit/geometry';
 import { Data, UniqueIdentifier, Customizable, Plugins, Modifiers, CollisionPriority, Type, DragOperation, Plugin } from '@dnd-kit/abstract';
 import { CollisionDetector } from '@dnd-kit/collision';
+import { Alignment, Shape } from '@dnd-kit/geometry';
 import { Draggable, Droppable, DraggableInput, DroppableInput, DragDropManager, Sensors } from '@dnd-kit/dom';
 
 interface SortableTransition {
@@ -123,7 +122,7 @@ declare class Sortable<T extends Data = Data> {
      */
     get isDropping(): boolean;
     get status(): "idle" | "dragging" | "dropping";
-    refreshShape(): _dnd_kit_geometry.Shape | undefined;
+    refreshShape(): Shape | undefined;
     accepts(draggable: Draggable): boolean;
     register: () => () => void;
     unregister: () => void;

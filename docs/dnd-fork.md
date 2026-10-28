@@ -163,9 +163,27 @@ licence, notice and the packages.
 
 ## Local changes
 
-No changes to the upstream sources or to the built code.
+Changes to the upstream sources (both in `@dnd-kit/dom`, for drag performance with long lists;
+measured with `npm run bench:drag`, see "Performance" below). Each change is marked
+`OpenTierBoy fork` in the source. Both could go upstream as pull requests.
 
-Changes to build files only:
+- `dom/src/core/entities/droppable/droppable.ts`: shape updates from the position observers
+  are batched. Upstream set a droppable's new shape inside its observer's callback, and each
+  new shape ran collision detection over all droppables, so a render that moved 60 items ran
+  it 60 times. Now a droppable that already has a shape queues its update, and one task after
+  the observer callbacks measures all queued droppables in one `batch()`, so collision
+  detection runs once. The first shape of a drag, and a droppable leaving the screen, still
+  update at once. Effect: script time per frame of a 200-tile drag fell by about a third.
+- `dom/src/sortable/sortable.ts`: the index-change animations of one render run together.
+  Upstream cancelled, measured and animated each sortable in turn, and each measurement also
+  set a shape (one more collision detection run). Now the sortables that changed index in the
+  same render are flushed together: all transitions cancelled, all elements measured in one
+  `batch()`, then all animations started. The animations are the same as upstream's.
+
+The built files these change: `dom/index.*`, `dom/sortable.*` (and their maps). Every other
+built file stays identical to npm.
+
+Changes to build files:
 
 - Every package `package.json`: `devDependencies` removed (they name upstream's private lint
   package, ESLint 8 and Bun types, and would break the app's `npm ci`), `"private": true`
@@ -299,9 +317,20 @@ useTierItems({tierId}): {ref, isDropTarget}
 // for aria-describedby.
 useTierItem({itemId, tierId, index}): {ref, isDragging, isDropping, describedBy}
 
-// describedBy for row handles, and rowDrag (true during a row drag).
-useTierDragState(): {describedBy, rowDrag}
+// describedBy for row handles: the keyboard instructions. It never changes during a drag.
+useTierDragDescription(): string
+
+// rowDrag: true during a row drag. dragging: true during any drag.
+useTierDragState(): {rowDrag, dragging}
 ```
+
+The drag state sits in two React contexts: the instructions (`describedBy`, read by every
+tile) never change, and the drop target and drag flags (read only by rows and the row list)
+change during a drag. With one context, every tile rendered again each time the dragged item
+reached another row. New drop targets (`dragover`) and moves (`dragmove`) come from the
+manager's monitor in `DragMoves`, never from `DragDropProvider`'s `onDragOver` prop: that prop
+runs its handler in a React transition, which React may hold back while the pointer keeps
+moving, so the preview trailed the pointer.
 
 `components/DragDropTierList.tsx` and `components/RowHandle.tsx` use these. They keep the
 accessible names: a row is a `group` named by its label, an item a `button` named by its
@@ -326,7 +355,31 @@ server-rendered page has them too.
   announcements, touch), `tests/e2e/tier-rows.spec.ts` (add and remove rows) and
   `tests/e2e/tile-shapes.spec.ts` (mixed shapes, with a made-up config: see
   `tests/README.md`).
-- [x] Dragging with 200 tiles measured with a Chrome trace (in the pull request).
+- [x] Dragging with 200 tiles measured: `npm run bench:drag` (see "Performance").
 - [x] `MAX_TIER_ROWS <= V3_LIMITS.maxRows` and unique tier and item ids where the editor
   hands its list to `lib/dnd` (`tests/unit/dnd/listIds.test.ts`).
 - [x] `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop) updated.
+
+## Performance
+
+`scripts/bench-drag.mjs` (`npm run bench:drag -- --url <server>`) drags one item through all
+rows of a 200-tile list in Chromium and reports frame times, preview lag (from the pointer
+entering a row until the item shows there), long tasks and main-thread time per frame.
+`--cpu 4` slows the CPU four times, close to a mid-range phone; `--budget` fails when the
+result at full speed is over the owner's "no visible lag" budget. Measured on the agents'
+sandbox (2 CPUs), 2026-10-28, against a production build:
+
+| Build | CPU | Frame p50 / p95 | Preview lag median / p95 | Long tasks | Main thread per frame |
+| --- | --- | --- | --- | --- | --- |
+| `@hello-pangea/dnd` (before 5e) | 4x slower | 16.7 / 67-83 ms | (not comparable) | 670-810 | 13 ms |
+| 5e as first opened (#196) | full | 16.7 / 50 ms | 64 / 157 ms | 12 | - |
+| 5e as first opened (#196) | 4x slower | 67 / 167 ms | 452 / 1,064 ms | 878 | 111 ms |
+| 5e after the performance fixes | full | 16.7 / 16.8 ms | 24 / 42 ms | 5 | 13 ms |
+| 5e after the performance fixes | 4x slower | 16.7 / 67 ms | 52 / 156 ms | 140 | 28 ms |
+
+The largest cost was the blurred label of every tile (`backdrop-blur-xs` with its own
+compositing layer): during a drag the labels now drop the blur, as they already did while the
+page scrolls (`data-dragging` on the row list, `app/globals.css`). What remains at 4x is mostly
+dnd-kit's own work per moved item: position observers, shape measurements and collision
+detection, about 10 ms of script per frame.
+

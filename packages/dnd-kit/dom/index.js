@@ -1,6 +1,6 @@
 import { configurator, Plugin, Sensor, ActivationController, CorePlugin, DragDropManager as DragDropManager$1, resolveCustomizable, Draggable as Draggable$1, Droppable as Droppable$1, ActivationConstraint, descriptor } from '@dnd-kit/abstract';
 export { resolveCustomizable } from '@dnd-kit/abstract';
-import { ScrollDirection, getRoot, Listeners, isElement, scrollIntoViewIfNeeded, DOMRectangle, getDocument, isHTMLElement, getFrameTransform, getEventCoordinates, getDocuments, scheduler, getInteractiveElement, isTextInput, getScrollPosition, canScroll, detectScrollIntent, getElementFromPoint, getScrollableAncestors, isKeyboardEvent, isPointerEvent, generateUniqueId, isSafari, isDocument, isShadowRoot, Styles, getComputedStyles, parseTransform, parseTranslate, getFixedPositionOffset, supportsPopover, showPopover, getWindow, prefersReducedMotion, getFrameElement, cloneElement, supportsStyle, getFinalKeyframe, animateTransform, ProxiedElements, PositionObserver } from '@dnd-kit/dom/utilities';
+import { ScrollDirection, Scheduler as Scheduler$1, getRoot, Listeners, isElement, scrollIntoViewIfNeeded, DOMRectangle, getDocument, isHTMLElement, getFrameTransform, getEventCoordinates, getDocuments, scheduler, getInteractiveElement, isTextInput, getScrollPosition, canScroll, detectScrollIntent, getElementFromPoint, getScrollableAncestors, isKeyboardEvent, isPointerEvent, generateUniqueId, isSafari, isDocument, isShadowRoot, Styles, getComputedStyles, parseTransform, parseTranslate, getFixedPositionOffset, supportsPopover, showPopover, getWindow, prefersReducedMotion, getFrameElement, cloneElement, supportsStyle, getFinalKeyframe, animateTransform, ProxiedElements, PositionObserver } from '@dnd-kit/dom/utilities';
 import { untracked, effect, computed, deepEqual, signal, batch, effects, reactive, derived } from '@dnd-kit/state';
 import { Axes, Point, Rectangle, exceedsDistance } from '@dnd-kit/geometry';
 import { defaultCollisionDetection } from '@dnd-kit/collision';
@@ -2404,6 +2404,15 @@ _element = new WeakMap();
 __decorateElement(_init5, 4, "handle", _handle_dec, Draggable, _handle);
 __decorateElement(_init5, 4, "element", _element_dec, Draggable, _element);
 __decoratorMetadata(_init5, Draggable);
+var pendingShapeUpdates = /* @__PURE__ */ new Map();
+var shapeUpdates = new Scheduler$1((callback) => setTimeout(callback, 0));
+function flushShapeUpdates() {
+  const updates = [...pendingShapeUpdates.values()];
+  pendingShapeUpdates.clear();
+  batch(() => {
+    for (const update of updates) update();
+  });
+}
 var _proxy_dec, _element_dec2, _c2, _init6, _element2, _d, element_get, element_set, _Droppable_instances, _proxy;
 var Droppable = class extends (_c2 = Droppable$1, _element_dec2 = [reactive], _proxy_dec = [reactive], _c2) {
   constructor(_a5, manager) {
@@ -2444,10 +2453,19 @@ var Droppable = class extends (_c2 = Droppable$1, _element_dec2 = [reactive], _p
             if (observePosition.value && element2) {
               const positionObserver = new PositionObserver(
                 element2,
-                updateShape
+                (boundingClientRect) => {
+                  if (boundingClientRect === null || untracked(() => this.shape) === void 0) {
+                    pendingShapeUpdates.delete(this);
+                    updateShape(boundingClientRect);
+                    return;
+                  }
+                  pendingShapeUpdates.set(this, () => updateShape());
+                  shapeUpdates.schedule(flushShapeUpdates);
+                }
               );
               return () => {
                 positionObserver.disconnect();
+                pendingShapeUpdates.delete(this);
                 this.shape = void 0;
               };
             }

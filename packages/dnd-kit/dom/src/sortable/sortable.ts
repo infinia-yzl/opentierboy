@@ -11,7 +11,7 @@ import {
   defaultCollisionDetection,
   type CollisionDetector,
 } from '@dnd-kit/collision';
-import type {Alignment} from '@dnd-kit/geometry';
+import type {Alignment, Shape} from '@dnd-kit/geometry';
 import {Draggable, Droppable, Feedback} from '@dnd-kit/dom';
 import type {
   DraggableInput,
@@ -281,64 +281,8 @@ export class Sortable<T extends Data = Data> {
         return;
       }
 
-      manager.renderer.rendering.then(() => {
-        const {element} = this;
-
-        if (!element) {
-          return;
-        }
-
-        // Cancel CSS transitions on transform-related properties before measuring.
-        // These transitions (e.g. `transition: transform` from user CSS) would cause
-        // getBoundingClientRect() to return the mid-transition position rather than
-        // the element's final resting position, resulting in an incorrect delta.
-        for (const animation of element.getAnimations()) {
-          if (
-            'transitionProperty' in animation &&
-            (animation.transitionProperty === 'transform' ||
-              animation.transitionProperty === 'translate' ||
-              animation.transitionProperty === 'scale')
-          ) {
-            animation.cancel();
-          }
-        }
-
-        const updatedShape = this.refreshShape();
-
-        if (!updatedShape) {
-          return;
-        }
-
-        const delta = {
-          x: shape.boundingRectangle.left - updatedShape.boundingRectangle.left,
-          y: shape.boundingRectangle.top - updatedShape.boundingRectangle.top,
-        };
-
-        const {translate} = getComputedStyles(element);
-        const currentTranslate = computeTranslate(element, translate, false);
-        const finalTranslate = computeTranslate(element, translate);
-
-        if (delta.x || delta.y) {
-          const resolvedTransition = prefersReducedMotion(getWindow(element))
-            ? {...transition, duration: 0}
-            : transition;
-
-          animateTransform({
-            element,
-            keyframes: {
-              translate: [
-                `${currentTranslate.x + delta.x}px ${currentTranslate.y + delta.y}px ${currentTranslate.z}`,
-                `${finalTranslate.x}px ${finalTranslate.y}px ${finalTranslate.z}`,
-              ],
-            },
-            options: resolvedTransition,
-          }).then(() => {
-            if (!manager.dragOperation.status.dragging) {
-              this.droppable.shape = undefined;
-            }
-          });
-        }
-      });
+      // OpenTierBoy fork: the animations of one render run together (scheduleIndexAnimation).
+      scheduleIndexAnimation(manager, this, shape, transition);
     });
   }
 
@@ -582,5 +526,133 @@ export class SortableDroppable<T extends Data> extends Droppable<T> {
 
   get group() {
     return this.sortable.group;
+  }
+}
+
+/*
+ * OpenTierBoy fork (docs/dnd-fork.md, "Local changes"): index-change animations in batches.
+ *
+ * Upstream measures and animates each sortable on its own, one after the other: cancel its
+ * transform transitions, measure it, start its animation. Each measurement also sets the
+ * sortable's shape, and each new shape runs collision detection over all droppables. So a
+ * render that moved 60 items measured the page and ran collision detection 60 times. Here
+ * every sortable that changed index in the same render waits for one flush, which cancels all
+ * transitions, then measures all items in one batch of shape updates (collision detection runs
+ * once), then starts all animations. The animations themselves are the same as upstream's.
+ */
+
+interface PendingIndexAnimation {
+  sortable: Sortable<any>;
+  /** The shape before the index changed (the first one, if the index changed again). */
+  shape: Shape;
+  transition: SortableTransition;
+}
+
+const pendingIndexAnimations = new WeakMap<
+  DragDropManager<any, any>,
+  Map<Sortable<any>, PendingIndexAnimation>
+>();
+
+function scheduleIndexAnimation(
+  manager: DragDropManager<any, any>,
+  sortable: Sortable<any>,
+  shape: Shape,
+  transition: SortableTransition
+) {
+  const pending = pendingIndexAnimations.get(manager);
+
+  if (pending) {
+    if (!pending.has(sortable)) pending.set(sortable, {sortable, shape, transition});
+    return;
+  }
+
+  const animations = new Map([[sortable, {sortable, shape, transition}]]);
+  pendingIndexAnimations.set(manager, animations);
+
+  manager.renderer.rendering.then(() => {
+    pendingIndexAnimations.delete(manager);
+    runIndexAnimations(manager, [...animations.values()]);
+  });
+}
+
+const TRANSFORM_PROPERTIES = ['transform', 'translate', 'scale'];
+
+function runIndexAnimations(
+  manager: DragDropManager<any, any>,
+  entries: PendingIndexAnimation[]
+) {
+  // 1. Cancel CSS transitions on transform-related properties before measuring.
+  // These transitions (e.g. `transition: transform` from user CSS) would cause
+  // getBoundingClientRect() to return the mid-transition position rather than
+  // the element's final resting position, resulting in an incorrect delta.
+  for (const {sortable} of entries) {
+    const {element} = sortable;
+
+    if (!element) continue;
+
+    for (const animation of element.getAnimations()) {
+      if (
+        'transitionProperty' in animation &&
+        TRANSFORM_PROPERTIES.includes(animation.transitionProperty as string)
+      ) {
+        animation.cancel();
+      }
+    }
+  }
+
+  // 2. Measure every element, in one batch of shape updates.
+  const moves: {
+    sortable: Sortable<any>;
+    element: Element;
+    transition: SortableTransition;
+    translate: string[];
+  }[] = [];
+
+  batch(() => {
+    for (const {sortable, shape, transition} of entries) {
+      const {element} = sortable;
+
+      if (!element) continue;
+
+      const updatedShape = sortable.refreshShape();
+
+      if (!updatedShape) continue;
+
+      const delta = {
+        x: shape.boundingRectangle.left - updatedShape.boundingRectangle.left,
+        y: shape.boundingRectangle.top - updatedShape.boundingRectangle.top,
+      };
+
+      if (!delta.x && !delta.y) continue;
+
+      const {translate} = getComputedStyles(element);
+      const currentTranslate = computeTranslate(element, translate, false);
+      const finalTranslate = computeTranslate(element, translate);
+
+      moves.push({
+        sortable,
+        element,
+        transition: prefersReducedMotion(getWindow(element))
+          ? {...transition, duration: 0}
+          : transition,
+        translate: [
+          `${currentTranslate.x + delta.x}px ${currentTranslate.y + delta.y}px ${currentTranslate.z}`,
+          `${finalTranslate.x}px ${finalTranslate.y}px ${finalTranslate.z}`,
+        ],
+      });
+    }
+  });
+
+  // 3. Start the animations.
+  for (const {sortable, element, transition, translate} of moves) {
+    animateTransform({
+      element,
+      keyframes: {translate},
+      options: transition,
+    }).then(() => {
+      if (!manager.dragOperation.status.dragging) {
+        sortable.droppable.shape = undefined;
+      }
+    });
   }
 }
