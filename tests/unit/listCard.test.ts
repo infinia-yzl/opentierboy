@@ -1,5 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {fitListCard, fittedTileCount, tilesPerLine, type FitListCardInput} from '@/lib/listCard/fit';
+import {listSetName} from '@/lib/listCard/model';
+import type ImageSetConfig from '@/models/ImageSet';
 
 /** The link preview frame: 1200×630, 132 px header, 36 px sides, 32 px below, 120 px labels. */
 const preview = (counts: number[], extra: Partial<FitListCardInput> = {}): FitListCardInput => ({
@@ -77,12 +79,23 @@ describe('fitListCard in a fixed frame', () => {
   it('summarises the rows that do not fit in a "+N more rows" bar', () => {
     const fit = fitListCard(preview(Array.from({length: 12}, () => 2)));
     expect(fit.mode).toBe('summary');
-    expect(fit.tile).toBe(48);
+    // 8 rows fit at 48 px above the bar; the tiles then grow to fill the room.
+    expect(fit.rows.length).toBe(8);
+    expect(fit.tile).toBe(Math.floor((ROOM - 34) / 8) - 1);
     expect(fit.rows.length + fit.extraRows).toBe(12);
     expect(fit.extraRows).toBeGreaterThan(0);
     expect(rowsHeight(fit)).toBeLessThanOrEqual(ROOM);
     // One more row would not fit above the bar.
     expect((fit.rows.length + 1) * 49 + 34).toBeGreaterThan(ROOM);
+  });
+
+  it('shows a row\'s "+N" tile in the last place of its line', () => {
+    const fit = fitListCard(preview(Array.from({length: 12}, () => 40)));
+    expect(fit.mode).toBe('summary');
+    for (const row of fit.rows) {
+      expect(row.shown + 1).toBe(fit.perLine);
+      expect(row.shown + row.more).toBe(40);
+    }
   });
 
   it('draws at most 100 short rows as a bar and a few rows', () => {
@@ -152,5 +165,27 @@ describe('fitListCard in an auto frame', () => {
     expect(fit.height).toBeLessThanOrEqual(8000);
     expect(fit.rows.length + fit.extraRows).toBe(400);
     expect(fit.extraRows).toBeGreaterThan(0);
+  });
+});
+
+describe('listSetName', () => {
+  const config = {packages: {
+    'image-overwatch': {displayName: 'OVERWATCH', images: [], tags: {}},
+    'image-overwatch-extra': {displayName: 'EXTRA', images: [], tags: {}},
+  }} as ImageSetConfig;
+  const row = (...ids: string[]) => ({items: ids.map((id) => ({id, content: id}))});
+
+  it('names the set that most items come from', () => {
+    expect(listSetName(config, [row('image-overwatch-ana.webp', 'image-overwatch-mau.webp'), row('custom-1')])).toBe('OVERWATCH');
+  });
+
+  it('matches the longest package name', () => {
+    expect(listSetName(config, [row('image-overwatch-extra-a.webp', 'image-overwatch-extra-b.webp')])).toBe('EXTRA');
+  });
+
+  it('names no set for a mixed list or a list without image-set items', () => {
+    expect(listSetName(config, [row('image-overwatch-ana.webp', 'custom-1', 'custom-2')])).toBeNull();
+    expect(listSetName(config, [row('custom-1')])).toBeNull();
+    expect(listSetName(config, [])).toBeNull();
   });
 });

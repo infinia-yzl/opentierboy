@@ -21,6 +21,7 @@ import {
   type ListLayout,
 } from "@/lib/listLink";
 import {defaultBaseUrl, getAssetUrl, getOgSafeImageUrl, getOgSafeItem} from "@/lib/linkPreview";
+import {listSetName} from "@/lib/listCard/model";
 
 /** Configuration for createTierCortex. Every field has the app's default. */
 export interface TierCortexOptions {
@@ -77,6 +78,8 @@ export function createTierCortex(options: TierCortexOptions = {}) {
     getOgSafeImageUrl: (url: string): string => getOgSafeImageUrl(url, baseUrl),
     /** An item as link previews draw it (lib/linkPreview.ts). */
     getOgSafeItem: (item: Item): Item => getOgSafeItem(item, baseUrl),
+    /** The display name of the image set most of the list's items come from (lib/listCard/model.ts). */
+    listSetName: (tiers: readonly Pick<Tier, 'items'>[]): string | null => listSetName(imageSetConfig, tiers),
   });
 }
 

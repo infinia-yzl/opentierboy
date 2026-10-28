@@ -5,6 +5,10 @@ import {inlineLocalImages} from './local-images';
 import {inlineTrustedLinkImages} from './link-images';
 import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 import {itemDisplayLabel} from '@/lib/images/listImages';
+import {LIST_CARD, listCardData, type ListCardTile} from '@/lib/listCard/model';
+import {ListCard, LIST_CARD_COLORS} from '@/components/ListCard';
+import type Item from '@/models/Item';
+import type Tier from '@/models/Tier';
 
 export const runtime = 'edge';
 
@@ -15,83 +19,155 @@ const LOGO = 'brand/otb-logo-wide.png';
 // minutes. No real list reaches the text limits: the golden links have 49-character titles and
 // 33-character tier names at most.
 //
-// Rows: only the rows that can show. The header takes at least 72 px and each row at least 80 px
-// (satori drops the spacing between rows, and shrinks the padding above them when they overflow),
-// so 7 rows reach the bottom of the 630 px image and an 8th row starts below it. The golden
-// previews draw 7 rows at most. Drawing an 8th row also made satori take about 9 s instead of
-// 2 s on the test machine.
-const MAX_ROWS = 7;
+// Rows and tiles: the fit rules (lib/listCard/fit.ts) draw only what fits in 1200×630: at most
+// 9 rows, or 8 rows and a "+N more rows" bar, and long rows end in a "+N" tile. MAX_TILES caps
+// the tiles drawn in all, so a preview loads at most that many images. Images come at preview
+// size (scripts/prepareImages.js), which keeps each tile cheap to draw.
+const MAX_TILES = 96;
 /** Tier names and item labels. */
 const MAX_TEXT_LENGTH = 40;
-// Tiles drawn per row (plus a "+N" tile for the rest). A row has 1,008 px for tiles (1,200 px,
-// less the 16 px padding on each side and the 160 px label) and a tile takes 72 px (64 px and a
-// 4 px margin on each side), so 14 fit: all 11 are visible, none is clipped. Images come at
-// preview size (scripts/prepareImages.js), which keeps each tile cheap to draw.
-const ITEMS_PER_ROW = 10;
 
-
-// Previews use Noto Sans, the default font of next/og up to Next.js 15. Next.js 16 changed
-// the default to Geist, so the route passes the same font file itself to keep previews
-// unchanged. fonts/OFL.txt holds the font's licence.
-const notoSans = fetch(new URL('./fonts/noto-sans-v27-latin-regular.ttf', import.meta.url))
-  .then((response) => response.arrayBuffer());
+// Previews use static instances of Geologica (the revamp's font), cut to Latin characters:
+// 900 with Sharpness at full for titles and tier names, 600 and 400 for the rest. Satori cannot
+// read the variable font or WOFF2 files. next/og loads missing characters (for example
+// Japanese) from Google Fonts at render time. fonts/OFL.txt holds the font's licence.
+const FONT_FAMILY = 'Geologica';
+const fontFile = (name: string) => fetch(new URL(`./fonts/${name}`, import.meta.url)).then((response) => response.arrayBuffer());
+const fonts = Promise.all([
+  fontFile('Geologica-Regular.ttf'),
+  fontFile('Geologica-SemiBold.ttf'),
+  fontFile('Geologica-Black-Sharp.ttf'),
+]);
 
 async function imageOptions() {
+  const [regular, semiBold, black] = await fonts;
   return {
-    width: 1200,
-    height: 630,
-    // The name and weight that next/og 15 gave its default font.
-    fonts: [{name: 'sans serif', data: await notoSans, weight: 700 as const, style: 'normal' as const}],
+    width: LIST_CARD.width,
+    height: LIST_CARD.previewHeight,
+    fonts: [
+      {name: FONT_FAMILY, data: regular, weight: 400 as const, style: 'normal' as const},
+      {name: FONT_FAMILY, data: semiBold, weight: 600 as const, style: 'normal' as const},
+      {name: FONT_FAMILY, data: black, weight: 900 as const, style: 'normal' as const},
+    ],
   };
 }
 
-const DefaultOGImage = ({logoSrc}: {logoSrc: string}) => (
-  <div tw="flex flex-col w-full h-full bg-black justify-between p-32">
-    <div tw="flex flex-col justify-between items-center w-full">
-      <img
-        src={logoSrc}
-        alt="OpenTierBoy"
-        width={600}
-        height={160}
-        tw="mx-auto"
-      />
-      <h1 tw="text-4xl text-white">
-        https://www.opentierboy.com
-      </h1>
+// The default preview (the canvas board "OGDefault"): the wordmark, the landing page headline and
+// tagline, and a sample list that runs off the right and bottom edges.
+const SAMPLE_ROWS: {name: string; files: string[]}[] = [
+  {name: 'S', files: ['rei.webp', 'zar.webp', 'win.webp']},
+  {name: 'A', files: ['sig.webp', 'dva.webp']},
+  {name: 'B', files: ['ori.webp', 'ram.webp', 'mau.webp']},
+  {name: 'C', files: ['hog.webp']},
+  {name: 'D', files: []},
+];
+const SAMPLE_TILE = 104;
+
+function DefaultOGImage({logoSrc, rows}: {logoSrc: string; rows: {name: string; images: string[]}[]}) {
+  return (
+    <div style={{
+      display: 'flex', position: 'relative', width: '100%', height: '100%', background: LIST_CARD_COLORS.background,
+      color: LIST_CARD_COLORS.text, fontFamily: FONT_FAMILY, overflow: 'hidden',
+    }}>
+      <div style={{display: 'flex', flexDirection: 'column', position: 'absolute', left: 690, top: 64, width: 640}}>
+        {rows.map((row, index) => (
+          <div key={row.name} style={{
+            display: 'flex', height: SAMPLE_TILE, backgroundImage: getOgTierGradient(index, rows.length + 1),
+            borderBottom: `1px solid ${LIST_CARD_COLORS.rowLine}`,
+          }}>
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', width: SAMPLE_TILE, fontSize: 52, fontWeight: 900}}>
+              {row.name}
+            </div>
+            {row.images.map((src) => (
+              // eslint-disable-next-line @next/next/no-img-element -- satori draws plain <img> elements
+              <img key={src} src={src} alt="" width={SAMPLE_TILE} height={SAMPLE_TILE}
+                   style={{width: SAMPLE_TILE, height: SAMPLE_TILE, objectFit: 'contain'}}/>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'absolute', left: 56, top: 0,
+        bottom: 0, width: 590,
+      }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- satori draws plain <img> elements */}
+        <img src={logoSrc} alt="OpenTierBoy" width={520} height={Math.round(520 * LIST_CARD.logoHeight / LIST_CARD.logoWidth)}/>
+        <div style={{display: 'flex', flexDirection: 'column', marginTop: 22, fontSize: 50, fontWeight: 900, lineHeight: 1.04, letterSpacing: '-0.03em'}}>
+          <div style={{display: 'flex'}}>Free and Open-Source</div>
+          <div style={{display: 'flex'}}>Tier Lists</div>
+        </div>
+        <div style={{display: 'flex', marginTop: 22, fontSize: 28, color: '#9aa6c2'}}>
+          Craft, rank and share your passion.
+        </div>
+      </div>
     </div>
-    <h2 tw="flex text-4xl text-white text-center justify-center">
-      No ads, no logins, no sign ups. Create tier lists for free.
-    </h2>
-  </div>
-);
+  );
+}
+
+// The default preview is the same for every request, so each server instance draws it once and
+// keeps the PNG. Drawing it costs as much as a list preview (ten images), and lists that cannot
+// be read also get it.
+let defaultPng: Promise<{body: ArrayBuffer; headers: Headers}> | null = null;
 
 async function defaultImageResponse() {
-  const logoUrl = createTierCortex().getAssetUrl(LOGO);
-  const imageSrc = await inlineLocalImages([logoUrl]);
-  return new ImageResponse(<DefaultOGImage logoSrc={imageSrc(logoUrl)}/>, await imageOptions());
+  if (!defaultPng) {
+    defaultPng = drawDefaultImage().then(async (response) => ({body: await response.arrayBuffer(), headers: response.headers}));
+    defaultPng.catch(() => {
+      defaultPng = null;
+    });
+  }
+  const {body, headers} = await defaultPng;
+  return new Response(body.slice(0), {headers});
+}
+
+async function drawDefaultImage() {
+  const tierCortex = createTierCortex();
+  const logoUrl = tierCortex.getAssetUrl(LOGO);
+  const sample = SAMPLE_ROWS.map((row) => ({
+    name: row.name,
+    images: tierCortex.resolveItemsFromPackage('image-overwatch', row.files)
+      .map((item) => tierCortex.getOgSafeItem(item).imageUrl)
+      .filter((url): url is string => url !== undefined),
+  }));
+  const imageSrc = await inlineLocalImages([logoUrl, ...sample.flatMap((row) => row.images)]);
+  const rows = sample.map((row) => ({name: row.name, images: row.images.map(imageSrc)}));
+  return new ImageResponse(<DefaultOGImage logoSrc={imageSrc(logoUrl)} rows={rows}/>, await imageOptions());
 }
 
 export async function GET(request: Request) {
   const {searchParams} = new URL(request.url);
   const state = searchParams.get('state');
-
   if (!state) {
     return defaultImageResponse();
   }
 
   const tierCortex = createTierCortex();
   const decodedState = tierCortex.decodeTierStateFromURL(state);
-
   if (!decodedState) {
     return defaultImageResponse();
   }
 
   const {title, tiers} = decodedState;
-  tiers.pop(); // Remove uncategorized tier
-  const rows = tiers.slice(0, MAX_ROWS);
-
+  const ranked: Tier[] = tiers.slice(0, -1); // Without the Unranked row
   const logoUrl = tierCortex.getAssetUrl(LOGO);
-  const drawnItems = rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW));
+
+  // Fit first, so only the tiles that show load their images.
+  const tileFor = (item: Item): ListCardTile => {
+    const safeItem = tierCortex.getOgSafeItem(item);
+    return {key: safeItem.id, label: shorten(itemDisplayLabel(item), MAX_TEXT_LENGTH), src: safeItem.imageUrl};
+  };
+  const draft = listCardData({
+    title: title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy',
+    setName: tierCortex.listSetName(ranked),
+    rows: ranked,
+    height: LIST_CARD.previewHeight,
+    maxTiles: MAX_TILES,
+    background: getOgTierGradient,
+    rowName: (row) => shorten(row.name, MAX_TEXT_LENGTH),
+    tile: tileFor,
+  });
+  const drawnItems = ranked.flatMap((row, index) => row.items.slice(0, draft.rows[index]?.tiles.length ?? 0));
+
   // Only image URLs that TierCortex builds for the app's own assets. Link images and device
   // images have none (getOgSafeItem): link image addresses never reach this (A8, A36).
   const itemImageUrls = drawnItems
@@ -107,80 +183,21 @@ export async function GET(request: Request) {
     inlineTrustedLinkImages(linkImageUrls),
   ]);
 
-  const titleText = title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy';
+  const card = {
+    ...draft,
+    rows: draft.rows.map((row, rowIndex) => ({
+      ...row,
+      tiles: row.tiles.map((tile, tileIndex) => {
+        const item = ranked[rowIndex].items[tileIndex];
+        const linkSrc = item.source === 'link' ? linkImageSrc(item.url) : undefined;
+        const src = linkSrc ?? (tile.src ? imageSrc(tile.src) : undefined);
+        return {...tile, src};
+      }),
+    })),
+  };
 
   return new ImageResponse(
-    (
-      <div tw="flex flex-col w-full h-full bg-black">
-        <div tw="flex justify-between items-center pl-2 pr-4">
-          <div tw="text-2xl text-white">
-            {titleText}
-          </div>
-          <div tw="text-2xl text-white">
-            opentierboy.com
-          </div>
-        </div>
-        <div tw="text-md text-white pl-2 pb-4">
-          No ads, no logins, no sign ups. Create yours today.
-        </div>
-
-        <div tw="flex flex-col space-y-4 px-4 pt-6">
-          {rows.map((tier, index) => (
-            <div
-              key={tier.id}
-              style={{
-                background: getOgTierGradient(index, tiers.length + 1),
-              }}
-              tw="flex items-center rounded-md min-h-[80px] overflow-hidden"
-            >
-              <div tw="w-40 h-full flex items-center justify-center">
-                <div tw="text-2xl font-semibold text-white text-center">
-                  {shorten(tier.name, MAX_TEXT_LENGTH)}
-                </div>
-              </div>
-              <div tw="flex-1 flex flex-wrap">
-                {tier.items.slice(0, ITEMS_PER_ROW).map((item) => {
-                  const safeItem = tierCortex.getOgSafeItem(item);
-                  const label = shorten(itemDisplayLabel(item), MAX_TEXT_LENGTH);
-                  const linkSrc = item.source === 'link' ? linkImageSrc(item.url) : undefined;
-                  return (
-                    <div
-                      key={safeItem.id}
-                      tw="w-16 h-16 m-1 rounded-md overflow-hidden bg-gray-200 flex items-center justify-center"
-                    >
-                      {linkSrc || safeItem.imageUrl ? (
-                        <img
-                          src={linkSrc ?? imageSrc(safeItem.imageUrl as string)}
-                          alt={label}
-                          tw="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div tw="text-xs text-gray-600 text-center p-1">
-                          {label}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {tier.items.length > ITEMS_PER_ROW && (
-                  <div tw="w-16 h-16 m-1 rounded-md bg-gray-700 flex items-center justify-center text-white font-bold">
-                    +{tier.items.length - ITEMS_PER_ROW}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <img
-          src={imageSrc(logoUrl)}
-          alt="OpenTierBoy"
-          width={300}
-          height={80}
-          tw="absolute bottom-10 right-10"
-        />
-      </div>
-    ),
-    await imageOptions()
+    <ListCard card={card} logoSrc={imageSrc(logoUrl)} fontFamily={FONT_FAMILY}/>,
+    await imageOptions(),
   );
 }

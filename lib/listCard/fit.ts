@@ -8,7 +8,8 @@
  *    shrink one pixel at a time, down to `tileMin`, until every row fits.
  * 2. One line a row: each row keeps one line of tiles and ends in a "+N" tile for the rest.
  *    Tiles take the largest size that lets every row fit.
- * 3. Summarise: one line a row at `tileMin`, as many rows as fit above a "+N more rows" bar.
+ * 3. Summarise: one line a row, as many rows as fit at `tileMin` above a "+N more rows" bar.
+ *    Tiles then grow to fill the room those rows leave.
  * `maxTiles` caps the tiles a fixed frame draws: a row draws at most its share of them.
  *
  * An 'auto' frame (Freeze Frame's "Whole list" picture) grows as tall as the list needs. It
@@ -141,10 +142,10 @@ export function fitListCard(input: FitListCardInput): FittedListCard {
     return {tile, perLine, rows, extraRows: 0, height, mode: 'single-line'};
   }
 
-  // 3. Summarise: as many rows as fit above the bar.
-  const tile = tileMin;
+  // 3. Summarise: as many rows as fit above the bar at tileMin, then tiles grow to fill the room.
+  const fitting = Math.max(0, Math.floor((available - barHeight) / (tileMin + border)));
+  const tile = fitting > 0 ? Math.min(tileMax, Math.floor((available - barHeight) / fitting) - border) : tileMin;
   const perLine = tilesPerLine(contentWidth, tile);
-  const fitting = Math.max(0, Math.floor((available - barHeight) / (tile + border)));
   const shownCounts = counts.slice(0, fitting);
   const rows = singleLineRows(shownCounts, perLine, share(shownCounts.length));
   return {tile, perLine, rows, extraRows: counts.length - shownCounts.length, height, mode: 'summary'};
