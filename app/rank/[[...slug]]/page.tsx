@@ -4,7 +4,8 @@ import ImageSetConfig from "@/models/ImageSet";
 import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
-import {redirect} from "next/navigation";
+import {findRankSet, findRankTag} from "@/lib/rankRoute";
+import {permanentRedirect} from "next/navigation";
 import {createTierCortex} from "@/lib/TierCortex";
 import {visibleImageSets} from "@/lib/imageSets";
 import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
@@ -61,33 +62,13 @@ export async function generateStaticParams() {
   return params;
 }
 
-async function getItemSetData(nameOrPackage: string, tagSlug: string): Promise<ItemSet | null> {
-  let packageName: string | undefined;
-  let packageData: ImageSetConfig["packages"]["data"] | undefined;
+async function getItemSetData(nameOrPackage: string, tagSlug: string | undefined): Promise<ItemSet | null> {
+  const set = findRankSet(typedImageSetConfig, nameOrPackage);
+  if (!set || tagSlug === undefined) return null;
+  const {packageName, packageData} = set;
 
-  // Check if nameOrPackage is a packageName
-  if (typedImageSetConfig.packages[nameOrPackage]) {
-    packageName = nameOrPackage;
-    packageData = typedImageSetConfig.packages[nameOrPackage];
-  } else {
-    // If not, search for a matching display name
-    const entry = Object.entries(typedImageSetConfig.packages).find(([_, data]) =>
-      slugify(data.displayName) === nameOrPackage
-    );
-    if (entry) {
-      [packageName, packageData] = entry;
-    }
-  }
-
-  if (!packageName || !packageData) return null;
-
-  // Find the original tag that matches either the exact slug or the normalized version
-  const originalTag = tagSlug === 'all'
-    ? 'all'
-    : Object.keys(packageData.tags).find(tag =>
-      tag === tagSlug || createSEOFriendlyTagSlug(tag) === tagSlug
-    );
-
+  // The tag the slug names: the exact tag or its URL form (lib/rankRoute.ts).
+  const originalTag = findRankTag(packageData, tagSlug);
   if (!originalTag) return null;
 
   const images = originalTag === 'all'
@@ -207,13 +188,14 @@ export default async function TierListPage(
     );
   }
 
-  // Only normalize and redirect if both nameOrPackage and tagSlug are present
+  // Only normalize and redirect if both nameOrPackage and tagSlug are present. proxy.ts answers
+  // these paths with a 308 before the page renders; this is the fallback.
   if (nameOrPackage && tagSlug) {
     const normalizedTagSlug = createSEOFriendlyTagSlug(tagSlug);
     if (normalizedTagSlug !== tagSlug) {
       const searchParamsString = new URLSearchParams(searchParams as Record<string, string>).toString();
       const redirectUrl = `/rank/${nameOrPackage}/${normalizedTagSlug}${searchParamsString ? `?${searchParamsString}` : ''}`;
-      redirect(redirectUrl);
+      permanentRedirect(redirectUrl);
     }
   }
 
