@@ -4,7 +4,6 @@ import React, {useCallback, useSyncExternalStore} from 'react';
 import {ReaderIcon} from "@radix-ui/react-icons";
 import {Toggle} from "@/components/ui/toggle";
 import {toast} from "sonner";
-import {usePathname} from "next/navigation";
 
 /** Zen mode is the `zen-mode` class on <html>; this follows it. */
 function subscribeToZenMode(onChange: () => void) {
@@ -15,9 +14,12 @@ function subscribeToZenMode(onChange: () => void) {
 
 const isZenModeOn = () => document.documentElement.classList.contains('zen-mode');
 
+/**
+ * The editor toolbar's Zen button (owner decision, 2026-10-28: between Add images and Share).
+ * It stays visible in Zen, so Zen can be turned off again.
+ */
 export function ZenToggle() {
   const isZenMode = useSyncExternalStore(subscribeToZenMode, isZenModeOn, () => false);
-  const pathname = usePathname();
 
   const toggleZenMode = useCallback(() => {
     document.documentElement.classList.toggle('zen-mode');
@@ -32,15 +34,14 @@ export function ZenToggle() {
     toast(zenModeMessage, zenModeData);
   }, []);
 
-  if (!pathname.includes('rank')) return null;
-
   return (
     <Toggle
-      aria-label="Toggle zen mode"
+      variant="outline"
+      className="gap-2 px-4"
       pressed={isZenMode}
       onPressedChange={toggleZenMode}
     >
-      <ReaderIcon className="mr-2 h-4 w-4"/>
+      <ReaderIcon className="h-4 w-4"/>
       Zen
     </Toggle>
   );

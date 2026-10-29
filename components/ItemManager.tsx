@@ -24,7 +24,7 @@ import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
 import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
-import {DashboardIcon} from "@radix-ui/react-icons";
+import {ImageIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
@@ -32,7 +32,17 @@ import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
 import {useAddItemsWithUndo} from "@/components/useAddItems";
 
-const ItemManager: React.FC = () => {
+interface ItemManagerProps {
+  /** Opens files chosen with "Open a saved picture…" (components/useSnapshotFiles.tsx: openFiles). */
+  onOpenFiles: (files: File[]) => void;
+  /** Focus returns here after the "Open the list in this file?" dialog. */
+  openFocusRef?: React.RefObject<HTMLButtonElement | null>;
+}
+
+/** Pictures, as "From your device" offers them. The bytes are checked again after choosing. */
+const ACCEPTED_FILES = 'image/*';
+
+const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef}) => {
   const {tiers, tierCortex, resetRankings, removeAllItems, restoreTiers} = useTierContext();
   const addItemsWithUndo = useAddItemsWithUndo();
   const showGradientBorder = tiers.every(tier => tier.items.length === 0);
@@ -43,6 +53,11 @@ const ItemManager: React.FC = () => {
   // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
   const manageItemsButton = useRef<HTMLButtonElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const setTriggerRef = (element: HTMLButtonElement | null) => {
+    manageItemsButton.current = element;
+    if (openFocusRef) openFocusRef.current = element;
+  };
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
@@ -119,11 +134,11 @@ const ItemManager: React.FC = () => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" ref={manageItemsButton}
-                  className={`${showGradientBorder ? 'glow-effect' : ''}`}
+          <Button variant="outline" ref={setTriggerRef}
+                  className={`gap-2 ${showGradientBorder ? 'glow-effect' : ''}`}
           >
-            <DashboardIcon className="h-4 w-4"/>
-            <span className="sr-only">Manage items</span>
+            <ImageIcon className="h-4 w-4"/>
+            Add images
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -140,6 +155,9 @@ const ItemManager: React.FC = () => {
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
+          {/* Opening a saved Freeze Frame picture brings a list in, so it sits with the list
+              actions (owner decision, 2026-10-29). Pictures without a list become items. */}
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>Open a saved picture…</DropdownMenuItem>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
                             className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
@@ -148,6 +166,18 @@ const ItemManager: React.FC = () => {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <input
+        ref={fileInput}
+        type="file"
+        accept={ACCEPTED_FILES}
+        hidden
+        onChange={(event) => {
+          const files = Array.from(event.target.files ?? []);
+          // Clear the input, so choosing the same file again opens it again.
+          event.target.value = '';
+          if (files.length > 0) onOpenFiles(files);
+        }}
+      />
 
       <AlertDialog open={isRemoveAllOpen} onOpenChange={setIsRemoveAllOpen}>
         <AlertDialogContent onCloseAutoFocus={(event) => {

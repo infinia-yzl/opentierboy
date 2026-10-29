@@ -7,8 +7,8 @@ import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
 import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
-import OpenFileButton from "@/components/OpenFileButton";
-import TierTemplateSelector from "@/components/TierTemplateSelector";
+import {RowControls} from "@/components/TierTemplateSelector";
+import {ZenToggle} from "@/components/ZenToggle";
 import EditableLabel from "@/components/EditableLabel";
 import ItemManager from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
@@ -41,18 +41,19 @@ const TierListEditor: React.FC = () => {
   useFileDrop(openFiles);
 
   return (
-    <>
-      <div className="mb-4">
-        <EditableLabel as="h1" text={title} onSave={setTitle} placeholder="Enter title"
-                       contentClassName="scroll-m-20 border-b pb-2 text-3xl font-semibold tracking-tight first:mt-0 text-center"/>
+    <div className="w-full flex flex-col items-center">
+      {/* The title on the left and the editor's three tools on the right (owner decisions,
+          2026-10-28): Add images, Zen, Share. Zen stays visible in Zen, to turn it off. */}
+      <div className="w-full mb-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <EditableLabel as="h1" text={title} onSave={setTitle} placeholder="Enter title" className="min-w-0"
+                       contentClassName="scroll-m-20 text-3xl font-black tracking-tight first:mt-0"/>
+        <div role="group" aria-label="Editor tools" className="flex gap-2 shrink-0" id="settings" data-html2canvas-ignore>
+          <span className="hide-in-zen"><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
+          <ZenToggle/>
+          <span className="hide-in-zen"><ShareButton title={title}/></span>
+        </div>
       </div>
       <div className="flex flex-col items-center hide-in-zen">
-        <div className="flex space-x-2" id="settings" data-html2canvas-ignore>
-          <TierTemplateSelector/>
-          <ItemManager/>
-          <ShareButton title={title}/>
-          <OpenFileButton onFiles={openFiles} buttonRef={openFileButtonRef}/>
-        </div>
         <div className="p-2" data-html2canvas-ignore>
           <p className="text-sm text-muted-foreground text-center">
             Drag to reorder.
@@ -71,8 +72,9 @@ const TierListEditor: React.FC = () => {
       </div>
       <LinkImageNotice/>
       <DragDropTierList/>
+      <RowControls/>
       {openListDialog}
-    </>
+    </div>
   );
 };
 

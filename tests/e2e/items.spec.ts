@@ -122,7 +122,7 @@ test.describe('Managing items', () => {
     await tierList.shareButton.click({trial: true, timeout: 3_000});
   });
 
-  test('closing the Remove All confirmation gives focus back to the Manage items button', async ({tierList}) => {
+  test('closing the Remove All confirmation gives focus back to the Add images button', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
     await tierList.removeAllItems();

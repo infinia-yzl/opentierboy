@@ -6,7 +6,6 @@ import Link from "next/link";
 
 import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
-import {ZenToggle} from "@/components/ZenToggle";
 import {AppearanceMenu} from "@/components/AppearanceMenu";
 import {APPEARANCE_SCRIPT, THEME_CLASSES, THEME_NAMES} from "@/lib/appearance";
 import {GitHubLogoIcon} from "@radix-ui/react-icons";
@@ -177,13 +176,9 @@ export default function RootLayout({
                 </Button>
               </nav>
             </div>
-            {/* gap-1, not space-x-1: in Tailwind 4, space-x-1 would leave a margin after the Zen
-                button when zen mode hides the theme button. */}
-            <div className="flex justify-center gap-1">
-              <ZenToggle/>
-              <span className="hide-in-zen">
-          <AppearanceMenu/>
-        </span>
+            {/* Site-level only (owner decision, 2026-10-28): Zen is in the editor's toolbar. */}
+            <div className="flex justify-center hide-in-zen">
+              <AppearanceMenu/>
             </div>
           </div>
         </div>

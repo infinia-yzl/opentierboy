@@ -247,9 +247,9 @@ What do you think? 🤔
     )}
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="icon" disabled={isCapturing}>
+        <Button className="gap-2" disabled={isCapturing}>
           <Share1Icon className="h-4 w-4"/>
-          <span className="sr-only">Share</span>
+          Share
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px]">

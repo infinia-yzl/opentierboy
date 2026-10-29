@@ -47,11 +47,14 @@ export class TierListPage {
   readonly main: Locator;
   readonly title: Locator;
   readonly tiers: Locator;
+  /** The title row's tools: Add images, Zen and Share. */
+  readonly editorTools: Locator;
   readonly rowOptionsButton: Locator;
+  /** "Add row", beside Row options under the rows (#182). */
+  readonly addRowButton: Locator;
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
   readonly sharePanel: Locator;
-  readonly openFileButton: Locator;
   /** "Open the list in this file?", after opening a snapshot file. */
   readonly openListDialog: Locator;
   readonly zenModeToggle: Locator;
@@ -60,15 +63,17 @@ export class TierListPage {
     this.page = page;
     this.main = page.getByRole('main');
     this.title = this.main.getByRole('heading', {level: 1});
-    this.tiers = this.main.getByRole('group');
-    this.rowOptionsButton = page.getByRole('button', {name: 'Select rows and label options'});
-    this.manageItemsButton = page.getByRole('button', {name: 'Manage items'});
+    // Rows are the groups with a row handle; the title row's "Editor tools" is a group too.
+    this.tiers = this.main.getByRole('group').filter({has: page.getByRole('button', {name: /^Move tier /})});
+    this.editorTools = page.getByRole('group', {name: 'Editor tools'});
+    this.rowOptionsButton = page.getByRole('button', {name: 'Row options'});
+    this.addRowButton = page.getByRole('button', {name: 'Add row', exact: true});
+    this.manageItemsButton = page.getByRole('button', {name: 'Add images', exact: true});
     this.shareButton = page.getByRole('button', {name: 'Share', exact: true});
     this.sharePanel = page.getByRole('dialog').filter({
       has: page.getByRole('heading', {name: 'Share Your Rankings'}),
     });
-    this.zenModeToggle = page.getByRole('button', {name: 'Toggle zen mode'});
-    this.openFileButton = page.getByRole('button', {name: 'Open file', exact: true});
+    this.zenModeToggle = page.getByRole('button', {name: 'Zen', exact: true});
     this.openListDialog = page.getByRole('alertdialog', {name: 'Open the list in this file?'});
   }
 
@@ -552,11 +557,10 @@ export class TierListPage {
   // ---- Row and label settings ------------------------------------------------------------
 
   /** Switches the row template. A new history entry, like any change to the list. */
-  /** Adds an empty row above Unranked, from the row options menu (#182). */
+  /** Adds an empty row above Unranked with "Add row" (#182). */
   async addTierRow() {
     await this.changeAndWaitForLink(async () => {
-      await this.rowOptionsButton.click();
-      await this.page.getByRole('menuitem', {name: 'Add a row'}).click();
+      await this.addRowButton.click();
     });
   }
 
@@ -570,26 +574,25 @@ export class TierListPage {
   }
 
   /**
-   * What the row options menu offers: whether "Add a row" and "Remove a row" can be chosen, and
-   * the rows "Remove a row" lists. Closes the menu again.
+   * What the rows offer: whether "Add row" and the row options menu's "Remove a row" can be
+   * chosen, and the rows "Remove a row" lists. Closes the menu again.
    */
   async rowChanges(): Promise<{canAdd: boolean; canRemove: boolean; removable: string[]}> {
+    const canAdd = await this.addRowButton.isEnabled();
     await this.rowOptionsButton.click();
-    const add = this.page.getByRole('menuitem', {name: 'Add a row'});
     const remove = this.page.getByRole('menuitem', {name: 'Remove a row'});
-    await expect(add).toBeVisible();
-    const canAdd = await add.isEnabled();
+    await expect(remove).toBeVisible();
     const canRemove = await remove.isEnabled();
     let removable: string[] = [];
     if (canRemove) {
       await remove.click();
-      const submenu = this.page.getByRole('menu').filter({hasNot: add});
+      const submenu = this.page.getByRole('menu').filter({hasNot: remove});
       await expect(submenu.getByRole('menuitem').first()).toBeVisible();
       removable = await submenu.getByRole('menuitem').allTextContents();
     }
     await this.page.keyboard.press('Escape');
     await this.page.keyboard.press('Escape');
-    await expect(add).toBeHidden();
+    await expect(remove).toBeHidden();
     return {canAdd, canRemove, removable};
   }
 
@@ -652,7 +655,7 @@ export class TierListPage {
     await this.manageItemsButton.click();
   }
 
-  /** Opens the Manage items menu and leaves it open. */
+  /** Opens the Add images menu and leaves it open. */
   async openManageItemsMenu() {
     await this.openItemsMenu();
     await expect(this.page.getByRole('menu')).toBeVisible();
@@ -889,13 +892,15 @@ export class TierListPage {
   // ---- Files: snapshot files and pictures ---------------------------------------------------
 
   /**
-   * Chooses a file with "Open file", as the file chooser would. Pass `waitForEditor: false` when
-   * the test already waited for the editor (waitUntilInteractive), for example to time the opening.
+   * Chooses a file with "Open a saved picture…" in the Add images menu, as the file chooser
+   * would. Pass `waitForEditor: false` when the test already waited for the editor
+   * (waitUntilInteractive), for example to time the opening.
    */
   async openFile(file: {name: string; mimeType: string; buffer: Buffer}, {waitForEditor = true} = {}) {
     if (waitForEditor) await this.waitUntilInteractive();
     const chooser = this.page.waitForEvent('filechooser');
-    await this.openFileButton.click();
+    await this.manageItemsButton.click();
+    await this.page.getByRole('menuitem', {name: 'Open a saved picture…'}).click();
     await (await chooser).setFiles(file);
   }
 
