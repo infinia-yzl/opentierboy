@@ -8,6 +8,8 @@ import {findRankSet, findRankTag} from "@/lib/rankRoute";
 import {permanentRedirect} from "next/navigation";
 import {createTierCortex} from "@/lib/TierCortex";
 import {visibleImageSets} from "@/lib/imageSets";
+import {gameColourKey} from "@/lib/appearance";
+import {GameColours} from "@/components/GameColours";
 import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 import {Skeleton} from "@/components/ui/skeleton";
 
@@ -207,6 +209,7 @@ export default async function TierListPage(
 
   return (
     <div className="flex flex-col items-center justify-center">
+      <GameColours gameKey={gameColourKey(itemSet?.packageName)}/>
       <TierListManager
         initialItemSet={itemSet ?? undefined}
         initialState={initialState}
