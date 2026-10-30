@@ -12,13 +12,17 @@ import {LIST_CARD, type ListCardData, type ListCardTile} from '@/lib/listCard/mo
  * React state. The fit rules (lib/listCard/fit.ts) decide the sizes before it renders.
  */
 
+/**
+ * The card's colours: the warm near-black of the site's dark mode (owner decision, 2026-10-30),
+ * for Freeze Frame and link previews alike.
+ */
 export const LIST_CARD_COLORS = Object.freeze({
-  background: '#070a1f',
+  background: '#0c0a09',
   text: '#ffffff',
   accent: '#fb923c',
-  bar: '#0e1330',
-  barText: '#eef2fa',
-  more: '#1e2547',
+  bar: '#1c1917',
+  barText: '#fafaf9',
+  more: '#292524',
   rowLine: 'rgba(0, 0, 0, 0.35)',
   labelTile: '#e5e7eb',
   labelTileText: '#374151',
