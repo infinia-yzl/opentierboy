@@ -37,6 +37,16 @@ export function modeOf(theme: string | undefined): Mode {
   return (theme && LEGACY_THEMES[theme]) || 'system';
 }
 
+/**
+ * Whether the page shows dark mode, for the Appearance button's icon. A retired dark theme
+ * (ocean-dark, forest-dark) is dark: next-themes reports it under its old name. System follows
+ * the device, which next-themes reports as `resolvedTheme`.
+ */
+export function showsDark(theme: string | undefined, resolvedTheme: string | undefined): boolean {
+  const mode = modeOf(theme);
+  return mode === 'system' ? resolvedTheme === 'dark' : mode === 'dark';
+}
+
 export const FONT_STORAGE_KEY = 'otb-font';
 export const GAME_COLOURS_STORAGE_KEY = 'otb-game-colours';
 /** On <html>: the Classic font (Nunito Sans, with Urbanist headings). Without it: Modern (Geologica). */

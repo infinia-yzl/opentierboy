@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {modeOf, type FontChoice, type Mode} from '@/lib/appearance';
+import {modeOf, showsDark, type FontChoice, type Mode} from '@/lib/appearance';
 import {useFontChoice, useGameColours} from '@/components/useAppearance';
 
 const MODE_LABELS: Record<Mode, string> = {light: 'Light', dark: 'Dark', system: 'System'};
@@ -55,7 +55,7 @@ export function AppearanceMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon" aria-label="Appearance">
-          {icon(resolvedTheme === 'dark')}
+          {icon(showsDark(theme, resolvedTheme))}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
