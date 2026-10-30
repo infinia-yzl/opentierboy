@@ -166,20 +166,26 @@ async function oneRun(browser, state, profile) {
   const result = await page.evaluate(() => ({frames: window.__bench.frames.slice(), lags: window.__bench.lags, longTasks: window.__bench.longTasks}));
 
   // The drop. A fixed wait is right here: the benchmark measures what happens in that time.
-  const releasedAt = await page.evaluate(() => {
+  // The page records the moment of the release itself, when the pointerup reaches it.
+  await page.evaluate(() => {
     window.__bench.frames = [];
     window.__bench.times = [];
-    return performance.now();
+    window.__bench.releasedAt = undefined;
+    window.addEventListener('pointerup', () => {
+      window.__bench.releasedAt = performance.now();
+    }, {once: true, capture: true});
   });
   await mouse.up();
   await page.waitForTimeout(DROP_WINDOW_MS + 100);
-  const drop = await page.evaluate(({releasedAt, animationMs, windowMs}) => {
+  const drop = await page.evaluate(({animationMs, windowMs}) => {
     const state = window.__bench;
     state.running = false;
+    const releasedAt = state.releasedAt;
+    if (releasedAt === undefined) throw new Error('The page saw no pointerup');
     const during = (ms) => state.frames.filter((_, n) => state.times[n] > releasedAt && state.times[n] <= releasedAt + ms);
     const window_ = during(windowMs);
     return {animationFrames: during(animationMs).length, worstFrameMs: Math.max(...window_), framesOver33Ms: window_.filter(gap => gap > 33).length};
-  }, {releasedAt, animationMs: DROP_ANIMATION_MS, windowMs: DROP_WINDOW_MS});
+  }, {animationMs: DROP_ANIMATION_MS, windowMs: DROP_WINDOW_MS});
   await context.close();
   const frames = result.frames.slice(1);
   return {

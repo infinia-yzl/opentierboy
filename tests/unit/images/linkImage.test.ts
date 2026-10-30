@@ -41,7 +41,7 @@ describe('checkLinkImageUrl: accepted addresses', () => {
   });
 
   it('trims spaces around a pasted address', () => {
-    expect(checkLinkImageUrl('  https://i.imgur.com/a.png \n'.replace('\n', ' '))).toMatchObject({
+    expect(checkLinkImageUrl('  https://i.imgur.com/a.png \n'.replace(/\n/g, ' '))).toMatchObject({
       ok: true,
       url: 'https://i.imgur.com/a.png',
     });
