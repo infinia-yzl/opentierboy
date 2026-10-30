@@ -10,6 +10,17 @@ test.describe('Editor layout', () => {
     await expect(tierList.editorTools.getByRole('button')).toHaveText(['Add images', 'Zen', 'Share']);
   });
 
+  test('on a 320 px screen the three tools stay on the screen', async ({tierList}) => {
+    await tierList.page.setViewportSize({width: 320, height: 700});
+    await tierList.goto(TANKS);
+    for (const name of ['Add images', 'Zen', 'Share']) {
+      const box = await tierList.editorTools.getByRole('button', {name, exact: true}).boundingBox();
+      if (!box) throw new Error(`${name} is not on the page`);
+      expect(box.x, `${name} starts on the screen`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `${name} ends on the screen`).toBeLessThanOrEqual(320);
+    }
+  });
+
   test('the site header holds Appearance, and Zen sits with the editor', async ({tierList, site}) => {
     await tierList.goto(TANKS);
     await expect(site.appearanceButton).toBeVisible();

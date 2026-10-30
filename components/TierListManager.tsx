@@ -47,7 +47,7 @@ const TierListEditor: React.FC = () => {
       <div className="w-full mb-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <EditableLabel as="h1" text={title} onSave={setTitle} placeholder="Enter title" className="min-w-0"
                        contentClassName="scroll-m-20 text-3xl font-black tracking-tight first:mt-0"/>
-        <div role="group" aria-label="Editor tools" className="flex gap-2 shrink-0" id="settings" data-html2canvas-ignore>
+        <div role="group" aria-label="Editor tools" className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
           <span className="hide-in-zen"><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
           <ZenToggle/>
           <span className="hide-in-zen"><ShareButton title={title}/></span>
