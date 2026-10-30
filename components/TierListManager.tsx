@@ -9,7 +9,7 @@ import {usePasteImages} from "@/components/usePasteImages";
 import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
-import EditableLabel from "@/components/EditableLabel";
+import {ListTitle} from "@/components/ListTitle";
 import ItemManager from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
 import {ItemSet} from "@/models/ItemSet";
@@ -43,36 +43,32 @@ const TierListEditor: React.FC = () => {
   return (
     <div className="w-full flex flex-col items-center">
       {/* The title on the left and the editor's three tools on the right (owner decisions,
-          2026-10-28): Add images, Zen, Share. Zen stays visible in Zen, to turn it off. */}
-      <div className="w-full mb-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <EditableLabel as="h1" text={title} onSave={setTitle} placeholder="Enter title" className="min-w-0"
-                       contentClassName="scroll-m-20 text-3xl font-black tracking-tight first:mt-0"/>
+          2026-10-28): Add images, Zen, Share. Zen stays visible in Zen, to turn it off. The title
+          sits right above the rows; on phones the tools sit above the title (2026-10-31). */}
+      <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <ListTitle title={title} onSave={setTitle}/>
         <div role="group" aria-label="Editor tools" className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
           <span className="hide-in-zen"><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
           <ZenToggle/>
           <span className="hide-in-zen"><ShareButton title={title}/></span>
         </div>
       </div>
-      <div className="flex flex-col items-center hide-in-zen">
-        <div className="p-2" data-html2canvas-ignore>
-          <p className="text-sm text-muted-foreground text-center">
-            Drag to reorder.
-          </p>
-          <p className="tooltip-mouse text-sm text-muted-foreground text-center">
-            Right-click on any item to delete.
-          </p>
-          <p className="tooltip-touch text-sm text-muted-foreground text-center">
-            Long-press on any item to delete.
-          </p>
-          <p className="tooltip-mouse text-sm text-muted-foreground text-center">
-            Paste an image to add it as an item.
-          </p>
-          <UrlLengthWarning urlLength={urlLength}/>
-        </div>
-      </div>
       <LinkImageNotice/>
       <DragDropTierList/>
+      {/* The hints sit with the unranked items, where items start (owner decision, 2026-10-31). */}
+      <div className="w-full -mt-2 mb-2 hide-in-zen" data-html2canvas-ignore>
+        {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
+        <p className="flex flex-wrap gap-x-1 text-sm text-muted-foreground">
+          <span>Drag to reorder.</span>
+          <span className="tooltip-mouse">Right-click on any item to delete.</span>
+          <span className="tooltip-touch">Long-press on any item to delete.</span>
+          <span className="tooltip-mouse">Paste an image to add it as an item.</span>
+        </p>
+      </div>
       <RowControls/>
+      <div className="w-full hide-in-zen" data-html2canvas-ignore>
+        <UrlLengthWarning urlLength={urlLength}/>
+      </div>
       {openListDialog}
     </div>
   );

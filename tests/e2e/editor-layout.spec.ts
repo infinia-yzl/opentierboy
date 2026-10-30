@@ -37,3 +37,69 @@ test.describe('Editor layout', () => {
     await expect(tierList.rowOptionsButton).toBeHidden();
   });
 });
+
+// The list title (owner decision, 2026-10-31): the page's h1 and its biggest text, right above
+// the rows, with a pencil that shows it can be edited. The hints sit under the rows.
+test.describe('List title', () => {
+  test('the title is the page\'s only h1, and bigger than the row labels', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await expect(tierList.page.getByRole('heading', {level: 1})).toHaveCount(1);
+    const size = (heading: typeof tierList.title) => heading.evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
+    const titleSize = await size(tierList.title);
+    const rowLabelSize = await size(tierList.tier('S').getByRole('heading', {level: 2}));
+    expect(titleSize).toBeGreaterThan(rowLabelSize);
+  });
+
+  test('the Unranked row heading has a name', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await expect(tierList.unranked.getByRole('heading', {level: 2, name: 'Unranked'})).toBeAttached();
+  });
+
+  test('Edit title opens the title in a text box, and Enter saves it', async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.editTitleButton.focus();
+    await tierList.page.keyboard.press('Enter');
+    await expect(tierList.titleInput).toBeFocused();
+    await expect(tierList.titleInput).toHaveValue('OVERWATCH - Tank');
+
+    await tierList.titleInput.fill('Best tanks');
+    await tierList.titleInput.press('Enter');
+    await expect(tierList.title).toHaveText('Best tanks');
+  });
+
+  test('Escape keeps the old title', async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.editTitleButton.click();
+    await tierList.titleInput.fill('Not saved');
+    await tierList.titleInput.press('Escape');
+    await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+  });
+
+  test('the title sits right above the rows, and the hints under them', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    const title = await tierList.title.boundingBox();
+    const firstRow = await tierList.tier('S').boundingBox();
+    const lastRow = await tierList.unranked.boundingBox();
+    const hints = await tierList.hints.boundingBox();
+    const tools = await tierList.editorTools.boundingBox();
+    if (!title || !firstRow || !lastRow || !hints || !tools) throw new Error('A part of the editor is not on the page');
+
+    expect(firstRow.y - (title.y + title.height)).toBeLessThan(40);
+    expect(hints.y).toBeGreaterThanOrEqual(lastRow.y + lastRow.height);
+    // Wide screens: the tools on the title's line. Phones: the tools above the title.
+    if (tierList.page.viewportSize()!.width >= 640) {
+      expect(tools.y).toBeLessThan(title.y + title.height);
+    } else {
+      expect(tools.y + tools.height).toBeLessThanOrEqual(title.y);
+    }
+  });
+
+  test('the pencil and the hints hide in Zen', async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await expect(tierList.editTitleButton).toBeVisible();
+    await tierList.setZenMode(true);
+    await expect(tierList.editTitleButton).toBeHidden();
+    await expect(tierList.hints).toBeHidden();
+    await expect(tierList.title).toBeVisible();
+  });
+});

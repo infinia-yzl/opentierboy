@@ -46,6 +46,12 @@ export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
   readonly title: Locator;
+  /** The pencil after the title (owner decision, 2026-10-31). */
+  readonly editTitleButton: Locator;
+  /** The text box that replaces the title while it is edited. */
+  readonly titleInput: Locator;
+  /** The editor's hints, under the rows. */
+  readonly hints: Locator;
   readonly tiers: Locator;
   /** The title row's tools: Add images, Zen and Share. */
   readonly editorTools: Locator;
@@ -63,6 +69,9 @@ export class TierListPage {
     this.page = page;
     this.main = page.getByRole('main');
     this.title = this.main.getByRole('heading', {level: 1});
+    this.editTitleButton = this.main.getByRole('button', {name: 'Edit title'});
+    this.titleInput = this.main.getByRole('textbox', {name: 'Title'});
+    this.hints = this.main.getByText('Drag to reorder.');
     // Rows are the groups with a row handle; the title row's "Editor tools" is a group too.
     this.tiers = this.main.getByRole('group').filter({has: page.getByRole('button', {name: /^Move tier /})});
     this.editorTools = page.getByRole('group', {name: 'Editor tools'});

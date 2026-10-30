@@ -2,28 +2,11 @@ import React, {useState, useEffect, useRef} from 'react';
 import {Input} from "@/components/ui/input";
 import {cn} from "@/lib/utils";
 
-interface EditableLabelProps {
-  text: string;
-  onSave: (newText: string) => void;
-  className?: string;
-  as?: keyof React.JSX.IntrinsicElements;
-  contentClassName?: string;
-  placeholder?: string;
-}
-
 /**
- * A label that turns into a text box on click. Enter or clicking away saves the new text;
- * Escape restores the old text and saves nothing.
+ * Editing text in place: `draft` is the text being typed, or null while not editing. Enter or
+ * leaving the box saves the new text; Escape restores the old text and saves nothing.
  */
-const EditableLabel: React.FC<EditableLabelProps> = ({
-  text,
-  onSave,
-  className = '',
-  as: Component = 'span',
-  contentClassName = 'text-xl font-semibold',
-  placeholder = ''
-}) => {
-  // The text being typed; null while not editing, when the box shows `text`.
+export function useInlineEdit(text: string, onSave: (newText: string) => void) {
   const [draft, setDraft] = useState<string | null>(null);
   const isEditing = draft !== null;
   // Set once the edit ends. The box can still report a blur while it disappears; that blur
@@ -49,32 +32,54 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
     if (save) onSave(draft);
   };
 
-  const handleClick = () => {
+  const inputProps = {
+    ref: inputRef,
+    type: 'text',
+    value: draft ?? text,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => startEditing(e.target.value),
+    onBlur: () => endEditing(true),
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        endEditing(true);
+      } else if (e.key === 'Escape') {
+        endEditing(false);
+      }
+    },
+  } as const;
+
+  return {isEditing, edit: () => {
     if (!isEditing) startEditing(text);
-  };
+  }, inputProps};
+}
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    startEditing(e.target.value);
-  };
+interface EditableLabelProps {
+  text: string;
+  onSave: (newText: string) => void;
+  className?: string;
+  as?: keyof React.JSX.IntrinsicElements;
+  contentClassName?: string;
+  placeholder?: string;
+  /** A name for screen readers while the text is empty, so an empty heading still has one. */
+  emptyLabel?: string;
+}
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      endEditing(true);
-    } else if (e.key === 'Escape') {
-      endEditing(false);
-    }
-  };
+/** A label that turns into a text box on click (see useInlineEdit). */
+const EditableLabel: React.FC<EditableLabelProps> = ({
+  text,
+  onSave,
+  className = '',
+  as: Component = 'span',
+  contentClassName = 'text-xl font-semibold',
+  placeholder = '',
+  emptyLabel,
+}) => {
+  const {isEditing, edit, inputProps} = useInlineEdit(text, onSave);
 
   const renderContent = () => {
     if (isEditing || (!text && placeholder)) {
       return (
         <Input
-          ref={inputRef}
-          type="text"
-          value={draft ?? text}
-          onChange={handleChange}
-          onBlur={() => endEditing(true)}
-          onKeyDown={handleKeyDown}
+          {...inputProps}
           className={cn(contentClassName, 'py-6 min-w-24 text-center')}
           placeholder={placeholder}
         />
@@ -82,12 +87,16 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
     } else if (text) {
       return <Component className={contentClassName}>{text}</Component>;
     } else {
-      return <Component className={contentClassName}></Component>;
+      return (
+        <Component className={contentClassName}>
+          {emptyLabel && <span className="sr-only">{emptyLabel}</span>}
+        </Component>
+      );
     }
   };
 
   return (
-    <div onClick={handleClick} className={`relative ${className}`}>
+    <div onClick={edit} className={`relative ${className}`}>
       {renderContent()}
     </div>
   );
