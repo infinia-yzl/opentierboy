@@ -188,6 +188,11 @@ requests.
   became Dropped. The list changes at the release, so each of the 200 observers measured its
   element again and rebuilt its IntersectionObserver during the drop animation (about 1,300
   timers and 4,200 layout reads). Collisions no longer matter once the drag has stopped.
+- `abstract/src/core/collision/notifier.ts`: the drop target stays as it is once `ending` is
+  true. The droppables forget their shapes when they stop observing, and collisions computed
+  without them would clear `dragOperation.target` before `dragend` reads it. Before this
+  guard, the target survived only because the collision observer skips an update while the
+  pointer has not moved (CodeRabbit review on #198).
 
 The app reads `ending` too: `useTierDragState()` (lib/dnd/react.tsx) keeps `dragging` true
 until the dropped element has landed, so the tile labels keep the drag style through the drop

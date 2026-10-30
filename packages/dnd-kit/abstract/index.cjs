@@ -880,6 +880,9 @@ var CollisionNotifier = class extends CorePlugin {
         if (collisionObserver.isDisabled()) {
           return;
         }
+        if (state.untracked(() => manager.dragOperation.ending)) {
+          return;
+        }
         if (Entity.pendingIdChanges) {
           return;
         }
