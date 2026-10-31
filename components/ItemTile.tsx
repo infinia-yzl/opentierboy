@@ -1,8 +1,19 @@
-import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
+import React, {useCallback, memo} from 'react';
 import Image from 'next/image';
-import {ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger} from "@/components/ui/context-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
+import {useDeviceImage, useLinkImage} from "@/contexts/CustomImagesContext";
+import {itemDisplayLabel} from "@/lib/images/listImages";
+import {tileSize} from "@/lib/tileSize";
+import {usePageScrolling, useZenMode} from "@/components/usePageState";
 
 interface ItemTileProps extends Item {
   onDelete?: (id: string) => void;
@@ -13,80 +24,86 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   id,
   content,
   imageUrl,
+  source,
+  url,
+  shape,
   onDelete = () => {
   },
   showLabel = true,
 }) => {
-  const [isZenMode, setIsZenMode] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const item: Item = {id, content, imageUrl, source, url};
+  const link = useLinkImage(item);
+  const device = useDeviceImage(item);
+  // Link images: a plain <img> (never the image optimizer, A8) once the site is allowed and the
+  // image passed its check; until then, and when it fails, a label tile with the site's name.
+  const linkSrc = link?.status === 'ready' ? link.src : undefined;
+  // Uploads: the image from the device store (a blob: URL). The placeholder until it is loaded
+  // or when this browser does not have it; a label tile when the store removed it for room.
+  const deviceSrc = device?.status === 'ready' ? device.url : undefined;
+  const tileImageUrl = link ? undefined : device?.status === 'evicted' ? undefined : deviceSrc ?? imageUrl;
+  const domain = link?.domain ?? '';
+  const label = itemDisplayLabel(item);
+  // Tiles render at their shape (square, landscape or portrait), all with the same height.
+  const size = tileSize({shape});
 
-  useEffect(() => {
-    const checkZenMode = () => {
-      setIsZenMode(document.documentElement.classList.contains('zen-mode'));
-    };
-
-    checkZenMode();
-    const observer = new MutationObserver(checkZenMode);
-    observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 450);
-    };
-
-    window.addEventListener('scroll', handleScroll, {passive: true});
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
+  // One listener for the whole page, shared by every tile (components/usePageState.ts).
+  const isZenMode = useZenMode();
+  const isScrolling = usePageScrolling();
 
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md">
-      {imageUrl ? (
+    <div className={`relative ${size.className} overflow-hidden`}
+         title={domain ? `Image from ${domain}` : undefined}>
+      {linkSrc || tileImageUrl ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
-            <Image
-              src={imageUrl}
-              alt={content}
-              fill
-              sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
-              style={{
-                objectFit: "contain"
-              }}
-              placeholder="blur"
-              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
-            />
+            {linkSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element -- link images never go through the image optimizer (A8)
+              <img
+                src={linkSrc}
+                alt={label}
+                referrerPolicy="no-referrer"
+                loading="lazy"
+                decoding="async"
+                data-link-image={linkSrc}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <Image
+                src={tileImageUrl as string}
+                alt={label}
+                fill
+                sizes={size.sizes}
+                style={{
+                  objectFit: "contain"
+                }}
+                unoptimized={tileImageUrl?.startsWith('blob:')}
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
+              />
+            )}
           </div>
           {showLabel && (
+            // The label background is a plain rgb() value: "Original html2canvas" (Freeze Frame)
+            // cannot read the oklab() colour that Tailwind 4 writes for bg-black/30.
             <div
-              className={`absolute bottom-0 left-0 right-0 bg-black bg-opacity-30  ${
-                isScrolling ? '' : 'backdrop-blur-sm will-change-transform transform-gpu'
-              }  p-1 transition-all duration-180 ease-in-out`}
+              className={`absolute bottom-0 left-0 right-0 bg-[rgb(0_0_0/0.3)] ${
+                isScrolling ? '' : 'tile-label-blur backdrop-blur-xs will-change-transform transform-gpu'
+              }  p-1 transition-all ease-in-out`}
             >
               <span
                 className="text-[9px] leading-tight text-white block mb-0.5 text-center"
               >
-                {content}
+                {label}
               </span>
             </div>
           )}
         </>
       ) : (
-        <div className="flex items-center justify-center h-full text-sm">
-          {content}
+        <div className="flex flex-col items-center justify-center h-full text-sm text-center break-words">
+          <span>{label}</span>
+          {domain && domain !== label && <span className="text-[9px] leading-tight text-muted-foreground">{domain}</span>}
         </div>
       )}
     </div>
@@ -100,6 +117,12 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
     <ContextMenu>
       <ContextMenuTrigger>{tileContent}</ContextMenuTrigger>
       <ContextMenuContent>
+        {domain && (
+          <>
+            <ContextMenuLabel className="text-xs font-normal text-muted-foreground">Image from {domain}</ContextMenuLabel>
+            <ContextMenuSeparator/>
+          </>
+        )}
         <ContextMenuItem
           onClick={handleDelete}
           className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"

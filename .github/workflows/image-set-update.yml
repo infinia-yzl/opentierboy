@@ -1,0 +1,339 @@
+# Opens a pull request when an active image set publishes a new version on npm.
+# It never merges: the owner reviews and merges every pull request (no auto-merge).
+#
+# Triggers:
+# - repository_dispatch "image-set-published" with client_payload {package, version}. The image
+#   set repositories send it from their release.yml after npm publish.
+# - workflow_dispatch with the same two inputs, to run it by hand.
+#
+# Job 1 (prepare) has read-only access and no secrets. It waits until npm serves the new
+# version, installs it with --ignore-scripts, prepares the images, registers new item ids, runs
+# the checks, the build and the Playwright tests, and uploads the result as a patch. The
+# package's own code runs here (prepareImages calls its API), so nothing in this job can write
+# to the repository.
+# Job 2 (open-pr) mints a short-lived token of the bot GitHub App for this repository only,
+# inside the "bot" environment (main only). It runs only code from main: it applies the patch to
+# the git index (never the working tree), checks it with scripts/image-set-update.mjs, pushes
+# the branch and opens the pull request. When the branch exists already, it opens the pull
+# request only if there is none (an earlier run stopped after the push) and the branch holds
+# exactly this update.
+#
+# Owner setup (docs/setup-checklist.md): environment "bot" (Deployment branches: main only) with
+# the environment secrets OTB_BOT_APP_ID and OTB_BOT_PRIVATE_KEY of the bot app, installed on
+# this repository with Contents and Pull requests read and write. Without them, the patch stays
+# attached to the run as an artifact and no pull request is opened.
+name: Image set update
+
+# zizmor's auditor persona asks for a workflow-wide concurrency group (concurrency-limits). Job 1
+# is read-only, and one shared group would cancel waiting updates of other packages; job 2 has a
+# group per package instead.
+on: # zizmor: ignore[concurrency-limits]
+  repository_dispatch:
+    types: [image-set-published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Active image set package, for example image-overwatch
+        required: true
+        type: string
+      version:
+        description: Exact version published on npm, for example 1.3.0
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  prepare:
+    name: Prepare the update (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read # checkout only; no token in this job can write
+    outputs:
+      changed: ${{ steps.patch.outputs.changed }}
+      # Written by the validate step, before any package code runs. Job 2 uses it only to name
+      # its concurrency group; it validates the event payload again itself.
+      package: ${{ steps.input.outputs.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          # Full history. npm run check no longer reads old commits (the legacy link fixtures
+          # are committed), so a shallow clone would also work.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      # The payload is untrusted: it only reaches the script through env, and the script checks
+      # the package against the active list and the version against x.y.z.
+      - name: Check the package and the version
+        id: input
+        env:
+          PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
+          VERSION: ${{ github.event.client_payload.version || inputs.version }}
+        run: node scripts/image-set-update.mjs validate
+
+      # The image set repository sends the event right after npm publish, and the registry can
+      # take a few minutes to serve a new version. Ask npm (bypassing its cache) with growing
+      # pauses, for at most about 10 minutes.
+      - name: Wait until npm serves the new version
+        if: steps.input.outputs.same == 'false'
+        env:
+          PACKAGE: ${{ steps.input.outputs.package }}
+          VERSION: ${{ steps.input.outputs.version }}
+        run: |
+          delay=10
+          deadline=$((SECONDS + 600))
+          until [ "$(npm view --prefer-online "${PACKAGE}@${VERSION}" version 2>/dev/null)" = "$VERSION" ]; do
+            if [ $((SECONDS + delay)) -gt "$deadline" ]; then
+              echo "::error::npm does not serve ${PACKAGE}@${VERSION} after 10 minutes. Check that the version was published, then run this workflow again."
+              exit 1
+            fi
+            echo "npm does not serve ${PACKAGE}@${VERSION} yet. Next try in ${delay} seconds."
+            sleep "$delay"
+            delay=$((delay * 2 > 120 ? 120 : delay * 2))
+          done
+          echo "npm serves ${PACKAGE}@${VERSION}."
+
+      - name: Install dependencies
+        if: steps.input.outputs.same == 'false'
+        run: npm ci
+
+      - name: Install the new version (no install scripts)
+        if: steps.input.outputs.same == 'false'
+        env:
+          PACKAGE: ${{ steps.input.outputs.package }}
+          VERSION: ${{ steps.input.outputs.version }}
+        # Installing the published version is the point of this workflow: npm records it in the
+        # lockfile, and job 2 checks every lockfile change.
+        run: npm install "${PACKAGE}@${VERSION}" --save-exact --ignore-scripts --no-audit --no-fund # zizmor: ignore[adhoc-packages]
+
+      - name: Prepare the images and register new item ids
+        if: steps.input.outputs.same == 'false'
+        run: |
+          node scripts/prepareImages.js --copy
+          npm run check:images -- --update --files
+
+      - name: Build the patch
+        id: patch
+        if: steps.input.outputs.same == 'false'
+        env:
+          PACKAGE: ${{ steps.input.outputs.package }}
+          VERSION: ${{ steps.input.outputs.version }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/update"
+          # Active sets are copied into public/images/ at build time and never committed, so the
+          # patch holds only these files (job 2 refuses any other path).
+          git add -A -- package.json package-lock.json imageset.config.json image-registry.lock.json image-aliases.json
+          if git diff --cached --quiet HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nothing changed."
+            exit 0
+          fi
+          git diff --cached --binary HEAD > "$RUNNER_TEMP/update/changes.patch"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          other=$(git status --porcelain=v1 --untracked-files=all | grep -v '^[AM]  ' || true)
+          if [ -n "$other" ]; then
+            echo "::warning::Files outside the patch changed during the update; they are not part of it."
+            printf '%s\n' "$other"
+          fi
+          # Early feedback only. Job 2 runs this check again with main's copy of the script and
+          # its own registry data.
+          npm view --prefer-online "${PACKAGE}@${VERSION}" dist.integrity scripts bin dependencies gypfile --json > "$RUNNER_TEMP/registry.json"
+          node scripts/image-set-update.mjs gate --registry "$RUNNER_TEMP/registry.json" --body "$RUNNER_TEMP/update/pull-request.md"
+          cat "$RUNNER_TEMP/update/pull-request.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Type check, lint, unit tests, item ids and fixtures
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          FIXTURES_BASE_REF: ${{ github.sha }}
+        run: npm run check
+
+      - name: Build
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: npm run build
+
+      - name: Install Playwright browser
+        if: steps.patch.outputs.changed == 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Port 3000: the link preview route loads item images from localhost:3000.
+      - name: Playwright tests (Chromium and API)
+        if: steps.patch.outputs.changed == 'true'
+        env:
+          PORT: 3000
+        run: npx playwright test --project=chromium --project=api
+
+      # Uploaded even when a check failed, so the owner can look at the change.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.patch.outputs.changed == 'true'
+        with:
+          name: image-set-update
+          path: ${{ runner.temp }}/update/
+          retention-days: 14
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure() && steps.patch.outputs.changed == 'true'
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  open-pr:
+    name: Open the pull request
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # One job per package at a time, so two runs never push or open the same branch at once;
+    # updates of different packages do not wait for each other. GitHub keeps at most one waiting
+    # job per group: if another update of the same package arrives while one waits, the waiting
+    # one is cancelled and the newest waits instead. Run a cancelled update again by hand if it
+    # is still needed.
+    concurrency:
+      group: image-set-update-${{ needs.prepare.outputs.package }}
+      cancel-in-progress: false
+    # The bot app's secrets live in the "bot" environment, which only main may use.
+    environment: bot
+    permissions: {} # pushes and the pull request use the app token, not GITHUB_TOKEN
+    steps:
+      - name: Check that the bot app is configured
+        id: gate
+        env:
+          APP_ID: ${{ secrets.OTB_BOT_APP_ID }}
+          APP_KEY: ${{ secrets.OTB_BOT_PRIVATE_KEY }}
+        run: |
+          if [ -n "$APP_ID" ] && [ -n "$APP_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::OTB_BOT_APP_ID / OTB_BOT_PRIVATE_KEY are not set. The patch is attached to this run; no pull request was opened."
+          fi
+
+      - name: Token for this repository only
+        if: steps.gate.outputs.ready == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.OTB_BOT_APP_ID }}
+          private-key: ${{ secrets.OTB_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # zizmor flags persisted credentials (artipacked). They are needed for the git push below,
+      # and this job uploads no artifact, so the token cannot leak through one.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true # zizmor: ignore[artipacked]
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.gate.outputs.ready == 'true'
+        with:
+          name: image-set-update
+          path: ${{ runner.temp }}/update
+
+      # Job 1 ran the package's code, so its outputs and the patch are untrusted. This step takes
+      # the package and version from the event again, and runs only main's scripts: the patch
+      # goes into the git index with --cached, and the working tree keeps main's files. The gate
+      # compares the package's lockfile entry with registry data that this job fetches itself:
+      # npm view reads the registry and runs none of the package's code.
+      - name: Apply the patch to the index and check it
+        if: steps.gate.outputs.ready == 'true'
+        id: apply
+        env:
+          PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
+          VERSION: ${{ github.event.client_payload.version || inputs.version }}
+        run: |
+          # validate stops the step unless PACKAGE is an active set and VERSION is x.y.z.
+          node scripts/image-set-update.mjs validate
+          npm view --prefer-online "${PACKAGE}@${VERSION}" dist.integrity scripts bin dependencies gypfile --json > "$RUNNER_TEMP/registry.json"
+          git apply --cached --check -- "$RUNNER_TEMP/update/changes.patch"
+          git apply --cached -- "$RUNNER_TEMP/update/changes.patch"
+          node scripts/image-set-update.mjs gate --registry "$RUNNER_TEMP/registry.json" --body "$RUNNER_TEMP/pull-request.md"
+
+      - name: Push the branch
+        if: steps.gate.outputs.ready == 'true'
+        id: push
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          PACKAGE: ${{ steps.apply.outputs.package }}
+          VERSION: ${{ steps.apply.outputs.version }}
+        run: |
+          if [[ ! "$APP_SLUG" =~ ^[a-z0-9-]+$ ]]; then
+            echo "Unexpected app slug" >&2
+            exit 1
+          fi
+          branch="bot/image-set-update/${PACKAGE}-${VERSION}"
+          if git ls-remote --exit-code --heads origin "refs/heads/${branch}" > /dev/null; then
+            # An earlier run pushed this version. Stop if the branch has a pull request (open,
+            # closed or merged). Otherwise that run stopped before opening it: open it now, but
+            # only if the branch holds exactly this checked update on top of this commit.
+            # A fork can open a pull request from a branch of the same name; only pull requests
+            # from this repository's own branch count.
+            gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state all --limit 100 \
+              --json number,headRepositoryOwner > "$RUNNER_TEMP/prs.json"
+            prs=$(jq --arg owner "$GITHUB_REPOSITORY_OWNER" \
+              '[.[] | select((.headRepositoryOwner.login | ascii_downcase) == ($owner | ascii_downcase))] | length' \
+              "$RUNNER_TEMP/prs.json")
+            if [[ ! "$prs" =~ ^[0-9]+$ ]]; then
+              echo "Unexpected answer from gh pr list" >&2
+              exit 1
+            fi
+            if [ "$prs" -gt 0 ]; then
+              echo "::notice::${branch} already has a pull request. Nothing to do."
+              exit 0
+            fi
+            git fetch --no-tags --depth=2 origin "refs/heads/${branch}"
+            if [ "$(git rev-parse FETCH_HEAD^)" != "$(git rev-parse HEAD)" ] || [ "$(git rev-parse 'FETCH_HEAD^{tree}')" != "$(git write-tree)" ]; then
+              echo "::error::${branch} exists without a pull request, but it does not hold exactly this update on top of ${GITHUB_SHA}. Delete the branch, then run this workflow again."
+              exit 1
+            fi
+            echo "::notice::${branch} exists without a pull request. Opening it from the existing branch."
+            echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          bot_id=$(gh api "users/${APP_SLUG}[bot]" --jq .id)
+          if [[ ! "$bot_id" =~ ^[0-9]+$ ]]; then
+            echo "Unexpected bot user id" >&2
+            exit 1
+          fi
+          git switch -c "$branch"
+          git -c user.name="${APP_SLUG}[bot]" -c user.email="${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com" \
+            commit -m "chore(images): update ${PACKAGE} to ${VERSION}" \
+            -m "Prepared by the image-set-update workflow. Review it before merging."
+          git push origin "HEAD:refs/heads/${branch}"
+          echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request (owner approval required; no auto-merge)
+        if: steps.gate.outputs.ready == 'true' && steps.push.outputs.branch != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          BASE: ${{ github.event.repository.default_branch }}
+          PACKAGE: ${{ steps.apply.outputs.package }}
+          VERSION: ${{ steps.apply.outputs.version }}
+        run: |
+          gh pr create --repo "$GITHUB_REPOSITORY" --base "$BASE" --head "$BRANCH" \
+            --title "chore(images): update ${PACKAGE} to ${VERSION}" \
+            --body-file "$RUNNER_TEMP/pull-request.md"

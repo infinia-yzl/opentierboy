@@ -1,28 +1,37 @@
 ---
 name: Image Update or Addition
-about: Template for updating or adding project images
+about: Report a wrong or missing image in an active image set, or propose a new image set
 title: "[Image Update/Addition] "
 labels: images
 ---
 
-## Description
+<!--
+Images do not live in this repository. Each active image set has its own repository:
 
-Link to new image template repository: https://github.com/username/repo
+- THE FINALS (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
+- OVERWATCH (image-overwatch): https://github.com/infinia-yzl/image-overwatch
 
-## Checklist
+Image fixes and additions are pull requests there. After the owner merges one and the new
+version is published, OpenTierBoy receives it through a pull request of its own.
 
-Please ensure all the following items are completed before submitting this issue:
+SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development Technologies and the Example Items
+Template are legacy sets. They are frozen and take no changes.
+-->
 
-- [ ] Have compressed images
-- [ ] Have tagged images
-- [ ] Have published on npm with passing statuses
+## What is this about?
 
-## Status
+- [ ] A wrong, missing or outdated image in THE FINALS or OVERWATCH
+- [ ] A new image set
 
-<!-- Replace the placeholders in the URLs with your actual repository and package names -->
+## Details
 
-![CI Status](https://img.shields.io/github/actions/workflow/status/username/package-name/ci.yml)
-![npm version](https://img.shields.io/npm/v/package-name)
+<!--
+Image fix: the set, the item names, and what is wrong or missing. Link your pull request in the
+image set's repository if you opened one.
+
+New image set: the game or topic, about how many images, the categories (tags) you would use,
+and where the images come from.
+-->
 
 ## Contribution Agreement
 
@@ -36,13 +45,8 @@ By submitting this issue, I confirm that:
 
 ## Next Steps
 
-After creating this issue:
-
-1. Fork the repository
-2. Create a new branch for your changes
-3. Add or update the images as described
-    1. To add a new image set, simply run `npm run add-image-set <package-name>` where `<package-name>` is the name of
-       the npm package of your new image set
-    2. Update the new image set in `./imageset.custom.json` with a good display name and any other customizations
-4. Test your changes
-5. Open a Pull Request linking back to this issue
+- **Image fix:** open a pull request in the image set's repository (links above) and follow its
+  README. Its checks run on the pull request.
+- **New image set:** wait for the owner's answer here before you build anything. An accepted set
+  starts from the [image-set template](https://github.com/infinia-yzl/image-set) and publishes
+  from GitHub Actions; the owner then adds it to OpenTierBoy.

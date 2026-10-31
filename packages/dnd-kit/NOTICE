@@ -1,0 +1,29 @@
+dnd-kit fork for OpenTierBoy
+============================
+
+This folder holds a copy of the dnd-kit drag and drop packages, used by OpenTierBoy.
+
+Source repository: https://github.com/clauderic/dnd-kit
+Tag:               @dnd-kit/react@0.5.1 (the tags @dnd-kit/<name>@0.5.1 of the other packages
+                   point at the same commit)
+Commit:            01bc678e93477e56a78aa2244c69b08a96cb0da6 (2026-10-15)
+npm release:       0.5.1, published 2026-10-15
+
+Packages copied from that commit (folder packages/<name> upstream):
+
+  @dnd-kit/abstract    abstract/
+  @dnd-kit/collision   collision/
+  @dnd-kit/dom         dom/
+  @dnd-kit/geometry    geometry/
+  @dnd-kit/helpers     helpers/
+  @dnd-kit/react       react/
+  @dnd-kit/state       state/
+
+Also copied: the shared TypeScript settings (config/typescript/base.json, vanilla.json,
+react.json) and the repository LICENSE.
+
+Licence: MIT. Copyright (c) 2021, Claudéric Demers. See LICENSE here and in every package
+folder. The licence must stay with the code.
+
+Changes made for OpenTierBoy are listed in docs/dnd-fork.md (section "Local changes") in
+the OpenTierBoy repository, together with how to update from upstream.

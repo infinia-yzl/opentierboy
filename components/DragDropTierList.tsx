@@ -1,261 +1,305 @@
-import React, {useCallback, useEffect, useRef, memo} from 'react';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import React, {useCallback, memo, useId, useLayoutEffect, useMemo, useRef} from 'react';
 import {toast} from "sonner";
-import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
+import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
-import Tier from "@/models/Tier";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
+import {findItemToDelete} from "@/lib/tierListReducer";
+import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
+import {TierDragDrop, useTierDragDescription, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
+import type {ItemMove, RowMove} from "@/lib/dnd/model";
 
-interface DragDropTierListProps {
-  tiers: Tier[];
-  onTiersUpdate: (updatedTiers: Tier[]) => void;
-}
+/**
+ * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
+ * between rows, rows move by their handle, with the mouse, by touch (hold, then move) and with
+ * the keyboard. The list changes only on drop: one history entry per move (product rule 2).
+ *
+ * The Clean layout (owner decisions, 2026-10-28 and 2026-10-31): the ranked rows sit flush, each
+ * with its tier letter in a column on its gradient, its tiles flush, and its handle at the end.
+ * Unranked, the last row, is a fixed tray under them, with the hints and an "Add images" tile;
+ * rows never move into its place (lib/dnd/moves.ts, reorderRows).
+ */
 
-interface DeletedItemInfo {
+const TierItem = memo<{
   item: Item;
   tierId: string;
-  id: string;
-}
-
-const reorder = <T, >(list: T[], startIndex: number, endIndex: number): T[] => {
-  const result = Array.from(list);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
-  return result;
-};
+  index: number;
+  sourceId?: string;
+  showLabels: boolean;
+  onDeleteItem: (itemId: string) => void;
+}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => {
+  const {ref, isDragging, describedBy} = useTierItem({itemId: item.id, tierId, index});
+  return (
+    <div
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
+      aria-label={itemDisplayLabel(item)}
+      // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
+      className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
+    >
+      <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
+    </div>
+  );
+});
+TierItem.displayName = 'TierItem';
 
 const TierItems = memo<{
   tier: Tier;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
-}>(({tier, showLabels, onDeleteItem}) => {
+  /** After the items, inside the drop area: the tray's "Add images" tile. */
+  trailing?: React.ReactNode;
+}>(({tier, showLabels, onDeleteItem, trailing}) => {
+  const descriptionIds = useId();
+  const {ref, isDropTarget} = useTierItems({tierId: tier.id});
+  // A link image names its site in the item's description, next to the drag instructions. The
+  // descriptions sit in a hidden list after the row, so they stay out of the items' text.
+  const sources = tier.items.map((item, itemIndex) => {
+    const domain = linkImageOf(item)?.domain;
+    return domain ? {id: `${descriptionIds}-${itemIndex}`, domain} : null;
+  });
   return (
-    <Droppable droppableId={tier.id} direction="horizontal">
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
-        >
-          {tier.items.map((item, itemIndex) => (
-            <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                  className={`
-                    m-0.5 rounded-md
-                    ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
-                  `}
-                  style={{
-                    ...provided.draggableProps.style,
-                    transition: snapshot.isDropAnimating
-                      ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-                      : provided.draggableProps.style?.transition,
-                  }}
-                >
-                  <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
-                </div>
-              )}
-            </Draggable>
-          ))}
-          {provided.placeholder}
+    <>
+      <div
+        ref={ref}
+        className={`flex-1 min-w-0 min-h-16 md:min-h-20 flex flex-wrap content-start ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
+      >
+        {tier.items.map((item, itemIndex) => (
+          <TierItem
+            key={item.id}
+            item={item}
+            tierId={tier.id}
+            index={itemIndex}
+            sourceId={sources[itemIndex]?.id}
+            showLabels={showLabels}
+            onDeleteItem={onDeleteItem}
+          />
+        ))}
+        {trailing}
+      </div>
+      {sources.some(Boolean) && (
+        <div hidden>
+          {sources.map((source) => source && <span key={source.id} id={source.id}>Image from {source.domain}</span>)}
         </div>
       )}
-    </Droppable>
+    </>
   );
 });
 TierItems.displayName = 'TierItems';
 
+/** The tier letter's size: big for a letter or two, smaller for longer names, which wrap. */
+function rowLabelClass(name: string, labelPosition: LabelPosition): string {
+  const length = Array.from(name.trim()).length;
+  const size = labelPosition === 'top' ? 'text-lg'
+    : length <= 2 ? 'text-[1.625rem] sm:text-3xl'
+      : length <= 5 ? 'text-lg sm:text-xl'
+        : 'text-sm';
+  return `font-heading font-black leading-tight break-words ${size}`;
+}
+
 const TierRow = memo<{
   tier: Tier;
+  /** The row's place on screen (during a row drag, in the preview). */
   index: number;
+  /** The row's place in the list. During a row drag the row keeps its look and name until the drop. */
+  listIndex: number;
   tiersLength: number;
+  labelPosition: LabelPosition;
   showLabels: boolean;
   onSaveLabel: (index: number, newText: string) => void;
   onDeleteItem: (itemId: string) => void;
-}>(({tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem}) => {
-  const labelPosition = tier.labelPosition || 'left';
-  const tierGradient = getTierGradient(index, tiersLength);
+}>(({tier, index, listIndex, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
+  const {ref, handleRef, isDragging} = useTierRow({tierId: tier.id, index});
+  const describedBy = useTierDragDescription();
+  const tierGradient = getTierGradient(listIndex, tiersLength);
+  // Accessible name for the row. A row whose label was cleared is named after its position.
+  const tierLabel = tier.name.trim() || `Tier ${listIndex + 1}`;
+  const label = (
+    <EditableLabel
+      text={tier.name}
+      onSave={(newText) => onSaveLabel(listIndex, newText)}
+      className={labelPosition === 'top'
+        ? 'px-2 pt-1'
+        : 'w-14 sm:w-24 shrink-0 self-stretch flex items-center justify-center p-1 text-center'}
+      contentClassName={rowLabelClass(tier.name, labelPosition)}
+      as="h2"
+      emptyLabel={tierLabel}
+    />
+  );
 
   return (
-    <Draggable draggableId={tier.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          className={`
-            border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
-            min-h-20
-            flex items-center
-            ${snapshot.isDragging ? 'shadow-lg ring-2' : ''}
-          `}
-          style={{
-            ...provided.draggableProps.style,
-            background: tierGradient,
-            transition: snapshot.isDropAnimating
-              ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-              : provided.draggableProps.style?.transition,
-          }}
-        >
-          <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
-            {labelPosition === 'top' && index !== tiersLength - 1 && (
-              <EditableLabel
-                text={tier.name}
-                onSave={(newText) => onSaveLabel(index, newText)}
-                className="p-1"
-                contentClassName="tracking-wide text-xl font-semibold"
-                as="h2"
-              />
-            )}
-            <div
-              className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
-              {(labelPosition === 'left' || labelPosition === 'right') && (
-                <div className="md:w-40">
-                  <EditableLabel
-                    text={tier.name}
-                    onSave={(newText) => onSaveLabel(index, newText)}
-                    className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
-                    contentClassName="tracking-wide text-xl font-semibold"
-                    as="h2"
-                  />
-                </div>
-              )}
-              <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
-            </div>
-          </div>
-          <RowHandle dragHandleProps={provided.dragHandleProps}/>
+    <div
+      ref={ref}
+      role="group"
+      aria-label={tierLabel}
+      className={`w-full min-h-16 md:min-h-20 flex border-b border-black/10 dark:border-white/10 ${isDragging ? 'relative z-10 shadow-lg ring-2 ring-ring' : ''}`}
+      style={{background: tierGradient}}
+    >
+      {labelPosition === 'top' ? (
+        <div className="flex-1 min-w-0 flex flex-col">
+          {label}
+          <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
+        </div>
+      ) : (
+        <div className={`flex-1 min-w-0 flex ${labelPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+          {label}
+          <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
         </div>
       )}
-    </Draggable>
+      <RowHandle handleRef={handleRef} describedBy={describedBy} label={tierLabel}/>
+    </div>
   );
 });
 TierRow.displayName = 'TierRow';
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({tiers, onTiersUpdate}) => {
-  const {showLabels} = useTierContext();
-  const tiersRef = useRef(tiers);
-  const deletedItemsRef = useRef<DeletedItemInfo[]>([]);
+/**
+ * Unranked, the last row: a fixed tray under the rows, with no handle (owner decision,
+ * 2026-10-31). Its heading reads "Unranked" until someone names it. The hints sit beside the
+ * heading, and the "Add images" tile ends the items; both hide in Zen.
+ */
+const UnrankedTray = memo<{
+  tier: Tier;
+  listIndex: number;
+  showLabels: boolean;
+  onSaveLabel: (index: number, newText: string) => void;
+  onDeleteItem: (itemId: string) => void;
+  addImagesTile?: React.ReactNode;
+}>(({tier, listIndex, showLabels, onSaveLabel, onDeleteItem, addImagesTile}) => {
+  const tierLabel = tier.name.trim() || 'Unranked';
+  return (
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <EditableLabel
+          text={tier.name}
+          onSave={(newText) => onSaveLabel(listIndex, newText)}
+          contentClassName="text-sm font-semibold"
+          as="h2"
+          emptyText="Unranked"
+        />
+        {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
+        <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
+          <span>Drag to reorder.</span>
+          <span className="tooltip-mouse">Right-click on any item to delete.</span>
+          <span className="tooltip-touch">Long-press on any item to delete.</span>
+          <span className="tooltip-mouse">Paste an image to add it as an item.</span>
+        </p>
+      </div>
+      <TierItems
+        tier={tier}
+        showLabels={showLabels}
+        onDeleteItem={onDeleteItem}
+        trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
+      />
+    </section>
+  );
+});
+UnrankedTray.displayName = 'UnrankedTray';
 
-  useEffect(() => {
+const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
+  const {rowDrag, dragging} = useTierDragState();
+  return (
+    // data-dragging turns off the tile label blur during a drag and its drop animation
+    // (app/globals.css), as scrolling does: hundreds of blurred layers made every frame of a
+    // drag slow. The blur comes back once the item has landed: at the release, the labels'
+    // transitions back to the blur made the drop animation slow.
+    <div className="w-full" data-dragging={dragging || undefined}>
+      <div className={`w-full border-t border-black/10 dark:border-white/10 ${rowDrag ? 'ring-2 ring-ring' : ''}`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+interface DragDropTierListProps {
+  /** Between the rows and the Unranked tray: Add row and Row options (RowControls). */
+  belowRows?: React.ReactNode;
+  /** The tray's "Add images" tile (ItemManager with the tile trigger). */
+  addImagesTile?: React.ReactNode;
+}
+
+const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImagesTile}) => {
+  const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
+
+  const handleItemMove = useCallback((move: ItemMove) => moveItem(move.from, move.to), [moveItem]);
+  const listIndexOf = useMemo(() => new Map(tiers.map((tier, index) => [tier.id, index])), [tiers]);
+  const handleRowMove = useCallback((move: RowMove) => moveTier(move.from, move.to), [moveTier]);
+
+  // The list as of the last render, for the delete handler. Reading it from a ref keeps the
+  // handler the same function across list changes, so a drop or a delete renders only the
+  // rows that changed (the tiles are memoised), and every other tile stays as it is.
+  const tiersRef = useRef(tiers);
+  useLayoutEffect(() => {
     tiersRef.current = tiers;
   }, [tiers]);
 
-  const onDragEnd = useCallback((result: DropResult) => {
-    const {source, destination, type} = result;
-
-    if (!destination) return;
-
-    let newTiers: Tier[];
-
-    if (type === 'TIER') {
-      newTiers = reorder(tiers, source.index, destination.index);
-      newTiers = newTiers.map((tier, index) => ({
-        ...tier,
-        name: tiers[index].name
-      }));
-    } else {
-      newTiers = [...tiers];
-      const sourceTier = newTiers.find(t => t.id === source.droppableId)!;
-      const destTier = newTiers.find(t => t.id === destination.droppableId)!;
-
-      if (sourceTier.id === destTier.id) {
-        sourceTier.items = reorder(sourceTier.items, source.index, destination.index);
-      } else {
-        const [movedItem] = sourceTier.items.splice(source.index, 1);
-        destTier.items.splice(destination.index, 0, movedItem);
-      }
-    }
-
-    onTiersUpdate(newTiers);
-  }, [tiers, onTiersUpdate]);
-
-  const handleUndoDelete = useCallback((uniqueId: string) => {
-    const deletedItemIndex = deletedItemsRef.current.findIndex((item) => item.id === uniqueId);
-    if (deletedItemIndex === -1) return;
-
-    const [deletedItem] = deletedItemsRef.current.splice(deletedItemIndex, 1);
-
-    const newTiers = tiersRef.current.map((tier) => {
-      if (tier.id === deletedItem.tierId) {
-        return {...tier, items: [...tier.items, deletedItem.item]};
-      }
-      return tier;
-    });
-
-    onTiersUpdate(newTiers);
-
-    toast('Item restored', {
-      description: `${deletedItem.item.content} has been restored.`,
-    });
-  }, [onTiersUpdate]);
-
   const handleDeleteItem = useCallback((itemId: string) => {
-    let deletedItemInfo: DeletedItemInfo | undefined;
+    const deleted = findItemToDelete(tiersRef.current, itemId);
+    if (!deleted) return;
+    deleteItem(itemId);
 
-    const newTiers = tiers.map(tier => {
-      const itemIndex = tier.items.findIndex(item => item.id === itemId);
-      if (itemIndex !== -1) {
-        const [deletedItem] = tier.items.splice(itemIndex, 1);
-        deletedItemInfo = {
-          item: deletedItem,
-          tierId: tier.id,
-          id: uuidv4()
-        };
-        return {...tier, items: [...tier.items]};
-      }
-      return tier;
-    });
-
-    if (deletedItemInfo) {
-      deletedItemsRef.current.push(deletedItemInfo);
-      onTiersUpdate(newTiers);
-
-      toast('Item deleted', {
-        description: `${deletedItemInfo.item.content} was removed.`,
-        action: {
-          label: 'Undo',
-          onClick: () => handleUndoDelete(deletedItemInfo!.id),
+    let restored = false;
+    toast('Item deleted', {
+      description: `${itemDisplayLabel(deleted.item)} was removed.`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          if (restored) return;
+          restored = true;
+          // Undo is a new change to the list, so it adds a history entry (A6).
+          restoreItem(deleted.item, deleted.tierId);
+          toast('Item restored', {
+            description: `${itemDisplayLabel(deleted.item)} has been restored.`,
+          });
         },
-      });
-    }
-  }, [tiers, onTiersUpdate, handleUndoDelete]);
-
-  const handleSaveLabel = useCallback((index: number, newText: string) => {
-    const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
-    onTiersUpdate(newTiers);
-  }, [tiers, onTiersUpdate]);
+      },
+    });
+  }, [deleteItem, restoreItem]);
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
-        {(provided, snapshot) => (
-          <div
-            className={`pt-4 py-4 ${snapshot.isDraggingOver ? 'ring-2 ring-accent-foreground rounded' : ''}`}
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-          >
-            {tiers.map((tier, index) => (
-              <TierRow
-                key={tier.id}
-                tier={tier}
-                index={index}
-                tiersLength={tiers.length}
+    // Announcements name rows and items by their labels, never by internal ids.
+    <TierDragDrop tiers={tiers} onItemMove={handleItemMove} onRowMove={handleRowMove} itemLabel={itemDisplayLabel}>
+      {(shownTiers) => {
+        // Unranked is always the last row, also in a preview: rows never move into its place.
+        const ranked = shownTiers.slice(0, -1);
+        const unranked = shownTiers[shownTiers.length - 1];
+        return (
+          <>
+            <RowList>
+              {ranked.map((tier, index) => (
+                <TierRow
+                  key={tier.id}
+                  tier={tier}
+                  index={index}
+                  listIndex={listIndexOf.get(tier.id) ?? index}
+                  tiersLength={shownTiers.length}
+                  labelPosition={labelPosition}
+                  showLabels={showLabels}
+                  onSaveLabel={renameTier}
+                  onDeleteItem={handleDeleteItem}
+                />
+              ))}
+            </RowList>
+            {belowRows}
+            {unranked && (
+              <UnrankedTray
+                key={unranked.id}
+                tier={unranked}
+                listIndex={shownTiers.length - 1}
                 showLabels={showLabels}
-                onSaveLabel={handleSaveLabel}
+                onSaveLabel={renameTier}
                 onDeleteItem={handleDeleteItem}
+                addImagesTile={addImagesTile}
               />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </DragDropContext>
+            )}
+          </>
+        );
+      }}
+    </TierDragDrop>
   );
 };
 

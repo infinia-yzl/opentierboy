@@ -6,30 +6,16 @@ import ImageSetConfig from "@/models/ImageSet";
 import {PlusCircledIcon} from "@radix-ui/react-icons";
 import PackageCard from "@/components/PackageCard";
 import {Separator} from "@/components/ui/separator";
+import RecentlyViewed from "@/components/RecentlyViewed";
+import {rankPageNames} from "@/lib/imageSets";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
+// Active sets only. Legacy sets (SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
+// Technologies and the example template) are hidden here; their /rank pages still work.
 const FEATURED_SETS = {
   "image-reachthefinals": ["all", "light", "medium", "heavy"],
-  "image-supervive": [
-    "hunter",
-    "power",
-    "fighter",
-    "initiator",
-    "frontliner",
-    "protector",
-    "controller"
-  ],
-  "image-wutheringwaves": ["c_all", "c_rarity_5", "c_rarity_4"],
   "image-overwatch": ["h_all", "tank", "dps", "sup"],
-  "image-helldivers2": [
-    "Stratagems",
-    "Primaries",
-    "Secondaries",
-    "Grenades",
-    "Boosters"
-  ],
-  "image-webdev": ["all", "fe", "be", "fs"],
   // Add more packages and their featured sets here
 };
 
@@ -63,7 +49,7 @@ const Home = () => {
         {/* Featured sets */}
         {Object.entries(FEATURED_SETS).map(([packageName, tags]) => {
           const packageData = typedImageSetConfig.packages[packageName];
-          if (!packageData) return null;
+          if (!packageData || packageData.legacy) return null;
 
           return <PackageCard key={packageName} packageData={packageData} tags={tags}/>
         })}
@@ -80,14 +66,10 @@ const Home = () => {
                 Create Blank List
               </Link>
             </Button>
-            <Button asChild className="w-full" variant="outline">
-              <Link href={"/rank/image-set/all"}>
-                Example template
-              </Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
+      <RecentlyViewed pageNames={rankPageNames()}/>
     </div>
   );
 };

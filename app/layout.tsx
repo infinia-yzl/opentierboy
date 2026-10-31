@@ -1,13 +1,13 @@
 import type {Metadata} from "next";
-import {Nunito_Sans as FontSans, Urbanist as FontHeading} from "next/font/google";
+import {Geologica, Nunito_Sans, Urbanist} from "next/font/google";
 import "./globals.css";
 import {cn} from "@/lib/utils"
 import Link from "next/link";
 
 import {ThemeProvider} from "next-themes"
 import {Toaster} from "@/components/ui/sonner";
-import {ZenToggle} from "@/components/ZenToggle";
-import {ThemeSelector} from "@/components/ThemeSelector";
+import {AppearanceMenu} from "@/components/AppearanceMenu";
+import {APPEARANCE_SCRIPT, THEME_CLASSES, THEME_NAMES} from "@/lib/appearance";
 import {GitHubLogoIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
 import Image from "next/image";
@@ -16,15 +16,25 @@ import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {Separator} from "@/components/ui/separator";
 import StructuredMetadata from "@/components/StructuredMetadata";
 
-const fontSans = FontSans({
+// Modern (the default): Geologica, with its Sharpness axis for titles and tier letters.
+// Classic: the look before the revamp, Nunito Sans with Urbanist headings. app/globals.css picks
+// one by the font-classic class on <html> (lib/appearance.ts).
+const fontGeologica = Geologica({
   subsets: ["latin"],
-  variable: "--font-sans",
+  axes: ["SHRP"],
+  variable: "--font-geologica",
   display: "swap",
 });
 
-const fontHeading = FontHeading({
+const fontNunito = Nunito_Sans({
   subsets: ["latin"],
-  variable: "--font-heading",
+  variable: "--font-nunito",
+  display: "swap",
+});
+
+const fontUrbanist = Urbanist({
+  subsets: ["latin"],
+  variable: "--font-urbanist",
   display: "swap",
 });
 
@@ -92,12 +102,6 @@ const STRUCTURED_METADATA = {
     },
     {
       '@type': 'ViewAction',
-      target: `${baseUrl}/rank/wuthering-waves/c-all`,
-      name: "Rank Wuthering Waves Resonators",
-      description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
-    },
-    {
-      '@type': 'ViewAction',
       target: `${baseUrl}/rank/overwatch/h-all`,
       name: "Rank Overwatch Heroes",
       description: "Rank Overwatch Heroes in your own tier list and share it with the community"
@@ -134,27 +138,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning
+          className={cn(fontGeologica.variable, fontNunito.variable, fontUrbanist.variable)}>
+    <head>
+      {/* The font and game colours choices, before the page paints (lib/appearance.ts). */}
+      <script dangerouslySetInnerHTML={{__html: APPEARANCE_SCRIPT}}/>
+    </head>
     <StructuredMetadata data={STRUCTURED_METADATA}/>
-    <body className={cn(
-      "bg-background font-sans antialiased min-h-screen flex flex-col justify-between",
-      fontSans.variable,
-      fontHeading.variable,
-    )}>
+    <body className="bg-background font-sans antialiased min-h-screen flex flex-col justify-between">
+    {/* Ocean and Forest retired (owner decision, 2026-10-28): a stored Ocean or Forest theme
+        keeps its light or dark mode through THEME_CLASSES. */}
     <ThemeProvider
       attribute="class"
       defaultTheme="system"
-      themes={[
-        'ocean-light', 'ocean-dark',
-        'forest-light', 'forest-dark',
-        'dark', 'light',
-        'system'
-      ]}
+      themes={[...THEME_NAMES]}
+      value={THEME_CLASSES}
       enableSystem
       disableTransitionOnChange
     >
       <header className="w-full border-b" data-html2canvas-ignore>
-        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
+        <div className="max-w-(--breakpoint-lg) zen-mode:max-w-(--breakpoint-2xl) mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
             <div className="flex flex-row items-center space-x-6">
               <Link href="/" className="flex items-center">
@@ -173,24 +176,22 @@ export default function RootLayout({
                 </Button>
               </nav>
             </div>
-            <div className="flex justify-center space-x-1">
-              <ZenToggle/>
-              <span className="hide-in-zen">
-          <ThemeSelector/>
-        </span>
+            {/* Site-level only (owner decision, 2026-10-28): Zen is in the editor's toolbar. */}
+            <div className="flex justify-center hide-in-zen">
+              <AppearanceMenu/>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-grow my-2 md:my-4">
-        <div className="max-w-screen-lg zen-mode:max-w-screen-2xl mx-auto px-4 transition-all duration-75 ease-in-out">
+      <main className="grow my-2 md:my-4">
+        <div className="max-w-(--breakpoint-lg) zen-mode:max-w-(--breakpoint-2xl) mx-auto px-4 transition-all duration-75 ease-in-out">
           {children}
         </div>
       </main>
 
       <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
-        <div className="max-w-screen-lg zen-mode:hide-in-zen mx-auto px-4">
+        <div className="max-w-(--breakpoint-lg) zen-mode:hide-in-zen mx-auto px-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 text-center sm:text-start gap-8 items-start">
             <div className="flex flex-col space-y-2">
               <p className="text-sm text-muted-foreground">OpenTierBoy is an open-source project.</p>
@@ -224,7 +225,7 @@ export default function RootLayout({
                 </Button>
               </div>
               <p className="text-center text-sm text-muted-foreground py-1">
-                © 2024 OpenTierBoy. All rights reserved.
+                © 2026 OpenTierBoy. All rights reserved.
               </p>
             </div>
             <div className="flex flex-col space-y-2 lg:pl-48">
