@@ -8,7 +8,7 @@ import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} fro
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshot-files';
 import {messageNamesHost} from '../support/console';
-import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {type CaptureMethod, type FreezeFrame, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -99,12 +99,15 @@ function deviceItemsOf(url: string): number {
   return (v3LinkJson(url) as V3Json).r.flatMap((row) => row[row.length - 1] as object[]).filter((item) => 'd' in item).length;
 }
 
-/** Makes a snapshot file the way people do: a list with a device image, Capture Preview, Download. */
-async function downloadSnapshotOf(tierList: TierListPage): Promise<Buffer> {
+/**
+ * Makes a snapshot file the way people do: a list with a device image, Capture Preview, Download.
+ * Without a method or a frame, the app's defaults are used.
+ */
+async function downloadSnapshotOf(tierList: TierListPage, {method, frame}: {method?: CaptureMethod; frame?: FreezeFrame} = {}): Promise<Buffer> {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks with a cat'));
   await tierList.addItemsFromDevice([imageFile('red-square.png')]);
   await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-  await tierList.capturePreview();
+  await tierList.capturePreview(method, frame);
   // Download says what the file carries before anyone sends it on (owner decision, 2026-10-31).
   await expect(tierList.sharePanel).toContainText(
     'The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.');
@@ -126,6 +129,18 @@ const SNAPSHOT_LIST = {
 };
 
 const METHODS: CaptureMethod[] = ['html2canvas-pro', 'Original html2canvas'];
+
+/** Freeze Frame's picture frames and their sizes in pixels (the canvas boards "Picture"...). */
+const FRAMES: {frame: FreezeFrame; width: number; height: number}[] = [
+  {frame: 'Landscape 1200×675', width: 1200, height: 675},
+  {frame: 'Square 1080×1080', width: 1080, height: 1080},
+  {frame: 'Portrait 1080×1350', width: 1080, height: 1350},
+];
+
+/** Width and height of a PNG file, from its IHDR chunk. */
+function pngSize(png: Buffer): {width: number; height: number} {
+  return {width: png.readUInt32BE(16), height: png.readUInt32BE(20)};
+}
 
 /**
  * Freeze Frame files that earlier versions saved keep opening (tests/fixtures/snapshots). Each
@@ -806,6 +821,46 @@ test.describe('snapshot files', () => {
           expect(image.cornerBrightness, 'dark card background').toBeLessThan(40);
           expect(consoleErrors, 'errors in the browser console').toEqual([]);
         });
+      }
+    });
+  }
+
+  // Freeze Frame's picture frames (the canvas boards "Picture", "PictureSquare" and
+  // "PicturePortrait") draw the list card in a fixed size, at exactly that many pixels, and their
+  // Download is a snapshot file like the whole list's.
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test.describe(`Freeze Frame picture frames in ${colorScheme} mode`, () => {
+      test.use({colorScheme});
+      // Each test captures, downloads and opens the file in a second browser.
+      test.slow();
+
+      for (const {frame, width, height} of FRAMES) {
+        for (const method of METHODS) {
+          test(`writes a ${width}×${height} PNG that opens as the list when the user captures ${frame.split(' ')[0]} with ${method}`, {tag: '@mobile'}, async ({
+            tierList,
+            openAsVisitor,
+            consoleErrors,
+          }) => {
+            const snapshot = await downloadSnapshotOf(tierList, {method, frame});
+
+            await expect(tierList.toast('Failed to capture image')).toHaveCount(0);
+            const image = await tierList.capturedImageDetails();
+            expect({width: image.width, height: image.height}, 'captured image size').toEqual({width, height});
+            expect(pngSize(snapshot), 'downloaded file size').toEqual({width, height});
+            expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
+            // The frame has the card's own dark background in both colour schemes.
+            expect(image.cornerBrightness, 'dark card background').toBeLessThan(40);
+            expect(JSON.parse(snapshotTextOf(snapshot) ?? 'null'), 'the list in the file').toMatchObject({version: 1, path: TANKS});
+
+            const friend = await openAsVisitor('/rank');
+            await friend.openFile(pngFile('tanks-with-a-cat.png', snapshot));
+            await friend.confirmOpenList();
+            await expect(friend.page).toHaveURL(new RegExp(`${TANKS}\\?state=3\\.`));
+            await expectTierList(friend, SNAPSHOT_LIST);
+            await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
+            expect(consoleErrors, 'errors in the browser console').toEqual([]);
+          });
+        }
       }
     });
   }

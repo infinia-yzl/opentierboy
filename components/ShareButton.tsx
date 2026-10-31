@@ -5,7 +5,7 @@ import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
-import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon} from '@radix-ui/react-icons';
+import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon, InfoCircledIcon} from '@radix-ui/react-icons';
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
@@ -14,14 +14,18 @@ import {FaFacebookF, FaMarkdown, FaXTwitter} from "react-icons/fa6";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Alert, AlertDescription} from "@/components/ui/alert";
+import {Label} from "@/components/ui/label";
 import {useTierContext} from "@/contexts/TierContext";
+import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {linkImageCounts} from "@/lib/images/listImages";
 import {checkImage} from "@/lib/images/imageCheck";
 import {type Capture, useSnapshotDownload} from "@/components/useSnapshotDownload";
 import {usePathname} from "next/navigation";
 import {ListCard} from "@/components/ListCard";
 import {listCardFont} from "@/components/listCardFont";
 import {useListCardData} from "@/components/useListCardData";
-import type {ListCardData} from "@/lib/listCard/model";
+import {type ListCardData, PICTURE_FRAMES, type PictureFrameName} from "@/lib/listCard/model";
 import {markdownText} from "@/lib/markdownText";
 
 /**
@@ -90,18 +94,77 @@ async function cardReady(element: HTMLElement): Promise<void> {
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
 
+/**
+ * The picture Freeze Frame captures: the whole list (the card that grows with the list, as before
+ * the picture frames), or a picture frame of a fixed size (the canvas boards "Picture",
+ * "PictureSquare" and "PicturePortrait").
+ */
+type FrameChoice = 'whole' | PictureFrameName;
+
+const frameName = (name: PictureFrameName, label: string) =>
+  `${label} ${PICTURE_FRAMES[name].width}×${PICTURE_FRAMES[name].height}`;
+
+const FRAME_CHOICES: readonly {value: FrameChoice; label: string}[] = [
+  {value: 'whole', label: 'Whole list'},
+  {value: 'landscape', label: frameName('landscape', 'Landscape')},
+  {value: 'square', label: frameName('square', 'Square')},
+  {value: 'portrait', label: frameName('portrait', 'Portrait')},
+];
+
+/**
+ * Which images the link carries (the board "SharePanel"): link images travel in the link, device
+ * images stay in this browser, and Freeze Frame's Download keeps them in the file.
+ */
+function LinkImageNotes({link, device}: {link: number; device: number}) {
+  if (link === 0 && device === 0) return null;
+  return (
+    <div className="flex flex-col gap-2 mb-4">
+      {device > 0 && (
+        <Alert role="note">
+          <InfoCircledIcon className="h-4 w-4"/>
+          <AlertDescription>
+            {device === 1 ? (
+              <><strong>1 image from your device stays on this device.</strong> People who open the link see its name.
+                To share it too, download the picture below.</>
+            ) : (
+              <><strong>{device} images from your device stay on this device.</strong> People who open the link see their
+                names. To share them too, download the picture below.</>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      {link > 0 && (
+        <Alert role="note">
+          <InfoCircledIcon className="h-4 w-4"/>
+          <AlertDescription>
+            {link === 1 ? (
+              <><strong>1 image from another site travels in the link.</strong> People who open it load it from that site.</>
+            ) : (
+              <><strong>{link} images from other sites travel in the link.</strong> People who open it load them from
+                those sites.</>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
+  );
+}
+
 interface ShareButtonProps {
   title: string;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
-  const {shareLink} = useTierContext();
+  const {shareLink, tiers} = useTierContext();
+  const {isPackageItem} = useCustomImages();
+  const imageCounts = linkImageCounts(tiers, isPackageItem);
   const pathname = usePathname();
   // The picture and the list it shows, taken together: Download embeds that list, even when the
   // list on screen has changed since.
   const [capture, setCapture] = useState<Capture | null>(null);
   const imageBlob = capture?.picture ?? null;
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
+  const [frame, setFrame] = useState<FrameChoice>('whole');
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
@@ -125,7 +188,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     setIsCapturing(true);
     // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
-    const data = listCard();
+    const data = listCard(frame === 'whole' ? undefined : frame);
 
     try {
       // The card renders hidden at the top of the page (components/ListCard.tsx); the copy of
@@ -140,7 +203,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
         if (clonedCard) clonedCard.style.visibility = 'visible';
       };
-      const scale = captureScale(data.width, data.height);
+      // A picture frame is drawn at exactly its size (1200×675, 1080×1080 or 1080×1350), the
+      // size the sites it is made for expect; the whole list keeps its sharper scale.
+      const scale = data.frame ? 1 : captureScale(data.width, data.height);
       const area = {
         x: 0, y: 0, width: data.width, height: data.height, scrollX: -window.scrollX, scrollY: -window.scrollY,
         windowWidth: Math.max(data.width, window.innerWidth), windowHeight: Math.max(data.height, window.innerHeight),
@@ -190,7 +255,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       setCard(null);
       setIsCapturing(false);
     }
-  }, [captureMethod, shareLink, pathname, title, listCard]);
+  }, [captureMethod, frame, shareLink, pathname, title, listCard]);
 
   const copyImage = () => {
     if (imageBlob) {
@@ -255,10 +320,11 @@ What do you think? 🤔
           Share
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[320px]">
-        <h2 className="scroll-m-20 text-xl font-semibold tracking-tight mb-4">
+      <PopoverContent align="end" className="w-[min(512px,calc(100vw-1rem))] max-h-(--radix-popover-content-available-height) overflow-y-auto p-6">
+        <h2 className="scroll-m-20 text-lg font-semibold tracking-tight mb-4">
           Share Your Rankings
         </h2>
+        <LinkImageNotes link={imageCounts.link} device={imageCounts.device}/>
         <Tabs defaultValue="url">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="url">URL</TabsTrigger>
@@ -310,64 +376,73 @@ What do you think? 🤔
             </Card>
           </TabsContent>
           <TabsContent value="image">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">As Image</CardTitle>
-                <Collapsible>
-                  <CollapsibleTrigger className="text-[10px] underline underline-offset-1 decoration-dotted">
-                    Options
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <p className="text-sm text-muted-foreground">
-                      Capturing images might be buggy. Please try one of the following methods or take a screenshot
-                      manually.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Select value={captureMethod} onValueChange={(value: CaptureMethod) => setCaptureMethod(value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select capture method"/>
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="original">Original html2canvas</SelectItem>
-                          <SelectItem value="pro">html2canvas-pro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-center">
-                  <Button onClick={captureImage} disabled={isCapturing} className="sm:w-auto">
-                    <CameraIcon className="mr-2"/>
-                    {isCapturing ? 'Capturing...' : 'Capture Preview'}
-                  </Button>
+            <Card className="flex flex-col gap-3 p-4">
+              <CardTitle className="text-lg">As Image</CardTitle>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex flex-col gap-1.5 grow min-w-[180px]">
+                  <Label htmlFor="freeze-frame-frame">Frame</Label>
+                  <Select value={frame} onValueChange={(value: FrameChoice) => setFrame(value)}>
+                    <SelectTrigger id="freeze-frame-frame" aria-label="Frame">
+                      <SelectValue/>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FRAME_CHOICES.map((choice) => (
+                        <SelectItem key={choice.value} value={choice.value}>{choice.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                {imageBlob && (
-                  <div className="relative w-full h-48">
-                    <Image
-                      src={URL.createObjectURL(imageBlob)}
-                      alt="Captured tier list"
-                      fill
-                      style={{objectFit: "contain"}}
-                    />
+                <Button onClick={captureImage} disabled={isCapturing}>
+                  <CameraIcon className="mr-2"/>
+                  {isCapturing ? 'Capturing...' : 'Capture Preview'}
+                </Button>
+              </div>
+              <Collapsible>
+                <CollapsibleTrigger className="text-[10px] underline underline-offset-1 decoration-dotted">
+                  Options
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <p className="text-sm text-muted-foreground">
+                    Capturing images might be buggy. Please try one of the following methods or take a screenshot
+                    manually.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select value={captureMethod} onValueChange={(value: CaptureMethod) => setCaptureMethod(value)}>
+                      <SelectTrigger aria-label="Capture method">
+                        <SelectValue placeholder="Select capture method"/>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="original">Original html2canvas</SelectItem>
+                        <SelectItem value="pro">html2canvas-pro</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
+                </CollapsibleContent>
+              </Collapsible>
 
-                {isCapturing && (
-                  <div className="flex items-center">
-                    <div className="space-y-2 w-full">
-                      <p className="text-center italic">Freeze frame!</p>
-                      <Skeleton className="h-6 w-full"/>
-                      <Skeleton className="h-6 w-full"/>
-                      <Skeleton className="h-6 w-full"/>
-                    </div>
-                  </div>
-                )}
+              {imageBlob && (
+                <div className="relative w-full h-[200px] rounded-md overflow-hidden bg-muted">
+                  <Image
+                    src={URL.createObjectURL(imageBlob)}
+                    alt="Captured tier list"
+                    fill
+                    style={{objectFit: "contain"}}
+                  />
+                </div>
+              )}
 
-                {imageBlob ? (
-                  <div className="flex flex-wrap justify-center gap-2">
+              {isCapturing && (
+                <div className="space-y-2 w-full">
+                  <p className="text-center italic">Freeze frame!</p>
+                  <Skeleton className="h-6 w-full"/>
+                  <Skeleton className="h-6 w-full"/>
+                  <Skeleton className="h-6 w-full"/>
+                </div>
+              )}
+
+              {imageBlob ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={copyImage} disabled={!imageBlob}>
                       <ImageIcon className="mr-2"/>
                       Copy Image
@@ -376,16 +451,16 @@ What do you think? 🤔
                       <DownloadIcon className="mr-2"/>
                       Download
                     </Button>
-                    <p className="w-full text-center text-xs text-muted-foreground">
-                      The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.
-                    </p>
                   </div>
-                ) : (
-                  <div className="flex justify-center text-sm text-muted-foreground">
-                    Capture an image to get started.
-                  </div>
-                )}
-              </CardContent>
+                  <p className="text-[13px] text-muted-foreground">
+                    The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Capture an image to get started.
+                </p>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
