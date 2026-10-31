@@ -27,7 +27,7 @@ import ItemSetSelector from "@/components/ItemSetSelector";
 import {DashboardIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
-import imagesetConfig from "@/imageset.config.json";
+import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
 
@@ -61,7 +61,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
-    Object.entries(imagesetConfig.packages).forEach(([packageName, packageData]) => {
+    // Legacy sets are not offered as templates (lib/imageSets.ts).
+    visibleImageSets().forEach(([packageName, packageData]) => {
       const packageDisplayName = packageData.displayName;
       sets.push({
         packageName,

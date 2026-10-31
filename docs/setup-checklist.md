@@ -3,7 +3,8 @@
 These are the GitHub, Vercel and npm settings that only the repository owner can change.
 The workflow files in `.github/` do nothing until these are in place.
 Do step 5 of section 3 (CodeQL) **before** you merge the pull request that adds these files.
-Do the rest of sections 1 to 6 after it is merged. Sections 7 and 8 belong to later phases.
+Do the rest of sections 1 to 6 after it is merged. Sections 7 and 8 belong to the image
+pipeline (Phase 4): do them when its pull request is merged.
 Each step says where the setting is and what to choose.
 
 ## Names at a glance
@@ -15,8 +16,10 @@ Each step says where the setting is and what to choose.
 | `CLAUDE_CODE_OAUTH_TOKEN` | repository secret | opentierboy | `claude-review.yml` |
 | `vercel-e2e` | environment | opentierboy | `playwright.yml` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | environment secret in `vercel-e2e` | opentierboy | `playwright.yml` |
-| `OTB_BOT_APP_ID` | repository secret | opentierboy and each official image repo | image pipeline (Phase 4) |
-| `OTB_BOT_PRIVATE_KEY` | repository secret | opentierboy and each official image repo | image pipeline (Phase 4) |
+| `bot` | environment (main only) | opentierboy and each image repo | `image-set-update.yml`; image repos: `release.yml`, `weekly-extract.yml` |
+| `OTB_BOT_APP_ID` | environment secret in `bot` | opentierboy and each image repo | the same workflows |
+| `OTB_BOT_PRIVATE_KEY` | environment secret in `bot` | opentierboy and each image repo | the same workflows |
+| `npm-publish` | environment (main only) | each image repo | image repos: `release.yml` |
 
 ## 1. Protect the `main` branch
 
@@ -140,10 +143,12 @@ only for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
    so a fork cannot change it. Switching needs a small change to `playwright.yml`; ask for it
    if you want it.
 
-## 7. Later: bot app for the image pipeline (Phase 4)
+## 7. Bot app for the image pipeline (Phase 4)
 
-The image pipeline opens pull requests when a new image set version is published. It
-needs its own GitHub App. Do this when the Phase 4 pull request is ready.
+When an official image set (THE FINALS, OVERWATCH, later DEADLOCK) publishes a new version,
+its repository tells OpenTierBoy, and `image-set-update.yml` opens a pull request with the
+update. A GitHub App (the "bot") pushes that branch and opens the pull request. The same app
+lets the image repositories send the notice and open their weekly wiki extract pull requests.
 
 1. GitHub: your profile **Settings → Developer settings → GitHub Apps → New GitHub App**.
    - Name: for example `OpenTierBoy Bot`. Homepage URL: `https://opentierboy.com`.
@@ -151,35 +156,60 @@ needs its own GitHub App. Do this when the Phase 4 pull request is ready.
    - Repository permissions: **Contents: Read and write**, **Pull requests: Read and
      write**. Metadata becomes Read-only automatically. Leave everything else at No access.
    - Where can this app be installed: **Only on this account**.
-2. After creating it, note the **App ID**. Click **Generate a private key**. A `.pem` file
-   downloads.
+2. After creating it, note the **App ID** (or the **Client ID**; either works). Click
+   **Generate a private key**. A `.pem` file downloads.
 3. Click **Install App** → your account → **Only select repositories** → `opentierboy`,
    `image-set`, `image-reachthefinals`, `image-overwatch` and `image-deadlock`.
-4. In each of those repositories, add two repository secrets (**Settings → Secrets and
-   variables → Actions**):
-   - `OTB_BOT_APP_ID`: the App ID.
-   - `OTB_BOT_PRIVATE_KEY`: the full contents of the `.pem` file.
+   The workflows ask for less than the app may do: each run gets a token for one repository
+   with only the permissions that step needs.
+4. In each of those repositories, create an environment named `bot`: **Settings →
+   Environments → New environment** → name `bot`.
+   - **Deployment branches and tags**: **Selected branches and tags** → add `main` only.
+     Only workflow runs on `main` can then read the bot's secrets.
+   - Under **Environment secrets**, add (not as repository secrets):
+     - `OTB_BOT_APP_ID`: the App ID or Client ID from step 2.
+     - `OTB_BOT_PRIVATE_KEY`: the full contents of the `.pem` file.
 5. Delete the `.pem` file from your computer after adding it everywhere.
-6. Pull requests from the bot never merge on their own. You review and merge each one.
+6. Pull requests from the bot never merge on their own, and none of the workflows enables
+   auto-merge. You review and merge each one. CI runs on them like on any pull request.
+   Leave **Allow GitHub Actions to create and approve pull requests** off (section 2): the
+   bot app does not need it.
+7. Without the secrets, nothing breaks: `image-set-update.yml` keeps the prepared change as a
+   run artifact and opens no pull request, and Dependabot's weekly `image-sets` group still
+   proposes new versions. If both the bot and Dependabot open a pull request for the same
+   version, merge the bot's (it registers new item ids) and close the other.
+8. To run an update by hand: **Actions → Image set update → Run workflow**, with the package
+   (for example `image-overwatch`) and the exact version (for example `1.3.0`). It accepts
+   only official sets and plain `x.y.z` versions, and never a downgrade.
 
-## 8. Later: npm trusted publishing for image sets (Phase 4)
+## 8. npm trusted publishing for image sets (Phase 4)
 
 Image set packages publish from GitHub Actions with npm trusted publishing (no npm token).
+The full steps are in each image repository's `MIGRATION.md`; this is the short version.
 
-1. `image-deadlock` does not exist on npm yet, and trusted publishing can only be set up
-   for an existing package. Publish its first version by hand from your computer:
-   `npm login`, then `npm publish --access public` in the `image-deadlock` folder.
-2. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`,
+1. In each image repository, create an environment `npm-publish` (**Settings →
+   Environments**) with **Deployment branches and tags** set to `main` only. Optionally add
+   yourself as a required reviewer, so every release waits for your click.
+2. `image-deadlock` does not exist on npm yet, and trusted publishing can only be set up
+   for an existing package. Publish its first version by hand from a clean checkout of
+   `main`: `npm ci`, `npm run validate -- --release`, `npm login`, then
+   `npm publish --access public`. Then ask for the change that adds DEADLOCK to OpenTierBoy
+   (CLAUDE.md, "Image sets"): the first version is added by hand, later versions arrive
+   through the bot.
+3. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`,
    `image-deadlock`): npmjs.com → the package → **Settings → Trusted Publisher** →
    **GitHub Actions**:
    - Organization or user: `infinia-yzl`
    - Repository: the image repository name, for example `image-overwatch`
    - Workflow filename: `release.yml` (the file name only, without `.github/workflows/`)
-   - Environment name: leave empty
-3. Publish once through the workflow to confirm it works. A new trusted publisher setting
+   - Environment name: `npm-publish`
+4. Publish once through the workflow to confirm it works. A new trusted publisher setting
    expires if nothing publishes through it within 2 days.
-4. Then, on the same npm settings page, under **Publishing access**, choose
+5. Then, on the same npm settings page, under **Publishing access**, choose
    **Require two-factor authentication and disallow tokens** → **Update Package Settings**.
-5. Do not publish images with landscape or portrait shapes before the drag and drop
-   update (Phase 5e) is merged. Until then, such tiles show letterboxed and link previews
-   crop them.
+6. **Do not publish landscape or portrait images before the drag and drop update (Phase 5e)
+   is merged.** Until then, OpenTierBoy shows every tile as a square: such images are
+   letterboxed in tiles and cropped in link previews. The image repositories refuse it on
+   release while `src/set-config.json` has `"allowNonSquare": false`, and OpenTierBoy's unit
+   tests fail on an update that brings such a shape. Set `allowNonSquare` to `true` only
+   after Phase 5e ships.

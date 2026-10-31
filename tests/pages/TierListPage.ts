@@ -100,6 +100,16 @@ export class TierListPage {
     return this.main.getByRole('button', {name, exact: true});
   }
 
+  /**
+   * Scrolls an item into view (tile images load lazily) and tells whether its image has
+   * loaded. Use it with expect.poll().
+   */
+  async itemImageHasLoaded(name: string): Promise<boolean> {
+    const image = this.item(name).getByRole('img');
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
+  }
+
   rowHandle(tierName: string): Locator {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
   }
@@ -300,11 +310,27 @@ export class TierListPage {
     await this.manageItemsButton.click();
   }
 
-  /** Adds a set from the built-in templates, for example ('OVERWATCH', 'Tank'). */
-  async addItemsFromTemplate(packageName: string, setTitle: string) {
+  /** The template picker ("From template"): a searchable list of image sets and their tags. */
+  get templatePicker(): Locator {
+    return this.page.getByRole('dialog');
+  }
+
+  /** Opens the template picker. Its first page lists the image sets as options. */
+  async openTemplatePicker() {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'From template'}).click();
-    const picker = this.page.getByRole('dialog');
+    await expect(this.templatePicker.getByRole('combobox')).toBeVisible();
+  }
+
+  /** Types into the search box of the open template picker. Matching sets and tags appear as options. */
+  async searchTemplates(text: string) {
+    await this.templatePicker.getByRole('combobox').fill(text);
+  }
+
+  /** Adds a set from the built-in templates, for example ('OVERWATCH', 'Tank'). */
+  async addItemsFromTemplate(packageName: string, setTitle: string) {
+    await this.openTemplatePicker();
+    const picker = this.templatePicker;
     await picker.getByRole('option', {name: packageName, exact: true}).click();
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
   }

@@ -6,6 +6,7 @@ import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
 import TierCortex from "@/lib/TierCortex";
+import {visibleImageSets} from "@/lib/imageSets";
 import {Skeleton} from "@/components/ui/skeleton";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -44,7 +45,8 @@ const TierListManager = dynamic(
 
 export async function generateStaticParams() {
   const params: { slug: string[] }[] = [];
-  Object.entries(typedImageSetConfig.packages).forEach(([packageName, packageData]) => {
+  // Legacy sets are left out here. Their pages still render on request (getItemSetData).
+  visibleImageSets().forEach(([packageName, packageData]) => {
     const displayNameSlug = slugify(packageData.displayName);
     // Generate params for both packageName and displayName
     [packageName, displayNameSlug].forEach(nameOrPackage => {

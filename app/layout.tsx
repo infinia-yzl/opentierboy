@@ -92,12 +92,6 @@ const STRUCTURED_METADATA = {
     },
     {
       '@type': 'ViewAction',
-      target: `${baseUrl}/rank/wuthering-waves/c-all`,
-      name: "Rank Wuthering Waves Resonators",
-      description: "Rank Wuthering Waves Resonators in your own tier list and share it with the community"
-    },
-    {
-      '@type': 'ViewAction',
       target: `${baseUrl}/rank/overwatch/h-all`,
       name: "Rank Overwatch Heroes",
       description: "Rank Overwatch Heroes in your own tier list and share it with the community"

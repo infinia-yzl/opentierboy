@@ -46,4 +46,15 @@ export class SitePage {
       return {background: own.backgroundColor, text: own.color, pageBackground: body.backgroundColor, pageText: body.color};
     });
   }
+
+  /** The titles of the cards under "Create a New Tier List" on the landing page. */
+  get cardTitles(): Locator {
+    return this.main.getByRole('heading', {level: 3});
+  }
+
+  /** The address of every link in the main content. */
+  async linkTargets(): Promise<string[]> {
+    const links = await this.main.getByRole('link').all();
+    return Promise.all(links.map(async (link) => (await link.getAttribute('href')) ?? ''));
+  }
 }

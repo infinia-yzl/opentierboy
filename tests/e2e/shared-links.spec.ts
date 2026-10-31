@@ -1,5 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {rawState, stateFromJson} from '../support/links';
+import {rawState, stateFromJson, templateItemCount} from '../support/links';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -25,7 +25,7 @@ test.describe('Shared links', {tag: '@mobile'}, () => {
     await tierList.goto('/rank/overwatch/tank', 'this-is-not-a-valid-state');
 
     await expect(tierList.title).toHaveText('OVERWATCH - Tank');
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(13);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
   });
 });
 

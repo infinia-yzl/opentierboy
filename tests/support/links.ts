@@ -1,8 +1,45 @@
 import LZString from 'lz-string';
 import imagesetConfig from '../../imageset.config.json';
+import legacyConfig from '../../imageset.legacy.json';
 
-type PackageConfig = {images: {filename: string; label: string}[]};
+type PackageConfig = {images: {filename: string; label: string; tags: string[]}[]};
 const packages = (imagesetConfig as {packages: Record<string, PackageConfig>}).packages;
+const legacyPackages = legacyConfig as Record<string, PackageConfig>;
+
+/**
+ * The legacy image sets (imageset.legacy.json): their package names, display names and
+ * display-name slugs (both work in /rank URLs), and one tag each with its URL form and title.
+ */
+export const LEGACY_SETS = [
+  {packageName: 'image-set', displayName: 'Example Items Template', slug: 'example-items-template', tag: 'people', tagPath: 'people', tagTitle: 'People'},
+  {packageName: 'image-wutheringwaves', displayName: 'WUTHERING WAVES', slug: 'wuthering-waves', tag: 'c_rarity_5', tagPath: 'c-rarity-5', tagTitle: '5-Star Resonators'},
+  {packageName: 'image-webdev', displayName: 'Web Development Technologies', slug: 'web-development-technologies', tag: 'fe', tagPath: 'fe', tagTitle: 'Frontend Technologies'},
+  {packageName: 'image-supervive', displayName: 'SUPERVIVE', slug: 'supervive', tag: 'hunter', tagPath: 'hunter', tagTitle: 'All Hunters'},
+  {packageName: 'image-helldivers2', displayName: 'HELLDIVERS 2', slug: 'helldivers-2', tag: 'Stratagems', tagPath: 'stratagems', tagTitle: 'Stratagems'},
+] as const;
+
+/** The item names of a legacy set (or of one of its tags), in the order its template lists them. */
+export function legacyItems(packageName: string, tag?: string): string[] {
+  const set = legacyPackages[packageName];
+  if (!set) throw new Error(`${packageName} is not a legacy set`);
+  return set.images
+    .filter((image) => tag === undefined || image.tags.includes(tag))
+    .map((image) => image.label || image.filename.split('.')[0]);
+}
+
+/** The files of a legacy set in public/images/<package>/: each image and its PNG copy for link previews. */
+export function legacyFiles(packageName: string): string[] {
+  return legacyPackages[packageName].images.flatMap(({filename}) => (
+    filename.endsWith('.webp') ? [filename, filename.replace(/\.webp$/, '.png')] : [filename]
+  ));
+}
+
+/** The number of items a template of an official set starts with: all items, or the items of one tag. */
+export function templateItemCount(packageName: string, tag = 'all'): number {
+  const set = packages[packageName];
+  if (!set) throw new Error(`No image set ${packageName}`);
+  return set.images.filter((image) => tag === 'all' || image.tags.includes(tag)).length;
+}
 
 /** Tier ids of the default five-row template, keyed by their labels. */
 export const FIVE_ROW_TIERS = [

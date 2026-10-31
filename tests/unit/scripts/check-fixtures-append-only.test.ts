@@ -14,6 +14,9 @@ const LOCK = {
   'image-a-one.webp': {package: 'image-a', filename: 'one.webp', label: 'One'},
   'image-a-two.webp': {package: 'image-a', filename: 'two.webp', label: 'Two'},
 };
+const LEGACY = {
+  'image-old': {displayName: 'Old', images: [{filename: 'x.webp', label: 'X', tags: ['t']}], tags: {t: {title: 'T', description: 'D', category: 'general'}}, legacy: true},
+};
 
 describe('scripts/check-fixtures-append-only.mjs', () => {
   let repo: string;
@@ -45,6 +48,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     write('tests/fixtures/state/generated.json', [{id: 'v0-a', state: 'x', expected: {version: 0, tiers: []}}]);
     write('image-registry.lock.json', LOCK);
     write('image-aliases.json', {'image-a-old.webp': 'image-a-one.webp'});
+    write('imageset.legacy.json', LEGACY);
     write('package.json', {name: 'not-a-fixture'});
     commitAll('base');
     git('checkout', '-q', '-b', 'feature');
@@ -64,6 +68,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     write('tests/fixtures/shared-links.json', [...LINKS, {id: 'link-003', state: 'N3', expected: {}}]);
     write('image-registry.lock.json', {...LOCK, 'image-b-new.webp': {package: 'image-b', filename: 'new.webp', label: 'New'}});
     write('tests/fixtures/state/v3.json', [{id: 'v3-a', state: '3.x'}]);
+    write('imageset.legacy.json', {...LEGACY, 'image-older': {...LEGACY['image-old'], displayName: 'Older'}});
     expect(check('--base', 'main').status).toBe(0);
 
     commitAll('append');
@@ -71,6 +76,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain('tests/fixtures/shared-links.json: 2 kept, 1 added');
     expect(result.output).toContain('+ tests/fixtures/state/v3.json: new file');
+    expect(result.output).toContain('imageset.legacy.json: 1 kept, 1 added');
   });
 
   it('allows formatting and key order changes', () => {
@@ -95,6 +101,8 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     ['a removed item id', () => write('image-registry.lock.json', {'image-a-one.webp': LOCK['image-a-one.webp']}), 'key "image-a-two.webp" was removed'],
     ['a changed item id entry', () => write('image-registry.lock.json', {...LOCK, 'image-a-one.webp': {...LOCK['image-a-one.webp'], filename: 'x.webp'}}), 'key "image-a-one.webp" was changed'],
     ['a removed alias', () => write('image-aliases.json', {}), 'key "image-a-old.webp" was removed'],
+    ['a changed label in a legacy set', () => write('imageset.legacy.json', {'image-old': {...LEGACY['image-old'], images: [{filename: 'x.webp', label: 'Y', tags: ['t']}]}}), 'key "image-old" was changed'],
+    ['a removed legacy set', () => write('imageset.legacy.json', {}), 'key "image-old" was removed'],
   ])('fails on %s', (_name, change, message) => {
     change();
     const uncommitted = check('--base', 'main');
