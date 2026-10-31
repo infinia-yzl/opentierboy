@@ -6,6 +6,8 @@ import ImageSetConfig from "@/models/ImageSet";
 import {PlusCircledIcon} from "@radix-ui/react-icons";
 import PackageCard from "@/components/PackageCard";
 import {Separator} from "@/components/ui/separator";
+import RecentlyViewed from "@/components/RecentlyViewed";
+import {rankPageNames} from "@/lib/imageSets";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
@@ -67,6 +69,7 @@ const Home = () => {
           </CardContent>
         </Card>
       </div>
+      <RecentlyViewed pageNames={rankPageNames()}/>
     </div>
   );
 };

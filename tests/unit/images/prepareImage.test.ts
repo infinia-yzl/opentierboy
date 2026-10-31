@@ -49,6 +49,17 @@ const decodeAs = (width: number, height: number) => {
 };
 
 describe('prepareImageForStore', () => {
+  it('draws even an accepted file again when asked to (snapshot images)', async () => {
+    const file = fileOf('image/png', 1000);
+    const {decode, release} = decodeAs(1000, 500);
+    const {createCanvas, drawn} = fakeCanvas(() => 800);
+    const result = await prepareImageForStore(file, {maxBytes: 5000, maxSide: 512, alwaysReencode: true, decode, createCanvas});
+    expect(result).toMatchObject({ok: true, type: 'image/webp', reencoded: true});
+    expect(result.ok && result.blob.type).toBe('image/webp');
+    expect(drawn[0]).toEqual({width: 512, height: 256});
+    expect(release).toHaveBeenCalledOnce();
+  });
+
   it('keeps a file the store accepts exactly as it is, after decoding it once', async () => {
     const file = fileOf('image/png', 1000);
     const {decode, release} = decodeAs(10, 10);

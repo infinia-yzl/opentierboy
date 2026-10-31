@@ -6,7 +6,9 @@
  * image the browser can show (SVG, BMP, a large photo) is drawn on a
  * canvas, at most 2,048 pixels on its longest side, and saved again: as WebP, or PNG where the
  * browser cannot write WebP, and as JPEG when that is still too large. SVG thus becomes a plain
- * picture: its scripts and links never reach the store.
+ * picture: its scripts and links never reach the store. With `alwaysReencode`, every file is
+ * drawn again, even one the store would accept: snapshot files use it, because their images
+ * passed only a check of their header (A10).
  *
  * Every image is decoded once, and refused when it is wider or taller than 8,192 pixels or
  * larger than 32 megapixels (the caps of lib/images/imageCheck.ts). The size is checked before
@@ -87,6 +89,8 @@ export interface PrepareImageOptions {
   maxSide?: number;
   /** Largest file this module tries to decode at all. */
   maxInputBytes?: number;
+  /** Draw the image again even when the store would accept the file as it is. */
+  alwaysReencode?: boolean;
   decode?: (blob: Blob, hints: DecodeHints) => Promise<DecodedImage>;
   createCanvas?: () => CanvasLike;
   /** Pixel caps; the defaults are those of lib/images/imageCheck.ts. */
@@ -194,6 +198,7 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
     maxWidth = DEFAULT_IMAGE_CHECK_LIMITS.maxWidth,
     maxHeight = DEFAULT_IMAGE_CHECK_LIMITS.maxHeight,
     maxPixels = DEFAULT_IMAGE_CHECK_LIMITS.maxPixels,
+    alwaysReencode = false,
   } = options;
   const tooManyPixels = ({width, height}: {width: number; height: number}) =>
     width > maxWidth || height > maxHeight || width * height > maxPixels;
@@ -218,7 +223,7 @@ export async function prepareImageForStore(blob: Blob, options: PrepareImageOpti
       if (tooManyPixels(decoded)) return {ok: false, reason: 'too-many-pixels'};
       // A file the store accepts is kept exactly as it is (an animated GIF stays animated), with
       // its sniffed type in place of the one the browser reported.
-      if (type && blob.size <= maxBytes) return {ok: true, blob: new Blob([blob], {type}), type, reencoded: false};
+      if (type && blob.size <= maxBytes && !alwaysReencode) return {ok: true, blob: new Blob([blob], {type}), type, reencoded: false};
       const createCanvas = options.createCanvas ?? createDocumentCanvas;
       for (const side of [maxSide, Math.round(maxSide / 2)]) {
         const scale = Math.min(1, side / Math.max(decoded.width, decoded.height));

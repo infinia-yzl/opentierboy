@@ -52,6 +52,25 @@ export class SitePage {
     return this.main.getByRole('heading', {level: 3});
   }
 
+  /** The "Recently viewed" section of the landing page. */
+  get recentlyViewed(): Locator {
+    return this.main.getByRole('region', {name: 'Recently viewed'});
+  }
+
+  /** The links in "Recently viewed", in order. */
+  get recentLinks(): Locator {
+    return this.recentlyViewed.getByRole('link');
+  }
+
+  /** The pin toggle of a recently viewed list (pressed when pinned). */
+  recentPinButton(name: string): Locator {
+    return this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true});
+  }
+
+  async removeRecentLink(name: string) {
+    await this.recentlyViewed.getByRole('button', {name: `Remove ${name}`, exact: true}).click();
+  }
+
   /** The address of every link in the main content. */
   async linkTargets(): Promise<string[]> {
     const links = await this.main.getByRole('link').all();

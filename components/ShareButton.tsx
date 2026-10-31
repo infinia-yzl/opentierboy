@@ -4,7 +4,7 @@ import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
-import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon} from '@radix-ui/react-icons';
+import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon} from '@radix-ui/react-icons';
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
@@ -15,6 +15,8 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {useTierContext} from "@/contexts/TierContext";
 import {checkImage} from "@/lib/images/imageCheck";
+import {type Capture, useSnapshotDownload} from "@/components/useSnapshotDownload";
+import {usePathname} from "next/navigation";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -48,13 +50,32 @@ interface ShareButtonProps {
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const {shareLink} = useTierContext();
-  const [imageBlob, setImageBlob] = useState<Blob | null>(null);
+  const pathname = usePathname();
+  // The picture and the list it shows, taken together: Download embeds that list, even when the
+  // list on screen has changed since.
+  const [capture, setCapture] = useState<Capture | null>(null);
+  const imageBlob = capture?.picture ?? null;
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const downloadSnapshot = useSnapshotDownload();
+
+  /** Downloads the picture with the list inside (a snapshot file that OpenTierBoy can open again). */
+  const downloadImage = async () => {
+    if (!capture) return;
+    setIsSaving(true);
+    try {
+      await downloadSnapshot(capture);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const captureImage = useCallback(async () => {
     setIsCapturing(true);
+    // The list the picture shows: the screen does not change while html2canvas draws it.
+    const shown = {state: shareLink, path: pathname, title};
     const element = document.body;
     const popover = popoverRef.current;
     const toastContainer = document.querySelector('[data-sonner-toaster]');
@@ -100,7 +121,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       }
 
       canvas.toBlob((blob: Blob | null) => {
-        if (blob) setImageBlob(blob);
+        if (blob) setCapture({picture: blob, ...shown});
       }, 'image/png');
 
       toast.success('Image captured successfully');
@@ -113,7 +134,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       if (toastContainer) (toastContainer as HTMLElement).style.display = '';
       setIsCapturing(false);
     }
-  }, [captureMethod]);
+  }, [captureMethod, shareLink, pathname, title]);
 
   const copyImage = () => {
     if (imageBlob) {
@@ -279,11 +300,18 @@ What do you think? 🤔
                 )}
 
                 {imageBlob ? (
-                  <div className="flex justify-center">
+                  <div className="flex flex-wrap justify-center gap-2">
                     <Button variant="outline" onClick={copyImage} disabled={!imageBlob}>
                       <ImageIcon className="mr-2"/>
                       Copy Image
                     </Button>
+                    <Button variant="outline" onClick={downloadImage} disabled={!imageBlob || isSaving}>
+                      <DownloadIcon className="mr-2"/>
+                      Download
+                    </Button>
+                    <p className="w-full text-center text-xs text-muted-foreground">
+                      Download keeps the list inside the picture: open the file here later to edit it again.
+                    </p>
                   </div>
                 ) : (
                   <div className="flex justify-center text-sm text-muted-foreground">

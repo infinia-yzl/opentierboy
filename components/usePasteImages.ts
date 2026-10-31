@@ -1,9 +1,4 @@
 import {useEffect} from 'react';
-import {toast} from 'sonner';
-import {useTierContext} from '@/contexts/TierContext';
-import {useCustomImages} from '@/contexts/CustomImagesContext';
-import {useAddItemsWithUndo} from '@/components/useAddItems';
-import {pastedImageLabel} from '@/lib/images/listImages';
 
 /** Images in a paste event, from its files or its file items. */
 function pastedImages(event: ClipboardEvent): File[] {
@@ -18,16 +13,14 @@ function pastedImages(event: ClipboardEvent): File[] {
 }
 
 /**
- * Pasting an image anywhere in the editor adds it as an item from the device, like "From your
- * device". Pastes into a text field or a dialog are left alone.
+ * Pasting an image anywhere in the editor opens it like a dropped file (`openFiles` from
+ * components/useSnapshotFiles.tsx): a picture becomes an item from the device, like "From your
+ * device", and a snapshot file asks whether to open its list. Pastes into a text field or a
+ * dialog are left alone.
  *
  * Pasting images was first proposed in pull request #146 by JB Wilson (Selenestica).
  */
-export function usePasteImages() {
-  const {tiers} = useTierContext();
-  const {addDeviceImages} = useCustomImages();
-  const addItemsWithUndo = useAddItemsWithUndo();
-
+export function usePasteImages(openFiles: (files: File[]) => void) {
   useEffect(() => {
     const onPaste = (event: ClipboardEvent) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -35,18 +28,9 @@ export function usePasteImages() {
       const files = pastedImages(event);
       if (files.length === 0) return;
       event.preventDefault();
-      const taken = new Set(tiers.flatMap((tier) => tier.items.map((item) => item.content)));
-      const images = files.map((file) => {
-        const label = pastedImageLabel(file.name, taken);
-        taken.add(label);
-        return {blob: file, label};
-      });
-      void addDeviceImages(images).then(({items, errors}) => {
-        if (items.length > 0) addItemsWithUndo(items);
-        if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-      });
+      openFiles(files);
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
-  }, [tiers, addDeviceImages, addItemsWithUndo]);
+  }, [openFiles]);
 }

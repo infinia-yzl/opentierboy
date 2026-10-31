@@ -6,6 +6,7 @@ import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import {ItemSet} from "@/models/ItemSet";
 import TierCortex from "@/lib/TierCortex";
+import {recordRecentLink} from "@/components/useRecentLinks";
 import {
   addressNeedsLoading,
   createTierListReducer,
@@ -50,6 +51,12 @@ export interface TierContext {
    * stays as it is on screen).
    */
   shareLink: string;
+  /**
+   * True while changes to the list are still on their way to the address (each becomes its own
+   * history entry, one at a time). Code that makes a series of changes, such as queued pastes,
+   * waits for false between them, so each change stays its own Back step.
+   */
+  writing: boolean;
 
   setTitle: (title: string) => void;
   moveItem: (from: ItemPosition, to: ItemPosition) => void;
@@ -109,6 +116,14 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     return initialTierListState(loadList(tierCortex, address, initialItemSet, pageTitle), address, encode);
   });
 
+  // Recently viewed: a list opened fresh (this editor started with a link that holds a list) is
+  // recorded once. Edits, Back and Forward are not.
+  const [openedLink] = useState(() =>
+    state.address && state.addressHoldsList ? {path: pathname, state: state.address, title: state.title} : null);
+  useEffect(() => {
+    if (openedLink) recordRecentLink(openedLink);
+  }, [openedLink]);
+
   // Address to store, during render, so the screen never shows a list from another address.
   const address = stateParam(searchParams.get('state'));
   if (address !== state.address) {
@@ -166,8 +181,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     showLabels: state.showLabels,
     urlLength,
     shareLink,
+    writing: state.writes.length > 0,
     ...actions,
-  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, actions]);
+  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, state.writes.length, actions]);
 
   return <TierContext.Provider value={value}>{children}</TierContext.Provider>;
 }

@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
 
 export type RowCount = 3 | 5 | 7;
@@ -42,6 +43,9 @@ export class TierListPage {
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
   readonly sharePanel: Locator;
+  readonly openFileButton: Locator;
+  /** "Open the list in this file?", after opening a snapshot file. */
+  readonly openListDialog: Locator;
   readonly zenModeToggle: Locator;
 
   constructor(page: Page) {
@@ -56,6 +60,8 @@ export class TierListPage {
       has: page.getByRole('heading', {name: 'Share Your Rankings'}),
     });
     this.zenModeToggle = page.getByRole('button', {name: 'Toggle zen mode'});
+    this.openFileButton = page.getByRole('button', {name: 'Open file', exact: true});
+    this.openListDialog = page.getByRole('alertdialog', {name: 'Open the list in this file?'});
   }
 
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
@@ -173,8 +179,32 @@ export class TierListPage {
   }
 
   /** The number of entries in the tab's history (window.history.length). */
+  /** Leaves the editor for the landing page with the site's logo link in the header. */
+  async leaveForHome() {
+    await this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'}).click();
+    await expect(this.page).toHaveURL(/^[^?]*\/$/);
+  }
+
   async historyLength(): Promise<number> {
     return this.page.evaluate(() => window.history.length);
+  }
+
+  /**
+   * Starts counting the history entries this page adds from now on (history.pushState calls, as
+   * Next.js makes one per router.push). Browsers keep at most 50 entries, so history.length
+   * cannot count more. Returns a function that reads the count.
+   */
+  async countNewHistoryEntries(): Promise<() => Promise<number>> {
+    await this.page.evaluate(() => {
+      const counted = window as unknown as {newHistoryEntries: number};
+      counted.newHistoryEntries = 0;
+      const push = window.history.pushState.bind(window.history);
+      window.history.pushState = (...args: Parameters<History['pushState']>) => {
+        counted.newHistoryEntries += 1;
+        push(...args);
+      };
+    });
+    return () => this.page.evaluate(() => (window as unknown as {newHistoryEntries: number}).newHistoryEntries);
   }
 
   /** The link a visitor would share. The app keeps it in the address bar. */
@@ -391,11 +421,18 @@ export class TierListPage {
     });
   }
 
-  /** The label settings that the row options menu shows as chosen. Closes the menu again. */
+  /**
+   * The label settings that the row options menu shows as chosen. Closes the menu again.
+   * Right after a navigation (Back, a reload) the server-rendered page shows before it responds
+   * to clicks, so it clicks the menu button again until the menu opens, like waitUntilInteractive.
+   */
   async labelSettings(): Promise<{position: LabelPosition; labelsShown: boolean}> {
-    await this.rowOptionsButton.click();
+    const menu = this.page.getByRole('menu');
     const checked = this.page.getByRole('menuitemradio', {checked: true});
-    await expect(checked).toHaveCount(3);
+    await expect(async () => {
+      if (!(await menu.isVisible())) await this.rowOptionsButton.click();
+      await expect(checked).toHaveCount(3, {timeout: 1_000});
+    }).toPass();
     const names = await checked.allTextContents();
     await this.page.keyboard.press('Escape');
     await expect(checked).toHaveCount(0);
@@ -415,6 +452,12 @@ export class TierListPage {
 
   private async openItemsMenu() {
     await this.manageItemsButton.click();
+  }
+
+  /** Opens the Manage items menu and leaves it open. */
+  async openManageItemsMenu() {
+    await this.openItemsMenu();
+    await expect(this.page.getByRole('menu')).toBeVisible();
   }
 
   /** The template picker ("From template"): a searchable list of image sets and their tags. */
@@ -440,6 +483,18 @@ export class TierListPage {
     const picker = this.templatePicker;
     await picker.getByRole('option', {name: packageName, exact: true}).click();
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
+  }
+
+  /** The "From your device" dialog. */
+  get uploadDialog(): Locator {
+    return this.page.getByRole('dialog', {name: 'Add New Items'});
+  }
+
+  /** Opens "From your device" and leaves its dialog open. */
+  async openUploadDialog() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'From your device'}).click();
+    await expect(this.uploadDialog).toBeVisible();
   }
 
   /**
@@ -572,9 +627,9 @@ export class TierListPage {
   /**
    * Waits until the editor responds to input. The server-rendered rows show before the page has
    * started in the browser; a paste event before that finds no listener. Opening the items menu
-   * proves the page has started.
+   * proves the page has started (and its effects, such as recording Recently viewed, have run).
    */
-  private async waitUntilInteractive() {
+  async waitUntilInteractive() {
     const menu = this.page.getByRole('menu');
     await expect(async () => {
       if (!(await menu.isVisible())) await this.manageItemsButton.click();
@@ -632,6 +687,139 @@ export class TierListPage {
     }, groups.map((group) => group.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')}))));
   }
 
+  // ---- Files: snapshot files and pictures ---------------------------------------------------
+
+  /**
+   * Chooses a file with "Open file", as the file chooser would. Pass `waitForEditor: false` when
+   * the test already waited for the editor (waitUntilInteractive), for example to time the opening.
+   */
+  async openFile(file: {name: string; mimeType: string; buffer: Buffer}, {waitForEditor = true} = {}) {
+    if (waitForEditor) await this.waitUntilInteractive();
+    const chooser = this.page.waitForEvent('filechooser');
+    await this.openFileButton.click();
+    await (await chooser).setFiles(file);
+  }
+
+  /**
+   * Drops a file onto the editor, as dragging it from the desktop would. With `onPage`, it drops
+   * on the page itself (for example beside an open dialog), without waiting for the editor first.
+   */
+  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onPage = false} = {}) {
+    if (!onPage) await this.waitUntilInteractive();
+    const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
+      const data = new DataTransfer();
+      data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
+      return data;
+    }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
+    const element = onPage ? this.page.locator('body') : this.tiers.first();
+    await element.dispatchEvent('dragover', {dataTransfer: transfer});
+    await element.dispatchEvent('drop', {dataTransfer: transfer});
+  }
+
+  /**
+   * Confirms "Open the list in this file?" and waits until the list's link is in the address bar:
+   * the dialog says "Opening the list…" until then. With `newAddress: false` (the address already
+   * shows that list), it waits until the opening has finished instead.
+   */
+  async confirmOpenList({newAddress = true} = {}) {
+    const before = this.page.url();
+    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
+    await expect(this.openListDialog).toBeHidden();
+    if (newAddress) await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
+  /** Clicks Open list and leaves the dialog to open the list (it says "Opening the list…"). */
+  async startOpeningList() {
+    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
+    await expect(this.openListDialog).toContainText('Opening the list…');
+  }
+
+  /**
+   * Chooses a file with "Open file" and returns how long the page took, measured in the page,
+   * from receiving the file until a toast with `text` appeared (milliseconds). Playwright's own
+   * waiting is not part of the time.
+   */
+  async timeToOpenFile(file: {name: string; mimeType: string; buffer: Buffer}, text: string): Promise<number> {
+    await this.waitUntilInteractive();
+    await this.page.evaluate((expected) => {
+      const timing: {start?: number; end?: number} = {};
+      (window as unknown as {__openFileTiming: typeof timing}).__openFileTiming = timing;
+      document.addEventListener('change', () => {
+        timing.start ??= performance.now();
+      }, {capture: true, once: true});
+      const observer = new MutationObserver(() => {
+        if (timing.start !== undefined && document.body.textContent?.includes(expected)) {
+          timing.end = performance.now();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, {childList: true, subtree: true, characterData: true});
+    }, text);
+    await this.openFile(file, {waitForEditor: false});
+    await expect(this.toast(text)).toBeVisible();
+    return this.page.evaluate(() => {
+      const timing = (window as unknown as {__openFileTiming: {start?: number; end?: number}}).__openFileTiming;
+      return (timing.end ?? Number.NaN) - (timing.start ?? Number.NaN);
+    });
+  }
+
+  /**
+   * The number of images in this browser's device image store. It reads the store's IndexedDB
+   * database in the page directly: only the test looks, the app itself goes through
+   * lib/images/deviceStore.ts.
+   */
+  async deviceImageCount(): Promise<number> {
+    return this.page.evaluate(() => new Promise<number>((resolve, reject) => {
+      // eslint-disable-next-line no-restricted-globals -- a test reads the store to count its images
+      const opening = indexedDB.open('opentierboy-device-images');
+      opening.onerror = () => reject(opening.error);
+      opening.onsuccess = () => {
+        const db = opening.result;
+        const count = db.transaction('images').objectStore('images').count();
+        count.onsuccess = () => {
+          db.close();
+          resolve(count.result);
+        };
+        count.onerror = () => reject(count.error);
+      };
+    }));
+  }
+
+  async cancelOpenList() {
+    await this.openListDialog.getByRole('button', {name: 'Cancel'}).click();
+    await expect(this.openListDialog).toBeHidden();
+  }
+
+  /**
+   * Freeze Frame's Download, after Capture Preview: returns the downloaded file. When the list
+   * does not fit into the picture, the app offers the picture without it in a toast instead.
+   */
+  async downloadCapturedImage(): Promise<{name: string; buffer: Buffer}> {
+    const button = this.sharePanel.getByRole('button', {name: 'Download', exact: true});
+    await expect(button).toBeEnabled();
+    const download = this.page.waitForEvent('download');
+    await button.click();
+    const file = await download;
+    return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
+  }
+
+  /**
+   * Freeze Frame's Download when the list does not fit into the picture: checks the message that
+   * says so, takes its "Download picture" and returns that file.
+   */
+  async downloadCapturedImageWithoutList(): Promise<{name: string; buffer: Buffer}> {
+    const button = this.sharePanel.getByRole('button', {name: 'Download', exact: true});
+    await expect(button).toBeEnabled();
+    await button.click();
+    const offer = this.toast('This list is too large to keep in the picture');
+    await expect(offer).toContainText('Download the picture without the list?');
+    const download = this.page.waitForEvent('download');
+    await offer.getByRole('button', {name: 'Download picture'}).click();
+    const file = await download;
+    return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
+  }
+
   async deleteItem(itemName: string) {
     await this.item(itemName).click({button: 'right'});
     await this.page.getByRole('menuitem', {name: 'Delete'}).click();
@@ -667,6 +855,12 @@ export class TierListPage {
   async openSharePanel() {
     await this.shareButton.click();
     await expect(this.sharePanel).toBeVisible();
+  }
+
+  /** Opens the Image tab of the share panel (Freeze Frame), where a capture stays until the next one. */
+  async openImageTab() {
+    if (!(await this.sharePanel.isVisible())) await this.openSharePanel();
+    await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
   }
 
   /** Copies the Markdown share text. The browser must allow clipboard access. */
