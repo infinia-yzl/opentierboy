@@ -3,6 +3,7 @@ import type Tier from "@/models/Tier";
 import type {LabelPosition} from "@/models/Tier";
 import type {ItemSet} from "@/models/ItemSet";
 import type TierCortex from "@/lib/TierCortex";
+import type {ListLayout} from "@/lib/TierCortex";
 
 /**
  * The tier list editor's state and every change to it, as a pure reducer (no React, no
@@ -13,10 +14,32 @@ import type TierCortex from "@/lib/TierCortex";
  *   The provider pushes each write as a new history entry, one at a time and in order, never
  *   merged: the next one when the previous one has reached the address.
  * - A change that leaves the link as it was writes nothing: an unchanged rename, a drop on
- *   the same place, a layout setting (label position, labels shown).
+ *   the same place.
+ * - The layout settings (label position, labels shown) travel in v3 links too. How a change
+ *   to them reaches the address is LAYOUT_LINK_WRITE (A3): by default it replaces the current
+ *   entry, so it adds no Back step, as before.
  * - Opening a link writes nothing (A1). Back, Forward and opening a link change the address;
  *   the provider then hands the list from that address to `addressChanged`, which never writes.
+ *
+ * Layout settings from a link apply only when the link is opened fresh: when the editor
+ * starts with it (`initialTierListState`). That is the first load of the page, a reload, or
+ * arriving at the editor from another page, also by Back or Forward from another page (each
+ * of these starts a new editor). Back and Forward between versions of the list inside the
+ * editor (`addressChanged`) keep the layout on screen, as before (owner, 2026-10-25).
  */
+
+/**
+ * How a change to the label position or label visibility writes the link (A3).
+ * - 'replace': replace the current history entry. No Back step, as before v3; shared links
+ *   carry the layout.
+ * - 'push': a new history entry, like a change to the list. Back undoes the layout change.
+ * - 'next-edit': write nothing now; the next change to the list writes the layout along.
+ *
+ * Owner's choice, 2026-10-25: (a) 'replace'. Everything a user experiences stays the same,
+ * and shared links also carry the layout. Changing this line is all another choice needs.
+ */
+export type LayoutLinkWrite = 'replace' | 'push' | 'next-edit';
+export const LAYOUT_LINK_WRITE: LayoutLinkWrite = 'replace';
 
 /** A list to show, read from an address: a decoded link, or the template's starting list. */
 export interface LoadedList {
@@ -24,6 +47,8 @@ export interface LoadedList {
   title: string;
   /** True when the address held a link that decoded (false: a plain address or a damaged link). */
   decoded: boolean;
+  /** The layout a v3 link stores. Applied only when the link is opened fresh. */
+  layout?: ListLayout;
 }
 
 /**
@@ -33,16 +58,22 @@ export interface LoadedList {
 export function loadList(tierCortex: TierCortex, address: string | null, itemSet: ItemSet | undefined, pageTitle: string): LoadedList {
   if (address) {
     const decoded = tierCortex.decodeTierStateFromURL(address);
-    if (decoded) return {tiers: decoded.tiers, title: decoded.title || pageTitle, decoded: true};
+    if (decoded) {
+      const list: LoadedList = {tiers: decoded.tiers, title: decoded.title || pageTitle, decoded: true};
+      if (decoded.layout) list.layout = decoded.layout;
+      return list;
+    }
   }
   return {tiers: tierCortex.getInitialTiers(undefined, itemSet), title: pageTitle, decoded: false};
 }
 
-/** A link the provider pushes as a new history entry. */
+/** A link the provider writes into the address: a new history entry, or in place of the current one. */
 export interface LinkWrite {
-  /** Increases with every write, so the provider pushes each write once. */
+  /** Increases with every write, so the provider writes each one once. */
   id: number;
   link: string;
+  /** 'push' adds a history entry (every change to the list); 'replace' replaces the current one. */
+  mode: 'push' | 'replace';
 }
 
 export interface TierListState {
@@ -51,7 +82,7 @@ export interface TierListState {
   title: string;
   labelPosition: LabelPosition;
   showLabels: boolean;
-  /** The link of the list on screen: what `encode` writes for `title` and `tiers`. */
+  /** The link of the list on screen: what `encode` writes for the title, tiers and layout. */
   link: string;
   /** The `state` parameter of the address as last seen; null when the address has none. */
   address: string | null;
@@ -94,18 +125,26 @@ export function stateParam(value: string | null | undefined): string | null {
 }
 
 /** Writes the link of a list (TierCortex: the current link format). */
-export type ListEncoder = (title: string, tiers: Tier[]) => string;
+export type ListEncoder = (title: string, tiers: Tier[], layout: ListLayout) => string;
+
+const layoutOf = (state: Pick<TierListState, 'labelPosition' | 'showLabels'>): ListLayout =>
+  ({labelPosition: state.labelPosition, showLabels: state.showLabels});
 
 /** Writes waiting to show up in the address. Far more than ever pile up between two renders. */
 const MAX_PENDING_WRITES = 50;
 
+/**
+ * The store when the editor starts: the link is opened fresh, so its layout settings apply
+ * (a link without them, or no link, shows labels on the left).
+ */
 export function initialTierListState(loaded: LoadedList, address: string | null, encode: ListEncoder): TierListState {
+  const layout: ListLayout = loaded.layout ?? {labelPosition: 'left', showLabels: true};
   return {
     tiers: loaded.tiers,
     title: loaded.title,
-    labelPosition: 'left',
-    showLabels: true,
-    link: encode(loaded.title, loaded.tiers),
+    labelPosition: layout.labelPosition,
+    showLabels: layout.showLabels,
+    link: encode(loaded.title, loaded.tiers, layout),
     address,
     addressHoldsList: loaded.decoded,
     writes: [],
@@ -123,26 +162,42 @@ export function addressNeedsLoading(state: TierListState, address: string | null
   return !state.writes.some(write => write.link === address);
 }
 
-export function createTierListReducer(encode: ListEncoder) {
-  /** A change to the list: records a write when the link changes. */
-  const edit = (state: TierListState, tiers: Tier[], title: string = state.title): TierListState => {
-    const link = encode(title, tiers);
+type ListChanges = Partial<Pick<TierListState, 'tiers' | 'title' | 'labelPosition' | 'showLabels'>>;
+
+export interface TierListReducerOptions {
+  /** How layout settings write the link (A3). Defaults to LAYOUT_LINK_WRITE. */
+  layoutWrite?: LayoutLinkWrite;
+}
+
+export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT_LINK_WRITE}: TierListReducerOptions = {}) {
+  /** A change: records a write when the link changes. */
+  const change = (state: TierListState, changes: ListChanges, mode: LinkWrite['mode'] = 'push'): TierListState => {
+    const next = {...state, ...changes};
+    const link = encode(next.title, next.tiers, layoutOf(next));
     if (link === state.link) return state;
     if (link === state.address && state.writes.length === 0) {
       // The address already holds this link (for example a link without a title, after the
-      // title is cleared). Pushing it would not change the address, so the write would never
+      // title is cleared). Writing it would not change the address, so the write would never
       // arrive and would hold up every later write.
-      return {...state, tiers, title, link, addressHoldsList: true};
+      return {...next, link, addressHoldsList: true};
     }
-    const write = {id: state.nextWriteId, link};
+    const write: LinkWrite = {id: state.nextWriteId, link, mode};
     return {
-      ...state,
-      tiers,
-      title,
+      ...next,
       link,
       writes: [...state.writes, write].slice(-MAX_PENDING_WRITES),
       nextWriteId: state.nextWriteId + 1,
     };
+  };
+
+  /** A change to the list: a new history entry. */
+  const edit = (state: TierListState, tiers: Tier[], title: string = state.title): TierListState =>
+    change(state, {tiers, title});
+
+  /** A change to the layout settings, written as LAYOUT_LINK_WRITE says (A3). */
+  const changeLayout = (state: TierListState, layout: Partial<ListLayout>): TierListState => {
+    if (layoutWrite === 'next-edit') return {...state, ...layout};
+    return change(state, layout, layoutWrite);
   };
 
   return function tierListReducer(state: TierListState, action: TierListAction): TierListState {
@@ -156,12 +211,14 @@ export function createTierListReducer(encode: ListEncoder) {
         if (action.loaded === null) {
           return {...state, address: action.address, addressHoldsList: state.addressHoldsList || action.address === state.link};
         }
+        // Back and Forward inside the editor keep the layout on screen: a link's layout applies
+        // only when it is opened fresh (initialTierListState).
         const {tiers, title, decoded} = action.loaded;
         return {
           ...state,
           tiers,
           title,
-          link: encode(title, tiers),
+          link: encode(title, tiers, layoutOf(state)),
           address: action.address,
           addressHoldsList: decoded,
           writes: [],
@@ -199,9 +256,9 @@ export function createTierListReducer(encode: ListEncoder) {
       case 'tiersRestored':
         return edit(state, action.tiers);
       case 'labelPositionChanged':
-        return action.labelPosition === state.labelPosition ? state : {...state, labelPosition: action.labelPosition};
+        return action.labelPosition === state.labelPosition ? state : changeLayout(state, {labelPosition: action.labelPosition});
       case 'labelsToggled':
-        return {...state, showLabels: !state.showLabels};
+        return changeLayout(state, {showLabels: !state.showLabels});
     }
   };
 }

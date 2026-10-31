@@ -1,5 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {rankingState, templateItemCount} from '../support/links';
+import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
@@ -136,23 +136,82 @@ test.describe('Opening a link', () => {
       await expect(tierList.title).toHaveText(link.expected.title);
     });
   }
+
+  test('opening a titled v3 link leaves the address and the history as they are', async ({tierList, page}) => {
+    const state = v3State({
+      t: 'My v3 list', tp: 5, lp: 'right',
+      r: [['S', [packageItemId('image-overwatch', 'Mauga')]], ['A', []], ['B', []], ['C', []], ['F', []], ['', [packageItemId('image-overwatch', 'Winston')]]],
+    });
+    await page.goto('/about');
+    const entries = await tierList.historyLength();
+
+    await tierList.gotoAndSettle(TANKS, state);
+    await expect(tierList.title).toHaveText('My v3 list');
+    const opened = new URL(`${TANKS}?state=${state}`, page.url()).href;
+    expect(page.url()).toBe(opened);
+    expect(await tierList.historyLength()).toBe(entries + 1);
+
+    await tierList.setTitle('Changed');
+    await page.goBack();
+    await expect(page).toHaveURL(opened);
+    await expect(tierList.title).toHaveText('My v3 list');
+  });
 });
 
+/**
+ * Label position and label visibility travel in the link (A3). The owner chose on 2026-10-25
+ * that they replace the current history entry, so they add no Back step, as before; Back and
+ * Forward inside the editor keep the settings on screen.
+ */
 test.describe('Browser history and settings', () => {
   test('changing the label position or hiding the labels adds no history entry', async ({tierList, page}) => {
     for (const state of [undefined, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']})]) {
       await tierList.goto(TANKS, state);
-      const opened = page.url();
+      const entries = await tierList.historyLength();
 
       await tierList.chooseLabelPosition('Top');
       await tierList.setItemLabelsVisible(false);
+      expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
+      const withSettings = page.url();
       await tierList.dragItemToTier('Winston', 'A');
 
-      // Back after the one change to the list goes straight back to the page as opened.
+      // Back after the one change to the list goes straight back to the page as opened, whose
+      // link now holds the settings.
       await page.goBack();
-      await expect(page).toHaveURL(opened);
+      await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
+      expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
     }
+  });
+
+  test('Back after a change keeps the label settings on screen', async ({tierList, page}) => {
+    // The owner's example: Mauga to S, Winston to A, labels on Top, then Back.
+    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
+    await tierList.dragItemToTier('Mauga', 'S');
+    await tierList.dragItemToTier('Winston', 'A');
+    await tierList.chooseLabelPosition('Top');
+
+    await page.goBack();
+    await expect(tierList.itemsIn('A')).toHaveCount(0);
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+
+    // Forward shows Winston in A again, still with labels on Top.
+    await page.goForward();
+    await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+  });
+
+  test('coming back to the editor from another page opens the link fresh, with its settings', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.chooseLabelPosition('Right');
+    await tierList.setItemLabelsVisible(false);
+
+    await page.goto('/about');
+    await page.goBack();
+    await expect(tierList.itemsIn('S')).toHaveText(['']);
+    expect(await tierList.labelSettings()).toEqual({position: 'Right', labelsShown: false});
   });
 
   test('Undo from a toast adds a new history entry', async ({tierList, page}) => {

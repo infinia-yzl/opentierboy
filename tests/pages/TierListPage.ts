@@ -76,6 +76,12 @@ export class TierListPage {
     return this.page.getByRole('heading', {name: /Application error/});
   }
 
+  /** Reloads the page, and waits until the editor shows the list again. */
+  async reload() {
+    await this.page.reload();
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
   /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
     await this.page.goto(link);
@@ -338,19 +344,51 @@ export class TierListPage {
 
   // ---- Row and label settings ------------------------------------------------------------
 
+  /** Switches the row template. A new history entry, like any change to the list. */
   async chooseRowCount(count: RowCount) {
-    await this.rowOptionsButton.click();
-    await this.page.getByRole('menuitemradio', {name: `${count} Rows`}).click();
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitemradio', {name: `${count} Rows`}).click();
+    });
   }
 
+  /**
+   * Moves the tier labels. The setting travels in the link, in place of the current history
+   * entry (A3), so this waits until the address holds it.
+   */
   async chooseLabelPosition(position: LabelPosition) {
-    await this.rowOptionsButton.click();
-    await this.page.getByRole('menuitemradio', {name: position, exact: true}).click();
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitemradio', {name: position, exact: true}).click();
+    });
   }
 
+  /** Shows or hides item labels. Like chooseLabelPosition, it waits until the address holds it. */
   async setItemLabelsVisible(visible: boolean) {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}).click();
+    });
+  }
+
+  /** The label settings that the row options menu shows as chosen. Closes the menu again. */
+  async labelSettings(): Promise<{position: LabelPosition; labelsShown: boolean}> {
     await this.rowOptionsButton.click();
-    await this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}).click();
+    const checked = this.page.getByRole('menuitemradio', {checked: true});
+    await expect(checked).toHaveCount(3);
+    const names = await checked.allTextContents();
+    await this.page.keyboard.press('Escape');
+    await expect(checked).toHaveCount(0);
+    const position = (['Left', 'Right', 'Top'] as const).find((name) => names.includes(name));
+    if (!position) throw new Error(`No label position chosen: ${names.join(', ')}`);
+    return {position, labelsShown: names.includes('Show Labels')};
+  }
+
+  /** True when the label of a tier sits above the given item, as with labels on Top. */
+  async tierLabelIsAbove(tierName: string, itemName: string): Promise<boolean> {
+    const label = await this.tier(tierName).getByRole('heading', {name: tierName}).boundingBox();
+    const item = await this.item(itemName).boundingBox();
+    return !!(label && item && label.y + label.height <= item.y);
   }
 
   // ---- Managing items --------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import LZString from 'lz-string';
+import {encodeV3} from './encoders/v3';
 import type {EncodableState} from './types';
 
 interface V2Item {
@@ -41,11 +42,28 @@ export function encodeV2(state: EncodableState): string {
   return LZString.compressToEncodedURIComponent(JSON.stringify(encodedState));
 }
 
+/** A link format the app can write. */
+export type WriteFormat = 2 | 3;
+
 /**
- * Writes the link format the app writes today: v2. Phase 5b switches this to v3.
- * Decoding with decodeState and encoding again gives back the same bytes for v1 and v2
- * values, so opening a link and saving it unchanged does not change the URL.
+ * The link format encodeState writes by default: v3 since the Phase 5b wiring step.
+ * TierCortex.encodeListForURL writes the app's links in this format; changing it to 2 makes
+ * the app write v2 links exactly as before (layout settings then stay out of links).
  */
-export function encodeState(state: EncodableState): string {
-  return encodeV2(state);
+export const DEFAULT_WRITE_FORMAT: WriteFormat = 3;
+
+export interface EncodeOptions {
+  /** Overrides DEFAULT_WRITE_FORMAT. */
+  format?: WriteFormat;
+}
+
+/**
+ * Writes a list in the link format the app writes (DEFAULT_WRITE_FORMAT: v3).
+ * Decoding with decodeState and encoding again in the same format gives back the same text
+ * for values that format's encoder wrote, so opening a link and saving it unchanged does
+ * not change the URL.
+ */
+export function encodeState(state: EncodableState, options: EncodeOptions = {}): string {
+  const format = options.format ?? DEFAULT_WRITE_FORMAT;
+  return format === 3 ? encodeV3(state) : encodeV2(state);
 }

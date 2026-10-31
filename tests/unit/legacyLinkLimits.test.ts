@@ -17,10 +17,12 @@ import {lzBomb, lzWithRun} from './support/lzStream';
 const lz = (value: unknown) => LZString.compressToEncodedURIComponent(JSON.stringify(value));
 
 const stateDir = path.resolve(__dirname, '../fixtures/state');
+// The legacy golden links. v3 links (tests/fixtures/state/v3.json) have their own limits.
 const GOLDEN = [
   ...sharedLinks.map(link => ({id: link.id, state: link.state})),
   ...fs.readdirSync(stateDir).filter(file => file.endsWith('.json'))
-    .flatMap(file => JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {id: string; state: string}[]),
+    .flatMap(file => JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {id: string; format: string; state: string}[])
+    .filter(entry => entry.format !== 'v3'),
 ];
 
 const L = LEGACY_LINK_LIMITS;
@@ -149,15 +151,18 @@ describe('legacy link type checks', () => {
 
   it('keep an empty title, empty names and empty labels', () => {
     const decoded = decode(v2([tier('', [{i: 'abc', c: ''}]), UNRANKED], ''));
+    // The unknown id shows as the device image id its v3 link writes (A42).
     expect(decoded).toEqual({title: '', tiers: [
-      {id: 'tier-s', name: '', items: [{id: 'abc', content: '', imageUrl: expect.any(String)}]},
+      {id: 'tier-s', name: '', items: [{id: 'legacy-abc', content: '', imageUrl: expect.any(String)}]},
       {id: 'uncategorized', name: '', items: [expect.objectContaining({id: 'image-overwatch-win.webp', content: 'Winston'})]},
     ]});
   });
 
   it('apply to legacy values only', () => {
-    // No versioned format has a decoder yet, so every value goes to the legacy decoder.
+    // Golden legacy links go to the legacy decoder; "3." values go to the v3 decoder, which
+    // has its own limits (lib/state/limits.ts).
     for (const {state} of GOLDEN) expect(isVersionedValue(state)).toBe(false);
-    expect(isVersionedValue('3.abc')).toBe(false);
+    expect(isVersionedValue('3.abc')).toBe(true);
+    expect(isVersionedValue('4.abc')).toBe(false);
   });
 });

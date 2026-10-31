@@ -1,6 +1,6 @@
 import LZString from 'lz-string';
 import {describe, expect, it, vi} from 'vitest';
-import {decodeState, encodeState} from '@/lib/state';
+import {decodeState, encodeV2} from '@/lib/state';
 import sharedLinks from '../../fixtures/shared-links.json';
 import {randomAppStates, seededRandom, toCanonical} from '../support/randomStates';
 
@@ -54,17 +54,29 @@ describe('decodeState', () => {
     const payloads = sharedLinks.map(link => link.state);
 
     it('legacy values never start with a digit, so a prefix cannot be mistaken for one', () => {
-      const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeState(toCanonical(state)))];
+      const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeV2(toCanonical(state)))];
       for (const value of encoded) expect(value[0]).toBe('N');
     });
 
-    it('rejects a value whose version has no decoder yet, including the reserved 3', () => {
-      for (const prefix of ['0.', '1.', '2.', '3.', '4.', '10.', '03.']) {
+    it('rejects a value whose version has no decoder', () => {
+      for (const prefix of ['0.', '1.', '2.', '4.', '10.', '03.']) {
         for (const payload of payloads) {
           expect(decodeState(prefix + payload), `${prefix}${payload.slice(0, 12)}…`).toBeNull();
         }
         expect(decodeState(prefix)).toBeNull();
       }
+    });
+
+    it('sends "3." values to the v3 decoder, which rejects legacy payloads', () => {
+      const onError = vi.fn();
+      for (const payload of payloads) {
+        expect(decodeState(`3.${payload}`, {onError}), `3.${payload.slice(0, 12)}…`).toBeNull();
+        // v0 values are JSON arrays; v1 and v2 values are objects without "r".
+        expect(String(onError.mock.lastCall?.[0])).toMatch(/^Error: Invalid v3 state: (not-an-object|bad-rows)$/);
+      }
+      expect(decodeState('3.')).toBeNull();
+      const v3 = `3.${lz('{"r":[["S",[]]],"tp":3}')}`;
+      expect(decodeState(v3)?.version).toBe(3);
     });
 
     it('sends values with a dot further on to the legacy decoder', () => {

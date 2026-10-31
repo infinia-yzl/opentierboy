@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import LZString from 'lz-string';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import TierCortex, {uniqueTierIds} from '@/lib/TierCortex';
+import TierCortex, {rowTemplateOf, uniqueTierIds} from '@/lib/TierCortex';
+import {decodeState, deviceImageIdForUpload} from '@/lib/state';
 import sharedLinks from '../fixtures/shared-links.json';
 import {PreRefactorTierCortex} from './support/TierCortex.pre-refactor';
 import {randomAppStates, seededRandom} from './support/randomStates';
@@ -19,18 +20,24 @@ import {randomAppStates, seededRandom} from './support/randomStates';
  * - an item id that appears twice keeps only its first place (A32);
  * - a tier id that appears twice keeps its first row, and later rows get new ids (A38);
  * - the placeholder tile of an unknown item uses a relative image URL (A37).
+ * Phase 5b adds one: an upload or unknown id shows under the id its v3 link writes
+ * (`legacy-<id>` for an id that breaks the device id rule, A42).
  */
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
 
 const stateDir = path.resolve(__dirname, '../fixtures/state');
-const fixtureStates = fs.readdirSync(stateDir)
+const allFixtures = fs.readdirSync(stateDir)
   .filter(file => file.endsWith('.json'))
-  .flatMap(file => (JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {state: string}[]))
-  .map(entry => entry.state);
+  .flatMap(file => (JSON.parse(fs.readFileSync(path.join(stateDir, file), 'utf8')) as {format: string; state: string}[]));
+// The comparison with the pre-refactor copy covers the legacy formats only: v3 links are new
+// in Phase 5b, so the old copy cannot read them. The "v3 links" tests below cover them.
+const fixtureStates = allFixtures.filter(entry => entry.format !== 'v3').map(entry => entry.state);
+const v3FixtureStates = allFixtures.filter(entry => entry.format === 'v3').map(entry => entry.state);
 
+// '3.' values go to the v3 decoder since Phase 5b: see "v3 links" below.
 const MALFORMED = [
-  '', 'this-is-not-a-valid-state', 'N', '3.', `3.${sharedLinks[1].state}`,
+  '', 'this-is-not-a-valid-state', 'N',
   lz('hello'), lz('42'), lz('null'), lz('{}'), lz('{"tiers":"x"}'), lz('{"tiers":[null]}'),
   lz('[{"i":"a","n":"b"}]'), lz('[{"i":"a","n":"b","t":"x"}]'), lz('[{"i":"a","n":"b","t":[null]}]'),
   lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7}'),
@@ -100,6 +107,15 @@ function withUniqueTierIds<T extends {tiers: {id: string}[]}>(decoded: T | null)
   return {...decoded, tiers: decoded.tiers.map((tier, index) => ({...tier, id: ids[index]}))};
 }
 
+/** Uploads and unknown ids under the id their v3 link writes, as Phase 5b decodes them (A42). */
+function withLegacyUploadIds<T extends {tiers: {items: {id: string}[]}[]}>(decoded: T | null): T | null {
+  if (decoded === null) return null;
+  const cortex = new TierCortex();
+  return {...decoded, tiers: decoded.tiers.map(tier => ({...tier, items: tier.items.map(item => (
+    typeof item.id === 'string' && cortex.isCustomItem(item.id) ? {...item, id: deviceImageIdForUpload(item.id) ?? item.id} : item
+  ))}))};
+}
+
 /** The frozen copy's placeholder URLs were absolute. Phase 5a makes them relative (A37). */
 const ABSOLUTE_PLACEHOLDER = /^(http:\/\/localhost:3000|https:\/\/opentierboy\.com)\/placeholder-image\.png$/;
 function withRelativePlaceholders<T extends {tiers: {items: {imageUrl?: string}[]}[]}>(decoded: T | null): T | null {
@@ -117,7 +133,7 @@ function expectSameAsBefore(input: string, label: string) {
     expect(afterLogs, label).toEqual([[LOG_PREFIX, expect.stringContaining('Error: The link holds ')]]);
     return;
   }
-  expect(after, label).toStrictEqual(withUniqueTierIds(withRelativePlaceholders(withoutDuplicateIds(before))));
+  expect(after, label).toStrictEqual(withUniqueTierIds(withRelativePlaceholders(withoutDuplicateIds(withLegacyUploadIds(before)))));
   // A link that does not decode logs one error. The message is the same, unless the size check
   // stopped the link before the decoder because it is not complete lz-string data.
   expect(afterLogs.length, label).toBe(beforeLogs.length);
@@ -201,7 +217,8 @@ describe('TierCortex with item ids named like built-in object members', () => {
     const unknown = cortex.decodeTierStateFromURL(listWith('unknown-item-x'))!.tiers[0].items;
     for (const id of ODD_IDS) {
       const items = cortex.decodeTierStateFromURL(listWith(id))!.tiers[0].items;
-      expect(items, id).toEqual([{...unknown[0], id}, unknown[1]]);
+      // Shown under the id its v3 link writes (A42): these names break the device id rule.
+      expect(items, id).toEqual([{...unknown[0], id: `legacy-${id}`}, unknown[1]]);
       expect(cortex.isCustomItem(id), id).toBe(true);
     }
   });
@@ -210,12 +227,10 @@ describe('TierCortex with item ids named like built-in object members', () => {
     const cortex = new TierCortex();
     for (const id of ODD_IDS) {
       const tiers = cortex.decodeTierStateFromURL(listWith(id))!.tiers;
-      const saved = TierCortex.encodeTierStateForURL(undefined, tiers.map(tier => ({
-        ...tier,
-        items: tier.items.map(item => ({i: item.id, c: cortex.isCustomItem(item.id) ? item.content : undefined})),
-      })));
-      expect(LZString.decompressFromEncodedURIComponent(saved), id)
-        .toBe(`{"tiers":[{"i":"a","n":"b","t":[{"i":${JSON.stringify(id)},"c":"Mystery"},{"i":"image-overwatch-mau.webp"}]}]}`);
+      const saved = cortex.encodeListForURL('', tiers);
+      expect(LZString.decompressFromEncodedURIComponent(saved.slice(2)), id)
+        .toBe(`{"r":[["a","b",[{"d":"legacy-${id}","c":"Mystery"},"image-overwatch-mau.webp"]]]}`);
+      expect(cortex.decodeTierStateFromURL(saved)!.tiers[0].items[0], id).toMatchObject({id: `legacy-${id}`, content: 'Mystery'});
     }
   });
 });
@@ -225,7 +240,9 @@ describe('TierCortex with repeated tier ids (A38)', () => {
     expect(uniqueTierIds(['tier-s', 'tier-a', 'tier-s', 'tier-s', 'uncategorized'])).toEqual(['tier-s', 'tier-a', 'tier-s~2', 'tier-s~3', 'uncategorized']);
     // A new id never takes an id that another row already has.
     expect(uniqueTierIds(['x', 'x', 'x~2', 'x'])).toEqual(['x', 'x~3', 'x~2', 'x~4']);
-    expect(uniqueTierIds(['', ''])).toEqual(['', '~2']);
+    // An empty id gets a new id too: v3 links refuse empty ids (A40).
+    expect(uniqueTierIds(['', ''])).toEqual(['tier~1', 'tier~2']);
+    expect(uniqueTierIds(['tier~1', '', 'x'])).toEqual(['tier~1', 'tier~2', 'x']);
     expect(uniqueTierIds(['a', 'b'])).toEqual(['a', 'b']);
   });
 
@@ -331,6 +348,203 @@ describe('TierCortex follows image-aliases.json for renamed images', () => {
     const saved = TierCortex.encodeTierStateForURL(undefined, forEncoding);
     expect(LZString.decompressFromEncodedURIComponent(saved))
       .toBe('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp"}]}]}');
+  });
+});
+
+/**
+ * v3 links (Phase 5b): TierCortex resolves items by kind, reads the layout settings, and writes
+ * every list as a v3 link (encodeListForURL).
+ */
+describe('TierCortex with v3 links', () => {
+  const v3 = (json: string) => `3.${lz(json)}`;
+  const v3Json = (link: string) => LZString.decompressFromEncodedURIComponent(link.slice(2));
+  // The placeholder tile has a relative URL since Phase 5a (A37); previews use its PNG copy.
+  const PLACEHOLDER = '/placeholder-image.png';
+  const LAYOUT = {labelPosition: 'left', showLabels: true};
+  const v3Fixtures = allFixtures.filter(entry => entry.format === 'v3') as unknown as {id: string; state: string}[];
+
+  const browserWithUploads = (uploads: {i: string; c: string; d: string}[]) => {
+    vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
+    vi.stubGlobal('localStorage', {getItem: (key: string) => (key === 'customItems' ? JSON.stringify(uploads) : null), setItem: () => undefined});
+  };
+
+  it('reads every v3 fixture without errors', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      for (const state of v3FixtureStates) expect(new TierCortex().decodeTierStateFromURL(state), state.slice(0, 40)).not.toBeNull();
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('shows image-set items with their labels from the image set, and reads the layout', () => {
+    const decoded = new TierCortex().decodeTierStateFromURL(v3('{"t":"T","tp":3,"lp":"top","sl":false,"r":[["S",["image-overwatch-mau.webp"]],["A",[]],["B",[]],["",[]]]}'));
+    expect(decoded).toEqual({
+      title: 'T',
+      tiers: [
+        {id: 'tier-s', name: 'S', items: [{id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'}]},
+        {id: 'tier-a', name: 'A', items: []},
+        {id: 'tier-b', name: 'B', items: []},
+        {id: 'uncategorized', name: '', items: []},
+      ],
+      layout: {labelPosition: 'top', showLabels: false},
+    });
+  });
+
+  it('reads no layout from legacy links', () => {
+    for (const link of sharedLinks) expect(new TierCortex().decodeTierStateFromURL(link.state)).not.toHaveProperty('layout');
+  });
+
+  it('shows an image-set id it does not know as a placeholder, and writes it back as an id', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-old.webp': 'image-overwatch-mau.webp'}});
+    const items = cortex.decodeTierStateFromURL(v3('{"r":[["x","",["image-overwatch-gone.webp","image-overwatch-old.webp","abcdefgh"]]]}'))!.tiers[0].items;
+    expect(items).toEqual([
+      {id: 'image-overwatch-gone.webp', content: '', imageUrl: PLACEHOLDER, source: 'package'},
+      {id: 'image-overwatch-mau.webp', content: 'Mauga', imageUrl: '/images/image-overwatch/mau.webp'},
+      {id: 'abcdefgh', content: '', imageUrl: PLACEHOLDER, source: 'package'},
+    ]);
+    const saved = cortex.encodeListForURL('', [{id: 'x', name: '', items}], LAYOUT as never);
+    expect(v3Json(saved)).toBe('{"r":[["x","",["image-overwatch-gone.webp","image-overwatch-mau.webp","abcdefgh"]]]}');
+  });
+
+  it('shows a link image as a label tile and never turns its address into an image URL (A8, A36)', () => {
+    const addresses = ['http://localhost:3000/secret.png', 'http://127.0.0.1:3001/secret.webp', 'https://example.com/a.png'];
+    const state = v3(JSON.stringify({r: [['uncategorized', '', addresses.map(u => ({u, c: 'label'}))]]}));
+    for (const inBrowser of [false, true]) {
+      if (inBrowser) browserWithUploads([]);
+      const cortex = new TierCortex();
+      const items = cortex.decodeTierStateFromURL(state)!.tiers[0].items;
+      expect(items).toEqual(addresses.map(url => ({id: url, content: 'label', source: 'link', url})));
+      expect(items.map(item => cortex.getOgSafeItem(item).imageUrl)).toEqual(addresses.map(() => undefined));
+    }
+  });
+
+  it('shows a device image from this browser\'s uploads, also under its id before "legacy-" (A42)', () => {
+    browserWithUploads([
+      {i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'},
+      {i: 'ab3c9', c: 'short id', d: 'data:image/png;base64,BBBB'},
+    ]);
+    const cortex = new TierCortex();
+    const items = cortex.decodeTierStateFromURL(v3('{"r":[["x","",[{"d":"k3j9x0a1b","c":"my cat"},{"d":"legacy-ab3c9"},{"d":"gone-image"}]]]}'))!.tiers[0].items;
+    expect(items).toEqual([
+      {id: 'k3j9x0a1b', content: 'my cat', imageUrl: 'data:image/png;base64,AAAA', source: 'device'},
+      {id: 'legacy-ab3c9', content: 'short id', imageUrl: 'data:image/png;base64,BBBB', source: 'device'},
+      {id: 'gone-image', content: '', imageUrl: PLACEHOLDER, source: 'device'},
+    ]);
+    // Link previews draw device images as label tiles.
+    expect(items.map(item => cortex.getOgSafeItem(item).imageUrl)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('writes the app\'s links as v3, with the layout and the row template from the row count', () => {
+    const cortex = new TierCortex();
+    const tiers = cortex.decodeTierStateFromURL(sharedLinks.find(link => link.id === 'link-002')!.state)!.tiers;
+    const link = cortex.encodeListForURL('My list', tiers, {labelPosition: 'right', showLabels: false});
+    expect(link.startsWith('3.')).toBe(true);
+    expect(decodeState(link)).toMatchObject({version: 3, title: 'My list', rowTemplate: '5rows', labelPosition: 'right', showLabels: false});
+    expect(v3Json(cortex.encodeListForURL('', tiers))).toMatch(/^\{"tp":5,"r":/);
+    expect(rowTemplateOf(tiers)).toBe('5rows');
+    expect(rowTemplateOf(tiers.slice(1))).toBe('custom');
+    expect(rowTemplateOf([...tiers, ...tiers.slice(0, 2)])).toBe('7rows');
+  });
+
+  it('writes uploads as device images, and gives legacy upload ids that break the rule the prefix "legacy-" (A42)', () => {
+    browserWithUploads([{i: 'ab3c9', c: 'My cat', d: 'data:image/png;base64,BBBB'}]);
+    const cortex = new TierCortex();
+    // A v2 link with a 5-character upload id, an upload with a 9-character id, and an unknown
+    // id with a dot (a removed image-set item, from a legacy link).
+    const legacy = lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [
+      {i: 'ab3c9', c: 'My cat'}, {i: 'k3j9x0a1b', c: 'Nine'}, {i: 'image-overwatch-gone.webp', c: 'Gone'}, {i: 'image-overwatch-mau.webp'},
+    ]}, {i: 'uncategorized', n: '', t: []}]}));
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    const saved = cortex.encodeListForURL('', opened.tiers);
+    expect(v3Json(saved)).toBe('{"r":[["tier-s","S",[{"d":"legacy-ab3c9","c":"My cat"},{"d":"k3j9x0a1b","c":"Nine"},' +
+      '{"i":"image-overwatch-gone.webp","c":"Gone"},"image-overwatch-mau.webp"]],["uncategorized","",[]]]}');
+    // Reopened, the upload shows with its label and image.
+    const reopened = cortex.decodeTierStateFromURL(saved)!.tiers[0].items[0];
+    expect(reopened).toEqual({id: 'legacy-ab3c9', content: 'My cat', imageUrl: 'data:image/png;base64,BBBB', source: 'device'});
+    // Saving the reopened list writes the same link.
+    expect(cortex.encodeListForURL('', cortex.decodeTierStateFromURL(saved)!.tiers)).toBe(saved);
+  });
+
+  it('writes a v3 fixture back unchanged after opening it, where the list has no duplicates and no extra rows', () => {
+    // v3-rows-beyond-template: the app takes the row template from the row count (6 rows: custom).
+    // v3-duplicates-kept, v3-limit-rows and v3-limit-items: the app shows a repeated item once (A32).
+    const skipped = ['v3-rows-beyond-template', 'v3-duplicates-kept', 'v3-limit-rows', 'v3-limit-items'];
+    const cortex = new TierCortex();
+    for (const {id, state} of v3Fixtures.filter(entry => !skipped.includes(entry.id))) {
+      const opened = cortex.decodeTierStateFromURL(state)!;
+      expect(cortex.encodeListForURL(opened.title ?? '', opened.tiers, opened.layout), id).toBe(state);
+    }
+  });
+
+  it('keeps the label of an id that names no image-set item (A45)', () => {
+    const cortex = new TierCortex({aliases: {'image-overwatch-old.webp': 'image-overwatch-mau.webp'}});
+    const legacy = lz(JSON.stringify({title: 'T', tiers: [{i: 'tier-s', n: 'S', t: [
+      {i: 'image-overwatch-gone.webp', c: 'Gone hero'}, {i: 'image-overwatch-old.webp', c: 'Old Mauga'}, {i: 'image-overwatch-win.webp', c: 'Winston'},
+    ]}, {i: 'uncategorized', n: '', t: []}]}));
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    const saved = cortex.encodeListForURL('T', opened.tiers);
+    // Image-set items (also by an alias) stay plain ids; the unknown id keeps its label.
+    expect(v3Json(saved)).toBe('{"t":"T","r":[["tier-s","S",[{"i":"image-overwatch-gone.webp","c":"Gone hero"},' +
+      '"image-overwatch-mau.webp","image-overwatch-win.webp"]],["uncategorized","",[]]]}');
+    const reopened = cortex.decodeTierStateFromURL(saved)!.tiers[0].items;
+    expect(reopened[0]).toEqual({id: 'image-overwatch-gone.webp', content: 'Gone hero', imageUrl: PLACEHOLDER, source: 'package'});
+    expect(cortex.encodeListForURL('T', cortex.decodeTierStateFromURL(saved)!.tiers)).toBe(saved);
+    // Once an image set ships the id again, the link shows that image and its label.
+    const later = new TierCortex({aliases: {'image-overwatch-gone.webp': 'image-overwatch-ana.webp'}});
+    expect(later.decodeTierStateFromURL(saved)!.tiers[0].items[0]).toMatchObject({id: 'image-overwatch-ana.webp', content: 'Ana'});
+  });
+
+  it('writes a link that opens again for a legacy list with empty item ids, keeping their labels', () => {
+    const legacy = lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [{i: '', c: 'No id'}, {i: 'item~1', c: 'Taken'}, {i: '', c: 'Also no id'}]}, {i: 'uncategorized', n: '', t: []}]}));
+    const cortex = new TierCortex();
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    // New ids skip the ones the list already uses; the same list always gets the same ids.
+    expect(opened.tiers[0].items.map(item => [item.id, item.content])).toEqual([['item~2', 'No id'], ['item~1', 'Taken'], ['item~3', 'Also no id']]);
+    const saved = cortex.encodeListForURL('', opened.tiers);
+    const reopened = cortex.decodeTierStateFromURL(saved);
+    expect(reopened?.tiers[0].items.map(item => item.content)).toEqual(['No id', 'Taken', 'Also no id']);
+    expect(cortex.encodeListForURL('', reopened!.tiers)).toBe(saved);
+  });
+
+  it('writes a link that opens again for a legacy list with an empty tier id', () => {
+    const legacy = lz(JSON.stringify({tiers: [{i: '', n: 'S', t: [{i: 'image-overwatch-mau.webp'}]}, {i: '', n: 'A', t: []}, {i: 'uncategorized', n: '', t: []}]}));
+    const cortex = new TierCortex();
+    const opened = cortex.decodeTierStateFromURL(legacy)!;
+    expect(opened.tiers.map(tier => tier.id)).toEqual(['tier~1', 'tier~2', 'uncategorized']);
+    const reopened = cortex.decodeTierStateFromURL(cortex.encodeListForURL('', opened.tiers));
+    expect(reopened?.tiers.map(tier => [tier.name, tier.items.map(item => item.content)])).toEqual([['S', ['Mauga']], ['A', []], ['', []]]);
+  });
+
+  it('settles every golden link in one save: saving the reopened list writes the same link', () => {
+    const cortex = new TierCortex();
+    for (const state of [...sharedLinks.map(link => link.state), ...fixtureStates, ...v3FixtureStates]) {
+      const opened = cortex.decodeTierStateFromURL(state)!;
+      const once = cortex.encodeListForURL(opened.title ?? '', opened.tiers, opened.layout);
+      const reopened = cortex.decodeTierStateFromURL(once)!;
+      expect(cortex.encodeListForURL(reopened.title ?? '', reopened.tiers, reopened.layout), state.slice(0, 40)).toBe(once);
+    }
+  });
+
+  it('treats an invalid v3 link like any undecodable link', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const cases: [string, string][] = [
+        [v3('{"r":[["S",[]]]}'), 'missing-tier-id'],
+        ['3.', 'not-lz-string-or-too-long'],
+        [`3.${sharedLinks[1].state}`, 'bad-rows'],
+      ];
+      for (const [state, reason] of cases) {
+        // The pre-refactor copy also returned null for these: only the logged reason is new.
+        expect(new PreRefactorTierCortex().decodeTierStateFromURL(state)).toBeNull();
+        errorSpy.mockClear();
+        expect(new TierCortex().decodeTierStateFromURL(state)).toBeNull();
+        expect(errorSpy).toHaveBeenCalledWith('Failed to decode tier state from URL:', new Error(`Invalid v3 state: ${reason}`));
+      }
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
 

@@ -23,7 +23,7 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
-  const {pendingLink} = useTierContext();
+  const {shareLink} = useTierContext();
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -104,12 +104,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   /**
-   * The link to share: the address, or the link of the latest change while it has not reached
-   * the address yet (the editor writes one link at a time).
+   * The link to share: the list and layout on screen, from the store (A46). The address can lag
+   * behind (the editor writes one link at a time) or hold older label settings after Back.
    */
-  const shareUrl = () => pendingLink === null
-    ? window.location.href
-    : `${window.location.origin}${window.location.pathname}?state=${pendingLink}`;
+  const shareUrl = () => `${window.location.origin}${window.location.pathname}?state=${shareLink}`;
 
   const shareToSocial = (platform: SocialPlatform) => {
     const shareText = `I've just ranked "${title}" on OpenTierBoy. What do you think? 🤔`;

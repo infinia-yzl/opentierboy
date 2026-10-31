@@ -85,7 +85,8 @@ tests/
   the address bar for saved changes. Page object methods that change the list return only
   after the new link is in the address bar.
 - **Arrange state through the URL.** Use `rankingState()` from `tests/support/links.ts` to
-  open a list with items already ranked, instead of dragging items into place first:
+  open a list with items already ranked (a v2 link), and `v3State()` for a v3 link with layout
+  settings or link and device images, instead of dragging items into place first:
 
   ```ts
   await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
@@ -124,7 +125,9 @@ node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <u
 `tests/fixtures/state/` holds link states with the exact list each one must decode to.
 `generated.json` comes from the historical encoders of the three legacy formats (v0, v1, v2),
 run from git history by `node scripts/generate-legacy-fixtures.mjs` (see the comment at its
-top). The unit tests in `tests/unit/state/` decode every entry of both fixture files.
+top). `v3.json` holds links in the v3 format, and each of its entries must also encode back
+to its `state` (see `docs/link-format-v3.md`). The unit tests in `tests/unit/state/` decode
+every entry of these files and of `shared-links.json`.
 The same rule applies: append, never edit. `npm run check:fixtures` fails when an existing
 entry of a fixture file, `image-registry.lock.json` or `image-aliases.json` changed or
 disappeared compared with the base branch (pass `-- --base <ref>` to choose the branch).
@@ -136,6 +139,10 @@ disappeared compared with the base branch (pass `-- --base <ref>` to choose the 
   time (`history.spec.ts`). This is intended behaviour, not a bug.
 - **Moving a row keeps the labels in place.** Dropping row S on A's position moves the
   contents; the labels stay S, A, B... from top to bottom.
+- **Label settings travel in the link without a Back step.** The label position and label
+  visibility are part of v3 links, written in place of the current history entry (owner's
+  decision, 2026-10-25). Back and Forward inside the editor keep the settings on screen; a link
+  opened fresh shows its own. The page object waits for the address after each setting.
 
 ## Known bugs
 

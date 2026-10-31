@@ -11,6 +11,7 @@ import {
   createTierListReducer,
   initialTierListState,
   ItemPosition,
+  ListEncoder,
   loadList,
   stateParam,
 } from "@/lib/tierListReducer";
@@ -26,10 +27,13 @@ import {
  *   writes one at a time with router.push, each as a new history entry (product rule 2: history
  *   is the undo). The next write is pushed only once the previous one has reached the address:
  *   Next.js drops a navigation that is still loading when a new one starts, so pushing them
- *   together lost entries on a slow connection (A44).
+ *   together lost entries on a slow connection (A44). A change to the layout settings is
+ *   written with router.replace (A3, LAYOUT_LINK_WRITE in lib/tierListReducer.ts), in the
+ *   same queue.
  *
- * Phase 5b hooks the link format in through TierCortex: encodeListForURL writes a link and
- * decodeTierStateFromURL reads one (loadList in lib/tierListReducer.ts).
+ * The link format comes through TierCortex: encodeListForURL writes a v3 link with the layout
+ * settings, and decodeTierStateFromURL reads every format (loadList in lib/tierListReducer.ts).
+ * A link's layout settings apply only when the editor starts with it (see lib/tierListReducer.ts).
  */
 export interface TierContext {
   tierCortex: TierCortex;
@@ -40,11 +44,12 @@ export interface TierContext {
   /** Length of the address when it holds the list on screen, else 0 (for the long-link warning). */
   urlLength: number;
   /**
-   * The link (`state` value) of the list on screen while it has not reached the address yet,
-   * else null. Writes reach the address one at a time, so on a slow connection the address can
-   * lag behind the screen; Share uses this so it never hands out an older list.
+   * The link of the list on screen with the layout on screen, written by the current link
+   * format: what Share hands out (A46). It never comes from the address, which can lag behind
+   * the screen (writes reach it one at a time) or hold older settings (after Back, the layout
+   * stays as it is on screen).
    */
-  pendingLink: string | null;
+  shareLink: string;
 
   setTitle: (title: string) => void;
   moveItem: (from: ItemPosition, to: ItemPosition) => void;
@@ -64,7 +69,7 @@ export interface TierContext {
   restoreTiers: (tiers: Tier[]) => void;
   /** Switches to another row template (3, 5 or 7 rows). */
   onTemplateChange: (template: readonly Tier[]) => void;
-  /** Layout settings: they never write the address. */
+  /** Layout settings: they replace the current history entry (A3, LAYOUT_LINK_WRITE). */
   setLabelPosition: (position: LabelPosition) => void;
   toggleLabels: () => void;
 }
@@ -96,7 +101,7 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
 
   const [{tierCortex, encode, reducer}] = useState(() => {
     const cortex = new TierCortex();
-    const encodeList = (title: string, tiers: Tier[]) => cortex.encodeListForURL(title, tiers);
+    const encodeList: ListEncoder = (title, tiers, layout) => cortex.encodeListForURL(title, tiers, layout);
     return {tierCortex: cortex, encode: encodeList, reducer: createTierListReducer(encodeList)};
   });
   const [state, dispatch] = useReducer(reducer, null, () => {
@@ -122,7 +127,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     const next = state.writes[0];
     if (!next || next.id <= lastPushedWrite.current) return;
     lastPushedWrite.current = next.id;
-    router.push(`${pathname}?state=${next.link}`, {scroll: false});
+    const href = `${pathname}?state=${next.link}`;
+    if (next.mode === 'replace') router.replace(href, {scroll: false});
+    else router.push(href, {scroll: false});
   }, [state.writes, router, pathname]);
 
   const actions = useMemo(() => ({
@@ -146,7 +153,10 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     ? pathname.length + state.address.length + 7 // 7 is the length of "?state="
     : 0;
 
-  const pendingLink = state.writes.length > 0 ? state.writes[state.writes.length - 1].link : null;
+  const shareLink = useMemo(
+    () => encode(state.title, state.tiers, {labelPosition: state.labelPosition, showLabels: state.showLabels}),
+    [encode, state.title, state.tiers, state.labelPosition, state.showLabels],
+  );
 
   const value = useMemo<TierContext>(() => ({
     tierCortex,
@@ -155,9 +165,9 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     labelPosition: state.labelPosition,
     showLabels: state.showLabels,
     urlLength,
-    pendingLink,
+    shareLink,
     ...actions,
-  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, pendingLink, actions]);
+  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, actions]);
 
   return <TierContext.Provider value={value}>{children}</TierContext.Provider>;
 }
