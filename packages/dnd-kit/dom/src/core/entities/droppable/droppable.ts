@@ -86,9 +86,14 @@ export class Droppable<T extends Data = Data> extends AbstractDroppable<
             const {dragOperation} = manager;
             const {source} = dragOperation;
 
+            // OpenTierBoy fork: stop tracking positions as soon as the drag stops. Collisions no
+            // longer matter, and the list changes at the drop; every droppable's observer would
+            // measure and rebuild itself during the drop animation (see docs/dnd-fork.md).
             observePosition.value = Boolean(
               source &&
                 dragOperation.status.initialized &&
+                !dragOperation.ending &&
+                !dragOperation.status.dropped &&
                 element &&
                 !this.disabled &&
                 this.accepts(source)

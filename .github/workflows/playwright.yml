@@ -1,12 +1,14 @@
 name: E2E on deployment
 
-# Runs the end-to-end tests against each successful Vercel deployment (preview and
-# production). Pull request CI (ci.yml) tests a local build. This workflow checks the
-# real deployment: hosting, headers and link preview images with Vercel's URLs.
+# Runs the end-to-end tests against each successful Vercel production deployment. Pull
+# request CI (ci.yml) tests a local build. This workflow checks the real site: hosting,
+# headers and link preview images with Vercel's URLs.
 #
-# The tests come from the default branch, because they only talk to the deployment
-# over HTTP. A pull request that changes behaviour can therefore fail here until it is
-# merged. CI on the pull request is the gate.
+# The tests come from the default branch. On a production deployment that is the code
+# Vercel deployed, so the tests match it. Preview deployments of pull requests are skipped:
+# their code can be newer than the default branch's tests (or need a newer Playwright), so
+# those runs would fail for reasons that say nothing about the deployment. CI on the pull
+# request is the gate.
 #
 # Security: GitHub runs this workflow file from the deployed commit. A deployment of a
 # fork's pull request would run the fork's copy of this file with access to the
@@ -36,6 +38,7 @@ jobs:
     name: e2e (deployed)
     if: >-
       github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production' &&
       github.event.deployment_status.creator.login == 'vercel[bot]' &&
       startsWith(github.event.deployment_status.environment_url, 'https://')
     runs-on: ubuntu-latest

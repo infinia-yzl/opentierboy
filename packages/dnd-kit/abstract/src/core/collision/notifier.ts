@@ -33,6 +33,13 @@ export class CollisionNotifier extends CorePlugin {
           return;
         }
 
+        // OpenTierBoy fork: once the drag stops, the drop target stays as it is. Droppables
+        // forget their shapes then (DragOperation.ending), and the collisions computed without
+        // them must not clear the target before `dragend` reads it.
+        if (untracked(() => manager.dragOperation.ending)) {
+          return;
+        }
+
         if (Entity.pendingIdChanges) {
           return;
         }

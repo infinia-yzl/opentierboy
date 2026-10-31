@@ -17,7 +17,7 @@ export interface CapturedImage {
   devicePixelRatio: number;
   /** Number of different colours in a 64 x 64 copy of the image. A blank image has 1. */
   distinctColors: number;
-  /** Brightness (0 to 255) of the top-left corner, where the page background shows. */
+  /** Brightness (0 to 255) of the top-left corner, where the background shows. */
   cornerBrightness: number;
 }
 
@@ -1114,14 +1114,14 @@ export class TierListPage {
   }
 
   /**
-   * Finds the most colourful spot of a tile's size in the captured preview image, in the
-   * tile's column, and counts its colours. The capture leaves out the header and the toolbar
-   * (data-html2canvas-ignore), so the tiles sit higher in it than on the page; their
-   * horizontal position is the same.
+   * Finds the most colourful spot in the first tile column of the captured list card, and
+   * counts its colours. Freeze Frame draws the list card (components/ListCard.tsx): 1200 CSS
+   * pixels wide, 36 px of space on each side, 120 px tier labels and 92 px tiles for a short
+   * list. The picture may hold more pixels than CSS pixels; its width tells how many.
    */
-  async capturedColorsInColumn(box: Box): Promise<number> {
+  async capturedCardTileColors(): Promise<number> {
     const src = await this.capturedImage.evaluate((img: HTMLImageElement) => img.currentSrc);
-    return this.page.evaluate(countColors, {src, column: box});
+    return this.page.evaluate(countColors, {src, column: {x: 36 + 120, y: 0, width: 92, height: 92}, cardWidth: CARD_WIDTH});
   }
 
   /** Waits for the captured preview image to load, then measures it. */
@@ -1192,7 +1192,10 @@ type Point = {x: number; y: number};
  * With `column` (a box in CSS pixels), it slides a box of that size down that column of the
  * image (scaled by the device pixel ratio) and returns the highest count.
  */
-async function countColors({src, column}: {src: string; column?: Box}): Promise<number> {
+/** Width of the list card that Freeze Frame draws, in CSS pixels (lib/listCard/model.ts). */
+const CARD_WIDTH = 1200;
+
+async function countColors({src, column, cardWidth}: {src: string; column?: Box; cardWidth?: number}): Promise<number> {
   const image = new Image();
   image.src = src;
   await image.decode();
@@ -1210,7 +1213,7 @@ async function countColors({src, column}: {src: string; column?: Box}): Promise<
     return colors.size;
   };
   if (!column) return count(0, 0, canvas.width, canvas.height);
-  const scale = window.devicePixelRatio;
+  const scale = cardWidth ? image.naturalWidth / cardWidth : window.devicePixelRatio;
   const x = Math.round(column.x * scale);
   const width = Math.max(1, Math.round(column.width * scale));
   const height = Math.max(1, Math.round(column.height * scale));

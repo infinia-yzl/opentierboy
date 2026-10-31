@@ -163,9 +163,10 @@ licence, notice and the packages.
 
 ## Local changes
 
-Changes to the upstream sources (both in `@dnd-kit/dom`, for drag performance with long lists;
-measured with `npm run bench:drag`, see "Performance" below). Each change is marked
-`OpenTierBoy fork` in the source. Both could go upstream as pull requests.
+Changes to the upstream sources (in `@dnd-kit/dom` and `@dnd-kit/abstract`, for drag and drop
+performance with long lists; measured with `npm run bench:drag`, see "Performance" below).
+Each change is marked `OpenTierBoy fork` in the source. All of them could go upstream as pull
+requests.
 
 - `dom/src/core/entities/droppable/droppable.ts`: shape updates from the position observers
   are batched. Upstream set a droppable's new shape inside its observer's callback, and each
@@ -179,9 +180,26 @@ measured with `npm run bench:drag`, see "Performance" below). Each change is mar
   set a shape (one more collision detection run). Now the sortables that changed index in the
   same render are flushed together: all transitions cancelled, all elements measured in one
   `batch()`, then all animations started. The animations are the same as upstream's.
+- `abstract/src/core/manager/operation.ts` and `actions.ts`: a new reactive flag,
+  `DragOperation.ending`. `stop()` sets it before it sends `dragend`, and `reset()` clears it
+  once the drop animation has finished. `start()` clears it too.
+- `dom/src/core/entities/droppable/droppable.ts`: droppables stop observing their positions
+  when `ending` turns true. Upstream kept every position observer running until the status
+  became Dropped. The list changes at the release, so each of the 200 observers measured its
+  element again and rebuilt its IntersectionObserver during the drop animation (about 1,300
+  timers and 4,200 layout reads). Collisions no longer matter once the drag has stopped.
+- `abstract/src/core/collision/notifier.ts`: the drop target stays as it is once `ending` is
+  true. The droppables forget their shapes when they stop observing, and collisions computed
+  without them would clear `dragOperation.target` before `dragend` reads it. Before this
+  guard, the target survived only because the collision observer skips an update while the
+  pointer has not moved (CodeRabbit review on #198).
 
-The built files these change: `dom/index.*`, `dom/sortable.*` (and their maps). Every other
-built file stays identical to npm.
+The app reads `ending` too: `useTierDragState()` (lib/dnd/react.tsx) keeps `dragging` true
+until the dropped element has landed, so the tile labels keep the drag style through the drop
+animation (see "Performance").
+
+The built files these change: `abstract/index.*`, `dom/index.*`, `dom/sortable.*` (and their
+maps). Every other built file stays identical to npm.
 
 Changes to build files:
 
@@ -382,4 +400,26 @@ compositing layer): during a drag the labels now drop the blur, as they already 
 page scrolls (`data-dragging` on the row list, `app/globals.css`). What remains at 4x is mostly
 dnd-kit's own work per moved item: position observers, shape measurements and collision
 detection, about 10 ms of script per frame.
+
+The drop (owner report, 2026-10-28: "as it's easing into the tier row, it seems to be laggy").
+`bench:drag` releases the item in row S at the end of each run and counts the frames drawn
+during the 300 ms drop animation (18 at 60 Hz). Same machine, five runs each:
+
+| Build | CPU | Drop animation frames, min / median | Worst frame in 800 ms after the release |
+| --- | --- | --- | --- |
+| Before the drop fixes | full | 6 / 7 | 117 ms |
+| After the drop fixes | full | 18 / 18 | 133 ms (after the item has landed) |
+| Before the drop fixes | 4x slower | 4 / 5 | 433 ms |
+| After the drop fixes | 4x slower | 6 / 9 | 150 ms |
+
+Two causes, both fixed:
+
+- The tile labels got their blur back at the release. Their `transition-all` then animated the
+  blur and the transform of every label (about 400 transitions with 200 tiles) during the drop
+  animation. The labels now keep the drag style until the item has landed.
+- The position observers of every droppable ran again at the release ("Local changes" above).
+
+What remains comes after the landing: the labels draw their blur again, and the list writes its
+new link (`router.push`), about 0.5 s after the release. The item has stopped moving by then.
+Turning the label transitions off did not change those frames.
 

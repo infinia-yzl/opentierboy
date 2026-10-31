@@ -496,6 +496,12 @@ declare class DragOperation<T extends Draggable, U extends Droppable> implements
     set shape(value: Shape | null);
     /** Whether the drag operation was canceled */
     accessor canceled: boolean;
+    /**
+     * OpenTierBoy fork: true from the moment the drag stops (before `dragend` is dispatched)
+     * until the operation resets. Droppables stop tracking their positions then, because the
+     * page changes at the drop and collisions no longer matter.
+     */
+    accessor ending: boolean;
     /** The event that initiated the drag operation */
     accessor activatorEvent: Event | null;
     /** Unique identifier of the source draggable entity */

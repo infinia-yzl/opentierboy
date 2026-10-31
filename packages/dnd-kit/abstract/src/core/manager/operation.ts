@@ -100,6 +100,14 @@ export class DragOperation<T extends Draggable, U extends Droppable>
   @reactive
   public accessor canceled = false;
 
+  /**
+   * OpenTierBoy fork: true from the moment the drag stops (before `dragend` is dispatched)
+   * until the operation resets. Droppables stop tracking their positions then, because the
+   * page changes at the drop and collisions no longer matter.
+   */
+  @reactive
+  public accessor ending = false;
+
   /** The event that initiated the drag operation */
   @reactive
   public accessor activatorEvent: Event | null = null;
@@ -209,6 +217,7 @@ export class DragOperation<T extends Draggable, U extends Droppable>
   public reset() {
     batch(() => {
       this.status.set(StatusValue.Idle);
+      this.ending = false;
       this.sourceIdentifier = null;
       this.targetIdentifier = null;
       this.#shape.reset();

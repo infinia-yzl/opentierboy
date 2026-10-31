@@ -12,6 +12,7 @@ import {
   type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/react';
+import {useComputed} from '@dnd-kit/react/hooks';
 import {useSortable} from '@dnd-kit/react/sortable';
 import {
   accessibilityIds,
@@ -424,8 +425,15 @@ export function useTierDragDescription(): string {
   return useContext(TierDragDescriptionContext);
 }
 
-/** The list's drag state: `rowDrag` is true during a row drag, `dragging` during any drag. */
+/**
+ * The list's drag state: `rowDrag` is true during a row drag. `dragging` is true during any
+ * drag and its drop animation: it stays true from the release until the dropped element has
+ * landed (the fork's `DragOperation.ending`, docs/dnd-fork.md). The release and the end of the
+ * drag change in one render, so `dragging` never turns false between them.
+ */
 export function useTierDragState() {
   const {rowDrag, dragging} = useContext(TierDragTargetContext);
-  return {rowDrag, dragging};
+  const manager = useDragDropManager();
+  const ending = useComputed(() => manager?.dragOperation.ending ?? false, [manager]);
+  return {rowDrag, dragging: dragging || ending.value};
 }

@@ -880,6 +880,9 @@ var CollisionNotifier = class extends CorePlugin {
         if (collisionObserver.isDisabled()) {
           return;
         }
+        if (state.untracked(() => manager.dragOperation.ending)) {
+          return;
+        }
         if (Entity.pendingIdChanges) {
           return;
         }
@@ -1048,6 +1051,7 @@ var DragActions = class {
         dragOperation.status.set("initialization-pending" /* InitializationPending */);
         dragOperation.shape = null;
         dragOperation.canceled = false;
+        dragOperation.ending = false;
         dragOperation.activatorEvent = nativeEvent != null ? nativeEvent : null;
         dragOperation.position.reset(coordinates);
       });
@@ -1154,6 +1158,7 @@ var DragActions = class {
         return output;
       };
       controller.abort();
+      dragOperation.ending = true;
       const end = () => {
         this.manager.renderer.rendering.then(() => {
           dragOperation.status.set("dropped" /* Dropped */);
@@ -1366,8 +1371,8 @@ var DragDropRegistry = class {
     this.modifiers.destroy();
   }
 };
-var _transform_dec, _target_dec, _source_dec, _modifiers_dec2, _targetIdentifier_dec, _sourceIdentifier_dec, _activatorEvent_dec, _canceled_dec, _shape_dec2, _manager2, _previousSource, _shape2, _init6, _canceled, _activatorEvent, _sourceIdentifier, _targetIdentifier, _modifiers2, _transform;
-_shape_dec2 = [state.derived], _canceled_dec = [state.reactive], _activatorEvent_dec = [state.reactive], _sourceIdentifier_dec = [state.reactive], _targetIdentifier_dec = [state.reactive], _modifiers_dec2 = [state.reactive], _source_dec = [state.derived], _target_dec = [state.derived], _transform_dec = [state.derived];
+var _transform_dec, _target_dec, _source_dec, _modifiers_dec2, _targetIdentifier_dec, _sourceIdentifier_dec, _activatorEvent_dec, _ending_dec, _canceled_dec, _shape_dec2, _manager2, _previousSource, _shape2, _init6, _canceled, _ending, _activatorEvent, _sourceIdentifier, _targetIdentifier, _modifiers2, _transform;
+_shape_dec2 = [state.derived], _canceled_dec = [state.reactive], _ending_dec = [state.reactive], _activatorEvent_dec = [state.reactive], _sourceIdentifier_dec = [state.reactive], _targetIdentifier_dec = [state.reactive], _modifiers_dec2 = [state.reactive], _source_dec = [state.derived], _target_dec = [state.derived], _transform_dec = [state.derived];
 var DragOperation = class {
   /**
    * Creates a new drag operation instance.
@@ -1385,10 +1390,11 @@ var DragOperation = class {
     /** Current status of the drag operation */
     this.status = new Status();
     __privateAdd(this, _canceled, __runInitializers(_init6, 8, this, false)), __runInitializers(_init6, 11, this);
-    __privateAdd(this, _activatorEvent, __runInitializers(_init6, 12, this, null)), __runInitializers(_init6, 15, this);
-    __privateAdd(this, _sourceIdentifier, __runInitializers(_init6, 16, this, null)), __runInitializers(_init6, 19, this);
-    __privateAdd(this, _targetIdentifier, __runInitializers(_init6, 20, this, null)), __runInitializers(_init6, 23, this);
-    __privateAdd(this, _modifiers2, __runInitializers(_init6, 24, this, [])), __runInitializers(_init6, 27, this);
+    __privateAdd(this, _ending, __runInitializers(_init6, 12, this, false)), __runInitializers(_init6, 15, this);
+    __privateAdd(this, _activatorEvent, __runInitializers(_init6, 16, this, null)), __runInitializers(_init6, 19, this);
+    __privateAdd(this, _sourceIdentifier, __runInitializers(_init6, 20, this, null)), __runInitializers(_init6, 23, this);
+    __privateAdd(this, _targetIdentifier, __runInitializers(_init6, 24, this, null)), __runInitializers(_init6, 27, this);
+    __privateAdd(this, _modifiers2, __runInitializers(_init6, 28, this, [])), __runInitializers(_init6, 31, this);
     /** Current position of the dragged entity */
     this.position = new geometry.Position({ x: 0, y: 0 });
     __privateAdd(this, _transform, { x: 0, y: 0 });
@@ -1470,6 +1476,7 @@ var DragOperation = class {
   reset() {
     state.batch(() => {
       this.status.set("idle" /* Idle */);
+      this.ending = false;
       this.sourceIdentifier = null;
       this.targetIdentifier = null;
       __privateGet(this, _shape2).reset();
@@ -1484,6 +1491,7 @@ _manager2 = new WeakMap();
 _previousSource = new WeakMap();
 _shape2 = new WeakMap();
 _canceled = new WeakMap();
+_ending = new WeakMap();
 _activatorEvent = new WeakMap();
 _sourceIdentifier = new WeakMap();
 _targetIdentifier = new WeakMap();
@@ -1491,6 +1499,7 @@ _modifiers2 = new WeakMap();
 _transform = new WeakMap();
 __decorateElement(_init6, 2, "shape", _shape_dec2, DragOperation);
 __decorateElement(_init6, 4, "canceled", _canceled_dec, DragOperation, _canceled);
+__decorateElement(_init6, 4, "ending", _ending_dec, DragOperation, _ending);
 __decorateElement(_init6, 4, "activatorEvent", _activatorEvent_dec, DragOperation, _activatorEvent);
 __decorateElement(_init6, 4, "sourceIdentifier", _sourceIdentifier_dec, DragOperation, _sourceIdentifier);
 __decorateElement(_init6, 4, "targetIdentifier", _targetIdentifier_dec, DragOperation, _targetIdentifier);

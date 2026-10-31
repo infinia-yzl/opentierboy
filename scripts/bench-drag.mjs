@@ -11,7 +11,11 @@
  * - preview lag (median, p95, max): from the first pointer move inside a row until the dragged
  *   item shows in that row;
  * - long tasks (over 50 ms), and main-thread, script, style and layout time per frame
- *   (Chrome's performance metrics).
+ *   (Chrome's performance metrics);
+ * - the drop: at the end of each run the item is released in row S. The drop animation lasts
+ *   DROP_ANIMATION_MS (`DROP_ANIMATION` in lib/dnd/dndKit.ts), about 18 frames at 60 Hz. The
+ *   result counts the frames drawn during it, and the worst frame in the DROP_WINDOW_MS after
+ *   the release (the list's update and its new link come in that time).
  *
  * The window is 1800 px high, so every row is on screen and the drag never auto-scrolls.
  * `--cpu 4` slows the CPU four times (Chrome's CPU throttling), close to a mid-range phone.
@@ -53,6 +57,8 @@ const ROWS = [
   {i: 'uncategorized', n: ''},
 ];
 const DRAGGED = 'Bench 1';
+const DROP_ANIMATION_MS = 300;
+const DROP_WINDOW_MS = 800;
 
 function benchState() {
   const config = JSON.parse(readFileSync(new URL('../imageset.config.json', import.meta.url), 'utf8'));
@@ -76,12 +82,13 @@ const round = (value) => Math.round(value * 10) / 10;
 
 /** Page-side recorder: animation frame gaps, long tasks, and when the dragged item reaches each row. */
 function installRecorder(dragged) {
-  const state = {frames: [], longTasks: 0, lags: [], watching: null, running: true};
+  const state = {frames: [], times: [], longTasks: 0, lags: [], watching: null, running: true};
   window.__bench = state;
   let last = performance.now();
   const frame = (now) => {
     if (!state.running) return;
     state.frames.push(now - last);
+    state.times.push(now);
     last = now;
     const watch = state.watching;
     if (watch && watch.start !== null && watch.end === null) {
@@ -156,15 +163,34 @@ async function oneRun(browser, state, profile) {
     const {profile: cpuProfile} = await cdp.send('Profiler.stop');
     writeFileSync(profile, JSON.stringify(cpuProfile));
   }
-  const result = await page.evaluate(() => {
-    window.__bench.running = false;
-    return {frames: window.__bench.frames, lags: window.__bench.lags, longTasks: window.__bench.longTasks};
+  const result = await page.evaluate(() => ({frames: window.__bench.frames.slice(), lags: window.__bench.lags, longTasks: window.__bench.longTasks}));
+
+  // The drop. A fixed wait is right here: the benchmark measures what happens in that time.
+  // The page records the moment of the release itself, when the pointerup reaches it.
+  await page.evaluate(() => {
+    window.__bench.frames = [];
+    window.__bench.times = [];
+    window.__bench.releasedAt = undefined;
+    window.addEventListener('pointerup', () => {
+      window.__bench.releasedAt = performance.now();
+    }, {once: true, capture: true});
   });
   await mouse.up();
+  await page.waitForTimeout(DROP_WINDOW_MS + 100);
+  const drop = await page.evaluate(({animationMs, windowMs}) => {
+    const state = window.__bench;
+    state.running = false;
+    const releasedAt = state.releasedAt;
+    if (releasedAt === undefined) throw new Error('The page saw no pointerup');
+    const during = (ms) => state.frames.filter((_, n) => state.times[n] > releasedAt && state.times[n] <= releasedAt + ms);
+    const window_ = during(windowMs);
+    return {animationFrames: during(animationMs).length, worstFrameMs: Math.max(...window_), framesOver33Ms: window_.filter(gap => gap > 33).length};
+  }, {animationMs: DROP_ANIMATION_MS, windowMs: DROP_WINDOW_MS});
   await context.close();
   const frames = result.frames.slice(1);
   return {
     frames,
+    drop,
     lags: result.lags,
     missedRows: path.length - result.lags.length,
     longTasks: result.longTasks,
@@ -196,6 +222,15 @@ const summary = {
   layoutMsPerFrame: round(results.reduce((sum, r) => sum + r.layoutMsPerFrame, 0) / runs),
   styleMsPerFrame: round(results.reduce((sum, r) => sum + r.styleMsPerFrame, 0) / runs),
   mainThreadMsPerFrame: round(results.reduce((sum, r) => sum + r.taskMsPerFrame, 0) / runs),
+  drop: {
+    animationFrames: {
+      ideal: Math.round(DROP_ANIMATION_MS / (1000 / 60)),
+      min: Math.min(...results.map(r => r.drop.animationFrames)),
+      median: percentile(results.map(r => r.drop.animationFrames), 50),
+    },
+    worstFrameMs: round(Math.max(...results.map(r => r.drop.worstFrameMs))),
+    framesOver33Ms: results.reduce((sum, r) => sum + r.drop.framesOver33Ms, 0),
+  },
 };
 console.log(JSON.stringify(summary, null, 2));
 if (args.includes('--verbose')) {
