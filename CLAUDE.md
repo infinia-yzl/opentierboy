@@ -116,7 +116,7 @@ lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
 lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
 lib/images/           images from links and devices: address checks, trusted sites, device
                       image store (the only IndexedDB code), image load check
-lib/security/         Content Security Policy header (sent by next.config.ts)
+lib/security/         Content Security Policy and the other security headers (sent by next.config.ts)
 lib/zod.ts            zod without eval (import `z` from here, never from `zod`)
 lib/snapshot/         snapshot files: the list inside a Freeze Frame PNG (iTXt chunk, checked
                       reader, zod payload), and what opening a file does
@@ -155,28 +155,22 @@ docs/                 the docs, listed in docs/README.md: maintainers/ (owner se
 
 ## Link contract
 
-- A shared link is `/rank/<set>/<tag>?state=<value>`. The value is lz-string
-  `compressToEncodedURIComponent` of JSON.
-- Formats: v0 is an array of tiers; v1 and v2 are `{title?, tiers: [{i, n, t: [{i, c?}]}]}`.
-  The app writes v3: `3.` + lz-string of `{t?, tp?, lp?, sl?, r}` (see `docs/reference/link-format.md`).
-  Rows are `[id?, name, items]`. An item is an image-set id, `{i, c}` (an id that names no
-  image-set item, with its label), `{u, c}` (link image) or `{d, c}` (device image).
-  `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format. v3 fixtures live in
-  `tests/fixtures/state/v3.json` (append-only).
-- Label position and label visibility are written with `router.replace`, so they add no Back
-  step (owner decision A3, 2026-10-25). Every list change pushes a new history entry.
-- Old formats are decoded forever. Never change what an old link decodes to.
+The format, its limits, the fixtures and how to add a version: `docs/reference/link-format.md`.
+
+- A shared link is `/rank/<set>/<tag>?state=<value>`. The app writes v3 (`3.` + lz-string of
+  compact JSON). `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format.
+- Old formats (v0, v1 and v2) are decoded forever. Never change what an old link decodes to.
+- Every list change pushes a new history entry. Label position and label visibility are
+  written with `router.replace`, so they add no Back step (owner decision A3, 2026-10-25).
 - `lib/state/` holds the format. It imports only `lz-string` (no React, `window`,
   `localStorage` or Node modules), because the edge OG route uses it too.
 - `lib/state/decoders/legacy.ts` is frozen: never edit it. If an old link stops decoding,
   fix the code around it.
-- `tests/fixtures/shared-links.json` holds real links and what visitors must see.
-  `tests/fixtures/state/generated.json` holds 24 links written by the 2024 code of formats
-  v0, v1 and v2. A script made them once from git history; it was removed in 2.0.0, and git
-  history keeps it (`scripts/generate-legacy-fixtures.mjs`) if more such links are ever needed.
-  Both are **append-only**: never edit, reorder or delete an entry. A failing fixture means
-  the app broke old links: fix the app. Add links with `node scripts/capture-shared-links.mjs`.
-  `npm run check:fixtures` fails when an entry changed or disappeared.
+- The fixtures `tests/fixtures/shared-links.json`, `tests/fixtures/state/generated.json` and
+  `tests/fixtures/state/v3.json` are **append-only**: never edit, reorder or delete an entry.
+  A failing fixture means the app broke old links: fix the app. Add real links with
+  `node scripts/capture-shared-links.mjs`. `npm run check:fixtures` fails when an entry
+  changed or disappeared.
 - Do not update `lz-string` without the owner. A new version could decode old links
   differently.
 
@@ -197,97 +191,66 @@ docs/                 the docs, listed in docs/README.md: maintainers/ (owner se
 
 ## Image sets
 
+The image set pipeline, adding DEADLOCK, making a set legacy, and shapes:
+`docs/maintainers/image-sets.md`.
+
 - **Official sets** come from npm: THE FINALS (`image-reachthefinals`) and OVERWATCH
   (`image-overwatch`). They are the entries of `imageset.custom.json` without `"legacy"`.
-  New versions arrive as pull requests from `.github/workflows/image-set-update.yml`: an image
-  set repository publishes to npm and sends `repository_dispatch` `image-set-published` with
-  `{package, version}`. The workflow installs that exact version, registers new ids and runs
-  the checks and tests. The owner reviews and merges every pull request; nothing merges on its
-  own. Dependabot's `image-sets` group is the fallback.
+  New versions arrive as pull requests from `.github/workflows/image-set-update.yml`. The
+  owner reviews and merges every pull request; nothing merges on its own.
 - **Legacy sets** are frozen: SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
   Technologies and the example template (`image-set`). Their entries live in
-  `imageset.legacy.json` and their WebP images are committed in `public/images/<package>/`
-  (prepareImages makes their PNG copies at build time). Never edit, move or delete them. They are hidden from the template
-  picker, the landing page and the sitemap (`lib/imageSets.ts`), the app shortcuts
-  (`app/manifest.ts`) and the search engine data (`app/layout.tsx`), but their `/rank` pages,
-  old links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
-- **Shapes**: an image set may declare `shape` (`square`, `landscape` or `portrait`) per image
-  and per category. `imageset.config.json` stores it only when it is not square, and
-  `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles render
-  at their shape (`lib/tileSize.ts`), but link previews still draw every image as a square.
-  Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
-  `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json` holds one.
-- **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
-  (a manual owner step, `docs/maintainers/image-sets.md`), one pull request adds it:
-  1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
-     `imageset.custom.json` (this puts it on the official list; the display name becomes its
-     URL slug, so choose it once);
-  2. `npm install image-deadlock@<version> --save-exact`;
-  3. `npm run prepare-images` and `npm run check:images -- --update`, then commit
-     `imageset.config.json` and `image-registry.lock.json`;
-  4. if it should have a landing page card, add it to `FEATURED_SETS` in `app/page.tsx`
-     (ask the owner; tests in `tests/e2e/legacy-sets.spec.ts` list the cards).
-  The image-deadlock repository's `release.yml` already sends the dispatch, so later versions
-  arrive through `image-set-update.yml`. The workflow refuses packages that are not on the
-  official list, so the first version cannot come through it.
-- **Making a set legacy**: copy its entry from `imageset.config.json` into
-  `imageset.legacy.json` with `"legacy": true`, commit its WebP images in `public/images/` (with
-  a `.gitignore` negation; never the PNG copies), set its `imageset.custom.json` entry to
-  `{"legacy": true}`, `npm uninstall` the package, add it to `LEGACY_SETS` in
-  `tests/support/links.ts`, and check that `imageset.config.json` only gained `"legacy": true`.
+  `imageset.legacy.json` and their WebP images are committed in `public/images/<package>/`.
+  Never edit, move or delete them. They are hidden from the template picker, the landing page
+  and the sitemap (`lib/imageSets.ts`), the app shortcuts (`app/manifest.ts`) and the search
+  engine data (`app/layout.tsx`), but their `/rank` pages, old links and link previews keep
+  working (`tests/e2e/legacy-sets*.spec.ts`).
+- **Shapes**: until the owner decides otherwise, image sets must not publish landscape or
+  portrait images. `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json`
+  holds one.
 
 ## Custom images
 
-- **Link images** (`{u, c}` items) load from other sites in the visitor's browser. An address
-  must pass `checkLinkImageUrl` (`lib/images/linkImage.ts`): https only, no IP addresses, no
-  local or private names, no user names, passwords or ports, at most 2,000 characters. Store
-  the normalised address it returns.
+How images from links and devices work, trusted sites and the Content Security Policy:
+`docs/reference/images.md`.
+
+- **Link images** (`{u, c}` items): an address must pass `checkLinkImageUrl`
+  (`lib/images/linkImage.ts`). Store the normalised address it returns.
 - Render link images with a plain `<img referrerPolicy="no-referrer" loading="lazy">`. Never
   send them through `next/image` or `/_next/image`, and never add `https://**` to
   `images.remotePatterns` (A8).
-- **Trusted sites** (`trusted-image-sites.json`) load without asking. Images from any other
-  site load only after the visitor chooses Load (this page) or Always allow these sites (kept
-  in localStorage). Nothing may request such an image before that.
-  `npm run check:trusted-sites` checks the list against the pinned Disconnect tracker list.
+- Images from a site outside `trusted-image-sites.json` load only after the visitor allows
+  them. Nothing may request such an image before that.
 - **The server never fetches a user's address**, with one exception: the OG route draws images
-  from trusted sites, with caps (`app/api/og/link-images.ts`). Every other link image and every
-  device image is a label tile. A link image address never reaches `inlineLocalImages`.
-- **Device images** (`{d, c}` items: uploads and pasted images) stay in the visitor's browser,
-  in IndexedDB. `lib/images/deviceStore.ts` is the only module that may use IndexedDB (ESLint
-  enforces it). The list holds only the image id (`isDeviceImageId` in `lib/state/deviceId.ts`).
-  Open the store only in effects (`contexts/CustomImagesContext.tsx`), never during rendering,
-  so the server and the browser render the same list. Make object URLs only from a Blob of the
-  type sniffed from the bytes (`ObjectUrlRegistry.urlFor(id, blob, type)`,
-  `previewableImage`), never from a `File`: its type comes from its name, and a `text/html`
+  from trusted sites, with caps (`app/api/og/link-images.ts`). A link image address never
+  reaches `inlineLocalImages`.
+- **Device images** (`{d, c}` items) stay in the visitor's browser. `lib/images/deviceStore.ts`
+  is the only module that may use IndexedDB (ESLint enforces it). Open the store only in
+  effects, never during rendering. Make object URLs only from a Blob of the type sniffed from
+  the bytes (`ObjectUrlRegistry.urlFor(id, blob, type)`), never from a `File`: a `text/html`
   `blob:` URL runs as a page of this site.
-- Uploads that older versions kept in localStorage (`customItems`) move into the store, under
-  `legacy-<id>` when the id is too short (A42). Old links keep their images.
-- **Content Security Policy**: `next.config.ts` sends the header from `lib/security/csp.ts`.
-  Inline scripts are allowed; eval is not (only `next dev` allows it). A new external script,
-  font or connection needs a change to the policy and to `tests/e2e/security.spec.ts`.
+- **Content Security Policy** and the other security headers: `next.config.ts` sends them
+  from `lib/security/`. Eval is not allowed (only `next dev` allows it). A new external
+  script, font or connection needs a change to the policy and to `tests/e2e/security.spec.ts`.
 - **zod**: import `z` from `@/lib/zod`, never from `zod`. Plain zod tries eval when it builds a
   schema, which the policy reports as a violation (A39).
 
 ## Snapshot files and recently viewed
 
-- **Snapshot file**: Freeze Frame's Download saves the captured PNG with one `iTXt` chunk
-  (keyword `opentierboy`) that holds the list: `{version: 1, state, path?, images}`. `state` is
-  the v3 link Share hands out; `images` are the list's device images as raster data URLs.
-  Format, limits and reason codes: `docs/reference/snapshot-files.md`. Saved files must keep
-  opening, like old links: never change what payload version 1 means.
-- Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG (signature,
-  CRCs, size caps, capped decompression) and the payload (zod, caps, and each image's size as
-  its header declares it, at most 4096 x 4096), and never throws. Every image is drawn again
-  through a canvas before it is stored (`prepareImageForStore` with `alwaysReencode`), because
-  the payload checks only its header (A10).
-- "Open a Freeze Frame…" (in the Add images menu), a dropped file and a pasted file all go
-  through `openFiles` in `components/useSnapshotFiles.tsx`. A file with a list asks first, then
-  opens with one `router.push` (one Back step). Pictures become items, like "From your device".
-- **Recently viewed** (`lib/recent/recentLinks.ts`, `components/useRecentLinks.ts`, the landing
-  page section) keeps the links this browser opened in local storage (`otb-recent-links`). The
-  editor records a list once, when it opens with a list in its link; edits never record. Pin
-  limit 20 and unpinned limit 30 are constants (owner review). Stored entries are checked with
-  zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
+The file format, limits, reason codes and Recently viewed: `docs/reference/snapshot-files.md`.
+
+- **Snapshot file**: Freeze Frame's Download saves the PNG with the list inside (payload
+  version 1). Saved files must keep opening, like old links: never change what payload
+  version 1 means.
+- Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG and the
+  payload and never throws. Every image is drawn again through a canvas before it is stored
+  (`prepareImageForStore` with `alwaysReencode`), because the payload checks only its header
+  (A10).
+- Opening a file (the menu item, a dropped file or a pasted file) goes through `openFiles` in
+  `components/useSnapshotFiles.tsx`, and a list opens with one `router.push` (one Back step).
+- **Recently viewed** keeps the links this browser opened in local storage. The editor records
+  a list once, when it opens with a list in its link; edits never record. Stored entries are
+  checked with zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
 
 ## Appearance
 
