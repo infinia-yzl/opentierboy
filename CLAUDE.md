@@ -144,7 +144,7 @@ tests/pages/          page objects (TierListPage, SitePage)
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
 tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts)
-docs/                 owner checklists
+docs/                 owner checklists and guides (releasing.md: versions and releases)
 ```
 
 ## Link contract

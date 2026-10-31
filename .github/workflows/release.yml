@@ -1,0 +1,102 @@
+name: Release
+
+# Tags each new version once it is live, and creates its GitHub release (owner decision,
+# 2026-10-31; docs/releasing.md). The version is the one in package.json. A pull request into
+# main that should ship raises it; a deployment whose version already has a tag does nothing.
+#
+# Trigger: Vercel sends repository_dispatch "vercel.deployment.success" after each successful
+# deployment. GitHub always runs repository_dispatch and workflow_dispatch workflows from the
+# default branch's copy of this file, so no branch or fork can change what runs here with write
+# access. Only accounts with write access to the repository can send either event.
+#
+# What it trusts: nothing from the event payload except the environment name, which only decides
+# whether to look. The commit comes from GitHub's own record of the newest successful Production
+# deployment created by Vercel's app ("vercel[bot]"), and must be on the default branch. The
+# version is read from package.json at that commit through the API, and must be a plain x.y.z.
+#
+# Safety: no checkout, no npm, no third-party actions: no code from the repository runs here.
+# Only gh and jq, which the runner provides. Event data reaches the script through env only.
+# A tag is created once and never moved or deleted. A version lower than the newest release tag
+# is refused, so redeploying an old commit never releases anything.
+
+on:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+  # A manual run (Actions tab, "Run workflow") does the same check, for example after a missed event.
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.client_payload.environment == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the tag and the release
+      deployments: read # read Vercel's deployment records
+    steps:
+      - name: Tag and release the live version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          default_branch=$(gh api "repos/$REPO" --jq '.default_branch')
+
+          # 1. The live commit: the newest Production deployment by Vercel whose latest status is success.
+          sha=""
+          for id in $(gh api "repos/$REPO/deployments?environment=Production&per_page=10" \
+                        --jq '.[] | select(.creator.login == "vercel[bot]") | .id'); do
+            state=$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""')
+            if [ "$state" = "success" ]; then
+              sha=$(gh api "repos/$REPO/deployments/$id" --jq '.sha')
+              break
+            fi
+          done
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "No successful Production deployment by Vercel found. Nothing to release."
+            exit 0
+          fi
+          echo "Live commit: $sha"
+
+          # 2. The commit must be on the default branch.
+          relation=$(gh api "repos/$REPO/compare/$sha...$default_branch" --jq '.status')
+          if [ "$relation" != "identical" ] && [ "$relation" != "ahead" ]; then
+            echo "::error::$sha is not on $default_branch ($relation). Nothing released."
+            exit 1
+          fi
+
+          # 3. The version in package.json at that commit: plain x.y.z only.
+          version=$(gh api "repos/$REPO/contents/package.json?ref=$sha" --jq '.content' | base64 -d | jq -r '.version')
+          if ! [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::package.json at $sha has version '$version', which is not x.y.z. Nothing released."
+            exit 1
+          fi
+          tag="v$version"
+
+          # 4. Once per version: an existing tag means this version is already released.
+          if gh api "repos/$REPO/git/ref/tags/$tag" --silent 2>/dev/null; then
+            echo "$tag already exists. Nothing to do."
+            exit 0
+          fi
+
+          # 5. Never release a version below the newest release tag.
+          newest=$(gh api "repos/$REPO/tags?per_page=100" --jq '.[].name' \
+                     | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1 || true)
+          if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$newest" "$tag" | sort -V | tail -n 1)" != "$tag" ]; then
+            echo "::error::$tag is lower than the newest release $newest. Nothing released."
+            exit 1
+          fi
+
+          # 6. Tag the live commit and create the release, with notes from the merged pull requests.
+          gh release create "$tag" --repo "$REPO" --target "$sha" --title "$version" --generate-notes
+          echo "Released $tag at $sha."
