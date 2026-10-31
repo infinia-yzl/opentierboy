@@ -63,6 +63,17 @@ Two ways to keep lists on this device. Neither sends anything to a server.
     `lib/snapshot/open.ts`: each image id replaced by a 27-character placeholder of random
     characters, plus 64 characters of room) before anything is stored, so every file the app
     writes opens again.
+- **On the landing page**, "Your own list" has **Open a Freeze Frame** and a drop area (hidden on
+  phones). They use the editor's file checks and messages (`components/HomeFileOpener.tsx`, with
+  `isPictureFile` and `checkFile` from `components/useSnapshotFiles.tsx`) and the editor's
+  device store, which the page loads only once a file is chosen or dropped:
+  - A file with a list asks "Open the list in this file? This page stays one Back step away."
+    Open list stores its images as in the editor and opens the list with one `router.push`; the
+    editor then records it in Recently viewed. Cancel changes nothing, and focus returns to Open
+    a Freeze Frame.
+  - Pictures are stored like "From your device" and start a new list: `/rank` with the blank
+    list's rows and the pictures in Unranked, also with one `router.push`.
+  - Files dropped elsewhere on the page do nothing (the browser does not leave the site).
 - **Recently viewed** on the landing page, below "Create a New Tier List", shows the lists this
   browser opened, pinned ones first, with pin, unpin and remove, and a one-line hint to use
   bookmarks. It is hidden while empty. The editor records a list when it opens with a link that

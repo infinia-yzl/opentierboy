@@ -238,6 +238,27 @@
   }
 
   /*
+    The landing page's image-set cards: each title takes its game's colour (the primary colours
+    above), unless game colours are off (HomeFinal board). components/PackageCard.tsx reads
+    --game-title.
+  */
+  html:not(.no-game-colours) [data-game-card='overwatch'] {
+    --game-title: 17.5 88.3% 40.4%;
+  }
+
+  html.dark:not(.no-game-colours) [data-game-card='overwatch'] {
+    --game-title: 27 96% 61%;
+  }
+
+  html:not(.no-game-colours) [data-game-card='the-finals'] {
+    --game-title: 0 73.7% 41.8%;
+  }
+
+  html.dark:not(.no-game-colours) [data-game-card='the-finals'] {
+    --game-title: 0 90.6% 70.8%;
+  }
+
+  /*
     Fonts (owner decisions, 2026-10-28): Modern by default, Classic on request. next/font puts
     the three families' variables on <html> (app/layout.tsx).
   */
