@@ -1,0 +1,17 @@
+[
+  {
+    "file": "chromium-2026-10-31.png",
+    "sha256": "9dd9eae275196743bcaf34a4f1d630ea0e36a266e3970b89a172755cfb46bcbf",
+    "made": "2026-10-31, Chromium, Freeze Frame Download in the 2.0.0 epic (payload version 1, WebP device images)",
+    "path": "/rank/overwatch/tank",
+    "title": "Golden Freeze Frame 🧊",
+    "tiers": [
+      {"name": "S", "items": ["Mauga", "Link image"]},
+      {"name": "A", "items": ["Winston"]},
+      {"name": "B", "items": []},
+      {"name": "Unranked", "items": ["red-square", "blue-square"]}
+    ],
+    "pictures": ["red-square", "blue-square"],
+    "linkImages": ["https://i.imgur.com/red.png"]
+  }
+]
