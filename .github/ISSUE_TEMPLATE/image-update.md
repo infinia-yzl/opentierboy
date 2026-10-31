@@ -1,12 +1,12 @@
 ---
 name: Image Update or Addition
-about: Report a wrong or missing image in an official image set, or propose a new image set
+about: Report a wrong or missing image in an active image set, or propose a new image set
 title: "[Image Update/Addition] "
 labels: images
 ---
 
 <!--
-Images do not live in this repository. Each official image set has its own repository:
+Images do not live in this repository. Each active image set has its own repository:
 
 - THE FINALS (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
 - OVERWATCH (image-overwatch): https://github.com/infinia-yzl/image-overwatch

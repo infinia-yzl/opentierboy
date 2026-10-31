@@ -4,7 +4,7 @@ import {rankingState, templateItemCount} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
 
-// Official sets grow with new versions, so counts come from imageset.config.json.
+// Active sets grow with new versions, so counts come from imageset.config.json.
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
 const ALL = '/rank/overwatch/all';

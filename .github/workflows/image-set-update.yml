@@ -1,4 +1,4 @@
-# Opens a pull request when an official image set publishes a new version on npm.
+# Opens a pull request when an active image set publishes a new version on npm.
 # It never merges: the owner reviews and merges every pull request (no auto-merge).
 #
 # Triggers:
@@ -33,7 +33,7 @@ on: # zizmor: ignore[concurrency-limits]
   workflow_dispatch:
     inputs:
       package:
-        description: Official image set package, for example image-overwatch
+        description: Active image set package, for example image-overwatch
         required: true
         type: string
       version:
@@ -70,7 +70,7 @@ jobs:
           package-manager-cache: false
 
       # The payload is untrusted: it only reaches the script through env, and the script checks
-      # the package against the official list and the version against x.y.z.
+      # the package against the active list and the version against x.y.z.
       - name: Check the package and the version
         id: input
         env:
@@ -127,7 +127,7 @@ jobs:
           VERSION: ${{ steps.input.outputs.version }}
         run: |
           mkdir -p "$RUNNER_TEMP/update"
-          # Official sets are copied into public/images/ at build time and never committed, so the
+          # Active sets are copied into public/images/ at build time and never committed, so the
           # patch holds only these files (job 2 refuses any other path).
           git add -A -- package.json package-lock.json imageset.config.json image-registry.lock.json image-aliases.json
           if git diff --cached --quiet HEAD; then
@@ -264,7 +264,7 @@ jobs:
           PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
           VERSION: ${{ github.event.client_payload.version || inputs.version }}
         run: |
-          # validate stops the step unless PACKAGE is an official set and VERSION is x.y.z.
+          # validate stops the step unless PACKAGE is an active set and VERSION is x.y.z.
           node scripts/image-set-update.mjs validate
           npm view --prefer-online "${PACKAGE}@${VERSION}" dist.integrity scripts bin dependencies gypfile --json > "$RUNNER_TEMP/registry.json"
           git apply --cached --check -- "$RUNNER_TEMP/update/changes.patch"

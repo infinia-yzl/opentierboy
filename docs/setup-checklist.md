@@ -163,7 +163,7 @@ that reads the secret below.
 
 ## 7. Bot app for the image pipeline (Phase 4)
 
-When an official image set (THE FINALS, OVERWATCH, later DEADLOCK) publishes a new version,
+When an active image set (THE FINALS, OVERWATCH, later DEADLOCK) publishes a new version,
 its repository tells OpenTierBoy, and `image-set-update.yml` opens a pull request with the
 update. A GitHub App (the "bot") pushes that branch and opens the pull request. The same app
 lets the image repositories send the notice and open their weekly wiki extract pull requests.
@@ -198,7 +198,7 @@ lets the image repositories send the notice and open their weekly wiki extract p
    version, merge the bot's (it registers new item ids) and close the other.
 8. To run an update by hand: **Actions → Image set update → Run workflow**, with the package
    (for example `image-overwatch`) and the exact version (for example `1.3.0`). It accepts
-   only official sets and plain `x.y.z` versions, and never a downgrade.
+   only active sets and plain `x.y.z` versions, and never a downgrade.
 
 ## 8. npm trusted publishing for image sets (Phase 4)
 

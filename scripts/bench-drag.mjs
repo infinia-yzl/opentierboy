@@ -21,7 +21,7 @@
  * `--cpu 4` slows the CPU four times (Chrome's CPU throttling), close to a mid-range phone.
  * `--budget` exits with 1 when a result is over BUDGET. `--profile <file>` and `--trace <file>`
  * save a CPU profile or a Chrome trace of the first run (open them in Chrome DevTools).
- * The list: all items of the official sets, then label tiles up to 200 items, spread over the
+ * The list: all items of the active sets, then label tiles up to 200 items, spread over the
  * five rows and Unranked. Runs on one machine vary by about 20%: compare builds on the same
  * machine, with several runs.
  */
@@ -62,12 +62,12 @@ const DROP_WINDOW_MS = 800;
 
 function benchState() {
   const config = JSON.parse(readFileSync(new URL('../imageset.config.json', import.meta.url), 'utf8'));
-  const official = Object.entries(config.packages)
+  const active = Object.entries(config.packages)
     .filter(([, data]) => !data.legacy)
     .flatMap(([packageName, data]) => data.images.map(image => ({i: `${packageName}-${image.filename}`})));
-  const labels = Array.from({length: Math.max(0, tileCount - official.length)}, (_, n) => ({i: `bench-${n + 1}`, c: `Bench ${n + 1}`}));
+  const labels = Array.from({length: Math.max(0, tileCount - active.length)}, (_, n) => ({i: `bench-${n + 1}`, c: `Bench ${n + 1}`}));
   // The dragged label tile first, so it starts at the top left of row S.
-  const items = [...labels.slice(0, 1), ...official, ...labels.slice(1)].slice(0, tileCount);
+  const items = [...labels.slice(0, 1), ...active, ...labels.slice(1)].slice(0, tileCount);
   const perRow = Math.ceil(items.length / ROWS.length);
   const tiers = ROWS.map((row, index) => ({...row, t: items.slice(index * perRow, (index + 1) * perRow)}));
   return LZString.compressToEncodedURIComponent(JSON.stringify({title: 'Drag benchmark', tiers}));
