@@ -61,6 +61,8 @@ interface EditableLabelProps {
   placeholder?: string;
   /** A name for screen readers while the text is empty, so an empty heading still has one. */
   emptyLabel?: string;
+  /** Shown while the text is empty (the Unranked tray's heading). A click edits from empty. */
+  emptyText?: string;
 }
 
 /** A label that turns into a text box on click (see useInlineEdit). */
@@ -72,6 +74,7 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
   contentClassName = 'text-xl font-semibold',
   placeholder = '',
   emptyLabel,
+  emptyText,
 }) => {
   const {isEditing, edit, inputProps} = useInlineEdit(text, onSave);
 
@@ -89,7 +92,7 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
     } else {
       return (
         <Component className={contentClassName}>
-          {emptyLabel && <span className="sr-only">{emptyLabel}</span>}
+          {emptyText ?? (emptyLabel && <span className="sr-only">{emptyLabel}</span>)}
         </Component>
       );
     }

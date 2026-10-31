@@ -69,14 +69,21 @@ export function moveItem<I extends ItemLike, T extends TierLike<I>>(tiers: T[], 
 /**
  * Moves a whole row from one position to another. Tier labels describe positions (product
  * rule 6): the contents move (items, id and every other field), and each position keeps its
- * label. This is the editor's behaviour today, Unranked row included.
+ * label. Unranked, the last row, stays where it is: it is a fixed tray under the rows (owner
+ * decision, 2026-10-31), so no row moves into its place and it moves into no other.
  */
 export function reorderRows<T extends TierLike>(tiers: T[], from: number, to: number): T[] {
   if (!isIndex(from, tiers.length) || !isIndex(to, tiers.length) || from === to) return tiers;
+  if (isUnranked(tiers, from) || isUnranked(tiers, to)) return tiers;
   const moved = tiers.slice();
   const [row] = moved.splice(from, 1);
   moved.splice(to, 0, row);
   return moved.map((tier, index) => (tier.name === tiers[index].name ? tier : {...tier, name: tiers[index].name}));
+}
+
+/** The last row is Unranked (lib/dnd/model.ts). */
+export function isUnranked(tiers: readonly unknown[], index: number): boolean {
+  return index === tiers.length - 1;
 }
 
 /** A tier id that no row uses: tier-1, tier-2... (the row template ids use letters). */

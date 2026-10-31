@@ -1,4 +1,5 @@
 import React from 'react';
+import {DragHandleDots2Icon} from '@radix-ui/react-icons';
 
 interface RowHandleProps {
   /** The drag handle ref from useTierRow (lib/dnd/react.tsx). */
@@ -20,9 +21,9 @@ const RowHandle: React.FC<RowHandleProps> = ({handleRef, describedBy, label}) =>
       tabIndex={0}
       aria-describedby={describedBy || undefined}
       aria-label={label ? `Move tier ${label}` : 'Move tier'}
-      className="w-6 h-full flex items-center justify-center cursor-grab pl-6 pr-6 select-none [-webkit-touch-callout:none]"
+      className="w-10 shrink-0 self-stretch flex items-center justify-center border-l border-black/10 dark:border-white/10 cursor-grab select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <span aria-hidden="true" className="font-bold text-lg tracking-widest">::</span>
+      <DragHandleDots2Icon aria-hidden="true" className="h-4 w-4"/>
     </div>
   );
 };

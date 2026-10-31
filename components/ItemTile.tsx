@@ -53,7 +53,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className={`relative ${size.className} overflow-hidden rounded-md`}
+    <div className={`relative ${size.className} overflow-hidden`}
          title={domain ? `Image from ${domain}` : undefined}>
       {linkSrc || tileImageUrl ? (
         <>

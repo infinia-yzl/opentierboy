@@ -78,7 +78,8 @@ tests/
 - **Locate by role and accessible name**, the way assistive technology sees the page: a tier
   row is a `group` named after its label (the unnamed last row is `Unranked`, a row whose
   label was cleared is `Tier <n>`), an item is a `button` named after its label, a row
-  handle is a `button` named `Move tier <label>`. If an element has no accessible name, add
+  handle is a `button` named `Move tier <label>`. The Unranked tray has no handle; every row
+  and the tray hold a level-2 heading, which is how the page object finds them. If an element has no accessible name, add
   one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
 - **Never sleep.** No `waitForTimeout` and no fixed delays. Wait for what the user would
   see: web-first assertions such as `toHaveText`, the drag announcer for drag and drop, and

@@ -367,7 +367,8 @@ function projectKey<T extends TierLike>(drag: Drag<T>, before: T[], event: DragM
   if (!direction) return before;
   if (drag.kind === 'row') {
     const from = before.findIndex(tier => tier.id === drag.id);
-    const to = keyboardRowTarget(from, direction, before.length);
+    // The ranked rows only: Unranked, the last row, is a fixed tray (lib/dnd/moves.ts, reorderRows).
+    const to = keyboardRowTarget(from, direction, before.length - 1);
     return to === null ? before : moveRowInPreview(before, from, to);
   }
   const from = findItem(before, drag.id);

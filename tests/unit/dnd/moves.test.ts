@@ -185,11 +185,10 @@ describe('reorderRows', () => {
     ]);
   });
 
-  it('moves the Unranked row like any row, as the editor does today', () => {
+  it('keeps Unranked, the last row, in place: it is a fixed tray (owner decision, 2026-10-31)', () => {
     const tiers = deepFreeze(sampleTiers());
-    const next = reorderRows(tiers, 5, 0);
-    expect(names(next)[0]).toEqual(['uncategorized', 'S', ['zarya', 'rein', 'ram', 'hog']]);
-    expect(names(next)[5]).toEqual(['tier-f', '', []]);
+    expect(reorderRows(tiers, 5, 0)).toBe(tiers);
+    expect(reorderRows(tiers, 0, 5)).toBe(tiers);
   });
 
   it('returns the same array when nothing moves or the indexes do not fit', () => {
@@ -208,7 +207,7 @@ describe('reorderRows', () => {
     expect(next[5]).toBe(tiers[5]);
   });
 
-  it('gives the same list as the editor today, for every move in every template and random lists', () => {
+  it('gives the same list as the editor before 2.0.0 for moves between ranked rows, and leaves Unranked in place', () => {
     const lists: Tier[][] = [
       ...Object.values(tierTemplates).map(template => template.map(row => ({...row, items: [item(`${row.id}-x`)]}))),
       sampleTiers(),
@@ -218,7 +217,8 @@ describe('reorderRows', () => {
     for (const tiers of lists) {
       for (let from = 0; from < tiers.length; from++) {
         for (let to = 0; to < tiers.length; to++) {
-          const expected = todaysOnDragEnd(structuredClone(tiers), {
+          const last = tiers.length - 1;
+          const expected = from === last || to === last ? tiers : todaysOnDragEnd(structuredClone(tiers), {
             type: 'TIER',
             source: {droppableId: 'all-tiers', index: from},
             destination: {droppableId: 'all-tiers', index: to},

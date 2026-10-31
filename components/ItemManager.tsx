@@ -24,7 +24,8 @@ import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
 import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
-import {ImageIcon} from "@radix-ui/react-icons";
+import {ImageIcon, PlusIcon} from "@radix-ui/react-icons";
+import {TILE_SIZES} from "@/lib/tileSize";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
@@ -37,12 +38,17 @@ interface ItemManagerProps {
   onOpenFiles: (files: File[]) => void;
   /** Focus returns here after the "Open the list in this file?" dialog. */
   openFocusRef?: React.RefObject<HTMLButtonElement | null>;
+  /**
+   * What opens the menu: the toolbar button, or the dashed tile that ends the Unranked tray
+   * ("Add images to Unranked", owner decision 2026-10-28: the decided editor board).
+   */
+  trigger?: 'button' | 'tile';
 }
 
 /** Pictures, as "From your device" offers them. The bytes are checked again after choosing. */
 const ACCEPTED_FILES = 'image/*';
 
-const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef}) => {
+const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef, trigger = 'button'}) => {
   const {tiers, tierCortex, resetRankings, removeAllItems, restoreTiers} = useTierContext();
   const addItemsWithUndo = useAddItemsWithUndo();
   const showGradientBorder = tiers.every(tier => tier.items.length === 0);
@@ -134,12 +140,21 @@ const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef}) =>
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" ref={setTriggerRef}
-                  className={`gap-2 ${showGradientBorder ? 'glow-effect' : ''}`}
-          >
-            <ImageIcon className="h-4 w-4"/>
-            Add images
-          </Button>
+          {trigger === 'tile' ? (
+            <Button variant="ghost" ref={setTriggerRef} aria-label="Add images to Unranked"
+                    className={`${TILE_SIZES.square.className} p-0 flex-col gap-1 whitespace-normal leading-tight text-center rounded-md border border-dashed border-muted-foreground/40 text-[11px] text-muted-foreground hover:text-foreground`}
+            >
+              <PlusIcon className="h-4 w-4"/>
+              Add images
+            </Button>
+          ) : (
+            <Button variant="outline" ref={setTriggerRef}
+                    className={`gap-2 ${showGradientBorder ? 'glow-effect' : ''}`}
+            >
+              <ImageIcon className="h-4 w-4"/>
+              Add images
+            </Button>
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent>
           <DropdownMenuLabel>Add Items</DropdownMenuLabel>
