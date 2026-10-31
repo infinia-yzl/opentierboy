@@ -124,7 +124,6 @@ has a comment from Claude. To get a new review, delete Claude's comment, then re
 GitHub: **Issues → Labels → New label**. GitHub and Dependabot skip labels that do not exist,
 so create any of these that are missing:
 
-- `agent-task`: added by the "Agent task" issue form.
 - `review-claude`: add it to a pull request to start a Claude review (section 4). Labels that
   start a review bot are named `review-<bot>`, so a later bot gets its own `review-` label.
 - `dependencies`, `npm`, `github-actions`: added to Dependabot pull requests.
