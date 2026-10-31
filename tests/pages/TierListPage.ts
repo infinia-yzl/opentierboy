@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
+import {escapeRegExp} from '../support/regexp';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
@@ -258,6 +259,20 @@ export class TierListPage {
   }
 
   // ---- Ranking -----------------------------------------------------------------------------
+
+  /**
+   * The lines of a row's items, top to bottom, each a list of item names, read from where the
+   * items are on screen. A row wraps onto a new line when its items do not fit.
+   */
+  async itemLines(tierName: string): Promise<string[][]> {
+    const items = this.itemsIn(tierName);
+    const boxes = await Promise.all((await items.all()).map(async (item) => ({
+      name: (await item.getAttribute('aria-label')) ?? '',
+      top: Math.round((await item.boundingBox())!.y),
+    })));
+    const tops = [...new Set(boxes.map((box) => box.top))].sort((a, b) => a - b);
+    return tops.map((top) => boxes.filter((box) => box.top === top).map((box) => box.name));
+  }
 
   /** Drags an item with the mouse and drops it at the end of a tier. */
   async dragItemToTier(itemName: string, tierName: string) {
@@ -626,32 +641,38 @@ export class TierListPage {
   async removeTierRow(tierName: string) {
     await this.changeAndWaitForLink(async () => {
       await this.rowOptionsButton.click();
-      await this.page.getByRole('menuitem', {name: 'Remove a row'}).click();
+      await this.removeRowMenuItem.click();
       await this.page.getByRole('menu').getByRole('menuitem', {name: tierName, exact: true}).click();
     });
   }
 
-  /**
-   * What the rows offer: whether "Add row" and the row options menu's "Remove a row" can be
-   * chosen, and the rows "Remove a row" lists. Closes the menu again.
-   */
-  async rowChanges(): Promise<{canAdd: boolean; canRemove: boolean; removable: string[]}> {
-    const canAdd = await this.addRowButton.isEnabled();
+  /** "Remove a row" in the Row options menu. It shows once the menu is open (openRowOptions). */
+  get removeRowMenuItem(): Locator {
+    return this.page.getByRole('menuitem', {name: 'Remove a row'});
+  }
+
+  /** Opens the Row options menu. */
+  async openRowOptions() {
     await this.rowOptionsButton.click();
-    const remove = this.page.getByRole('menuitem', {name: 'Remove a row'});
-    await expect(remove).toBeVisible();
-    const canRemove = await remove.isEnabled();
-    let removable: string[] = [];
-    if (canRemove) {
-      await remove.click();
-      const submenu = this.page.getByRole('menu').filter({hasNot: remove});
-      await expect(submenu.getByRole('menuitem').first()).toBeVisible();
-      removable = await submenu.getByRole('menuitem').allTextContents();
-    }
-    await this.page.keyboard.press('Escape');
-    await this.page.keyboard.press('Escape');
-    await expect(remove).toBeHidden();
-    return {canAdd, canRemove, removable};
+    await expect(this.removeRowMenuItem).toBeVisible();
+  }
+
+  /** Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items. */
+  async openRemoveRowMenu(): Promise<Locator> {
+    await this.openRowOptions();
+    await this.removeRowMenuItem.click();
+    const rows = this.page.getByRole('menu').filter({hasNot: this.removeRowMenuItem}).getByRole('menuitem');
+    await expect(rows.first()).toBeVisible();
+    return rows;
+  }
+
+  /** Closes every open menu with Escape. */
+  async closeMenus() {
+    const menus = this.page.getByRole('menu');
+    await expect(async () => {
+      if (await menus.count() > 0) await this.page.keyboard.press('Escape');
+      await expect(menus).toHaveCount(0, {timeout: 1_000});
+    }).toPass();
   }
 
   async chooseRowCount(count: RowCount) {
@@ -967,11 +988,6 @@ export class TierListPage {
    */
   async injectedMarkupRan(): Promise<boolean> {
     return this.page.evaluate(() => (window as unknown as {__otbInjected?: unknown}).__otbInjected !== undefined);
-  }
-
-  /** The page title in the browser tab. */
-  async documentTitle(): Promise<string> {
-    return this.page.title();
   }
 
   // ---- Files: snapshot files and pictures ---------------------------------------------------
@@ -1368,6 +1384,3 @@ async function centerOf(locator: Locator): Promise<Point> {
   return centerOfBox(await boxOf(locator));
 }
 
-function escapeRegExp(text: string) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}

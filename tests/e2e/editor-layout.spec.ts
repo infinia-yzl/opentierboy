@@ -77,19 +77,20 @@ test.describe('List title', () => {
 
   test('the title sits right above the rows, and the hints sit in the Unranked tray', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    const title = await tierList.title.boundingBox();
-    const firstRow = await tierList.tier('S').boundingBox();
-    const tools = await tierList.editorTools.boundingBox();
-    if (!title || !firstRow || !tools) throw new Error('A part of the editor is not on the page');
-
-    expect(firstRow.y - (title.y + title.height)).toBeLessThan(40);
     await expect(tierList.unranked.getByText('Drag to reorder.')).toBeVisible();
-    // Wide screens: the tools on the title's line. Phones: the tools above the title.
-    if (tierList.page.viewportSize()!.width >= 640) {
-      expect(tools.y).toBeLessThan(title.y + title.height);
-    } else {
-      expect(tools.y + tools.height).toBeLessThanOrEqual(title.y);
-    }
+    await expect(async () => {
+      const title = await tierList.title.boundingBox();
+      const firstRow = await tierList.tier('S').boundingBox();
+      const tools = await tierList.editorTools.boundingBox();
+      if (!title || !firstRow || !tools) throw new Error('A part of the editor is not on the page');
+      expect(firstRow.y - (title.y + title.height)).toBeLessThan(40);
+      // Wide screens: the tools on the title's line. Phones: the tools above the title.
+      if (tierList.page.viewportSize()!.width >= 640) {
+        expect(tools.y).toBeLessThan(title.y + title.height);
+      } else {
+        expect(tools.y + tools.height).toBeLessThanOrEqual(title.y);
+      }
+    }).toPass();
   });
 
   test('the pencil and the hints hide in Zen', async ({tierList}) => {
@@ -112,12 +113,14 @@ test.describe('Clean rows', () => {
     await expect(tierList.rowHandle('Unranked')).toHaveCount(0);
     await expect(tierList.rowHandle('F')).toBeVisible();
 
-    const lastRanked = await tierList.tier('F').boundingBox();
-    const addRow = await tierList.addRowButton.boundingBox();
-    const tray = await tierList.unranked.boundingBox();
-    if (!lastRanked || !addRow || !tray) throw new Error('A part of the editor is not on the page');
-    expect(addRow.y).toBeGreaterThanOrEqual(lastRanked.y + lastRanked.height);
-    expect(tray.y).toBeGreaterThanOrEqual(addRow.y + addRow.height);
+    await expect(async () => {
+      const lastRanked = await tierList.tier('F').boundingBox();
+      const addRow = await tierList.addRowButton.boundingBox();
+      const tray = await tierList.unranked.boundingBox();
+      if (!lastRanked || !addRow || !tray) throw new Error('A part of the editor is not on the page');
+      expect(addRow.y).toBeGreaterThanOrEqual(lastRanked.y + lastRanked.height);
+      expect(tray.y).toBeGreaterThanOrEqual(addRow.y + addRow.height);
+    }).toPass();
   });
 
   test('the tray\'s Add images tile opens the Add images menu', async ({tierList}) => {

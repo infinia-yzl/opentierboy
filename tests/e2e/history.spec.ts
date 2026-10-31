@@ -105,7 +105,7 @@ test.describe('Browser history and the template page', () => {
     await expect(tierList.itemsIn('S')).toHaveCount(0);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
     // Showing the template again writes nothing: Forward still works (A6).
-    expect(await tierList.historyLength()).toBe(entries);
+    await expect.poll(() => tierList.historyLength()).toBe(entries);
     await page.goForward();
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     await expect(tierList.itemsIn('A')).toHaveCount(0);
@@ -126,8 +126,8 @@ test.describe('Opening a link', () => {
       await tierList.gotoAndSettle(link.path, link.state);
       await expect(tierList.title).toHaveText(link.expected.title);
       const opened = new URL(`${link.path}?state=${link.state}`, page.url()).href;
-      expect(page.url()).toBe(opened);
-      expect(await tierList.historyLength()).toBe(entries + 1);
+      await expect(page).toHaveURL(opened);
+      await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
       // One change, then Back, returns to exactly this link.
       await tierList.setTitle('Changed');
@@ -148,8 +148,8 @@ test.describe('Opening a link', () => {
     await tierList.gotoAndSettle(TANKS, state);
     await expect(tierList.title).toHaveText('My v3 list');
     const opened = new URL(`${TANKS}?state=${state}`, page.url()).href;
-    expect(page.url()).toBe(opened);
-    expect(await tierList.historyLength()).toBe(entries + 1);
+    await expect(page).toHaveURL(opened);
+    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
     await tierList.setTitle('Changed');
     await page.goBack();
@@ -171,7 +171,7 @@ test.describe('Browser history and settings', () => {
 
       await tierList.chooseLabelPosition('Top');
       await tierList.setItemLabelsVisible(false);
-      expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
+      await expect.poll(() => tierList.historyLength(), {message: 'the settings replace the current entry'}).toBe(entries);
       const withSettings = page.url();
       await tierList.dragItemToTier('Winston', 'A');
 
@@ -180,7 +180,7 @@ test.describe('Browser history and settings', () => {
       await page.goBack();
       await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+      await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
     }
   });
 
@@ -194,13 +194,13 @@ test.describe('Browser history and settings', () => {
     await page.goBack();
     await expect(tierList.itemsIn('A')).toHaveCount(0);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
-    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
     // Forward shows Winston in A again, still with labels on Top.
     await page.goForward();
     await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
   });
 
   test('coming back to the editor from another page opens the link fresh, with its settings', async ({tierList, page}) => {
@@ -211,7 +211,7 @@ test.describe('Browser history and settings', () => {
     await page.goto('/about');
     await page.goBack();
     await expect(tierList.itemsIn('S')).toHaveText(['']);
-    expect(await tierList.labelSettings()).toEqual({position: 'Right', labelsShown: false});
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Right', labelsShown: false});
   });
 
   test('Undo from a toast adds a new history entry', async ({tierList, page}) => {
@@ -223,7 +223,7 @@ test.describe('Browser history and settings', () => {
     await tierList.undoFromToast('Items Reset');
     await expect(page).not.toHaveURL(reset);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    expect(await tierList.historyLength()).toBe(entries + 2);
+    await expect.poll(() => tierList.historyLength()).toBe(entries + 2);
 
     // Back steps to the reset list, then to the list as opened.
     await page.goBack();

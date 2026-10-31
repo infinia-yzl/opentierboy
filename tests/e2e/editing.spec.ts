@@ -127,7 +127,7 @@ test.describe('Row settings', () => {
 
     await tierList.chooseLabelPosition('Top');
 
-    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
   });
 });
 

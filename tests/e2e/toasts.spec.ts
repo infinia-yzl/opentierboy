@@ -17,10 +17,12 @@ test.describe('Toasts', () => {
 
       const toast = tierList.toast('Entered Zen Mode');
       await expect(toast).toBeVisible();
-      const colors = await site.colorsOf(toast);
-      expect(colors.background, 'toast background').not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
-      expect(colors.background, 'toast background').toBe(colors.pageBackground);
-      expect(colors.text, 'toast text colour').toBe(colors.pageText);
+      await expect(async () => {
+        const colors = await site.colorsOf(toast);
+        expect(colors.background, 'toast background').not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+        expect(colors.background, 'toast background').toBe(colors.pageBackground);
+        expect(colors.text, 'toast text colour').toBe(colors.pageText);
+      }).toPass();
     });
   }
 });

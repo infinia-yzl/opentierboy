@@ -14,7 +14,7 @@ test.describe('Adding and removing rows (#182)', () => {
     await expect(tierList.tiers).toHaveCount(7);
     await expect(tierList.tiers.nth(5)).toHaveAccessibleName('Tier 6');
     await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
-    expect(await tierList.historyLength()).toBe(entries + 1);
+    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
     await tierList.page.goBack();
     await expect(tierList.tiers).toHaveCount(6);
@@ -51,7 +51,7 @@ test.describe('Adding and removing rows (#182)', () => {
     await expect(tierList.tier('B')).toHaveCount(0);
     await expect(tierList.tiers).toHaveCount(5);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va', 'Winston', 'Sigma']);
-    expect(await tierList.historyLength()).toBe(entries + 1);
+    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
     await tierList.page.goBack();
     await expect(tierList.itemsIn('B')).toHaveText(['Winston', 'Sigma']);
@@ -62,12 +62,17 @@ test.describe('Adding and removing rows (#182)', () => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.chooseRowCount(3);
 
-    expect(await tierList.rowChanges()).toEqual({canAdd: true, canRemove: true, removable: ['S', 'A', 'B']});
+    await expect(tierList.addRowButton).toBeEnabled();
+    await expect(await tierList.openRemoveRowMenu()).toHaveText(['S', 'A', 'B']);
+    await tierList.closeMenus();
 
     await tierList.removeTierRow('A');
     await tierList.removeTierRow('B');
 
-    expect(await tierList.rowChanges()).toEqual({canAdd: true, canRemove: false, removable: []});
+    await expect(tierList.addRowButton).toBeEnabled();
+    await tierList.openRowOptions();
+    await expect(tierList.removeRowMenuItem).toBeDisabled();
+    await tierList.closeMenus();
     await expect(tierList.tiers).toHaveCount(2);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
@@ -77,10 +82,10 @@ test.describe('Adding and removing rows (#182)', () => {
     await tierList.goto(TANKS, v3State({r: [...rows, ['uncategorized', '', []]]}));
     await expect(tierList.tiers).toHaveCount(20);
 
-    expect((await tierList.rowChanges()).canAdd).toBe(false);
+    await expect(tierList.addRowButton).toBeDisabled();
 
     await tierList.removeTierRow('R7');
     await expect(tierList.tiers).toHaveCount(19);
-    expect((await tierList.rowChanges()).canAdd).toBe(true);
+    await expect(tierList.addRowButton).toBeEnabled();
   });
 });

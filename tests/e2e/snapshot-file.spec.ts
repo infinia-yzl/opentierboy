@@ -159,7 +159,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
 
     await expect(friend.toast('Some images could not be added')).toContainText('red-square: Your browser could not save the image.');
     await expect(friend.itemsIn(friend.unranked)).toHaveText(['red-square']);
-    expect(await friend.itemShowsUpload('red-square')).toBe(false);
+    await expect.poll(() => friend.itemShowsUpload('red-square')).toBe(false);
 
     // Nothing is stuck: the same file opens again, with its image.
     await friend.openFile(pngFile('snapshot.png', snapshot));
@@ -177,7 +177,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
     await friend.confirmOpenList();
 
     await expect(friend.title).toHaveText('Tanks with a cat');
-    expect(await friend.historyLength()).toBe(length + 1);
+    await expect.poll(() => friend.historyLength()).toBe(length + 1);
     await friend.page.goBack();
     await expect(friend.page).toHaveURL(before);
     await expect(friend.title).toHaveText('Before');
@@ -197,7 +197,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
     await tierList.cancelOpenList();
 
     await expect(page).toHaveURL(before);
-    expect(await tierList.historyLength()).toBe(length);
+    await expect.poll(() => tierList.historyLength()).toBe(length);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
     // The dialog has no trigger of its own: focus goes back to Add images, whose menu opened the file.
     await expect(tierList.manageItemsButton).toBeFocused();
@@ -206,15 +206,15 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
   test('opening your own file in the browser that made it uses its images as they are', async ({tierList}) => {
     const snapshot = await downloadSnapshotOf(tierList);
     const state = JSON.parse(snapshotTextOf(snapshot) ?? 'null').state;
-    expect(await tierList.deviceImageCount()).toBe(1);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(1);
     await tierList.goto('/rank');
 
     await tierList.openFile(pngFile('snapshot.png', snapshot));
     await tierList.confirmOpenList();
 
     // The link is the file's own, and no copy of the image was stored.
-    expect(tierList.page.url()).toBe(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
-    expect(await tierList.deviceImageCount()).toBe(1);
+    await expect(tierList.page).toHaveURL(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(1);
     await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   });
 
@@ -231,7 +231,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
     // The AVIF is never read: the tile shows the stored copy, and no message says otherwise.
     await expect.poll(() => tierList.itemShowsUpload('red-square')).toBe(true);
     await expect(tierList.toast('Some images could not be added')).toHaveCount(0);
-    expect(await tierList.deviceImageCount()).toBe(1);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(1);
   });
 
   test('opening the same file again changes nothing: no new image, link or Recently viewed entry', async ({tierList, openAsVisitor}) => {
@@ -247,16 +247,16 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
 
     await friend.openFile(pngFile('snapshot.png', snapshot));
     await friend.confirmOpenList({newAddress: false});
-    expect(friend.page.url()).toBe(link);
-    expect(await friend.deviceImageCount()).toBe(images);
-    expect(await friend.historyLength()).toBe(length);
+    await expect(friend.page).toHaveURL(link);
+    await expect.poll(() => friend.deviceImageCount()).toBe(images);
+    await expect.poll(() => friend.historyLength()).toBe(length);
 
     // A third time from another list: the same link again.
     await friend.goto('/rank');
     await friend.openFile(pngFile('snapshot.png', snapshot));
     await friend.confirmOpenList();
-    expect(friend.page.url()).toBe(link);
-    expect(await friend.deviceImageCount()).toBe(images);
+    await expect(friend.page).toHaveURL(link);
+    await expect.poll(() => friend.deviceImageCount()).toBe(images);
     const friendSite = new SitePage(friend.page);
     await friendSite.gotoHome();
     await expect(friendSite.recentLinks).toHaveText(['Tanks with a cat']);
@@ -313,7 +313,7 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
     await expect(friend.openListDialog).toBeVisible();
     await friend.confirmOpenList();
     await expectTierList(friend, SNAPSHOT_LIST);
-    expect(await friend.historyLength()).toBe(entries + 1);
+    await expect.poll(() => friend.historyLength()).toBe(entries + 1);
 
     await friend.page.goBack();
     await expect(friend.page).toHaveURL(before);
@@ -355,7 +355,7 @@ test.describe('Snapshot links near the cap of 13,000 characters', () => {
 
     await expect(tierList.toast('Could not open the file')).toContainText('This file is too large to open as a list.');
     await expect(tierList.openListDialog).toHaveCount(0);
-    expect(await tierList.deviceImageCount()).toBe(0);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(0);
   });
 
   test('Download keeps the list only when it opens in any browser, and such a file opens elsewhere', async ({tierList, page, openAsVisitor}) => {
@@ -469,7 +469,7 @@ test.describe('Files in turn', () => {
     // Nothing replaced the Forward entry: it holds the first picture only.
     await page.goForward();
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['b00']);
-    expect(await tierList.historyLength()).toBe(before + 1);
+    await expect.poll(() => tierList.historyLength()).toBe(before + 1);
   });
 
   test('leaving the editor while pastes wait reaches the other page: no later add cancels the way out', async ({tierList, page, browserName}) => {
@@ -534,7 +534,7 @@ test.describe('Opening other files', () => {
     await tierList.dropFile(imageFile('blue-square.png', BLUE_SQUARE));
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
     await expect(page).not.toHaveURL(before);
-    expect(await tierList.historyLength()).toBe(entries + 1);
+    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
     await page.goBack();
     await expect(page).toHaveURL(before);
@@ -596,9 +596,9 @@ test.describe('Opening other files', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Red', 'Photo', 'Phone']);
     await expect.poll(() => tierList.itemShowsUpload('Red')).toBe(true);
     // Only the PNG was stored; the refused images show no picture.
-    expect(await tierList.deviceImageCount()).toBe(1);
-    expect(await tierList.itemShowsUpload('Photo')).toBe(false);
-    expect(await tierList.itemShowsUpload('Phone')).toBe(false);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(1);
+    await expect.poll(() => tierList.itemShowsUpload('Photo')).toBe(false);
+    await expect.poll(() => tierList.itemShowsUpload('Phone')).toBe(false);
   });
 
   test('an image bomb inside a snapshot is refused before it is decoded', async ({tierList}) => {
@@ -677,7 +677,7 @@ test.describe('Opening other files', () => {
     await expect(tierList.toast('Some images could not be added').filter({hasText: 'IMG_0001'})).toContainText(AVIF_HEIC_REFUSAL);
 
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-    expect(await tierList.deviceImageCount()).toBe(0);
+    await expect.poll(() => tierList.deviceImageCount()).toBe(0);
   });
 
   test('a drop while a menu is open does nothing', async ({tierList, page}) => {

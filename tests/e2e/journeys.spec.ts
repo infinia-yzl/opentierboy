@@ -56,7 +56,7 @@ async function walkJourney(tierList: TierListPage, start: ExpectedList, steps: S
     await expectListAndPictures(tierList, step.list, step.pictures);
     addresses.push(page.url());
   }
-  expect(await tierList.historyLength(), 'one history entry per step').toBe(entries + steps.length);
+  await expect.poll(() => tierList.historyLength(), {message: 'one history entry per step'}).toBe(entries + steps.length);
 
   const lists = [start, ...steps.map((step) => step.list)];
   const pictures = [startPictures, ...steps.map((step) => step.pictures ?? [])];
@@ -71,7 +71,7 @@ async function walkJourney(tierList: TierListPage, start: ExpectedList, steps: S
     await expectListAndPictures(tierList, lists[index], pictures[index]);
   }
   // Walking the history writes nothing new.
-  expect(await tierList.historyLength()).toBe(entries + steps.length);
+  await expect.poll(() => tierList.historyLength()).toBe(entries + steps.length);
 }
 
 test.describe('Editing journeys with Back and Forward', () => {

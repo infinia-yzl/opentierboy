@@ -1,31 +1,18 @@
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
-import type {TierListPage} from '../pages/TierListPage';
 
 const ALL = '/rank/overwatch/all';
 // Twelve tiles do not fit on one line of a row at the default window size, so row S wraps (#142).
 const WRAPPED = ['Ana', 'Baptiste', 'Brigitte', 'Illari', 'Juno', 'Kiriko', 'Lifeweaver', 'Lucio', 'Mercy', 'Moira', 'Zenyatta', 'Ashe'];
 
-/** The lines of a row's items, top to bottom, each a list of item names (from their places on screen). */
-async function linesOf(tierList: TierListPage, tier: string): Promise<string[][]> {
-  const items = tierList.itemsIn(tier);
-  const boxes = await Promise.all((await items.all()).map(async (item) => ({
-    name: (await item.getAttribute('aria-label')) ?? '',
-    top: Math.round((await item.boundingBox())!.y),
-  })));
-  const tops = [...new Set(boxes.map((box) => box.top))].sort((a, b) => a - b);
-  return tops.map((top) => boxes.filter((box) => box.top === top).map((box) => box.name));
-}
-
 test.describe('Rows that wrap onto several lines (#142)', () => {
   test.beforeEach(async ({tierList}) => {
     await tierList.goto(ALL, rankingState('image-overwatch', {S: WRAPPED, '': ['Mauga', 'Winston']}));
-    const lines = await linesOf(tierList, 'S');
-    expect(lines.length, 'row S should wrap').toBeGreaterThan(1);
+    await expect.poll(async () => (await tierList.itemLines('S')).length, {message: 'row S should wrap'}).toBeGreaterThan(1);
   });
 
   test('drag an item from another row onto the second line of a wrapping row', async ({tierList}) => {
-    const [, secondLine] = await linesOf(tierList, 'S');
+    const [, secondLine] = await tierList.itemLines('S');
     const target = secondLine[1];
 
     await tierList.dragItemNextTo('Mauga', target, 'before');
@@ -43,7 +30,7 @@ test.describe('Rows that wrap onto several lines (#142)', () => {
   });
 
   test('drag an item from the first line to the second line of its row', async ({tierList}) => {
-    const [, secondLine] = await linesOf(tierList, 'S');
+    const [, secondLine] = await tierList.itemLines('S');
     const target = secondLine[1];
 
     await tierList.dragItemNextTo('Ana', target, 'before');
@@ -54,7 +41,7 @@ test.describe('Rows that wrap onto several lines (#142)', () => {
   });
 
   test('the Right arrow key goes on from the end of a line to the next line', async ({tierList}) => {
-    const [firstLine] = await linesOf(tierList, 'S');
+    const [firstLine] = await tierList.itemLines('S');
     const last = firstLine[firstLine.length - 1];
 
     await tierList.moveItemWithKeyboard(last, ['ArrowRight']);
@@ -62,8 +49,7 @@ test.describe('Rows that wrap onto several lines (#142)', () => {
     const expected = WRAPPED.filter((name) => name !== last);
     expected.splice(firstLine.length, 0, last);
     await expect(tierList.itemsIn('S')).toHaveText(expected);
-    const [, secondLine] = await linesOf(tierList, 'S');
-    expect(secondLine[0]).toBe(last);
+    await expect.poll(async () => (await tierList.itemLines('S'))[1]?.[0]).toBe(last);
   });
 
   test('the Down and Up arrow keys move an item between the lines of its row', async ({tierList}) => {
@@ -71,19 +57,20 @@ test.describe('Rows that wrap onto several lines (#142)', () => {
 
     await tierList.moveItemWithKeyboard('Baptiste', ['ArrowDown']);
 
-    const lines = await linesOf(tierList, 'S');
-    expect(lines[1], 'Baptiste should be on the second line').toContain('Baptiste');
+    await expect.poll(async () => (await tierList.itemLines('S'))[1], {message: 'Baptiste should be on the second line'}).toContain('Baptiste');
     await expect(tierList.itemsIn('S')).toHaveCount(WRAPPED.length);
-    const after = (await tierList.item('Baptiste').boundingBox())!;
-    expect(Math.abs(after.x - before!.x), 'Baptiste should keep its place across').toBeLessThan(after.width);
+    await expect(async () => {
+      const after = (await tierList.item('Baptiste').boundingBox())!;
+      expect(Math.abs(after.x - before!.x), 'Baptiste should keep its place across').toBeLessThan(after.width);
+    }).toPass();
 
     await tierList.moveItemWithKeyboard('Baptiste', ['ArrowUp']);
 
-    expect((await linesOf(tierList, 'S'))[0]).toContain('Baptiste');
+    await expect.poll(async () => (await tierList.itemLines('S'))[0]).toContain('Baptiste');
   });
 
   test('the Down arrow key from the last line goes to the next row', async ({tierList}) => {
-    const lines = await linesOf(tierList, 'S');
+    const lines = await tierList.itemLines('S');
     const onLastLine = lines[lines.length - 1][0];
 
     await tierList.moveItemWithKeyboard(onLastLine, ['ArrowDown']);
@@ -103,8 +90,8 @@ test.describe('Drops that change nothing', () => {
     await expect(tierList.dragAnnouncer).toHaveText('Dropped Winston. It stays in tier S, position 2 of 3.');
 
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston', 'Sigma']);
-    expect(tierList.page.url()).toBe(address);
-    expect(await tierList.historyLength()).toBe(entries);
+    await expect(tierList.page).toHaveURL(address);
+    await expect.poll(() => tierList.historyLength()).toBe(entries);
   });
 });
 
@@ -145,8 +132,8 @@ test.describe('Cancelling a move', () => {
     await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in tier S, position 1 of 2.');
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
     await expect(tierList.itemsIn('A')).toHaveCount(0);
-    expect(page.url()).toBe(before);
-    expect(await tierList.historyLength()).toBe(entries);
+    await expect(page).toHaveURL(before);
+    await expect.poll(() => tierList.historyLength()).toBe(entries);
     // The editor still works: the next drag moves the item.
     await tierList.dragItemToTier('Mauga', 'A');
     await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
@@ -163,8 +150,8 @@ test.describe('Cancelling a move', () => {
     await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Sigma is back in Unranked, position 1 of 1.');
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
-    expect(page.url()).toBe(before);
-    expect(await tierList.historyLength()).toBe(entries);
+    await expect(page).toHaveURL(before);
+    await expect.poll(() => tierList.historyLength()).toBe(entries);
   });
 });
 
@@ -188,7 +175,7 @@ test.describe('Touch', () => {
 
     // No drag started, and no text is selected.
     await expect(tierList.dragAnnouncer).toHaveText(announcement ?? '');
-    expect(await tierList.page.evaluate(() => String(window.getSelection()))).toBe('');
+    await expect.poll(() => tierList.page.evaluate(() => String(window.getSelection()))).toBe('');
     await menu.getByRole('menuitem', {name: 'Delete'}).tap();
     await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
   });
@@ -200,7 +187,7 @@ test.describe('Touch', () => {
 
     await tierList.swipeUpFromItem('Mercy', 200);
 
-    expect(tierList.page.url()).toBe(address);
+    await expect(tierList.page).toHaveURL(address);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(many);
   });
 });

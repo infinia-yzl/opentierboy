@@ -1,5 +1,6 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
 import {hugeTierNameState, rawState, stateFromJson, templateItemCount} from '../support/links';
+import {escapeRegExp} from '../support/regexp';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -35,10 +36,6 @@ test.describe('Link previews', () => {
       .toHaveAttribute('content', new RegExp(escapeRegExp(`/api/og?state=${encodeURIComponent(link.state)}`) + '$'));
   });
 });
-
-function escapeRegExp(text: string) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 test.describe('Unknown items', () => {
   test('an item the app does not know shows its label on the placeholder image', {tag: '@mobile'}, async ({tierList}) => {

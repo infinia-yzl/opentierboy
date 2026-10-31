@@ -47,21 +47,21 @@ test.describe('Appearance', () => {
 
   test('Modern is the default font, and Classic is remembered', async ({site, page}) => {
     await site.gotoHome();
-    expect(await site.bodyFont()).toContain('Geologica');
+    await expect.poll(() => site.bodyFont()).toContain('Geologica');
 
     await site.chooseFont('Classic');
-    expect(await site.bodyFont()).toContain('Nunito Sans');
+    await expect.poll(() => site.bodyFont()).toContain('Nunito Sans');
 
     await page.reload();
-    expect(await site.bodyFont()).toContain('Nunito Sans');
+    await expect.poll(() => site.bodyFont()).toContain('Nunito Sans');
 
     await site.chooseFont('Modern');
-    expect(await site.bodyFont()).toContain('Geologica');
+    await expect.poll(() => site.bodyFont()).toContain('Geologica');
   });
 
   test('an image set\'s pages take its game colour until game colours are turned off', async ({site, tierList, page}) => {
     await site.gotoHome();
-    expect(await site.token('--primary')).toBe(BRAND_BLUE);
+    await expect.poll(() => site.token('--primary')).toBe(BRAND_BLUE);
 
     await tierList.goto(TANKS);
     await expect.poll(() => site.token('--primary')).toBe(OVERWATCH_ORANGE);
@@ -71,6 +71,6 @@ test.describe('Appearance', () => {
 
     await page.reload();
     await expect.poll(() => site.pageHasClass('no-game-colours')).toBe(true);
-    expect(await site.token('--primary')).toBe(BRAND_BLUE);
+    await expect.poll(() => site.token('--primary')).toBe(BRAND_BLUE);
   });
 });

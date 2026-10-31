@@ -1,11 +1,8 @@
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
+import {escapeRegExp} from '../support/regexp';
 
 const TANKS = '/rank/overwatch/tank';
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
 
 test.describe('Sharing', () => {
   test('the share panel offers the link and an image', {tag: '@mobile'}, async ({tierList}) => {
@@ -56,7 +53,7 @@ test.describe('Sharing', () => {
     const friend = await openAsVisitor(linkInMarkdown!);
     await expect(friend.itemsIn('S')).toHaveCount(0);
     await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga', 'Winston']);
-    expect(await friend.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await expect.poll(() => friend.labelSettings()).toEqual({position: 'Top', labelsShown: true});
   });
 
   test('on a slow connection, Copy Markdown right after quick changes shares the latest list', async ({
@@ -84,8 +81,8 @@ test.describe('Sharing', () => {
     await tierList.setItemLabelsVisible(false);
 
     const friend = await openAsVisitor(await tierList.shareLink());
-    expect(await friend.labelSettings()).toEqual({position: 'Top', labelsShown: false});
-    expect(await friend.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect.poll(() => friend.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await expect.poll(() => friend.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     await expect(friend.item('Mauga')).toHaveText('');
   });
 
@@ -95,11 +92,11 @@ test.describe('Sharing', () => {
     await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
     await expect(tierList.title).toHaveText('Blank list');
-    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
-    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
     await tierList.reload();
-    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
     await expect(tierList.item('Mauga')).toHaveText('');
   });
 
@@ -107,8 +104,8 @@ test.describe('Sharing', () => {
     const mauga = packageItemId('image-overwatch', 'Mauga');
     await tierList.goto(TANKS, v3State({tp: 5, lp: 'top', r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
-    expect(await tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
-    expect(await tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     await expect(tierList.item('Mauga')).toHaveText('Mauga');
   });
 });

@@ -26,7 +26,7 @@ test.describe('Content Security Policy', () => {
     await expect(page.getByRole('heading', {level: 1})).toBeVisible();
     await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
     await page.waitForLoadState('networkidle');
-    expect(await cspViolations()).toEqual([]);
+    await expect.poll(() => cspViolations()).toEqual([]);
   });
 
   test('Freeze Frame Download, opening the file, a dropped picture and Recently viewed cause no violation', async ({tierList, site, page, cspViolations}) => {
@@ -47,7 +47,7 @@ test.describe('Content Security Policy', () => {
     await site.gotoHome();
     await expect(site.recentLinks.first()).toHaveText('CSP snapshot');
     await page.waitForLoadState('networkidle');
-    expect(await cspViolations()).toEqual([]);
+    await expect.poll(() => cspViolations()).toEqual([]);
   });
 
   for (const method of ['html2canvas-pro', 'Original html2canvas'] as CaptureMethod[]) {
@@ -65,7 +65,7 @@ test.describe('Content Security Policy', () => {
       await tierList.capturePreview(method);
 
       await expect(tierList.toast('Image captured successfully')).toBeVisible();
-      expect(await cspViolations()).toEqual([]);
+      await expect.poll(() => cspViolations()).toEqual([]);
     });
   }
 });

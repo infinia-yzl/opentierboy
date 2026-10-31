@@ -27,7 +27,7 @@ test.describe('Images from a link (#107)', () => {
     await expect(tierList.toast('Items Added')).toBeVisible();
     // The site shows in the item's description, and in its right-click (long-press) menu.
     await expect(tierList.item('Red square')).toHaveAccessibleDescription(/Image from i\.imgur\.com/);
-    expect(await tierList.itemImageSite('Red square')).toBe('Image from i.imgur.com');
+    await expect.poll(() => tierList.itemImageSite('Red square')).toBe('Image from i.imgur.com');
     expect(site.requests.every((url) => url === 'https://i.imgur.com/red.png')).toBe(true);
 
     const link = await tierList.shareLink();
@@ -149,7 +149,7 @@ test.describe('Images from the device', () => {
     await tierList.addItemsFromDevice([imageFile('red-square.png')]);
     await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
-    expect(await page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
     const link = await tierList.shareLink();
     expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
   });
@@ -280,7 +280,7 @@ test.describe('Images from the device', () => {
     await tierList.addItemsFromDevice([imageFile('new.png', newImage)]);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['new']);
     await expect.poll(() => tierList.itemImageHasLoaded('new')).toBe(true);
-    expect(await tierList.evictedImageIds()).toHaveLength(1);
+    await expect.poll(() => tierList.evictedImageIds()).toHaveLength(1);
 
     // The old list: the oldest image made room and shows its name only; the others are there.
     await tierList.gotoLink(oldList);
@@ -302,8 +302,8 @@ test.describe('Images from the device', () => {
     await expect.poll(() => tierList.itemShowsUpload('old 2')).toBe(true);
     // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
     await expect.poll(() => tierList.oldUploadIds()).toEqual(['legacyUp3']);
-    expect(await tierList.itemShowsUpload('old 3')).toBe(false);
-    expect(await tierList.evictedImageIds()).toEqual([]);
+    await expect.poll(() => tierList.itemShowsUpload('old 3')).toBe(false);
+    await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
   });
 
   test('when the browser is full, quick pastes never remove an image the list shows', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
@@ -323,7 +323,7 @@ test.describe('Images from the device', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['base', 'first']);
     await expect.poll(() => tierList.itemShowsUpload('first')).toBe(true);
     await expect.poll(() => tierList.itemShowsUpload('base')).toBe(true);
-    expect(await tierList.evictedImageIds()).toEqual([]);
+    await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
   });
 
   test('without IndexedDB, uploads still work for the tab, and the app says so once', async ({tierList, page}) => {
