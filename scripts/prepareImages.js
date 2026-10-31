@@ -291,7 +291,10 @@ async function updateConfigs(packagesData, customConfig) {
 }
 
 async function main() {
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+  // `--copy` copies the images into public/images. The `prebuild` npm script passes it:
+  // npm runs prebuild with NODE_ENV unset, and Vercel and CI builds must copy. Without the
+  // flag, production and Vercel copy, and development symlinks into node_modules.
+  const isProduction = process.argv.includes('--copy') || process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
   const customConfig = await getCustomConfig();

@@ -14,5 +14,8 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
+    // The link-state tests run thousands of random lists. Alone the slowest takes about 3 s,
+    // but on a busy machine or a slow CI runner the 5 s default is too tight.
+    testTimeout: 30_000,
   },
 });

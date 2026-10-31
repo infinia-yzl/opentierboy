@@ -44,33 +44,56 @@ test.describe('Link preview images', () => {
    * suite stays green while the bug exists. When a fix lands, the test starts to pass,
    * Playwright reports "Expected to fail, but passed", and the marker must be removed.
    */
-  test.describe('Known bugs', () => {
-    const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
-    const links = [
-      // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
-      ...['constructor', 'toString', '__proto__'].map((id) => ({
-        name: `an item with the id "${id}"`,
-        reason: 'TierCortex resolves the id to a built-in member without imageUrl, so the image points at the site root and the route aborts the response.',
-        json: {title: 'Odd item ids', tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: id, c: 'Mystery'}]}, unranked]},
-      })),
-      {
-        name: 'a tier name that is an object',
-        reason: 'The route draws the tier name as text, and an object there aborts the response.',
-        json: {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, unranked]},
-      },
-    ];
-    for (const link of links) {
-      test(`a link with ${link.name} still gets a preview image`, async ({request}) => {
-        test.fail(true, link.reason);
-        const response = await request.get(`/api/og?state=${encodeURIComponent(stateFromJson(link.json))}`, {timeout: 10_000});
+  test('a link with an unknown item id gets a preview with a placeholder tile', async ({request}) => {
+    const response = await request.get(previewPath(oddIdLink('unknown-item-x')));
 
-        expect(response.status()).toBe(200);
-        expect(response.headers()['content-type']).toBe('image/png');
-        expect(pngSize(await response.body())).toEqual({width: 1200, height: 630});
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+    const image = await response.body();
+    expect(pngSize(image)).toEqual({width: 1200, height: 630});
+    expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
+  });
+
+  /**
+   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
+   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
+   */
+  test.describe('Known bugs', () => {
+    // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
+    for (const id of ['constructor', 'toString', '__proto__']) {
+      test(`a link with an item with the id "${id}" gets the same preview as an unknown item`, async ({request}) => {
+        test.fail(true, 'TierCortex resolves the id to a built-in object member without imageUrl, so the tile points at the site root, an HTML page. Locally the route draws a blank tile instead of the placeholder; on Vercel next/og fetches the HTML itself and aborts the response.');
+        const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
+        const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
+
+        expect(odd.status()).toBe(200);
+        expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
       });
     }
+
+    test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
+      test.fail(true, 'The route draws the tier name as text, and an object there aborts the response.');
+      const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
+      const response = await request.get(previewPath(json), {timeout: 10_000});
+
+      expect(response.status()).toBe(200);
+      expect(response.headers()['content-type']).toBe('image/png');
+      expect(pngSize(await response.body())).toEqual({width: 1200, height: 630});
+    });
   });
 });
+
+const UNRANKED = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
+
+/** A titled list with Mauga and one more item, labelled "Mystery", in S. */
+function oddIdLink(itemId: string) {
+  return {title: 'Odd item ids', tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: itemId, c: 'Mystery'}]}, UNRANKED]};
+}
+
+function previewPath(json: unknown) {
+  return `/api/og?state=${encodeURIComponent(stateFromJson(json))}`;
+}
 
 function isLocalServerNotOnPort3000(baseURL: string | undefined) {
   if (!baseURL) return false;

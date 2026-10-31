@@ -1,33 +1,23 @@
-import {execSync} from 'child_process';
-import path from 'path';
-import {fileURLToPath} from 'url';
-import fs from 'fs';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const LOCK_FILE = path.join(__dirname, '.prepare-images-lock');
+// Image sets are prepared before the build by the `prebuild` npm script
+// (scripts/prepareImages.js), not here: Next.js 16 builds with Turbopack, which does not
+// run webpack hooks.
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
 
-  webpack: (config, {dev, isServer}) => {
-    if (!dev && isServer) {
-      // Check if we've already run the script
-      if (!fs.existsSync(LOCK_FILE)) {
-        console.log("Running prepare-images script...");
-        execSync('npm run prepare-images', {stdio: 'inherit'});
-        // Create a lock file to indicate the script has run
-        fs.writeFileSync(LOCK_FILE, 'locked');
-      }
-    }
-    return config;
-  },
+  // `next dev` would otherwise append its own block to AGENTS.md (a symlink to CLAUDE.md)
+  // whenever it detects a coding agent. CLAUDE.md is the owner's file.
+  agentRules: false,
 
   transpilePackages: ['next-mdx-remote'],
 
   images: {
+    // The placeholder tile for an unknown item points at http://localhost:3000 outside
+    // Vercel (TierCortex.baseUrl). Next.js 16 stops the image optimizer from fetching local
+    // addresses unless this is on. It stays off on Vercel, where the pattern below matches
+    // nothing.
+    dangerouslyAllowLocalIP: !process.env.VERCEL,
     remotePatterns: [
       {
         protocol: 'http',

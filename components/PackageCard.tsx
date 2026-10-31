@@ -20,7 +20,7 @@ const PackageCard: React.FC<PackageCardProps> = ({packageData, tags}) => {
   const font = packageData.googleFont ? getFont(packageData.googleFont) : null;
 
   return (
-    <Card className="group relative overflow-hidden transition-all duration-220">
+    <Card className="group relative overflow-hidden transition-all">
       {/* Background image (visible on hover) */}
       <div
         className="absolute inset-0 bg-cover bg-center transition-opacity duration-300 opacity-0 group-hover:opacity-100"
@@ -29,7 +29,7 @@ const PackageCard: React.FC<PackageCardProps> = ({packageData, tags}) => {
         }}
       />
       {/* Gradient overlay (visible on hover) */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-transparent opacity-0
+      <div className="absolute inset-0 bg-linear-to-b/srgb from-black/60 via-black/30 to-transparent opacity-0
         group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"/>
 
       {/* Card content */}
@@ -37,7 +37,8 @@ const PackageCard: React.FC<PackageCardProps> = ({packageData, tags}) => {
         <CardHeader>
           <CardTitle className={cn(
             font ? font.className : '',
-            "transition-colors duration-300 group-hover:text-white group-hover:drop-shadow-lg"
+            // Tailwind 3's drop-shadow-lg (Tailwind 4 changed the values of that class).
+            "transition-colors duration-300 group-hover:text-white group-hover:drop-shadow-[0_10px_8px_rgb(0_0_0/0.04),0_4px_3px_rgb(0_0_0/0.1)]"
           )}>
             {packageData.displayName}
           </CardTitle>
@@ -57,7 +58,7 @@ const PackageCard: React.FC<PackageCardProps> = ({packageData, tags}) => {
                 "w-full justify-start transition-all duration-300",
                 "group-hover:bg-white/10 group-hover:text-white group-hover:border-white/20 group-hover:backdrop-blur-md",
                 "hover:bg-white/20 hover:text-white",
-                "group-hover:hover:bg-white/30"  // Additional hover effect when card is hovered
+                "hover:group-hover:bg-white/30"  // Additional hover effect when card is hovered
               )}
             >
               <Link href={`/rank/${slugify(packageData.displayName)}/${createSEOFriendlyTagSlug(tagName)}`}>

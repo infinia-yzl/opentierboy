@@ -214,15 +214,15 @@ function runHistoricalModule(commit, file, imports, globals = {}) {
     fileName: file,
     compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true},
   });
-  const module = {exports: {}};
+  const commonJsModule = {exports: {}};
   const requireImport = (specifier) => {
     if (Object.prototype.hasOwnProperty.call(imports, specifier)) return imports[specifier];
     throw new Error(`${commit}:${file} imports "${specifier}", which the generator does not provide.`);
   };
   const globalNames = Object.keys(globals);
   const run = new Function('module', 'exports', 'require', ...globalNames, outputText);
-  run(module, module.exports, requireImport, ...globalNames.map((name) => globals[name]));
-  return module.exports;
+  run(commonJsModule, commonJsModule.exports, requireImport, ...globalNames.map((name) => globals[name]));
+  return commonJsModule.exports;
 }
 
 function checkLzStringVersion(commit) {

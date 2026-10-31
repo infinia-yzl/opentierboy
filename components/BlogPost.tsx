@@ -41,8 +41,8 @@ export function BlogPost({slug}: BlogPostProps) {
   );
 }
 
-export async function generateMetadata({params}: { params: { slug: string } }): Promise<Metadata> {
-  const slug = params.slug;
+export async function generateMetadata({params}: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const {slug} = await params;
   const filePath = path.join(process.cwd(), 'articles', `${slug}.md`);
 
   if (!fs.existsSync(filePath)) {

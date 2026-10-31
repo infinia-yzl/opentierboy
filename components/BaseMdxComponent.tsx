@@ -2,6 +2,7 @@ import fs from 'fs';
 import {MDXRemote} from 'next-mdx-remote/rsc';
 import matter from 'gray-matter';
 import {cn} from "@/lib/utils";
+import {MDX_OPTIONS} from "@/lib/mdx";
 import {format} from 'date-fns';
 
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
@@ -28,7 +29,7 @@ interface BaseMdxComponentProps {
 
 const HeadingLink = ({className, href, children}: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
   <a href={href} className={cn("group flex items-center hover:underline underline-offset-2", className)}>
-    <span className="flex-grow">{children}</span>
+    <span className="grow">{children}</span>
     <Link2Icon className="h-4 w-4 ml-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity"/>
   </a>
 );
@@ -99,7 +100,7 @@ const baseComponents = {
     )
   },
   p: ({className, ...props}: React.HTMLAttributes<HTMLParagraphElement>) => (
-    <p className={cn("leading-7 [&:not(:first-child)]:my-3", className)} {...props} />
+    <p className={cn("leading-7 not-first:my-3", className)} {...props} />
   ),
   ul: ({className, ...props}: React.HTMLAttributes<HTMLUListElement>) => (
     <ul className={cn("mb-6 ml-6 list-disc [&>li]:mt-2 [&>li]:mb-1", className)} {...props} />
@@ -127,7 +128,7 @@ export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxC
   const allComponents = {...baseComponents, ...additionalComponents};
 
   return (
-    <Card className="w-full max-w-4xl md:max-w-screen-2xl mx-auto mt-4">
+    <Card className="w-full max-w-4xl md:max-w-(--breakpoint-2xl) mx-auto mt-4">
       <CardHeader>
         <CardTitle>{data.title}</CardTitle>
         {data.description && <CardDescription>{data.description}</CardDescription>}
@@ -141,6 +142,7 @@ export function BaseMdxComponent({filePath, additionalComponents = {}}: BaseMdxC
         <MDXRemote
           source={content}
           components={allComponents}
+          options={MDX_OPTIONS}
         />
       </CardContent>
     </Card>

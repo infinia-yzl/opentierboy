@@ -2,6 +2,23 @@ import {expect, type Locator, type Page} from '@playwright/test';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
+/** The capture methods offered under "Options" in the Image tab of the share panel. */
+export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
+
+/** What a test can check about the image that "Capture Preview" made. */
+export interface CapturedImage {
+  /** Size of the image in pixels. */
+  width: number;
+  height: number;
+  /** Width and height of the page in CSS pixels, and the device pixel ratio. */
+  pageWidth: number;
+  pageHeight: number;
+  devicePixelRatio: number;
+  /** Number of different colours in a 64 x 64 copy of the image. A blank image has 1. */
+  distinctColors: number;
+  /** Brightness (0 to 255) of the top-left corner, where the page background shows. */
+  cornerBrightness: number;
+}
 
 /**
  * Page object for the tier list editor at /rank/...
@@ -341,6 +358,98 @@ export class TierListPage {
     return this.page.evaluate(() => navigator.clipboard.readText());
   }
 
+  /** The preview that "Capture Preview" (Freeze Frame) shows in the share panel. */
+  get capturedImage(): Locator {
+    return this.sharePanel.getByRole('img', {name: 'Captured tier list'});
+  }
+
+  /**
+   * Captures the page as an image from the Image tab of the share panel ("Freeze Frame"),
+   * and waits until the app reports the result in a toast. Without a method, the app's
+   * default method is used.
+   */
+  async capturePreview(method?: CaptureMethod) {
+    await this.openSharePanel();
+    await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
+    if (method) {
+      await this.sharePanel.getByRole('button', {name: 'Options'}).click();
+      const methodSelect = this.sharePanel.getByRole('combobox');
+      await methodSelect.click();
+      await this.page.getByRole('option', {name: method, exact: true}).click();
+      await expect(methodSelect).toHaveText(method);
+    }
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await expect(this.toast(/Image captured successfully|Failed to capture image/)).toBeVisible();
+  }
+
+  /**
+   * Counts the colours in an item's tile as the page shows it now, from a screenshot of the
+   * tile. Returns the tile's box in page coordinates as well, to find the tile in a capture.
+   */
+  async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {
+    const tile = this.item(itemName);
+    await tile.scrollIntoViewIfNeeded();
+    await expect.poll(() => tile.getByRole('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      {message: `the image of "${itemName}" should load`}).toBe(true);
+    const box = await boxOf(tile);
+    const scroll = await this.scrollPosition();
+    const png = await this.page.screenshot({clip: box, animations: 'disabled'});
+    const colors = await this.page.evaluate(countColors, {src: `data:image/png;base64,${png.toString('base64')}`});
+    return {box: {...box, x: box.x + scroll.x, y: box.y + scroll.y}, colors};
+  }
+
+  /**
+   * Finds the most colourful spot of a tile's size in the captured preview image, in the
+   * tile's column, and counts its colours. The capture leaves out the header and the toolbar
+   * (data-html2canvas-ignore), so the tiles sit higher in it than on the page; their
+   * horizontal position is the same.
+   */
+  async capturedColorsInColumn(box: Box): Promise<number> {
+    const src = await this.capturedImage.evaluate((img: HTMLImageElement) => img.currentSrc);
+    return this.page.evaluate(countColors, {src, column: box});
+  }
+
+  /** Waits for the captured preview image to load, then measures it. */
+  async capturedImageDetails(): Promise<CapturedImage> {
+    await expect(this.capturedImage).toBeVisible();
+    let details: CapturedImage | null = null;
+    // The preview can reload while the share panel re-renders, so measure it once it has
+    // finished loading.
+    await expect(async () => {
+      details = await this.capturedImage.evaluate((img: HTMLImageElement) => {
+        if (!img.complete || img.naturalWidth === 0) return null;
+        const size = 64;
+        const small = document.createElement('canvas');
+        small.width = size;
+        small.height = size;
+        const smallContext = small.getContext('2d')!;
+        smallContext.drawImage(img, 0, 0, size, size);
+        const pixels = smallContext.getImageData(0, 0, size, size).data;
+        const colors = new Set<string>();
+        for (let index = 0; index < pixels.length; index += 4) {
+          colors.add(`${pixels[index]},${pixels[index + 1]},${pixels[index + 2]},${pixels[index + 3]}`);
+        }
+        const full = document.createElement('canvas');
+        full.width = img.naturalWidth;
+        full.height = img.naturalHeight;
+        const fullContext = full.getContext('2d')!;
+        fullContext.drawImage(img, 0, 0);
+        const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
+        return {
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+          pageWidth: document.documentElement.clientWidth,
+          pageHeight: document.documentElement.scrollHeight,
+          devicePixelRatio: window.devicePixelRatio,
+          distinctColors: colors.size,
+          cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
+        };
+      });
+      expect(details, 'the captured image should finish loading').not.toBeNull();
+    }).toPass();
+    return details!;
+  }
+
   // ---- Zen mode --------------------------------------------------------------------------
 
   async setZenMode(on: boolean) {
@@ -362,6 +471,41 @@ export class TierListPage {
 
 type Box = {x: number; y: number; width: number; height: number};
 type Point = {x: number; y: number};
+
+/**
+ * Runs in the browser: loads an image and counts its different colours (5 bits per channel).
+ * With `column` (a box in CSS pixels), it slides a box of that size down that column of the
+ * image (scaled by the device pixel ratio) and returns the highest count.
+ */
+async function countColors({src, column}: {src: string; column?: Box}): Promise<number> {
+  const image = new Image();
+  image.src = src;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d')!;
+  context.drawImage(image, 0, 0);
+  const count = (x: number, y: number, width: number, height: number) => {
+    const pixels = context.getImageData(x, y, width, height).data;
+    const colors = new Set<number>();
+    for (let index = 0; index < pixels.length; index += 4) {
+      colors.add(((pixels[index] >> 3) << 10) | ((pixels[index + 1] >> 3) << 5) | (pixels[index + 2] >> 3));
+    }
+    return colors.size;
+  };
+  if (!column) return count(0, 0, canvas.width, canvas.height);
+  const scale = window.devicePixelRatio;
+  const x = Math.round(column.x * scale);
+  const width = Math.max(1, Math.round(column.width * scale));
+  const height = Math.max(1, Math.round(column.height * scale));
+  const step = Math.max(1, Math.round(height / 8));
+  let best = 0;
+  for (let y = 0; y + height <= canvas.height; y += step) {
+    best = Math.max(best, count(x, y, width, height));
+  }
+  return best;
+}
 
 async function boxOf(locator: Locator): Promise<Box> {
   const box = await locator.boundingBox();

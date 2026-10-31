@@ -120,8 +120,10 @@ only for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
 
 1. Vercel: **Project → Settings → Git**. Keep **deployment_status Events** on. The workflow
    starts from these events.
-2. Vercel: **Project → Settings → Build and Deployment**. The **Build Command** must stay
-   `npm run build` (the default). Image preparation runs inside the build.
+2. Vercel: **Project → Settings → Build and Deployment**. The **Build Command** must be
+   `npm run build`. If it shows `next build`, override it. npm runs the `prebuild` script
+   first: it copies the image sets into `public/images/` and checks that no item id is lost.
+   A plain `next build` skips that step and deploys without item images.
 3. If Vercel Deployment Protection is on for previews: Vercel **Project → Settings →
    Deployment Protection → Protection Bypass for Automation** → create a secret and copy it.
 4. GitHub: **Settings → Environments → New environment**. Name: `vercel-e2e`.

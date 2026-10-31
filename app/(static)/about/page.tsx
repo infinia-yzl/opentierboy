@@ -31,7 +31,7 @@ const AboutPage = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
-          <div className="flex justify-center mb-6 max-w-[600]">
+          <div className="flex justify-center mb-6">
             <Image src={otbLogo} alt="OpenTierBoy" priority/>
           </div>
           Craft, rank and share your passion - the open-source way!
@@ -39,8 +39,8 @@ const AboutPage = () => {
       </section>
 
       {/* Mission Section */}
-      <div className="relative w-screen left-1/2 right-1/2 -mx-[50vw] bg-primary text-primary-foreground">
-        <section className="py-20 max-w-screen-lg mx-auto px-4">
+      <div className="relative w-screen left-1/2 right-1/2 mx-[-50vw] bg-primary text-primary-foreground">
+        <section className="py-20 max-w-(--breakpoint-lg) mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-bold mb-8">Mission</h2>
           <h3 className="text-3xl md:text-4xl font-bold mb-6">A message from the founder</h3>
           <p className="text-xl leading-relaxed mb-6">
@@ -82,7 +82,7 @@ const AboutPage = () => {
                   And let&apos;s be honest – most users don&apos;t need to save and share their custom images anyway.
                   You can still easily share your completed tier lists as images, which is what matters most.
                 </p>
-                <blockquote className="mt-6 border-l-2 pl-6 italic">
+                <blockquote className="border-l-2 pl-6 italic">
                   &quot;I recommend keeping folders on your device for each of your tier lists, and saving your custom
                   images there so you can quickly add them.&quot;
                 </blockquote>

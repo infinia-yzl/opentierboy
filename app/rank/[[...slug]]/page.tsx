@@ -102,14 +102,13 @@ async function getItemSetData(nameOrPackage: string, tagSlug: string): Promise<I
 
 
 type Props = {
-  params: { slug?: string[] }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ slug?: string[] }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export async function generateMetadata(
-  {params, searchParams}: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
+export async function generateMetadata(props: Props, parent: ResolvingMetadata): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const [nameOrPackage, tagName] = params.slug || [];
   const itemSet = nameOrPackage && tagName ? await getItemSetData(nameOrPackage, tagName) : null;
 
@@ -177,13 +176,14 @@ export async function generateMetadata(
   }
 }
 
-export default async function TierListPage({
-  params,
-  searchParams
-}: {
-  params: { slug?: string[] },
-  searchParams: { [key: string]: string | string[] | undefined }
-}) {
+export default async function TierListPage(
+  props: {
+    params: Promise<{ slug?: string[] }>,
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const [nameOrPackage, tagSlug] = params.slug || [];
 
   // If no slug is provided, render an empty tier list

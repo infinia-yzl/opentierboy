@@ -71,10 +71,12 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
             />
           </div>
           {showLabel && (
+            // The label background is a plain rgb() value: "Original html2canvas" (Freeze Frame)
+            // cannot read the oklab() colour that Tailwind 4 writes for bg-black/30.
             <div
-              className={`absolute bottom-0 left-0 right-0 bg-black bg-opacity-30  ${
-                isScrolling ? '' : 'backdrop-blur-sm will-change-transform transform-gpu'
-              }  p-1 transition-all duration-180 ease-in-out`}
+              className={`absolute bottom-0 left-0 right-0 bg-[rgb(0_0_0/0.3)] ${
+                isScrolling ? '' : 'backdrop-blur-xs will-change-transform transform-gpu'
+              }  p-1 transition-all ease-in-out`}
             >
               <span
                 className="text-[9px] leading-tight text-white block mb-0.5 text-center"
