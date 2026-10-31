@@ -5,9 +5,11 @@ import {describe, expect, it} from 'vitest';
 /**
  * ESLint rules hold only while nobody turns them off in the code. Outside tests (and the
  * vendored dnd-kit fork in packages/), an eslint-disable comment must name the rules it turns
- * off, and none may turn off no-restricted-syntax, which carries the class ban (A47) and the
- * zod rules (A39). The same goes for an inline config comment such as
- * `/* eslint no-restricted-syntax: off *\/`. A class that a third-party API requires goes in
+ * off, and none may turn off a no-restricted-* rule. Those rules carry the project's rules:
+ * no-restricted-syntax the class ban (A47) and the zod rules (A39), no-restricted-imports the
+ * zod, IndexedDB and dnd-kit imports and the edge-safe modules, no-restricted-globals and
+ * no-restricted-properties the IndexedDB and browser globals. The same goes for an inline config
+ * comment such as `/* eslint no-restricted-syntax: off *\/`. A class that a third-party API requires goes in
  * ALLOWED_CLASS_FILES in eslint.config.mjs instead.
  */
 const root = path.resolve(__dirname, '../../..');
@@ -25,7 +27,7 @@ function codeFiles(dir: string): string[] {
   });
 }
 
-/** The comments that turn ESLint rules off without naming them, or that turn off no-restricted-syntax. */
+/** The comments that turn ESLint rules off without naming them, or that turn off a no-restricted-* rule. */
 function forbiddenDirectives(source: string): string[] {
   const found: string[] = [];
   for (const [comment] of source.matchAll(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g)) {
@@ -34,7 +36,7 @@ function forbiddenDirectives(source: string): string[] {
     if (!directive || directive[1] === '-enable') continue;
     // Text after " -- " is a description, not a rule list.
     const rules = directive[2].split(/\s-{2,}(?:\s|$)/)[0].trim();
-    const namesRule = /(?:^|[\s,])no-restricted-syntax(?:[\s,:]|$)/.test(rules);
+    const namesRule = /(?:^|[\s,])no-restricted-(?:syntax|imports|globals|properties)(?:[\s,:]|$)/.test(rules);
     // `eslint-disable...` without rules turns every rule off; `eslint <rule>: off` is inline config.
     if (namesRule || (directive[1] !== undefined && rules === '')) found.push(comment);
   }
@@ -42,7 +44,7 @@ function forbiddenDirectives(source: string): string[] {
 }
 
 describe('ESLint directive comments outside tests', () => {
-  it('flags a bare eslint-disable and any comment that turns off no-restricted-syntax', () => {
+  it('flags a bare eslint-disable and any comment that turns off a no-restricted-* rule', () => {
     const flagged = [
       '// eslint-disable-next-line',
       '/* eslint-disable */',
@@ -53,6 +55,10 @@ describe('ESLint directive comments outside tests', () => {
       '// eslint-disable-line no-restricted-syntax',
       '/* eslint no-restricted-syntax: off */',
       '/* eslint no-restricted-syntax: 0, no-console: 1 */',
+      '// eslint-disable-next-line no-restricted-imports',
+      '/* eslint-disable no-restricted-globals -- reason */',
+      '// eslint-disable-line react-hooks/exhaustive-deps, no-restricted-properties',
+      '/* eslint no-restricted-imports: off */',
     ];
     for (const comment of flagged) expect(forbiddenDirectives(`const a = 1; ${comment}\n`), comment).toEqual([comment]);
   });
