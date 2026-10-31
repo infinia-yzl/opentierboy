@@ -689,6 +689,9 @@ test.describe('Opening other files', () => {
     await page.keyboard.press('Escape');
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     await expect(tierList.toast('Items Added')).toHaveCount(0);
+    // The same drop with the menu closed adds the picture, so nothing above was missed by timing.
+    await tierList.dropFile(imageFile('red-square.png'));
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
   });
 
   test('a drop while a dialog is open does nothing', async ({tierList, page}) => {
@@ -702,6 +705,9 @@ test.describe('Opening other files', () => {
     await expect(tierList.uploadDialog).toBeHidden();
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     await expect(tierList.toast('Items Added')).toHaveCount(0);
+    // The same drop with the dialog closed adds the picture.
+    await tierList.dropFile(imageFile('red-square.png'));
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
   });
 
   test('a decompression bomb is refused quickly', async ({tierList}) => {

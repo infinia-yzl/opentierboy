@@ -112,3 +112,18 @@ test.describe('Sharing', () => {
     await expect(tierList.item('Mauga')).toHaveText('Mauga');
   });
 });
+
+/**
+ * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+ * suite stays green while the bug exists. See items.spec.ts for the convention.
+ */
+test.describe('Known bugs', () => {
+  test('the Facebook and X share buttons have names that screen readers can announce', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.openSharePanel();
+    // Marked here, after the steps that must work: a failure above fails the test as usual.
+    test.fail(true, 'The two buttons hold only an icon (components/ShareButton.tsx), so they have no accessible name.');
+    await expect(tierList.socialShareButton(/Facebook/)).toBeVisible({timeout: 2_000});
+    await expect(tierList.socialShareButton(/\bX\b|Twitter/)).toBeVisible({timeout: 2_000});
+  });
+});

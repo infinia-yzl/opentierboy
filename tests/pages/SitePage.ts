@@ -95,11 +95,6 @@ export class SitePage {
     }, [key, value]);
   }
 
-  /** The site footer. */
-  get footer(): Locator {
-    return this.page.getByRole('contentinfo');
-  }
-
   /** The background and text colours of an element and of the page, as the browser computes them. */
   async colorsOf(element: Locator): Promise<{background: string; text: string; pageBackground: string; pageText: string}> {
     return element.evaluate((node) => {

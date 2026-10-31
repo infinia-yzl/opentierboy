@@ -1153,6 +1153,11 @@ export class TierListPage {
   }
 
   /** Copies the Markdown share text. The browser must allow clipboard access. */
+  /** A share button in the URL tab of the share panel, by its accessible name. */
+  socialShareButton(name: string | RegExp): Locator {
+    return this.sharePanel.getByRole('button', {name});
+  }
+
   async copyMarkdown() {
     await this.openSharePanel();
     await this.sharePanel.getByRole('button', {name: 'Copy Markdown'}).click();

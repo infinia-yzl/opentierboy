@@ -296,8 +296,24 @@ describe('checkLinkImageUrl: refused addresses', () => {
     }
   });
 
-  it('lists every reason code', () => {
+  it('lists every reason code, and each one is a refusal the check really gives', () => {
+    // One address for each reason. The Record type makes the compiler ask for a new reason here.
+    const samples: Record<LinkImageRefusal, unknown> = {
+      'not-a-string': 42,
+      'empty': '   ',
+      'too-long': 'https://example.com/' + 'a'.repeat(MAX_LINK_IMAGE_URL_LENGTH),
+      'invalid-url': 'https://exa\nmple.com/a.png',
+      'not-https': 'http://i.imgur.com/a.png',
+      'unsupported-scheme': 'data:image/png;base64,AAAA',
+      'credentials': 'https://user@i.imgur.com/a.png',
+      'port': 'https://example.com:8443/a.png',
+      'ip-address': 'https://127.0.0.1/a.png',
+      'localhost': 'https://localhost/a.png',
+      'private-name': 'https://intranet/a.png',
+      'invalid-host': 'https://a..b.com/a.png',
+    };
+    expect([...LINK_IMAGE_REFUSALS].sort()).toEqual(Object.keys(samples).sort());
     expect(new Set(LINK_IMAGE_REFUSALS).size).toBe(LINK_IMAGE_REFUSALS.length);
-    expect(LINK_IMAGE_REFUSALS).toContain('ip-address');
+    for (const [reason, input] of Object.entries(samples)) expect(refusal(input), reason).toBe(reason);
   });
 });
