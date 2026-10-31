@@ -133,6 +133,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
                   className={`${showGradientBorder ? 'glow-effect' : ''}`}
           >
             <DashboardIcon className="h-4 w-4"/>
+            <span className="sr-only">Manage items</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>

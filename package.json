@@ -9,7 +9,8 @@
     "lint": "next lint",
     "prepare-images": "node scripts/prepareImages.js",
     "add-image-set": "node scripts/addImageSet.js",
-    "test-ui": "npx playwright test --ui"
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -65,7 +66,7 @@
     "zod": "^3.24.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22",
     "@types/react": "^18",
     "@types/react-dom": "^18",

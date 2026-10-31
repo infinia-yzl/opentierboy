@@ -48,6 +48,7 @@ const TierItems = memo<{
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
+                  aria-label={item.content}
                   className={`
                     m-0.5 rounded-md
                     ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
@@ -82,6 +83,10 @@ const TierRow = memo<{
 }>(({tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem}) => {
   const labelPosition = tier.labelPosition || 'left';
   const tierGradient = getTierGradient(index, tiersLength);
+  // Accessible name for the row. The unnamed last row holds unranked items; any other
+  // row whose label was cleared is named after its position.
+  const isLastRow = index === tiersLength - 1;
+  const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${index + 1}`);
 
   return (
     <Draggable draggableId={tier.id} index={index}>
@@ -89,6 +94,8 @@ const TierRow = memo<{
         <div
           ref={provided.innerRef}
           {...provided.draggableProps}
+          role="group"
+          aria-label={tierLabel}
           className={`
             border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
             min-h-20
@@ -129,7 +136,7 @@ const TierRow = memo<{
               <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
             </div>
           </div>
-          <RowHandle dragHandleProps={provided.dragHandleProps}/>
+          <RowHandle dragHandleProps={provided.dragHandleProps} label={tierLabel}/>
         </div>
       )}
     </Draggable>

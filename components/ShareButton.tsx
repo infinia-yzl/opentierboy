@@ -131,6 +131,7 @@ What do you think? 🤔
       <PopoverTrigger asChild>
         <Button variant="outline" size="icon" disabled={isCapturing}>
           <Share1Icon className="h-4 w-4"/>
+          <span className="sr-only">Share</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[320px]" ref={popoverRef}>
