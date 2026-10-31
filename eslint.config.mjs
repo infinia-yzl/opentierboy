@@ -15,10 +15,10 @@ const INDEXED_DB_LIBRARIES = {
   message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB libraries. Use that module instead.',
 };
 
-/** Only lib/dnd may import dnd-kit (the fork in packages/dnd-kit, see docs/dnd-fork.md). */
+/** Only lib/dnd may import dnd-kit (the fork in packages/dnd-kit, see docs/reference/drag-and-drop.md). */
 const DND_KIT_ONLY_IN_LIB_DND = {
   group: ['@dnd-kit/*'],
-  message: 'Only lib/dnd may import dnd-kit. Use the drag and drop adapter in lib/dnd (docs/dnd-fork.md).',
+  message: 'Only lib/dnd may import dnd-kit. Use the drag and drop adapter in lib/dnd (docs/reference/drag-and-drop.md).',
 };
 
 /** Node built-in modules, which the edge runtime does not have. */
@@ -207,7 +207,7 @@ const stateImportRules = (depth) =>
 
 export default defineConfig([
   // Generated files: Playwright reports and traces, Vercel output, the image sets that the
-  // build copies into public/images. packages/ holds vendored libraries (docs/dnd-fork.md):
+  // build copies into public/images. packages/ holds vendored libraries (docs/reference/drag-and-drop.md):
   // they keep their upstream code style and are checked by their own build.
   globalIgnores(['playwright-report/', 'test-results/', 'blob-report/', '.vercel/', 'public/images/', 'packages/']),
   // Next.js rules (React, hooks, accessibility, imports, Core Web Vitals). They also ignore

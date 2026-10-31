@@ -1,6 +1,7 @@
 # Snapshot files and "Recently viewed"
 
-Two ways to keep lists on this device. Neither sends anything to a server.
+For contributors and agents: two ways to keep lists on this device, the snapshot file and
+"Recently viewed". They send nothing to a server.
 
 - A snapshot file: a Freeze Frame picture that also holds the whole list (`lib/snapshot/`).
 - "Recently viewed": the links this browser opened, with pins (`lib/recent/recentLinks.ts`).
@@ -13,7 +14,7 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   512 pixels on its longest side (256 when all images together are too large). When the list
   does not fit, or its link could get longer than 13,000 characters once the file opens in
   another browser (see below), a message offers the picture without the list. The file name comes from the title (letters and digits of any script), or
-  `tier-list.png`. This button is new (A10): Copy Image cannot carry the list.
+  `tier-list.png`. Download exists because Copy Image cannot carry the list (A10).
   A line under Download says what the file carries (owner decision, 2026-10-31): "The file
   keeps your list and your own pictures. Anyone you send it to can open it here and edit the
   list."
@@ -101,8 +102,8 @@ JSON, for example:
 
 - `version`: the payload version. Today it is 1.
 - `state`: the list, as the `?state=` value of a link in a versioned format (`3.` and up).
-  The app builds it with `encodeState(list, {format: 3})` and reads it with `decodeState`, so
-  the link format's checks and limits apply.
+  Download writes the v3 link Share hands out, and opening reads it with `decodeState`, so the
+  link format's checks and limits apply.
 - `path` (optional): the editor page of the list. Opening the file goes there, or to `/rank`
   when it is missing. It follows the same rule as Recently viewed paths (`lib/rankPath.ts`).
 - `images`: the device images the list uses. `id` is the image's local id (the `d` of a v3
@@ -153,7 +154,7 @@ full of millions of tiny values is refused in milliseconds.
 - `not-png`: not a PNG at all. It may still be a JPEG or WebP picture to add as an item.
 - `bad-structure`, `bad-crc`: also offer to add it as an image item. An ordinary PNG with
   extra bytes after its end, or a damaged minor chunk, still shows as a picture. The image
-  check of the add-items flow decides.
+  check of "From your device" decides.
 - `unsupported-version`: made by a newer OpenTierBoy.
 - `file-too-large`, `text-too-large`, `payload-too-large`: too big.
 - Anything else (`truncated`, `chunk-too-large`, `too-many-chunks`, `duplicate-snapshot`,
@@ -183,7 +184,7 @@ A list of tier list links this browser opened. It lives in local storage under t
 - At most 30 unpinned links are kept (`RECENT_UNPINNED_LIMIT`). The oldest drop off first.
   A link the user just unpinned stays, even when it is the oldest.
 - Links longer than 16,384 characters of state are not recorded. The 430-item test list has
-  about 12,000.
+  about 11,700 as a v0 or v1 link, and 6,381 as a v3 link.
 - Titles are shortened to 200 characters.
 
 Stored data is untrusted. Every read checks it with zod, and bad entries are dropped. Only the

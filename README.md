@@ -17,6 +17,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="docs/media/rank.gif" width="880" alt="Naming a list and dragging OVERWATCH tanks into the S, A, B and C rows">
+</p>
+
 ## 🚀 Getting Started
 
 1. Visit [https://opentierboy.com](https://opentierboy.com)
@@ -39,6 +43,47 @@
 - **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking. Your list lives in its link.
   Images you upload or paste stay in your browser and never reach our server. Images from trusted sites load
   straight from those sites; images from other sites load only after you allow them.
+
+## 🎬 See It in Action
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Bring your own images</b><br>
+      Upload, paste or drop pictures. They stay in your browser.<br>
+      <img src="docs/media/images.gif" alt="Uploading eight framework logos and ranking them">
+    </td>
+    <td width="50%" valign="top">
+      <b>Freeze Frame</b><br>
+      Capture the list as a picture, and download it.<br>
+      <img src="docs/media/freeze-frame.gif" alt="Share, Image, Capture Preview, then Download">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Reopen a Freeze Frame</b><br>
+      A downloaded Freeze Frame opens again as an editable list.<br>
+      <img src="docs/media/reopen.gif" alt="Opening a Freeze Frame file brings back the list, ready to edit">
+    </td>
+    <td width="50%" valign="top">
+      <b>Recently viewed</b><br>
+      Lists you opened come back on the home page. Pin the ones you keep.<br>
+      <img src="docs/media/recent.gif" alt="Pinning a list in Recently viewed and opening it">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Appearance</b><br>
+      Light, Dark or System, each game's colours, and a Modern or Classic font.<br>
+      <img src="docs/media/appearance.gif" alt="Switching to Dark mode, Game colours and the Classic font">
+    </td>
+    <td width="50%" valign="top">
+      <b>Zen</b><br>
+      Hide the buttons and rank without distractions.<br>
+      <img src="docs/media/zen.gif" alt="Turning on Zen and ranking two more tanks">
+    </td>
+  </tr>
+</table>
 
 ## ♨️ Open Source
 
@@ -106,7 +151,7 @@ including but not limited to:
 - [Next.js](https://nextjs.org/) - The React framework for production.
 - [shadcn/ui](https://ui.shadcn.com/) - Beautifully designed components built with Radix UI and Tailwind CSS.
 - [dnd-kit](https://github.com/clauderic/dnd-kit) - Drag and drop toolkit for React (a copy lives in
-  `packages/dnd-kit`, see [docs/dnd-fork.md](docs/dnd-fork.md)).
+  `packages/dnd-kit`, see [docs/reference/drag-and-drop.md](docs/reference/drag-and-drop.md)).
 - [html2canvas-pro](https://yorickshan.github.io/html2canvas-pro/) & [html2canvas](https://html2canvas.hertzen.com/) -
   Screenshots with JavaScript.
 - [lz-string](https://github.com/pieroxy/lz-string/) - LZ-based compression algorithm for JavaScript.

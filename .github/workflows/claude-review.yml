@@ -2,7 +2,7 @@ name: Claude review
 
 # Claude reviews a pull request with the code-review plugin and comments on it:
 # inline comments for the issues it finds, or one summary comment when it finds none.
-# Setup and cost: docs/setup-checklist.md. Docs: https://code.claude.com/docs/en/github-actions
+# Setup and cost: docs/maintainers/repository-settings.md. Docs: https://code.claude.com/docs/en/github-actions
 #
 # The review runs only when someone adds the "review-claude" label. Only people with triage or
 # write access can add labels, so a pull request from anyone else costs nothing until you

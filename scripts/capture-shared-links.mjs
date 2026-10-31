@@ -8,7 +8,7 @@
  * For each link, the script decodes the `state` parameter once and records what a visitor
  * must see: the page title, the tier names in order and the item labels in each tier.
  * New entries are appended to tests/fixtures/shared-links.json. It reads every link format:
- * v0, v1 and v2, and v3 links (`3.` and lz-string of compact JSON, docs/link-format-v3.md).
+ * v0, v1 and v2, and v3 links (`3.` and lz-string of compact JSON, docs/reference/link-format.md).
  * A visitor sees a v3 link image or device image as its label (a label tile, or the
  * placeholder image with the label).
  *

@@ -75,7 +75,7 @@ export function encodeTierStateForURL(title: string | undefined, tiers: TierWith
 /**
  * The link of a list, in the format the app writes (DEFAULT_WRITE_FORMAT in lib/state).
  *
- * v3 (docs/link-format-v3.md) stores the layout and each item by kind:
+ * v3 (docs/reference/link-format.md) stores the layout and each item by kind:
  * - image-set items as their id (the image set holds the label);
  * - link images as their address and label;
  * - uploads (custom items) as device images, by their device image id: an id from before

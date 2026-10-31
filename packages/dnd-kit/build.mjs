@@ -13,7 +13,7 @@
 //
 // The build commands come from each package's "build" script, exactly as upstream wrote them
 // for Bun ("bun build:core && bun build:sortable"); this script runs the same tsup commands
-// with Node. See docs/dnd-fork.md.
+// with Node. See docs/reference/drag-and-drop.md.
 
 import {spawnSync} from 'node:child_process';
 import {existsSync, readdirSync, readFileSync, realpathSync, rmSync} from 'node:fs';

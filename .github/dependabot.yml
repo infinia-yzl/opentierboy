@@ -17,7 +17,7 @@ updates:
         versions: [">=10"]
       # The @dnd-kit packages are a fork in packages/dnd-kit, linked as npm workspaces. A
       # registry update would replace the fork with a second copy and break drag and drop.
-      # Update it by hand instead (docs/dnd-fork.md, "Updating from upstream").
+      # Update it by hand instead (docs/reference/drag-and-drop.md, "Updating from upstream").
       - dependency-name: "@dnd-kit/*"
     # Wait 7 days after a release before proposing it. Most malicious releases are caught
     # and pulled within days.

@@ -18,7 +18,7 @@
 # request only if there is none (an earlier run stopped after the push) and the branch holds
 # exactly this update.
 #
-# Owner setup (docs/setup-checklist.md): environment "bot" (Deployment branches: main only) with
+# Owner setup (docs/maintainers/repository-settings.md, section 8): environment "bot" (Deployment branches: main only) with
 # the environment secrets OTB_BOT_APP_ID and OTB_BOT_PRIVATE_KEY of the bot app, installed on
 # this repository with Contents and Pull requests read and write. Without them, the patch stays
 # attached to the run as an artifact and no pull request is opened.

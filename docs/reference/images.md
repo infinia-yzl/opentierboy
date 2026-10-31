@@ -1,11 +1,11 @@
 # Images from links and devices
 
-This page explains how the editor handles images that do not come from an image set: images
-from a link, and images from the visitor's device (uploads and pasted images).
+For contributors and agents: how the editor handles images from a link and images from the
+visitor's device (uploads and pasted images), the images that come from no image set.
 
 ## What people see
 
-- **From a link** (add-items menu): paste an image address and an optional name. The editor
+- **From a link** (Add images menu): paste an image address and an optional name. The editor
   checks the address and loads the image once. A refused address or an image that does not
   load gets a plain message. An image that does not load can still be added: it shows as a
   label tile (its name in place of the picture). A link image added without a name is named
@@ -171,7 +171,8 @@ it can apply.
 
 When an image fails, the result carries label-tile data: the item's label, or a name made
 from the file name (`74px-Abrams_vertical.png` gives "Abrams vertical"), and the domain. The
-link preview (OG image) can use `labelFallback` for its label tiles too.
+editor and link previews name a link image without a label after its site (`itemDisplayLabel`
+in `lib/images/listImages.ts`).
 
 ## Content Security Policy
 
@@ -183,10 +184,11 @@ img-src 'self' https: data: blob:; object-src 'none'; base-uri 'self';
 frame-ancestors 'none'; form-action 'self'
 ```
 
-- The plan said to leave `script-src` out, so that the inline scripts of Next.js and the
-  theme switcher keep working. Without `script-src`, browsers apply `default-src 'self'` to
+- Decision A11 said to leave `script-src` out, so that the inline scripts of Next.js and
+  next-themes keep working. Without `script-src`, browsers apply `default-src 'self'` to
   scripts and block those inline scripts. So the header states
-  `script-src 'self' 'unsafe-inline'`, which keeps the plan's intent.
+  `script-src 'self' 'unsafe-inline'`, which keeps the intent of A11. The Appearance script
+  (`APPEARANCE_SCRIPT` in `lib/appearance.ts`) is an inline script too.
 - Fonts: next/font downloads the Google fonts at build time and serves them from the site
   itself. No font host is needed.
 - Connections: the app only talks to its own site. No other host is needed. If link images
