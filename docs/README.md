@@ -5,8 +5,9 @@ repository are in `CLAUDE.md`, and the guide to the end-to-end tests is `tests/R
 
 | Doc | For | What it covers |
 | --- | --- | --- |
-| [maintainers/repository-settings.md](maintainers/repository-settings.md) | the owner | GitHub, Vercel and npm settings that only the owner can change |
+| [maintainers/repository-settings.md](maintainers/repository-settings.md) | the owner | GitHub and Vercel settings that only the owner can change |
 | [maintainers/releasing.md](maintainers/releasing.md) | the owner | versions, releases and rollbacks |
+| [maintainers/image-sets.md](maintainers/image-sets.md) | the owner | the image set pipeline (bot app, npm trusted publishing), adding DEADLOCK, a manual update run, landscape and portrait images |
 | [reference/link-format.md](reference/link-format.md) | contributors and agents | link format v3: the JSON, tier ids, decoder checks, limits, and how the app writes and reads links |
 | [reference/images.md](reference/images.md) | contributors and agents | images from links and devices, trusted image sites, the device image store and the Content Security Policy |
 | [reference/snapshot-files.md](reference/snapshot-files.md) | contributors and agents | snapshot files (a Freeze Frame PNG with the list inside) and Recently viewed |
