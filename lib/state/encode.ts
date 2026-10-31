@@ -47,7 +47,7 @@ export type WriteFormat = 2 | 3;
 
 /**
  * The link format encodeState writes by default: v3 since the Phase 5b wiring step.
- * TierCortex.encodeListForURL writes the app's links in this format; changing it to 2 makes
+ * encodeListForURL (lib/listLink.ts) writes the app's links in this format; changing it to 2 makes
  * the app write v2 links exactly as before (layout settings then stay out of links).
  */
 export const DEFAULT_WRITE_FORMAT: WriteFormat = 3;

@@ -2,12 +2,12 @@ import {defineConfig, globalIgnores} from 'eslint/config';
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
 import prettier from 'eslint-config-prettier/flat';
 
-// Import rules (amendments A12, A31, A39 and A41). For one file, ESLint uses the options of the
-// last matching block that sets a rule. So every block builds its list with restrictImports(),
-// which always adds the rules that hold everywhere (IndexedDB libraries, zod): a later block can
-// never drop them. Each of those rules has a few files it does not apply to; the "Everywhere"
-// blocks below list them. Globals work the same way with restrictGlobals(), and selectors with
-// restrictSyntax().
+// Import rules (amendments A12, A31, A39 and A41), and no classes in our own code (A47). For one
+// file, ESLint uses the options of the last matching block that sets a rule. So every block
+// builds its list with restrictImports(), which always adds the rules that hold everywhere
+// (IndexedDB libraries, zod): a later block can never drop them. Each of those rules has a few
+// files it does not apply to; the "Everywhere" blocks below list them. Globals work the same way
+// with restrictGlobals(), and selectors with restrictSyntax().
 
 /** IndexedDB libraries: only lib/images/deviceStore.ts and its tests may use them. */
 const INDEXED_DB_LIBRARIES = {
@@ -148,15 +148,46 @@ const restrictGlobals = (globals = [], {allow = []} = {}) => {
   };
 };
 
-/** Code that the edge OG route runs: lib/TierCortex.ts and the image helpers it uses. */
+/** Code that the edge OG route runs: lib/TierCortex.ts, the modules it binds, and the image helpers it uses. */
 const EDGE_FILES = [
   'app/api/og/**/*.{ts,tsx}',
   'lib/TierCortex.ts',
+  'lib/packageItems.ts',
+  'lib/listLink.ts',
+  'lib/linkPreview.ts',
   'lib/images/linkImage.ts',
   'lib/images/trustedSites.ts',
   'lib/images/imageType.ts',
   'lib/images/listImages.ts',
 ];
+
+/** Every JavaScript and TypeScript file. */
+const CODE_FILES = '**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}';
+
+/**
+ * Our own code is functional, with no classes (A47, CLAUDE.md "Code conventions"). The rule
+ * covers every code file, so a new folder or a new file at the root is covered too. Classes stay
+ * allowed in tests, in the vendored dnd-kit fork (packages/, Phase 5e) and in these config
+ * files at the root, which tools load.
+ *
+ * @type {string[]}
+ */
+export const ROOT_CONFIG_FILES = ['eslint.config.mjs', 'next.config.ts', 'playwright.config.ts', 'postcss.config.mjs', 'vitest.config.mts', 'next-env.d.ts'];
+const CLASSES_ALLOWED_IN = ['tests/**', 'packages/**', ...ROOT_CONFIG_FILES];
+
+/**
+ * Files of our own code that may declare a class because a third-party API requires one. Each
+ * such file holds only that class and says in a comment which API needs it. Add the file here;
+ * never turn the rule off with a comment.
+ *
+ * @type {string[]}
+ */
+export const ALLOWED_CLASS_FILES = [];
+
+const NO_CLASS_MESSAGE = 'Our code is functional, with no classes (A47, "Code conventions" in CLAUDE.md). '
+  + 'Write plain functions, and a factory function with closures for state. A class that a third-party '
+  + 'API requires goes in a file of its own, listed in ALLOWED_CLASS_FILES in eslint.config.mjs.';
+const NO_CLASSES = ['ClassDeclaration', 'ClassExpression'].map((selector) => ({selector, message: NO_CLASS_MESSAGE}));
 
 const stateImportRules = (depth) =>
   restrictImports([STATE_FRAMEWORKS, NODE_BUILT_INS, STATE_ROUNDABOUT_PATH, stateEscape(depth)]);
@@ -180,7 +211,7 @@ export default defineConfig([
   },
   // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts.
   {
-    files: ['**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+    files: [CODE_FILES],
     ignores: [...INDEXED_DB_FILES, ...ZOD_FILES],
     rules: {...restrictImports(), ...restrictGlobals(), ...restrictSyntax()},
   },
@@ -204,7 +235,7 @@ export default defineConfig([
   {files: ['lib/state/*/*.{ts,tsx}'], rules: stateImportRules(1)},
   {files: ['lib/state/*/*/*.{ts,tsx}'], rules: stateImportRules(2)},
   {files: ['lib/state/*/*/*/**/*.{ts,tsx}'], rules: stateImportRules(3)},
-  // The edge OG route, and TierCortex, which it imports.
+  // The edge OG route, and TierCortex and its modules, which it imports.
   {
     files: EDGE_FILES,
     rules: restrictImports([NODE_BUILT_INS]),
@@ -215,4 +246,9 @@ export default defineConfig([
       ...restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage']),
     },
   },
+  // Our own code: no classes (A47). These come after every other block that sets
+  // no-restricted-syntax for these files, and restrictSyntax() keeps the zod selectors.
+  // lib/zod.ts keeps its zod exemption.
+  {files: [CODE_FILES], ignores: [...CLASSES_ALLOWED_IN, ...ALLOWED_CLASS_FILES, ...ZOD_FILES], rules: restrictSyntax(NO_CLASSES)},
+  {files: ZOD_FILES, ignores: [...CLASSES_ALLOWED_IN, ...ALLOWED_CLASS_FILES], rules: restrictSyntax(NO_CLASSES, {allow: ['zod']})},
 ]);

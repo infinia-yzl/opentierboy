@@ -152,8 +152,8 @@ The decoder does **not** check:
   check every address before it loads the image (Phase 5c, `lib/images/linkImage.ts`), and the
   server must never fetch it (A8, A36).
 - **Duplicates.** The same item or the same tier id twice stays twice. The app removes
-  duplicate items when it builds the list (A32), and `TierCortex` makes duplicate tier ids
-  unique (A38, Phase 5a).
+  duplicate items when it builds the list (A32), and `uniqueTierIds` (`lib/listLink.ts`) makes
+  duplicate tier ids unique (A38, Phase 5a).
 - **Content of strings.** Titles and labels can hold any text. The app must show them as
   plain text.
 
@@ -252,7 +252,7 @@ The app writes every change as a v3 link (`DEFAULT_WRITE_FORMAT` 3 in `lib/state
 Changing it to 2 makes the app write v2 links exactly as before; the layout settings then stay
 out of links.
 
-**Writing** (`TierCortex.encodeListForURL`):
+**Writing** (`encodeListForURL` in `lib/listLink.ts`):
 
 - The row template is the row count without Unranked, as the "Number of Rows" menu shows it:
   3, 5 or 7 rows, else custom.
@@ -270,7 +270,7 @@ out of links.
   upload: it is written as `{"i": id, "c": label}` (see above).
 - Link images are written with their address and label.
 
-**Reading** (`TierCortex.decodeTierStateFromURL`):
+**Reading** (`decodeTierStateFromURL` in `lib/listLink.ts`):
 
 - Link images load in the browser from trusted sites (`trusted-image-sites.json`), and from
   other sites once the visitor allows them; until then, and when an image fails, the tile shows
@@ -285,7 +285,7 @@ out of links.
 - Link previews (`/api/og`) draw link images from trusted sites (with caps), and label tiles for
   other link images and for device images. Link image addresses never reach the local image
   inliner (A8, A36).
-- `TierCortex` gives a row with a repeated tier id its own id (A38, Phase 5a). Hand-made links
+- `decodeTierStateFromURL` gives a row with a repeated tier id its own id (A38, Phase 5a). Hand-made links
   can also hold empty ids, which v3 refuses: an empty tier id gets a new id (`tier~1`, ...) and
   an empty item id gets one too (`item~1`, ..., keeping its label, written as `{"i", "c"}`). So a
   list opened from any legacy link writes a v3 link that opens again.
@@ -317,7 +317,7 @@ Uploads load in an effect, after the page has started, so the server and the bro
 the same list and an upload shows its image right after a page load (fixed in Phase 5c; the
 former known-bug test in `tests/e2e/items.spec.ts` is a normal test now).
 
-`encodeState(list, {format: 2})` and `TierCortex.encodeTierStateForURL` still write v2.
+`encodeState(list, {format: 2})` and `encodeTierStateForURL` (`lib/listLink.ts`) still write v2.
 
 ## Fixtures
 

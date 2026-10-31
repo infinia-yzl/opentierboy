@@ -470,10 +470,18 @@ describe('openDeviceStore with IndexedDB', () => {
 
   it('fails softly after it was closed, or after the browser closed the database', async () => {
     const factory = new IDBFactory();
+    // The connection the store opens, caught at the factory: the store keeps it private.
+    let connection: IDBDatabase | undefined;
+    const openConnection = factory.open.bind(factory);
+    vi.spyOn(factory, 'open').mockImplementation((...args: Parameters<IDBFactory['open']>) => {
+      const opening = openConnection(...args);
+      opening.addEventListener('success', () => (connection = opening.result));
+      return opening;
+    });
     const store = await open({indexedDB: factory});
     await store.put(image());
     // The browser closes the connection, for example when the user clears site data.
-    forceCloseDatabase((store as unknown as {db: unknown}).db as Parameters<typeof forceCloseDatabase>[0]);
+    forceCloseDatabase(connection as unknown as Parameters<typeof forceCloseDatabase>[0]);
     expect(await store.put(image())).toEqual({ok: false, reason: 'storage-error'});
     expect(await store.get('img-00000001')).toBeNull();
     expect(await store.list()).toEqual([]);
@@ -481,6 +489,18 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.delete('img-00000001')).toBe(false);
     await expect(store.clear()).resolves.toBeUndefined();
     expect(() => store.close()).not.toThrow();
+  });
+
+  it('works when its functions are called on their own (a factory with closures, A47)', async () => {
+    const store = await open();
+    expect(store.persistent).toBe(true);
+    const {put, get, getMany, list, usage, delete: remove} = store;
+    expect(await put(image(40))).toMatchObject({ok: true, id: 'img-00000001', size: 40});
+    expect((await get('img-00000001'))?.size).toBe(40);
+    expect([...(await getMany(['img-00000001'])).keys()]).toEqual(['img-00000001']);
+    expect((await list()).map(info => info.id)).toEqual(['img-00000001']);
+    expect(await usage()).toEqual({count: 1, totalBytes: 40});
+    expect(await remove('img-00000001')).toBe(true);
   });
 
   it('closes itself when another tab upgrades the database', async () => {

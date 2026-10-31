@@ -451,43 +451,26 @@ function transact<T>(db: IDBDatabase, mode: IDBTransactionMode, body: (tools: Tr
 const isQuotaError = (error: unknown) =>
   typeof error === 'object' && error !== null && (error as {name?: unknown}).name === 'QuotaExceededError';
 
-class IndexedDbDeviceStore implements DeviceStore {
-  readonly persistent = true;
-
-  constructor(
-    private readonly db: IDBDatabase,
-    readonly limits: Readonly<DeviceStoreLimits>,
-    private readonly now: () => number,
-    private readonly createId: () => string,
-  ) {}
-
-  async put(blob: Blob, options: DevicePutOptions = {}): Promise<DevicePutResult> {
-    const prepared = await prepareImage(blob, options, this.limits, this.createId);
-    if ('ok' in prepared) return prepared;
-    const {id, type, data, keep, evict} = prepared;
-    const first = await this.write(id, type, data, keep, evict);
-    if (first.ok || first.reason !== 'quota') return first.ok ? first : {ok: false, reason: first.reason};
-    if (!evict) return {ok: false, reason: 'storage-full'};
-    // The browser ran out of room below our limits. Chrome aborts the whole transaction on
-    // QuotaExceededError, removals included, so make room in a transaction of its own first,
-    // then write in a new one.
-    const freed = await this.freeRoom(id, data.byteLength, keep);
-    if (freed.length === 0) return {ok: false, reason: 'storage-full'};
-    const second = await this.write(id, type, data, keep, true);
-    if (second.ok) return {...second, evicted: [...freed, ...second.evicted]};
-    return {ok: false, reason: second.reason === 'quota' ? 'storage-full' : second.reason, evicted: freed};
-  }
-
+/**
+ * The store on an open IndexedDB database. A factory with closures: the database, limits,
+ * clock and id maker stay private to the returned functions.
+ */
+function createIndexedDbDeviceStore(
+  db: IDBDatabase,
+  limits: Readonly<DeviceStoreLimits>,
+  now: () => number,
+  createId: () => string,
+): DeviceStore {
   /** One attempt to store an image, removing what our own limits need removed (unless `evict` is false). */
-  private async write(id: string, type: DeviceImageType, data: ArrayBuffer, keep: ReadonlySet<string>, evict: boolean)
+  async function write(id: string, type: DeviceImageType, data: ArrayBuffer, keep: ReadonlySet<string>, evict: boolean)
     : Promise<DevicePutResult | {ok: false; reason: 'quota'}> {
     const size = data.byteLength;
     try {
-      return await transact<DevicePutResult | {ok: false; reason: 'quota'}>(this.db, 'readwrite', ({images, meta, setResult, abortWith}) => {
+      return await transact<DevicePutResult | {ok: false; reason: 'quota'}>(db, 'readwrite', ({images, meta, setResult, abortWith}) => {
         const all = meta.getAll();
         all.onsuccess = () => {
           const entries = (all.result as unknown[]).filter(isMetaRecord);
-          const evicted = planEviction(entries, {id, size}, this.limits, keep);
+          const evicted = planEviction(entries, {id, size}, limits, keep);
           if (!evicted || (!evict && evicted.length > 0)) {
             setResult({ok: false, reason: 'storage-full'});
             return;
@@ -497,7 +480,7 @@ class IndexedDbDeviceStore implements DeviceStore {
               images.delete(evictedId);
               meta.delete(evictedId);
             }
-            const time = this.now();
+            const time = now();
             images.put({id, data} satisfies ImageRecord);
             meta.put({id, type, size, storedAt: time, usedAt: time} satisfies MetaRecord);
             setResult({ok: true, id, type, size, evicted});
@@ -517,16 +500,16 @@ class IndexedDbDeviceStore implements DeviceStore {
    * `size` bytes, in a transaction of its own. Returns the removed ids: none when that much
    * cannot be freed, or when the removal fails.
    */
-  private async freeRoom(id: string, size: number, keep: ReadonlySet<string>): Promise<string[]> {
+  async function freeRoom(id: string, size: number, keep: ReadonlySet<string>): Promise<string[]> {
     try {
-      return await transact<string[]>(this.db, 'readwrite', ({images, meta, setResult}) => {
+      return await transact<string[]>(db, 'readwrite', ({images, meta, setResult}) => {
         setResult([]);
         const all = meta.getAll();
         all.onsuccess = () => {
           const entries = (all.result as unknown[]).filter(isMetaRecord);
           const othersTotal = entries.reduce((sum, entry) => sum + (entry.id === id ? 0 : entry.size), 0);
-          const limits = {...this.limits, maxTotalBytes: Math.max(size, Math.min(this.limits.maxTotalBytes, othersTotal))};
-          const planned = planEviction(entries, {id, size}, limits, keep) ?? [];
+          const roomLimits = {...limits, maxTotalBytes: Math.max(size, Math.min(limits.maxTotalBytes, othersTotal))};
+          const planned = planEviction(entries, {id, size}, roomLimits, keep) ?? [];
           for (const plannedId of planned) {
             images.delete(plannedId);
             meta.delete(plannedId);
@@ -539,71 +522,9 @@ class IndexedDbDeviceStore implements DeviceStore {
     }
   }
 
-  async get(id: string): Promise<DeviceImage | null> {
-    if (!isDeviceImageId(id)) return null;
+  async function list(): Promise<DeviceImageInfo[]> {
     try {
-      return await transact<DeviceImage | null>(this.db, 'readwrite', ({images, meta, setResult}) => {
-        setResult(null);
-        const metaRequest = meta.get(id);
-        const imageRequest = images.get(id);
-        imageRequest.onsuccess = () => {
-          const record = metaRequest.result as unknown;
-          const image = imageRequest.result as Partial<ImageRecord> | undefined;
-          const valid = isMetaRecord(record) && record.id === id && image !== undefined && isArrayBuffer(image.data) && image.data.byteLength === record.size;
-          if (!valid) {
-            // Half-written or foreign data: remove both parts.
-            if (record !== undefined || image !== undefined) {
-              images.delete(id);
-              meta.delete(id);
-            }
-            return;
-          }
-          const updated: MetaRecord = {...metaOnly(record), usedAt: this.now()};
-          meta.put(updated);
-          setResult({...updated, blob: new Blob([image.data as ArrayBuffer], {type: record.type})});
-        };
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  async getMany(ids: readonly string[]): Promise<Map<string, DeviceImage>> {
-    const wanted = Array.from(new Set(ids.filter((id) => isDeviceImageId(id))));
-    if (wanted.length === 0) return new Map();
-    try {
-      return await transact<Map<string, DeviceImage>>(this.db, 'readwrite', ({images, meta, setResult}) => {
-        const found = new Map<string, DeviceImage>();
-        setResult(found);
-        const time = this.now();
-        for (const id of wanted) {
-          const metaRequest = meta.get(id);
-          const imageRequest = images.get(id);
-          imageRequest.onsuccess = () => {
-            const record = metaRequest.result as unknown;
-            const image = imageRequest.result as Partial<ImageRecord> | undefined;
-            const valid = isMetaRecord(record) && record.id === id && image !== undefined && isArrayBuffer(image.data) && image.data.byteLength === record.size;
-            if (!valid) {
-              if (record !== undefined || image !== undefined) {
-                images.delete(id);
-                meta.delete(id);
-              }
-              return;
-            }
-            const updated: MetaRecord = {...metaOnly(record), usedAt: time};
-            meta.put(updated);
-            found.set(id, {...updated, blob: new Blob([image.data as ArrayBuffer], {type: record.type})});
-          };
-        }
-      });
-    } catch {
-      return new Map();
-    }
-  }
-
-  async list(): Promise<DeviceImageInfo[]> {
-    try {
-      return await transact<DeviceImageInfo[]>(this.db, 'readonly', ({meta, setResult}) => {
+      return await transact<DeviceImageInfo[]>(db, 'readonly', ({meta, setResult}) => {
         const all = meta.getAll();
         all.onsuccess = () => setResult((all.result as unknown[]).filter(isMetaRecord).map(metaOnly).sort(byMostRecentUse));
       });
@@ -612,45 +533,131 @@ class IndexedDbDeviceStore implements DeviceStore {
     }
   }
 
-  async usage(): Promise<{count: number; totalBytes: number}> {
-    const images = await this.list();
-    return {count: images.length, totalBytes: images.reduce((sum, image) => sum + image.size, 0)};
-  }
+  return {
+    persistent: true,
+    limits,
 
-  async delete(id: string): Promise<boolean> {
-    if (typeof id !== 'string') return false;
-    try {
-      return await transact<boolean>(this.db, 'readwrite', ({images, meta, setResult}) => {
-        const count = meta.count(id);
-        count.onsuccess = () => {
-          setResult(count.result > 0);
-          images.delete(id);
-          meta.delete(id);
-        };
-      });
-    } catch {
-      return false;
-    }
-  }
+    async put(blob: Blob, options: DevicePutOptions = {}): Promise<DevicePutResult> {
+      const prepared = await prepareImage(blob, options, limits, createId);
+      if ('ok' in prepared) return prepared;
+      const {id, type, data, keep, evict} = prepared;
+      const first = await write(id, type, data, keep, evict);
+      if (first.ok || first.reason !== 'quota') return first.ok ? first : {ok: false, reason: first.reason};
+      if (!evict) return {ok: false, reason: 'storage-full'};
+      // The browser ran out of room below our limits. Chrome aborts the whole transaction on
+      // QuotaExceededError, removals included, so make room in a transaction of its own first,
+      // then write in a new one.
+      const freed = await freeRoom(id, data.byteLength, keep);
+      if (freed.length === 0) return {ok: false, reason: 'storage-full'};
+      const second = await write(id, type, data, keep, true);
+      if (second.ok) return {...second, evicted: [...freed, ...second.evicted]};
+      return {ok: false, reason: second.reason === 'quota' ? 'storage-full' : second.reason, evicted: freed};
+    },
 
-  async clear(): Promise<void> {
-    try {
-      await transact<void>(this.db, 'readwrite', ({images, meta}) => {
-        images.clear();
-        meta.clear();
-      });
-    } catch {
-      // Nothing more to do.
-    }
-  }
+    async get(id: string): Promise<DeviceImage | null> {
+      if (!isDeviceImageId(id)) return null;
+      try {
+        return await transact<DeviceImage | null>(db, 'readwrite', ({images, meta, setResult}) => {
+          setResult(null);
+          const metaRequest = meta.get(id);
+          const imageRequest = images.get(id);
+          imageRequest.onsuccess = () => {
+            const record = metaRequest.result as unknown;
+            const image = imageRequest.result as Partial<ImageRecord> | undefined;
+            const valid = isMetaRecord(record) && record.id === id && image !== undefined && isArrayBuffer(image.data) && image.data.byteLength === record.size;
+            if (!valid) {
+              // Half-written or foreign data: remove both parts.
+              if (record !== undefined || image !== undefined) {
+                images.delete(id);
+                meta.delete(id);
+              }
+              return;
+            }
+            const updated: MetaRecord = {...metaOnly(record), usedAt: now()};
+            meta.put(updated);
+            setResult({...updated, blob: new Blob([image.data as ArrayBuffer], {type: record.type})});
+          };
+        });
+      } catch {
+        return null;
+      }
+    },
 
-  close(): void {
-    try {
-      this.db.close();
-    } catch {
-      // Already closed.
-    }
-  }
+    async getMany(ids: readonly string[]): Promise<Map<string, DeviceImage>> {
+      const wanted = Array.from(new Set(ids.filter((id) => isDeviceImageId(id))));
+      if (wanted.length === 0) return new Map();
+      try {
+        return await transact<Map<string, DeviceImage>>(db, 'readwrite', ({images, meta, setResult}) => {
+          const found = new Map<string, DeviceImage>();
+          setResult(found);
+          const time = now();
+          for (const id of wanted) {
+            const metaRequest = meta.get(id);
+            const imageRequest = images.get(id);
+            imageRequest.onsuccess = () => {
+              const record = metaRequest.result as unknown;
+              const image = imageRequest.result as Partial<ImageRecord> | undefined;
+              const valid = isMetaRecord(record) && record.id === id && image !== undefined && isArrayBuffer(image.data) && image.data.byteLength === record.size;
+              if (!valid) {
+                if (record !== undefined || image !== undefined) {
+                  images.delete(id);
+                  meta.delete(id);
+                }
+                return;
+              }
+              const updated: MetaRecord = {...metaOnly(record), usedAt: time};
+              meta.put(updated);
+              found.set(id, {...updated, blob: new Blob([image.data as ArrayBuffer], {type: record.type})});
+            };
+          }
+        });
+      } catch {
+        return new Map();
+      }
+    },
+
+    list,
+
+    async usage(): Promise<{count: number; totalBytes: number}> {
+      const images = await list();
+      return {count: images.length, totalBytes: images.reduce((sum, image) => sum + image.size, 0)};
+    },
+
+    async delete(id: string): Promise<boolean> {
+      if (typeof id !== 'string') return false;
+      try {
+        return await transact<boolean>(db, 'readwrite', ({images, meta, setResult}) => {
+          const count = meta.count(id);
+          count.onsuccess = () => {
+            setResult(count.result > 0);
+            images.delete(id);
+            meta.delete(id);
+          };
+        });
+      } catch {
+        return false;
+      }
+    },
+
+    async clear(): Promise<void> {
+      try {
+        await transact<void>(db, 'readwrite', ({images, meta}) => {
+          images.clear();
+          meta.clear();
+        });
+      } catch {
+        // Nothing more to do.
+      }
+    },
+
+    close(): void {
+      try {
+        db.close();
+      } catch {
+        // Already closed.
+      }
+    },
+  };
 }
 
 function defaultIndexedDb(): IDBFactory | null {
@@ -718,7 +725,7 @@ export async function openDeviceStore(options: OpenDeviceStoreOptions = {}): Pro
   if (factory) {
     try {
       const db = await openDatabase(factory, options.databaseName ?? DEVICE_STORE_DATABASE, options.openTimeoutMs ?? DEFAULT_OPEN_TIMEOUT_MS);
-      return new IndexedDbDeviceStore(db, limits, now, createId);
+      return createIndexedDbDeviceStore(db, limits, now, createId);
     } catch {
       // Fall through to memory.
     }

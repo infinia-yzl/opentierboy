@@ -35,7 +35,7 @@ export type LabelPosition = 'left' | 'right' | 'top';
  * An image-set item, or any item of a legacy (v0–v2) link.
  *
  * In legacy links this shape holds every item, also custom (uploaded) ones: the app tells
- * them apart by looking the id up in the image sets (TierCortex.isCustomItem).
+ * them apart by looking the id up in the image sets (isCustomItem in lib/packageItems.ts).
  * v3 links write this shape as a plain id string, or as `{i, c}` when it has a non-empty
  * `content`. The app keeps `content` only for ids that name no image-set item (A45).
  */

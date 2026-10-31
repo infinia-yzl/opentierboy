@@ -6,8 +6,8 @@ import type {CanonicalItem, CanonicalState, CanonicalTier} from '@/lib/state';
  * The frozen legacy decoder (lib/state/decoders/legacy.ts) accepts any JSON that has the
  * right outline, so a hand-made link can hold an object where a name belongs, no tiers at all,
  * or far more data than any real list. Such data crashed the editor ("Application error"),
- * aborted /api/og or blocked the server. TierCortex checks every legacy link with these rules
- * after decoding, and treats a link that breaks one like a link that does not decode: the page
+ * aborted /api/og or blocked the server. decodeTierStateFromURL (lib/listLink.ts) checks every
+ * legacy link with these rules after decoding, and treats a link that breaks one like a link that does not decode: the page
  * falls back to the template and the preview to the default image. The decoder itself stays
  * frozen.
  *

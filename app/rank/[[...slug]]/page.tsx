@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
-import TierCortex from "@/lib/TierCortex";
+import {createTierCortex} from "@/lib/TierCortex";
 import {visibleImageSets} from "@/lib/imageSets";
 import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 import {Skeleton} from "@/components/ui/skeleton";
@@ -120,7 +120,7 @@ export async function generateMetadata(props: Props, parent: ResolvingMetadata):
 
   // Decode the state and extract the title if available
   if (initialState) {
-    const tierCortex = new TierCortex();
+    const tierCortex = createTierCortex();
     const decodedState = tierCortex.decodeTierStateFromURL(initialState);
     if (decodedState && decodedState.title) {
       title = decodedState.title;

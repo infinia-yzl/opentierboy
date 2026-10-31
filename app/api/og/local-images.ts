@@ -1,11 +1,11 @@
 /**
  * next/og in Next.js 16 refuses to load images from local addresses such as localhost (its
- * protection against server-side request forgery). Outside Vercel, TierCortex builds the
- * preview's image URLs on http://localhost:3000, so the preview route loads those images
+ * protection against server-side request forgery). Outside Vercel, the preview's image URLs
+ * start with http://localhost:3000 (defaultBaseUrl in lib/linkPreview.ts), so the preview route loads those images
  * itself and hands them to next/og as data URLs. On Vercel the URLs are public, and next/og
  * keeps loading them itself.
  *
- * Only URLs that TierCortex builds for the app's own assets reach this code. Each image is
+ * Only URLs that lib/linkPreview.ts builds for the app's own assets reach this code. Each image is
  * still capped in size and time, and must be served as an image.
  */
 

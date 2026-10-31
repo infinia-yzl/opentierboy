@@ -4,7 +4,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState, useSyncExterna
 import {toast} from 'sonner';
 import Item from '@/models/Item';
 import {useTierContext} from '@/contexts/TierContext';
-import {PLACEHOLDER_IMAGE_URL} from '@/lib/TierCortex';
+import {PLACEHOLDER_IMAGE_URL} from '@/lib/packageItems';
 import {createObjectUrlRegistry, type DeviceStore, openDeviceStore} from '@/lib/images/deviceStore';
 import {checkImage, type ImageCheckFailure} from '@/lib/images/imageCheck';
 import {createImageStatusStore, type ImageStatusStore} from '@/lib/images/imageStatusStore';

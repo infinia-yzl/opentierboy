@@ -8,8 +8,8 @@
  *   image-registry.lock.json  every id ever shipped -> {package, filename, label}. The label is
  *                             the one shown when the id was registered (for reference only).
  *                             Append-only: entries are added, never changed or removed.
- *   image-aliases.json        {"<old id>": "<new id>"} for renamed images. TierCortex.resolveItem
- *                             follows these, so old links show the renamed image.
+ *   image-aliases.json        {"<old id>": "<new id>"} for renamed images. resolveItem
+ *                             (lib/packageItems.ts) follows these, so old links show the renamed image.
  *
  * An alias target must be a new id, added in the same change that removes the old id. Never
  * point an alias at an id that already shipped: merging two ids that shipped together would
@@ -67,7 +67,7 @@ function readJson(file, fallback) {
   }
 }
 
-/** Every id the app ships now, with the label TierCortex shows for it. */
+/** Every id the app ships now, with the label the app shows for it (packageItemLookup in lib/packageItems.ts). */
 function shippedIds(config) {
   const ids = new Map();
   for (const [packageName, data] of Object.entries(config.packages ?? {})) {

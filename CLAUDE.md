@@ -86,8 +86,12 @@ contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListR
 contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
                       uploads) and link images (allowed sites, load checks)
 lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue
-lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom items, preview
-                      helpers, the link encode and decode used by the store
+lib/TierCortex.ts     createTierCortex(): the functions of the next three modules, bound to the
+                      app's aliases, image sets and base URL (used by the store, /rank and /api/og)
+lib/packageItems.ts   item lookup (built once per image-set config, shared), aliases, placeholder
+                      items, item and category shapes, custom items
+lib/listLink.ts       the link encode and decode used by the store: link to tiers of items, and back
+lib/linkPreview.ts    preview helpers for the OG route: row gradients, preview image URLs, base URL
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
 lib/dragAnnouncements.ts  screen reader messages for drag and drop (labels, never ids)
 lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
@@ -166,7 +170,7 @@ docs/                 owner checklists
   `npm run check:images` fails when a registered id is gone without an alias;
   `npm run check:images -- --update` appends new ids.
 - A rename needs an alias entry (old id → new id) in `image-aliases.json`.
-  `TierCortex.resolveItem` follows it, so old links show the renamed image.
+  `resolveItem` (`lib/packageItems.ts`) follows it, so old links show the renamed image.
 - **An alias target must be a new id, added in the same change that removes the old id.**
   Never point an alias at an id that already shipped: an old list holding both ids would show
   the merged image twice, with duplicate drag ids. `image-set-update.yml` refuses such aliases.
@@ -189,9 +193,10 @@ docs/                 owner checklists
   old links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
 - **Shapes**: an image set may declare `shape` (`square`, `landscape` or `portrait`) per image
   and per category. `imageset.config.json` stores it only when it is not square, and
-  `TierCortex` puts it on items (`itemShape()`). Tiles still render square until the drag and
-  drop update (Phase 5e). Until then, image sets must not publish other shapes; a unit test in
-  `tests/unit/shapes.test.ts` fails if `imageset.config.json` holds one.
+  `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles still
+  render square until the drag and drop update (Phase 5e). Until then, image sets must not
+  publish other shapes; a unit test in `tests/unit/shapes.test.ts` fails if
+  `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
   (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
   1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
@@ -284,9 +289,20 @@ docs/                 owner checklists
 
 - TypeScript strict. `tsconfig.json` targets ES2017: Next.js adds that target on build when
   it is missing, so keep it.
-- `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts`, `lib/state/`)
-  must not use Node APIs (`fs`, `path`) or browser APIs (`window`, `localStorage`) at import
-  time. ESLint enforces this for `lib/state/` and `app/api/og/`.
+- `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts` and the modules
+  it binds, `lib/state/`) must not use Node APIs (`fs`, `path`) or browser APIs (`window`,
+  `localStorage`) at import time. ESLint enforces this for `lib/state/` and `app/api/og/`.
+- Functional style (owner, A47): plain functions and readonly data. No classes in any code
+  file (ESLint enforces it); only `tests/`, `packages/` and the root config files named in
+  `ROOT_CONFIG_FILES` may use them. The other exception is a class that a third-party API
+  requires: it goes in a file of its own, listed in `ALLOWED_CLASS_FILES` in
+  `eslint.config.mjs`. Never turn the rule off with an `eslint-disable` comment.
+- State that outlives a call lives in a factory function with closures (for example
+  `createTierCortex`, `createMemoryDeviceStore`). UI state lives in React hooks.
+- Errors are plain `Error` objects with a `name` and a `code` (see `pixelCapError()` in
+  `lib/images/prepareImage.ts`), or result objects. Never use `instanceof` on our own types.
+  A programmer error, such as a bad argument, may throw a built-in `RangeError` or
+  `TypeError`.
 - Follow the patterns in nearby code. Keep changes small and focused on the task.
 - Never commit secrets. Never add tracking, analytics or ads.
 

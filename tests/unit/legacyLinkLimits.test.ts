@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import LZString from 'lz-string';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import TierCortex from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
 import {checkLegacyState, LEGACY_LINK_LIMITS} from '@/lib/legacyLinkLimits';
 import {decodeState} from '@/lib/state';
 import {isVersionedValue} from '@/lib/state/decode';
@@ -38,7 +38,7 @@ afterEach(() => {
   errorSpy.mockRestore();
 });
 
-const decode = (state: string) => new TierCortex().decodeTierStateFromURL(state);
+const decode = (state: string) => createTierCortex().decodeTierStateFromURL(state);
 
 describe('legacy link limits', () => {
   it('leave every golden link far below each limit', () => {

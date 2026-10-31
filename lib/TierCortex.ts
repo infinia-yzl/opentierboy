@@ -1,484 +1,84 @@
-import Tier, {DEFAULT_TIER_TEMPLATE, LabelPosition} from "@/models/Tier";
-import Item, {DEFAULT_ITEM_SHAPE, isItemShape, ItemShape} from "@/models/Item";
+import Tier from "@/models/Tier";
+import Item, {ItemShape} from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
 import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
 import {
-  type CanonicalItem,
-  type CanonicalState,
-  decodeState,
-  DEFAULT_WRITE_FORMAT,
-  deviceImageIdForUpload,
-  type EncodableState,
-  encodeState,
-  encodeV3,
-  type RowTemplate,
-} from "@/lib/state";
-import {isVersionedValue} from "@/lib/state/decode";
-import {measureDecompressedLength} from "@/lib/state/lz";
-import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
+  getCategoryShape,
+  isCustomItem,
+  type ItemAliases,
+  type ItemCatalog,
+  packageItemLookup,
+  resolveItemsFromPackage,
+} from "@/lib/packageItems";
+import {
+  DEFAULT_LIST_LAYOUT,
+  type DecodedList,
+  decodeTierStateFromURL,
+  encodeListForURL,
+  getInitialTiers,
+  type ListLayout,
+} from "@/lib/listLink";
+import {defaultBaseUrl, getAssetUrl, getOgSafeImageUrl, getOgSafeItem} from "@/lib/linkPreview";
 
-/** The tile image of an item whose image the app cannot show (unknown id, upload not in this browser). */
-export const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
-/** The placeholder at link preview size (made by scripts/prepareImages.js). */
-const PLACEHOLDER_PREVIEW_URL = '/placeholder-image.preview.png';
-const typedImageSetConfig = imagesetConfig as ImageSetConfig;
-const MAX_ALIAS_STEPS = 10;
-
-/** Old item id -> new item id, for renamed images (image-aliases.json). */
-export type ItemAliases = Readonly<Record<string, string>>;
-
+/** Configuration for createTierCortex. Every field has the app's default. */
 export interface TierCortexOptions {
   /** Replaces image-aliases.json (for tests). */
   aliases?: ItemAliases;
   /** Replaces imageset.config.json (for tests). */
   imageSetConfig?: ImageSetConfig;
+  /** Replaces the base URL of the app's own images (defaultBaseUrl in lib/linkPreview.ts). */
+  baseUrl?: string;
 }
 
-interface SimplifiedItem {
-  i: string; // id
-  c?: string; // content (only for custom items)
-}
-
-export interface TierWithSimplifiedItems extends Omit<Tier, 'items'> {
-  items: SimplifiedItem[];
-}
-
-/** The layout settings that a v3 link carries along with the list (A3). */
-export interface ListLayout {
-  labelPosition: LabelPosition;
-  showLabels: boolean;
-}
-
-/** The layout of a list whose link stores none: legacy links, template pages. */
-export const DEFAULT_LIST_LAYOUT: ListLayout = Object.freeze({labelPosition: 'left', showLabels: true});
-
-/** A list read from a link. `layout` is set only for v3 links, which store it. */
-export interface DecodedList {
-  title?: string;
-  tiers: Tier[];
-  layout?: ListLayout;
-}
+const DEFAULT_IMAGE_SET_CONFIG = imagesetConfig as ImageSetConfig;
+const DEFAULT_ALIASES = imageAliases as ItemAliases;
 
 /**
- * Package items by id. A Map, so that an id from a link such as `constructor` or `__proto__`
- * finds nothing, like any other unknown id (a plain object would return its built-in members).
+ * The app's item lookup, links and link previews, bound to one configuration: the aliases
+ * (image-aliases.json), the image-set config (imageset.config.json) and the base URL of the
+ * app's own images. The functions themselves live in lib/packageItems.ts (items),
+ * lib/listLink.ts (reading and writing links) and lib/linkPreview.ts (previews).
+ *
+ * Creating one is cheap: the item lookup is built once per image-set config and shared
+ * (packageItemLookup). Nothing here reads Node or browser APIs at import time, because the
+ * edge OG route imports this module; the default base URL is read when a TierCortex is made.
  */
-export type PackageItemLookup = ReadonlyMap<string, Item>;
+export function createTierCortex(options: TierCortexOptions = {}) {
+  const imageSetConfig = options.imageSetConfig ?? DEFAULT_IMAGE_SET_CONFIG;
+  const catalog: ItemCatalog = Object.freeze({
+    items: packageItemLookup(imageSetConfig),
+    aliases: options.aliases ?? DEFAULT_ALIASES,
+  });
+  const baseUrl = options.baseUrl ?? defaultBaseUrl();
+  // Uploads are not read here: the editor loads them from the device image store in an effect
+  // (contexts/CustomImagesContext.tsx), so the server and the browser render the same list.
 
-const OG_TIER_GRADIENTS = [
-  'linear-gradient(to right, #d21203, #c40a01)',
-  'linear-gradient(to right, #ee1e1e, #f84a44)',
-  'linear-gradient(to right, #dca414, #dc991d)',
-  'linear-gradient(to right, #c98b17, #e8910f)',
-  'linear-gradient(to right, #7ad21f, #1aea1d)',
-  'linear-gradient(to right, #72b231, #0cd30e)',
-  'linear-gradient(to right, #4d7e15, #01b004)',
-];
-
-export class TierCortex {
-  // this class isn't concerned about managing UI states, so tiers are managed externally
-  private readonly packageItemLookup: PackageItemLookup;
-  private readonly isServer: boolean;
-  private readonly aliases: ItemAliases;
-  private readonly imageSetConfig: ImageSetConfig;
-  private baseUrl: string;
-
-
-  constructor(options: TierCortexOptions = {}) {
-    this.aliases = options.aliases ?? (imageAliases as ItemAliases);
-    this.imageSetConfig = options.imageSetConfig ?? typedImageSetConfig;
-    this.isServer = typeof window === 'undefined';
-    this.baseUrl = this.isServer ? process.env.VERCEL_PROJECT_PRODUCTION_URL
-        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-        : 'http://localhost:3000'
-      : window.location.origin;
-    this.packageItemLookup = this.initializePackageItemLookup();
-    // Uploads are not read here: the editor loads them from the device image store in an effect
-    // (contexts/CustomImagesContext.tsx), so the server and the browser render the same list.
-  }
-
-  /**
-   * The v2 writer: exactly the bytes TierCortex always wrote before v3 (lib/state encodeV2).
-   * The app writes v3 now (encodeListForURL); this stays for DEFAULT_WRITE_FORMAT 2 and tests.
-   */
-  public static encodeTierStateForURL(title: string | undefined, tiers: TierWithSimplifiedItems[]): string {
-    return encodeState({
-      title,
-      tiers: tiers.map(tier => ({
-        id: tier.id,
-        name: tier.name,
-        items: tier.items.map(toCanonicalItem),
-      })),
-    }, {format: 2});
-  }
-
-  /**
-   * The link of a list, in the format the app writes (DEFAULT_WRITE_FORMAT in lib/state).
-   *
-   * v3 (docs/link-format-v3.md) stores the layout and each item by kind:
-   * - image-set items as their id (the image set holds the label);
-   * - link images as their address and label;
-   * - uploads (custom items) as device images, by their device image id: an id from before
-   *   Phase 5c that breaks the device id rule gets the prefix `legacy-` (A42);
-   * - any other id that names no image-set item (an unknown id from a v3 link, or one with a
-   *   dot from a legacy link, such as a removed image) as `{i, c}`, so its label stays (A45).
-   * The row template is the row count, as the "Number of Rows" menu shows it.
-   *
-   * v2 (the format before Phase 5b) stores the title and tiers only, with labels on custom
-   * items.
-   */
-  public encodeListForURL(title: string, tiers: Tier[], layout: ListLayout = DEFAULT_LIST_LAYOUT): string {
-    if (DEFAULT_WRITE_FORMAT === 2) {
-      return TierCortex.encodeTierStateForURL(title, tiers.map(tier => ({
-        ...tier,
-        items: tier.items.map(item => ({i: item.id, c: this.isCustomItem(item.id) ? item.content : undefined})),
-      })));
-    }
-    const list: EncodableState = {
-      title,
-      tiers: tiers.map(tier => ({id: tier.id, name: tier.name, items: tier.items.map(item => this.toV3Item(item))})),
-      rowTemplate: rowTemplateOf(tiers),
-      labelPosition: layout.labelPosition,
-      showLabels: layout.showLabels,
-    };
-    return encodeV3(list);
-  }
-
-  public isCustomItem(itemId: string): boolean {
-    return !this.packageItemLookup.has(itemId);
-  }
-
-  public getOgTierGradient(index: number, tiersLength: number): string {
-    if (index === tiersLength - 1) return 'linear-gradient(to right, #f0f0f0, #f0f0f0)';
-    return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
-  }
-
-  /**
-   * lib/state decodes every link format; TierCortex checks legacy links against
-   * LEGACY_LINK_LIMITS and turns the stored item ids into items. Returns null for a link that
-   * does not decode or breaks a limit, so callers fall back to the template and the default
-   * preview image.
-   */
-  public decodeTierStateFromURL(encodedState: string): DecodedList | null {
-    const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
-
-    // A short link can decompress to a huge text, so legacy links are measured first (A29).
-    const isLegacy = !isVersionedValue(encodedState);
-    if (isLegacy && measureDecompressedLength(encodedState, LEGACY_LINK_LIMITS.maxJsonLength) === null) {
-      logError(new Error(`The link is not complete lz-string data, or holds more than ${LEGACY_LINK_LIMITS.maxJsonLength} characters`));
-      return null;
-    }
-
-    const decoded = decodeState(encodedState, {onError: logError});
-    if (!decoded) return null;
-
-    let state: CanonicalState = decoded;
-    if (isLegacy) {
-      const check = checkLegacyState(decoded);
-      if (!check.ok) {
-        logError(new Error(`The link holds ${check.reason}`));
-        return null;
-      }
-      state = check.state;
-    }
-
-    try {
-      const list: DecodedList = {title: state.title, tiers: this.resolveTiers(state)};
-      if (state.version === 3) {
-        list.layout = {
-          labelPosition: state.labelPosition ?? DEFAULT_LIST_LAYOUT.labelPosition,
-          showLabels: state.showLabels ?? DEFAULT_LIST_LAYOUT.showLabels,
-        };
-      }
-      return list;
-    } catch (error) {
-      logError(error);
-      return null;
-    }
-  }
-
-  public getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
-    if (initialState) {
-      const decodedState = this.decodeTierStateFromURL(initialState);
-      if (decodedState) return decodedState.tiers;
-    }
-
-    const initialTiers: Tier[] = JSON.parse(JSON.stringify(DEFAULT_TIER_TEMPLATE));
-
-    if (initialItemSet) {
-      const lastTierIndex = initialTiers.length - 1;
-
-      initialTiers[lastTierIndex].items = initialItemSet.images.map((filename) => {
-        const itemId = `${initialItemSet.packageName}-${filename}`;
-        return this.packageItemLookup.get(itemId) ?? this.createPlaceholderItem(itemId, filename);
-      });
-    }
-
-    return initialTiers;
-  }
-
-  /**
-   * The image URL for link previews: the PNG copy of a WebP image, or the placeholder's copy.
-   * These copies are made at preview size (scripts/prepareImages.js), so previews draw fast.
-   */
-  public getOgSafeImageUrl(url: string): string {
-    if (url === PLACEHOLDER_IMAGE_URL) url = PLACEHOLDER_PREVIEW_URL;
-
-    // Convert WebP to PNG
-    if (url.toLowerCase().endsWith('.webp')) {
-      url = url.substring(0, url.length - 5) + '.png';
-    }
-
-    // Make URL absolute if it's not already
-    if (!url.startsWith('http')) {
-      url = new URL(url, this.baseUrl).toString();
-    }
-
-    return url;
-  }
-
-  /**
-   * The item as link previews draw it. Link images and device images get no image URL, so
-   * previews draw them as label tiles: the server never loads a link image's address (A8,
-   * A36), and device images exist only in someone's browser.
-   */
-  public getOgSafeItem(item: Item): Item {
-    if (item.source === 'link' || item.source === 'device' || !item.imageUrl) {
-      return {...item, imageUrl: undefined};
-    }
-    return {
-      ...item,
-      imageUrl: this.getOgSafeImageUrl(item.imageUrl)
-    };
-  }
-
-  public resolveItemsFromPackage(packageName: string, filenames: string[]): Item[] {
-    return filenames.map(filename => {
-      const itemId = `${packageName}-${filename}`;
-      return this.resolveItem(itemId, filename.split('.')[0]);
-    });
-  }
-
-  public getAssetUrl(path: string): string {
-    return this.getAbsoluteUrl(path);
-  }
-
-  /**
-   * The tile shape that an image set declares for a category (tag): square when it declares
-   * none, and for unknown sets and tags. Item shapes come with the items (itemShape()).
-   */
-  public getCategoryShape(packageName: string, tagName: string): ItemShape {
-    const packages = this.imageSetConfig.packages;
-    if (!Object.prototype.hasOwnProperty.call(packages, packageName)) return DEFAULT_ITEM_SHAPE;
-    const tags = packages[packageName].tags;
-    if (!Object.prototype.hasOwnProperty.call(tags, tagName)) return DEFAULT_ITEM_SHAPE;
-    const shape = tags[tagName].shape;
-    return isItemShape(shape) ? shape : DEFAULT_ITEM_SHAPE;
-  }
-
-  private initializePackageItemLookup(): PackageItemLookup {
-    const packageItemLookup = new Map<string, Item>();
-    for (const [packageName, packageData] of Object.entries(this.imageSetConfig.packages)) {
-      for (const image of packageData.images) {
-        const id = `${packageName}-${image.filename}`;
-        // Square is the default, so only other shapes are stored on the item.
-        const shape = isItemShape(image.shape) && image.shape !== DEFAULT_ITEM_SHAPE ? image.shape : undefined;
-        packageItemLookup.set(id, {
-          id,
-          content: image.label || image.filename.split('.')[0],
-          imageUrl: `/images/${packageName}/${image.filename}`,
-          ...(shape && {shape}),
-        });
-      }
-    }
-    return packageItemLookup;
-  }
-
-  /**
-   * Resolves the items of every tier. Duplicate ids break drag and drop, so:
-   * - an item id that appears twice, also after following an alias (an old id and its new id
-   *   in one list), keeps only its first place (A32);
-   * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38);
-   * - an empty tier id or item id gets a new id too, because a v3 link needs one (A40).
-   */
-  private resolveTiers(state: CanonicalState): Tier[] {
-    const seen = new Set<string>();
-    const tierIds = uniqueTierIds(state.tiers.map(tier => tier.id));
-    const withItemId = nonEmptyItemIds(state.tiers.flatMap(tier => tier.items.map(item => item.id)));
-    return state.tiers.map((tier, index) => ({
-      id: tierIds[index],
-      name: tier.name,
-      items: tier.items
-        .map(item => this.resolveCanonicalItem(withItemId(item), state.version))
-        .filter(item => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        }),
-    }));
-  }
-
-  /** An item from a decoded link: by its kind in v3 links, by its id in legacy links. */
-  private resolveCanonicalItem(item: CanonicalItem, version: CanonicalState['version']): Item {
-    if (item.kind === 'link') {
-      // No image URL: the editor loads the address only from allowed sites
-      // (contexts/CustomImagesContext.tsx), and link previews only from trusted ones.
-      return {id: item.id, content: item.content, source: 'link', url: item.url};
-    }
-    if (item.kind === 'device') return this.resolveDeviceItem(item.id, item.content);
-    if (version === 3) {
-      // v3 writes uploads as device images, so a plain id (or {i, c}) names an image-set item,
-      // or one the image sets do not know: its stored label on the placeholder (A45).
-      return this.resolvePackageItem(item.id) ?? {...this.createPlaceholderItem(item.id, item.content ?? ''), source: 'package'};
-    }
-    return this.resolveItem(item.id, item.content);
-  }
-
-  /** An image-set item, also by an old id that image-aliases.json maps to it. */
-  private resolvePackageItem(itemId: string): Item | undefined {
-    return this.packageItemLookup.get(itemId) ?? this.resolveAlias(itemId);
-  }
-
-  /**
-   * A device image from a v3 link: its label on the placeholder image, the same on the server
-   * and in the browser. In the editor, the tile then shows the image this browser keeps under
-   * that id in the device image store, if any (contexts/CustomImagesContext.tsx).
-   */
-  private resolveDeviceItem(id: string, content: string): Item {
-    return {id, content, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'};
-  }
-
-  /** How v3 stores an item of the list on screen (see encodeListForURL). */
-  private toV3Item(item: Item): CanonicalItem {
-    if (item.source === 'link') return {kind: 'link', id: item.id, url: item.url ?? item.id, content: item.content};
-    // An image-set item: its id only (also after an alias, which gives the new id).
-    if (!this.isCustomItem(item.id)) return {id: item.id};
-    const labelled: CanonicalItem = item.content ? {id: item.id, content: item.content} : {id: item.id};
-    if (item.source === 'package') return labelled;
-    const deviceId = deviceImageIdForUpload(item.id);
-    return deviceId === null ? labelled : {kind: 'device', id: deviceId, content: item.content};
-  }
-
-  /**
-   * An item of a legacy link (or a template image): the image-set item, also by an alias, or
-   * else an upload or an unknown id. Such an item shows under the id that a v3 link writes for
-   * it (A42: `legacy-<id>` for an upload id that breaks the device id rule), so the item keeps
-   * one id on screen across Back and Forward between legacy and v3 versions of the list. Its
-   * image is in the device image store under the same id (old localStorage uploads move there).
-   */
-  private resolveItem(itemId: string, content?: string): Item {
-    const packageItem = this.packageItemLookup.get(itemId);
-    if (packageItem) return packageItem;
-
-    const renamedItem = this.resolveAlias(itemId);
-    if (renamedItem) return renamedItem;
-
-    // An upload (custom item) or an image the sets no longer have, under the id its v3 link
-    // writes (A42). In the editor, an upload's tile shows the image from the device image store,
-    // kept under that same id (contexts/CustomImagesContext.tsx).
-    const shownId = deviceImageIdForUpload(itemId) ?? itemId;
-    return this.createPlaceholderItem(shownId, content || '');
-  }
-
-  /**
-   * Follows image-aliases.json from the id of a renamed image to the package item that
-   * replaced it, so links made before the rename keep showing the image.
-   */
-  private resolveAlias(itemId: string): Item | undefined {
-    let currentId = itemId;
-    for (let step = 0; step < MAX_ALIAS_STEPS; step++) {
-      if (!Object.prototype.hasOwnProperty.call(this.aliases, currentId)) return undefined;
-      const nextId = this.aliases[currentId];
-      if (typeof nextId !== 'string') return undefined;
-      const renamedItem = this.packageItemLookup.get(nextId);
-      if (renamedItem) return renamedItem;
-      currentId = nextId;
-    }
-    return undefined;
-  }
-
-  /**
-   * An unknown item: its stored label on the placeholder image. The image URL is relative, like
-   * the package images, so next/image loads it on every host (A37). An absolute URL went
-   * through the image optimizer as a remote image, which refused every host but localhost:3000,
-   * so on Vercel the tile showed no image. Link previews make it absolute (getOgSafeImageUrl).
-   */
-  private createPlaceholderItem(itemId: string, content: string): Item {
-    return {
-      id: itemId,
-      content,
-      imageUrl: PLACEHOLDER_IMAGE_URL,
-    };
-  }
-
-  private getAbsoluteUrl(path: string): string {
-    return new URL(path, this.baseUrl).toString();
-  }
-}
-
-/**
- * The row template of a list, as the "Number of Rows" menu shows it: its row count without
- * the Unranked row. Any other count is 'custom'.
- */
-export function rowTemplateOf(tiers: readonly Tier[]): RowTemplate {
-  switch (tiers.length - 1) {
-    case 3: return '3rows';
-    case 5: return '5rows';
-    case 7: return '7rows';
-    default: return 'custom';
-  }
-}
-
-/**
- * The tier ids with each later duplicate renamed to `<id>~2`, `<id>~3`... (the first number not
- * used by any tier), so every row has its own id. The first row with an id keeps it. An empty
- * id (only in hand-made links) becomes `tier~1`, `tier~2`..., because v3 links refuse empty
- * ids: a list opened from such a link must be able to write a v3 link that opens again. The
- * same ids always give the same result.
- */
-export function uniqueTierIds(ids: readonly string[]): string[] {
-  const taken = new Set(ids);
-  const seen = new Set<string>();
-  const newId = (base: string, firstNumber: number) => {
-    let number = firstNumber;
-    while (taken.has(`${base}~${number}`)) number++;
-    const id = `${base}~${number}`;
-    taken.add(id);
-    return id;
-  };
-  return ids.map(id => {
-    if (id === '') return newId(EMPTY_TIER_ID_BASE, 1);
-    if (!seen.has(id)) {
-      seen.add(id);
-      return id;
-    }
-    return newId(id, 2);
+  return Object.freeze({
+    /** The link of a list, in the format the app writes (lib/listLink.ts). */
+    encodeListForURL: (title: string, tiers: Tier[], layout: ListLayout = DEFAULT_LIST_LAYOUT): string =>
+      encodeListForURL(catalog, title, tiers, layout),
+    /** The list a link holds, or null when it does not decode (lib/listLink.ts). */
+    decodeTierStateFromURL: (encodedState: string): DecodedList | null => decodeTierStateFromURL(catalog, encodedState),
+    /** The tiers an editor starts with: the link's list, or the template (lib/listLink.ts). */
+    getInitialTiers: (initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] =>
+      getInitialTiers(catalog, initialState, initialItemSet),
+    /** True for an id that names no image-set item. */
+    isCustomItem: (itemId: string): boolean => isCustomItem(catalog, itemId),
+    /** The items of an image set's files, each by its id or an alias. */
+    resolveItemsFromPackage: (packageName: string, filenames: string[]): Item[] =>
+      resolveItemsFromPackage(catalog, packageName, filenames),
+    /** The tile shape an image set declares for a category, or square. */
+    getCategoryShape: (packageName: string, tagName: string): ItemShape => getCategoryShape(imageSetConfig, packageName, tagName),
+    /** An absolute URL for one of the app's own files, such as the logo. */
+    getAssetUrl: (path: string): string => getAssetUrl(path, baseUrl),
+    /** An image URL as link previews load it (lib/linkPreview.ts). */
+    getOgSafeImageUrl: (url: string): string => getOgSafeImageUrl(url, baseUrl),
+    /** An item as link previews draw it (lib/linkPreview.ts). */
+    getOgSafeItem: (item: Item): Item => getOgSafeItem(item, baseUrl),
   });
 }
 
-const EMPTY_TIER_ID_BASE = 'tier';
-
-/**
- * Gives each item with an empty id (only in hand-made links) a new id, `item~1`, `item~2`...
- * (the first numbers no item uses), keeping its label, because v3 links refuse empty ids (A40).
- * `ids` are all item ids of the list; the same list always gives the same ids.
- */
-function nonEmptyItemIds(ids: readonly string[]): <T extends CanonicalItem>(item: T) => T {
-  const taken = new Set(ids);
-  let number = 1;
-  return item => {
-    if (item.id !== '') return item;
-    while (taken.has(`item~${number}`)) number++;
-    const id = `item~${number}`;
-    taken.add(id);
-    return {...item, id};
-  };
-}
-
-function toCanonicalItem(item: SimplifiedItem): CanonicalItem {
-  return item.c === undefined ? {id: item.i} : {id: item.i, content: item.c};
-}
-
-export default TierCortex;
+/** What createTierCortex returns: the functions above, bound to one configuration. */
+export type TierCortex = ReturnType<typeof createTierCortex>;

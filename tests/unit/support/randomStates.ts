@@ -11,7 +11,7 @@ import {
 
 /**
  * Seeded random tier lists in the shape TierListManager hands to
- * TierCortex.encodeTierStateForURL: items are {i, c} with c undefined for package items.
+ * encodeTierStateForURL (lib/listLink.ts): items are {i, c} with c undefined for package items.
  * The same seed always gives the same lists, so a failure can be reproduced.
  */
 

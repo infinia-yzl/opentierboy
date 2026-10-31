@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import {describe, expect, it} from 'vitest';
-import TierCortex from '@/lib/TierCortex';
+import {createTierCortex} from '@/lib/TierCortex';
+import {encodeTierStateForURL} from '@/lib/listLink';
 import imagesetConfig from '@/imageset.config.json';
 import ImageSetConfig from '@/models/ImageSet';
 import {DEFAULT_ITEM_SHAPE, isItemShape, itemShape} from '@/models/Item';
@@ -40,7 +41,7 @@ const LINK = lz({title: 'Shapes', tiers: [
 ]});
 
 describe('TierCortex with tile shapes', () => {
-  const cortex = new TierCortex({imageSetConfig: CONFIG, aliases: {'image-mixed-old-map.webp': 'image-mixed-map.webp'}});
+  const cortex = createTierCortex({imageSetConfig: CONFIG, aliases: {'image-mixed-old-map.webp': 'image-mixed-map.webp'}});
 
   it('gives package items the shape of their image, and square by default', () => {
     const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
@@ -74,7 +75,7 @@ describe('TierCortex with tile shapes', () => {
 
   it('keeps shapes out of links: a link holds item ids only', () => {
     const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
-    const encoded = TierCortex.encodeTierStateForURL('Shapes', tiers.map((tier) => ({
+    const encoded = encodeTierStateForURL('Shapes', tiers.map((tier) => ({
       ...tier,
       items: tier.items.map((item) => ({i: item.id, c: cortex.isCustomItem(item.id) ? item.content : undefined})),
     })));
