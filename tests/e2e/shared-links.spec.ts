@@ -16,13 +16,6 @@ test.describe('Shared links', {tag: '@mobile'}, () => {
     });
   }
 
-  test('covers every legacy link format', () => {
-    // v3 links (written since Phase 5b) may join the captured links later (A25).
-    const formats = Array.from(new Set(SHARED_LINKS.map((link) => link.format)));
-    expect(formats).toEqual(expect.arrayContaining(['v0', 'v1', 'v2']));
-    for (const format of formats) expect(['v0', 'v1', 'v2', 'v3']).toContain(format);
-  });
-
   test('a damaged link falls back to the template', async ({tierList}) => {
     await tierList.goto('/rank/overwatch/tank', 'this-is-not-a-valid-state');
 

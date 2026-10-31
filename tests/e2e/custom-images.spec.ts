@@ -392,5 +392,8 @@ test.describe('Pasting images', () => {
     await tierList.pasteImages([imageFile('image.png')], input);
     await input.press('Escape');
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    // The same paste outside the field adds the picture, so the empty list above is no accident.
+    await tierList.pasteImages([imageFile('image.png')]);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);
   });
 });

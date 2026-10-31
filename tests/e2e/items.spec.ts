@@ -37,6 +37,8 @@ test.describe('Managing items', () => {
 
     await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
 
+    // Wait for the add to happen: the count is already right before it does.
+    await expect(tierList.toast('Items Added')).toBeVisible();
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
   });
 

@@ -128,6 +128,7 @@ test.describe('Drag announcements', () => {
 
     await expect(tierList.dragAnnouncer).toHaveText('Dropped. The items of tier S are now in tier A.');
     await expect(tierList.tiers.first()).toHaveAccessibleName('S');
+    await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
     await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
   });
 });
