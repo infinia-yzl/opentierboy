@@ -220,3 +220,19 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
    (`tests/unit/shapes.test.ts`) fail on an update that brings one. Set `allowNonSquare` to
    `true`, and remove that guard test, once cropped link previews are fine for you (or once
    link previews draw shapes).
+
+## 9. Releases
+
+`release.yml` tags each new version once Vercel has deployed it, and creates its GitHub release
+(`docs/releasing.md`). It needs no secret and no new setting:
+
+1. It runs on Vercel's `repository_dispatch` event `vercel.deployment.success`. Vercel's GitHub
+   App sends it after each deployment. GitHub runs it only once `release.yml` is on `main`.
+2. Keep **Workflow permissions** read-only (section 2). `release.yml` asks for
+   `contents: write` and `deployments: read` itself, in its one job.
+3. If you add a tag ruleset later, let GitHub Actions create version tags (plain `X.Y.Z`, such
+   as `2.0.0`), or the release fails.
+4. Done (2026-10-31): the `1.0.0` release, created by hand at `bf2ff6e` (the site before the
+   revamp). The 2.0.0 release notes start from it.
+5. After a release, check **Actions → Release**: the run says which tag it created, or why it
+   created none. **Run workflow** there repeats the check, for example after a missed event.
