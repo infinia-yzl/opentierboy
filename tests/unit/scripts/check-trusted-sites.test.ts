@@ -33,10 +33,10 @@ function trackerList(categories: Record<string, Record<string, string[]>>) {
 
 const sha256 = (text: string) => crypto.createHash('sha256').update(text).digest('hex');
 
-describe('the tracker list pin in this repository', () => {
+describe('scripts/tracker-list.pin.json', () => {
   const pin = JSON.parse(fs.readFileSync(path.join(repoRoot, 'scripts/tracker-list.pin.json'), 'utf8'));
 
-  it('names the exact Disconnect file, commit and SHA-256', () => {
+  it('returns the Disconnect repository, commit, path and SHA-256 when tracker-list.pin.json is read', () => {
     expect(pin).toMatchObject({
       repository: 'https://github.com/disconnectme/disconnect-tracking-protection.git',
       commit: 'a277cd6e9d47f71837a45dace832da73ca261e48',
@@ -47,7 +47,7 @@ describe('the tracker list pin in this repository', () => {
     });
   });
 
-  it('keeps no copy of the list in the repository, and keeps downloads out of git', () => {
+  it('returns no tracked services.json and an ignored download path when git ls-files and check-ignore run', () => {
     const tracked = git(repoRoot, 'ls-files').split('\n');
     expect(tracked.filter(file => file.startsWith('vendor/disconnect') || file.endsWith('services.json'))).toEqual([]);
     expect(git(repoRoot, 'check-ignore', '.cache/tracker-list/a277cd6e9d47f71837a45dace832da73ca261e48-services.json')).toBe(
@@ -71,7 +71,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
     fs.rmSync(root, {recursive: true, force: true});
   });
 
-  describe('with a given list', () => {
+  describe('scripts/check-trusted-sites.mjs with --list', () => {
     let listFile: string;
     const writeList = (value: unknown) => fs.writeFileSync(listFile, typeof value === 'string' ? value : JSON.stringify(value));
     const check = () => run(['--root', root, '--list', listFile]);
@@ -84,27 +84,27 @@ describe('scripts/check-trusted-sites.mjs', () => {
       }));
     });
 
-    it('passes when no trusted host is on the list, even with look-alike names', () => {
+    it('returns exit code 0 when only look-alike names of trusted hosts are on the list', () => {
       const result = check();
       expect(result.output).toContain('Trusted image sites OK: 3 site(s) checked against 7 tracker domains');
       expect(result.status).toBe(0);
     });
 
-    it('fails when a trusted host is on the list', () => {
+    it('returns exit code 1 and writes the matching entry when a trusted host is on the list', () => {
       writeList(trackerList({Analytics: {Imgur: ['i.imgur.com']}}));
       const result = check();
       expect(result.status).toBe(1);
       expect(result.output).toContain('i.imgur.com (registrable domain imgur.com) matches the tracker list entry "i.imgur.com" (category Analytics, entity Imgur).');
     });
 
-    it('fails when a parent name of a trusted host is on the list', () => {
+    it('returns exit code 1 when a parent name of a trusted host is on the list', () => {
       writeList(trackerList({Advertising: {Fandom: ['wikia.nocookie.net']}}));
       const result = check();
       expect(result.status).toBe(1);
       expect(result.output).toContain('static.wikia.nocookie.net (registrable domain nocookie.net) matches the tracker list entry "wikia.nocookie.net"');
     });
 
-    it('fails when the registrable domain or another name under it is on the list', () => {
+    it('returns exit code 1 when the registrable domain of a trusted host or a name under it is on the list', () => {
       writeList(trackerList({Advertising: {Imgur: ['imgur.com']}, Analytics: {ImgurStats: ['stats.imgur.com']}}));
       const result = check();
       expect(result.status).toBe(1);
@@ -112,14 +112,14 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(result.output).toContain('matches the tracker list entry "stats.imgur.com" (category Analytics, entity ImgurStats)');
     });
 
-    it('uses the Public Suffix List for registrable domains', () => {
+    it('returns exit code 1 when a list entry shares a Public Suffix List registrable domain with a trusted host', () => {
       writeList(trackerList({Advertising: {Same: ['ads.example.co.uk']}}));
       const result = check();
       expect(result.status).toBe(1);
       expect(result.output).toContain('images.example.co.uk (registrable domain example.co.uk) matches the tracker list entry "ads.example.co.uk"');
     });
 
-    it('compares names without regard to case or a trailing dot', () => {
+    it('returns exit code 1 when the names differ only in letter case or a trailing dot', () => {
       writeList(trackerList({Advertising: {Imgur: ['IMGUR.COM.']}}));
       expect(check().status).toBe(1);
       writeSites(['I.IMGUR.COM.']);
@@ -127,7 +127,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(check().status).toBe(1);
     });
 
-    it('fails when the list is missing, malformed or empty', () => {
+    it('returns exit code 1 when the tracker list is missing, malformed or empty', () => {
       fs.rmSync(listFile);
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('is missing.')});
       writeList('{not json');
@@ -144,7 +144,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('The tracker list holds no domains')});
     });
 
-    it('fails when an entry with "subdomains": true is a public suffix', () => {
+    it('returns exit code 1 when an entry with "subdomains": true is a public suffix', () => {
       fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({sites: [
         {host: 'github.io', subdomains: true, reason: 'test'},
         {host: 'co.uk', subdomains: true, reason: 'test'},
@@ -162,7 +162,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(check().status).toBe(0);
     });
 
-    it('fails when the trusted sites file is missing or malformed', () => {
+    it('returns exit code 1 when trusted-image-sites.json is missing or malformed', () => {
       fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({hosts: ['i.imgur.com']}));
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('must be an object with a "sites" array')});
       fs.writeFileSync(path.join(root, 'trusted-image-sites.json'), JSON.stringify({sites: [{host: 42}]}));
@@ -172,7 +172,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
     });
   });
 
-  describe('with a pinned list (downloaded with git)', () => {
+  describe('scripts/check-trusted-sites.mjs with --pin', () => {
     // A local git repository stands in for the Disconnect repository on GitHub.
     let source: string;
     let commit: string;
@@ -202,7 +202,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       writePin();
     });
 
-    it('downloads the pinned file, verifies it and caches it', () => {
+    it('writes the pinned file to the cache, after its SHA-256 check, when the cache is empty', () => {
       const first = check();
       expect(first.output).toContain('Trusted image sites OK: 3 site(s) checked against 1 tracker domains (Test list at');
       expect(first.output).toContain('downloaded, SHA-256 verified');
@@ -212,7 +212,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(fs.readdirSync(cacheDir)).toEqual([`${commit}-services.json`]);
     });
 
-    it('uses the cached copy without network', () => {
+    it('returns exit code 0 from the cached copy when the source repository is gone', () => {
       expect(check().status).toBe(0);
       fs.rmSync(source, {recursive: true, force: true});
       const second = check({CI: 'true'});
@@ -220,7 +220,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(second.status).toBe(0);
     });
 
-    it('downloads again when the cached copy was changed', () => {
+    it('writes the pinned file to the cache again when the cached copy was changed', () => {
       expect(check().status).toBe(0);
       fs.writeFileSync(cachedFile(), JSON.stringify(trackerList({Advertising: {Imgur: ['i.imgur.com']}})));
       const result = check();
@@ -229,7 +229,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(fs.readFileSync(cachedFile(), 'utf8')).toBe(listText);
     });
 
-    it('fails when the downloaded file does not match the pinned SHA-256, also outside CI', () => {
+    it('returns exit code 1 and writes no cache file when the download fails the pinned SHA-256, in or out of CI', () => {
       writePin({sha256: '0'.repeat(64)});
       for (const env of [{CI: ''}, {CI: 'true'}]) {
         const result = check(env);
@@ -240,17 +240,17 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(fs.readdirSync(cacheDir)).toEqual([]);
     });
 
-    it('fails when the pinned commit has no such file', () => {
+    it('returns exit code 1 when the pinned commit has no file at the pinned path', () => {
       writePin({path: 'data/missing.json'});
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining(`The pinned commit ${commit} has no file data/missing.json`)});
     });
 
-    it('checks the hosts against the pinned list', () => {
+    it('returns exit code 1 when a trusted host is on the pinned list', () => {
       writeSites(['ads.example.net']);
       expect(check()).toMatchObject({status: 1, output: expect.stringContaining('matches the tracker list entry "ads.example.net"')});
     });
 
-    it('warns and passes when the list cannot be downloaded, and fails in CI', () => {
+    it('returns exit code 0 and writes a warning when the download fails outside CI, and 1 in CI', () => {
       writePin({repository: path.join(root, 'no-such-repository')});
       const offline = check();
       expect(offline.status).toBe(0);
@@ -264,7 +264,7 @@ describe('scripts/check-trusted-sites.mjs', () => {
       }
     });
 
-    it('refuses a malformed pin', () => {
+    it('returns exit code 1 and an error message when the pin file is missing, malformed or a JSON array', () => {
       const cases: [Record<string, unknown>, string][] = [
         [{commit: commit.slice(0, 7)}, '"commit" must be a full 40-character commit hash'],
         [{sha256: 'ABC'}, '"sha256" must be 64 lowercase hex characters'],

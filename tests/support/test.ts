@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext, type Page} from '@playwright/test';
-import {TierListPage} from '../pages/TierListPage';
-import {SitePage} from '../pages/SitePage';
+import {TierListPage} from '../pages/tier-list-page';
+import {SitePage} from '../pages/site-page';
 import sharedLinks from '../fixtures/shared-links.json';
 import {sendBypassOnlyToSite} from './vercel-bypass';
 
@@ -43,7 +43,7 @@ type Fixtures = {
    * answered: from the browser, the `request` fixture, page.request and context.request, or
    * the test runner's `fetch`. They are blocked, and the test fails if there are any, also a
    * test marked test.fail(): tests never reach real external sites (play them with
-   * tests/support/imageSites.ts).
+   * tests/support/image-sites.ts).
    */
   externalRequests: string[];
   /** Errors that the page logged to the browser console or threw, collected during the test. */

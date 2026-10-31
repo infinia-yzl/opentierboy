@@ -58,13 +58,13 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     fs.rmSync(repo, {recursive: true, force: true});
   });
 
-  it('passes when nothing changed', () => {
+  it('returns exit code 0 when no fixture file changed', () => {
     const result = check('--base', 'main');
     expect(result.status).toBe(0);
     expect(result.output).toContain('tests/fixtures/shared-links.json: 2 kept, 0 added');
   });
 
-  it('allows appended entries, new keys and new fixture files, committed or not', () => {
+  it('returns exit code 0 when entries, keys or fixture files are appended, committed or not', () => {
     write('tests/fixtures/shared-links.json', [...LINKS, {id: 'link-003', state: 'N3', expected: {}}]);
     write('image-registry.lock.json', {...LOCK, 'image-b-new.webp': {package: 'image-b', filename: 'new.webp', label: 'New'}});
     write('tests/fixtures/state/v3.json', [{id: 'v3-a', state: '3.x'}]);
@@ -79,12 +79,12 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(result.output).toContain('imageset.legacy.json: 1 kept, 1 added');
   });
 
-  it('allows formatting and key order changes', () => {
+  it('returns exit code 0 when only the formatting or key order of a fixture changed', () => {
     write('tests/fixtures/shared-links.json', LINKS.map(({expected, state, format, id}) => ({expected, state, format, id})), 4);
     expect(check('--base', 'main').status).toBe(0);
   });
 
-  it('ignores files outside the fixtures and the item registry', () => {
+  it('returns exit code 0 when a file outside the fixtures and the item registry changed', () => {
     write('package.json', {name: 'changed'});
     expect(check('--base', 'main').status).toBe(0);
   });
@@ -103,7 +103,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     ['a removed alias', () => write('image-aliases.json', {}), 'key "image-a-old.webp" was removed'],
     ['a changed label in a legacy set', () => write('imageset.legacy.json', {'image-old': {...LEGACY['image-old'], images: [{filename: 'x.webp', label: 'Y', tags: ['t']}]}}), 'key "image-old" was changed'],
     ['a removed legacy set', () => write('imageset.legacy.json', {}), 'key "image-old" was removed'],
-  ])('fails on %s', (_name, change, message) => {
+  ])('returns exit code 1 when the change is %s, committed or not', (_name, change, message) => {
     change();
     const uncommitted = check('--base', 'main');
     expect(uncommitted.status).toBe(1);
@@ -118,7 +118,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
   it.each([
     ['non-ASCII characters', 'tests/fixtures/état.json'],
     ['a space, quotes and a backslash', 'tests/fixtures/state/odd "name" \\ x.json'],
-  ])('checks fixture files whose names have %s', (_name, file) => {
+  ])('returns exit code 1 when a fixture file whose name has %s is edited or deleted', (_name, file) => {
     write(file, LINKS);
     commitAll('odd file name');
     git('branch', '-f', 'main');
@@ -139,12 +139,12 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(deleted.output).toContain(`${file}: the file was deleted or moved`);
   });
 
-  it('lists new fixture files with odd names', () => {
+  it('writes the new file line when the name of a new fixture file has non-ASCII characters', () => {
     write('tests/fixtures/nouveau-ñ.json', LINKS);
     expect(check('--base', 'main').output).toContain('+ tests/fixtures/nouveau-ñ.json: new file');
   });
 
-  it('compares with the merge base, so a branch behind its base passes', () => {
+  it('returns exit code 0 when the branch is behind a base that appended entries', () => {
     git('checkout', '-q', 'main');
     write('tests/fixtures/shared-links.json', [...LINKS, {id: 'link-003'}]);
     commitAll('append on main');
@@ -152,21 +152,21 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(check('--base', 'main').status).toBe(0);
   });
 
-  it('uses the first default base that exists when no --base is given', () => {
+  it('writes "compared with main" when no --base is given and main exists', () => {
     write('tests/fixtures/shared-links.json', [LINKS[0]]);
     const result = check();
     expect(result.output).toContain('compared with main');
     expect(result.status).toBe(1);
   });
 
-  it('exits with 2 when the base ref is missing, as in a shallow CI checkout', () => {
+  it('returns exit code 2 and writes fetch-depth: 0 when the --base ref is missing', () => {
     const result = check('--base', 'origin/does-not-exist');
     expect(result.status).toBe(2);
     expect(result.output).toContain('Cannot find the base ref "origin/does-not-exist" (from --base)');
     expect(result.output).toContain('fetch-depth: 0');
   });
 
-  it('takes the base ref from FIXTURES_BASE_REF, as CI sets it', () => {
+  it('returns exit code 1 for a removed entry and 2 for a missing ref when FIXTURES_BASE_REF names the base', () => {
     write('tests/fixtures/shared-links.json', [LINKS[0]]);
     const result = checkWithBaseEnv(git('rev-parse', 'main').trim());
     expect(result.status).toBe(1);
@@ -177,7 +177,7 @@ describe('scripts/check-fixtures-append-only.mjs', () => {
     expect(missing.output).toContain('Cannot find the base ref "origin/does-not-exist" (from FIXTURES_BASE_REF)');
   });
 
-  it('exits with 2 when the base is the all-zero commit of a new branch push', () => {
+  it('returns exit code 2 when FIXTURES_BASE_REF is the all-zero commit', () => {
     const result = checkWithBaseEnv('0000000000000000000000000000000000000000');
     expect(result.status).toBe(2);
     expect(result.output).toContain('all-zero commit');

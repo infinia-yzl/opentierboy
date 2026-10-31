@@ -14,7 +14,7 @@ import LZString from 'lz-string';
  * licence) as called by `decompressFromEncodedURIComponent`: 6 bits per character, a space
  * reads as '+', a character outside the alphabet reads as 0, reading past the end reads 0,
  * and characters after the end-of-data code are ignored (so a link with a stray '.' or ')'
- * at the end still decodes). tests/unit/state/lz.test.ts checks the measured length against
+ * at the end still decodes). tests/unit/lib/state/lz.test.ts checks the measured length against
  * lz-string's output for random inputs.
  *
  * The walk is stricter than lz-string where lz-string returns garbage: it rejects a stream

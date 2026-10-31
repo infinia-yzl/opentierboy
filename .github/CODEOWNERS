@@ -22,8 +22,9 @@
 /scripts/check-image-registry.mjs                @infinia-yzl
 /scripts/image-set-update.mjs                    @infinia-yzl
 /scripts/lib/image-sets.mjs                      @infinia-yzl
-/tests/unit/state/                               @infinia-yzl
-/tests/unit/support/TierCortex.pre-refactor.ts   @infinia-yzl
+/tests/unit/lib/state/                           @infinia-yzl
+/tests/unit/fixtures/                            @infinia-yzl
+/tests/unit/support/tier-cortex-pre-refactor.ts   @infinia-yzl
 # Sites whose images load without asking, and the tracker list check that guards them.
 /trusted-image-sites.json                        @infinia-yzl
 /scripts/check-trusted-sites.mjs                 @infinia-yzl

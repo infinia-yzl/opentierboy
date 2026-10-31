@@ -3,7 +3,7 @@
  * Writes a made-up shapes config for the tile shape tests (tests/e2e/tile-shapes.spec.ts):
  * some OVERWATCH images become landscape or portrait in imageset.config.json. No image set
  * publishes such shapes yet (A13), so the tests need this. Only for a throwaway build, never
- * for a commit: the unit test in tests/unit/shapes.test.ts fails while the config holds it.
+ * for a commit: the unit test in tests/unit/rules/image-shapes.test.ts fails while the config holds it.
  *
  *   npm run build                                  # prepares the images and the config
  *   node tests/support/synthetic-shapes.mjs        # then marks the shapes

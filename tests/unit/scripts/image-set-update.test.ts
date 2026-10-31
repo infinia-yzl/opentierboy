@@ -9,8 +9,8 @@ import {checkPackageEntry, compareVersions, escapedText, parseRegistry, pullRequ
 
 const script = path.resolve(__dirname, '../../../scripts/image-set-update.mjs');
 
-describe('validateInput (the event payload of image-set-update.yml)', () => {
-  it('accepts an official set and a plain x.y.z version', () => {
+describe('validateInput', () => {
+  it('returns {packageName, version, same} when the package is an official set and the version is x.y.z', () => {
     expect(validateInput('image-overwatch', '1.3.0', customConfig, '1.2.0')).toEqual({packageName: 'image-overwatch', version: '1.3.0', same: false});
     expect(validateInput('image-reachthefinals', '10.0.0', customConfig, '1.3.0').same).toBe(false);
     expect(validateInput('image-overwatch', '1.2.0', customConfig, '1.2.0').same).toBe(true);
@@ -30,7 +30,7 @@ describe('validateInput (the event payload of image-set-update.yml)', () => {
     ['a very long name', `image-${'a'.repeat(80)}`, 'is not an image set name'],
     ['nothing', '', 'No package name'],
     ['a number', 42, 'No package name'],
-  ])('refuses %s as the package', (_name, packageName, message) => {
+  ])('throws an Error with the reason when the package is %s', (_name, packageName, message) => {
     expect(() => validateInput(packageName, '1.3.0', customConfig)).toThrow(message);
   });
 
@@ -50,27 +50,32 @@ describe('validateInput (the event payload of image-set-update.yml)', () => {
     ['spaces', ' 1.3.0'],
     ['a huge number', '1.3.1234567890'],
     ['nothing', ''],
-  ])('refuses %s as the version', (_name, version) => {
+  ])('throws an Error naming the version when the version is %s', (_name, version) => {
     expect(() => validateInput('image-overwatch', version, customConfig)).toThrow(/version/);
   });
 
-  it('refuses an older version than the one in package.json (a replayed event)', () => {
+  it('throws "older than 1.2.0" when the version is older than the one in package.json', () => {
     expect(() => validateInput('image-overwatch', '1.1.9', customConfig, '1.2.0')).toThrow('older than 1.2.0');
   });
 
-  it('quotes refused values on one line, so they cannot start a workflow command', () => {
-    try {
-      validateInput('image-overwatch', '1.3.0\n::error::injected', customConfig);
-    } catch (error) {
-      expect((error as Error).message).not.toContain('\n');
-      expect((error as Error).message).toContain('"1.3.0\\n::error::injected"');
-    }
+  it('throws a one-line message with the quoted value when the version has a workflow command', () => {
+    const call = () => validateInput('image-overwatch', '1.3.0\n::error::injected', customConfig);
+    expect(call).toThrow('"1.3.0\\n::error::injected"');
+    expect(call).toThrow(/^[^\n]*$/);
   });
 
-  it('compares versions by number', () => {
+});
+
+describe('compareVersions', () => {
+  it('returns a numeric order when the version parts have different digit counts', () => {
     expect(compareVersions('1.10.0', '1.9.9')).toBeGreaterThan(0);
     expect(compareVersions('2.0.0', '10.0.0')).toBeLessThan(0);
     expect(compareVersions('1.2.3', '1.2.3')).toBe(0);
+  });
+});
+
+describe('VERSION_PATTERN', () => {
+  it('returns true when the version is 0.0.0', () => {
     expect(VERSION_PATTERN.test('0.0.0')).toBe(true);
   });
 });
@@ -194,14 +199,14 @@ describe('scripts/image-set-update.mjs', () => {
     fs.rmSync(repo, {recursive: true, force: true});
   });
 
-  describe('validate', () => {
-    it('writes the checked values to $GITHUB_OUTPUT', () => {
+  describe('scripts/image-set-update.mjs validate', () => {
+    it('writes package, version and same=false to $GITHUB_OUTPUT when the version is new', () => {
       const result = run('validate', {PACKAGE: 'image-ow', VERSION: '1.1.0'});
       expect(result.status).toBe(0);
       expect(fs.readFileSync(path.join(repo, '.output'), 'utf8')).toBe('package=image-ow\nversion=1.1.0\nsame=false\n');
     });
 
-    it('reports when package.json already has the version', () => {
+    it('writes same=true to $GITHUB_OUTPUT and Nothing to update when package.json has the version', () => {
       const result = run('validate', {PACKAGE: 'image-ow', VERSION: '1.0.0'});
       expect(result.status).toBe(0);
       expect(result.output).toContain('Nothing to update');
@@ -216,7 +221,7 @@ describe('scripts/image-set-update.mjs', () => {
       ['a "+" build suffix', {PACKAGE: 'image-ow', VERSION: '1.1.0+b1'}],
       ['a downgrade', {PACKAGE: 'image-ow', VERSION: '0.9.0'}],
       ['no values', {PACKAGE: '', VERSION: ''}],
-    ])('refuses %s and writes no output', (_name, env) => {
+    ])('returns exit code 1 and writes no $GITHUB_OUTPUT file when the input has %s', (_name, env) => {
       const result = run('validate', env);
       expect(result.status).toBe(1);
       expect(result.output).toContain('refused:');
@@ -224,14 +229,14 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.output.split('\n').some((line) => line.startsWith('::'))).toBe(false);
     });
 
-    it('reads the official list from HEAD, not from the working tree', () => {
+    it('returns exit code 1 when only the uncommitted imageset.custom.json lists the package', () => {
       write('imageset.custom.json', {packages: {'image-old': {legacy: true}, 'image-ow': {}, 'image-evil': {}}});
       expect(run('validate', {PACKAGE: 'image-evil', VERSION: '1.0.0'}).status).toBe(1);
     });
   });
 
-  describe('gate', () => {
-    it('accepts an update and writes the pull request text', () => {
+  describe('scripts/image-set-update.mjs gate', () => {
+    it('writes the pull request body with added ids, changed labels and lockfile changes when the update is valid', () => {
       stageUpdate();
       const result = gate();
       expect(result.output).toContain('changes nothing else');
@@ -249,7 +254,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(body).toContain('- `node_modules/chalk`: none → `dev`');
     });
 
-    it('shows look-alike letters and accents in their exact form in the pull request', () => {
+    it('writes the escaped exact form to the pull request body when a label has look-alike letters or accents', () => {
       const config = structuredClone(CONFIG_BASE);
       config.packages['image-ow'].images[0].label = '\u0410na'; // Cyrillic А, looks like "Ana"
       config.packages['image-ow'].images.push(image('lucio.webp', 'Lúcio'));
@@ -262,7 +267,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(body).toContain('- `image-ow-lucio.webp`: `Lúcio` (exact: `"L\\u00facio"`)');
     });
 
-    it('accepts license, engines and funding in the lockfile entry', () => {
+    it('returns exit code 0 when the lockfile entry has license, engines and funding', () => {
       stageUpdate();
       editLockEntry((entry) => {
         entry.license = 'CC-BY-SA-4.0';
@@ -274,7 +279,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(0);
     });
 
-    it('accepts the bare integrity that npm view prints when no other field exists', () => {
+    it('returns exit code 0 when the npm view answer is only the bare integrity string', () => {
       stageUpdate();
       const result = gate('1.1.0', JSON.stringify(INTEGRITY('f')));
       expect(result.output).toContain('changes nothing else');
@@ -287,21 +292,21 @@ describe('scripts/image-set-update.mjs', () => {
       ['the error object of npm view --json', JSON.stringify({error: {code: 'E404'}}), 'unexpected fields "error"'],
       ['an answer without integrity', JSON.stringify({scripts: {}}), 'no sha512 dist.integrity'],
       ['a huge answer', JSON.stringify({...REGISTRY, scripts: {test: 'x'.repeat(300 * 1024)}}), 'larger than 262144 bytes'],
-    ])('refuses %s from npm view', (_name, answer, message) => {
+    ])('returns exit code 1 when the --registry file contains %s', (_name, answer, message) => {
       stageUpdate();
       const result = gate('1.1.0', answer);
       expect(result.output).toContain(message);
       expect(result.status).toBe(1);
     });
 
-    it('refuses to run without the npm view answer', () => {
+    it('returns exit code 1 when --registry is missing', () => {
       stageUpdate();
       const result = run('gate', {PACKAGE: 'image-ow', VERSION: '1.1.0'}, '--body', path.join(repo, '.body.md'));
       expect(result.output).toContain('Pass the npm view answer with --registry <file>');
       expect(result.status).toBe(1);
     });
 
-    it('accepts an alias from an id it removes to an id it adds (A32)', () => {
+    it('returns exit code 0 when an alias maps a removed id to an id the update adds', () => {
       const config = structuredClone(CONFIG_BASE);
       config.packages['image-ow'].images[1] = image('mei-v2.webp', 'Mei');
       stageUpdate({config});
@@ -313,7 +318,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(fs.readFileSync(path.join(repo, '.body.md'), 'utf8')).toContain('`image-ow-mei.webp` → `image-ow-mei-v2.webp`');
     });
 
-    it('warns in the pull request about shapes other than square', () => {
+    it('writes a do-not-merge warning to the pull request body when an image shape is not square', () => {
       const config = structuredClone(CONFIG_BASE);
       (config.packages['image-ow'].images[0] as Record<string, unknown>).shape = 'portrait';
       stageUpdate({config});
@@ -526,7 +531,7 @@ describe('scripts/image-set-update.mjs', () => {
         git('add', '-f', 'public');
       }, 'public/images/image-ow/x.png: an image set update may not change this file'],
     ];
-    it.each(refusals)('refuses %s', (_name, change, message) => {
+    it.each(refusals)('returns exit code 1 when the update has %s', (_name, change, message) => {
       stageUpdate();
       change();
       const result = gate();
@@ -534,7 +539,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(1);
     });
 
-    it('refuses image files even when the set\'s folder is committed', () => {
+    it('returns exit code 1 when the update adds an image file to a committed public/images folder', () => {
       write('public/images/image-ow/ana.webp', Buffer.from('RIFF\0\0\0\0WEBPVP8 '));
       git('add', '-f', 'public');
       git('commit', '-q', '-m', 'commit the image folder');
@@ -546,7 +551,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(1);
     });
 
-    it('accepts items that change categories, and lists them and the changed categories in the pull request', () => {
+    it('writes the moved items and changed categories to the pull request body when items change categories', () => {
       const config = structuredClone(CONFIG_BASE);
       const entry = config.packages['image-ow'] as Record<string, any>;
       entry.images[0].tags = ['support'];
@@ -564,7 +569,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(body).toContain('- `heroes`: title `Heroes` → `All heroes`');
     });
 
-    it('refuses a removed id without an alias (check-image-registry.mjs)', () => {
+    it('returns exit code 1 when a shipped id is removed without an alias', () => {
       const config = structuredClone(CONFIG_BASE);
       config.packages['image-ow'].images.pop();
       stageUpdate({config});
@@ -573,7 +578,7 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(1);
     });
 
-    it('refuses a patch that does not change the version', () => {
+    it('returns exit code 1 when the patch leaves the version in package.json unchanged', () => {
       const config = structuredClone(CONFIG_BASE);
       config.packages['image-ow'].images[0].label = 'Ana 2';
       write('imageset.config.json', JSON.stringify(config, null, 2));
@@ -583,14 +588,14 @@ describe('scripts/image-set-update.mjs', () => {
       expect(result.status).toBe(1);
     });
 
-    it('refuses an empty patch', () => {
+    it('returns exit code 1 when the patch is empty', () => {
       const result = gate();
       expect(result.output).toContain('The patch changes nothing');
       expect(result.status).toBe(1);
     });
   });
 
-  it('keeps untrusted labels on one line in code spans in the pull request', () => {
+  it('returns one-line code spans from pullRequestBody when a label has backticks, newlines and Markdown', () => {
     const body = pullRequestBody({
       packageName: 'image-ow', version: '1.1.0', added: [], removed: [], newAliases: [], shapes: [], removedLockEntries: [],
       relabelled: [{id: 'image-ow-a.webp', before: 'A', after: 'x`\n## @everyone [click](https://evil.example)'}],
@@ -599,7 +604,7 @@ describe('scripts/image-set-update.mjs', () => {
     expect(body).not.toContain('\n## @everyone');
   });
 
-  it('lists removed and changed categories in the pull request, untrusted text in code spans', () => {
+  it('returns removed and changed categories in code spans from pullRequestBody when tag texts have Markdown', () => {
     const body = pullRequestBody({
       packageName: 'image-ow', version: '1.1.0', added: [], removed: [], relabelled: [], newAliases: [], shapes: [], removedLockEntries: [],
       retagged: [{id: 'image-ow-a.webp', before: ['old'], after: []}],
@@ -617,8 +622,8 @@ describe('scripts/image-set-update.mjs', () => {
   });
 });
 
-describe('parseRegistry (the npm view answer)', () => {
-  it('reads the fields the workflow asks for', () => {
+describe('parseRegistry', () => {
+  it('returns integrity, scripts, bin, dependencies and gypfile when the answer is an object or a bare integrity', () => {
     expect(parseRegistry(JSON.stringify({'dist.integrity': INTEGRITY('a'), scripts: {test: 'jest'}, dependencies: {'@inquirer/prompts': '^5.1.2'}}))).toEqual({
       integrity: INTEGRITY('a'), scripts: {test: 'jest'}, bin: undefined, dependencies: {'@inquirer/prompts': '^5.1.2'}, gypfile: false,
     });
@@ -633,29 +638,29 @@ describe('parseRegistry (the npm view answer)', () => {
     ['dependencies that are not text', JSON.stringify({'dist.integrity': INTEGRITY('a'), dependencies: {x: 1}}), 'malformed dependencies'],
     ['a gypfile that is not a boolean', JSON.stringify({'dist.integrity': INTEGRITY('a'), gypfile: 'yes'}), 'malformed gypfile'],
     ['a malformed bin', JSON.stringify({'dist.integrity': INTEGRITY('a'), bin: 3}), 'malformed bin'],
-  ])('refuses %s', (_name, text, message) => {
+  ])('throws an Error with the reason when the answer is %s', (_name, text, message) => {
     expect(() => parseRegistry(text)).toThrow(message);
   });
 });
 
-describe('labels in the pull request', () => {
+describe('pullRequestBody with labels', () => {
   const report = (relabelled: object[], added: object[] = []) => ({
     packageName: 'image-ow', version: '1.1.0', added, removed: [], newAliases: [], shapes: [], removedLockEntries: [], relabelled,
   });
 
-  it('shows the exact forms when two labels look the same in code spans', () => {
+  it('returns the exact escaped forms when two labels look the same in code spans', () => {
     const body = pullRequestBody(report([{id: 'image-ow-a.webp', before: 'A B', after: 'A  B'}, {id: 'image-ow-b.webp', before: 'A`B', after: 'A B'}]));
     expect(body).toContain('- `image-ow-a.webp`: `A B` → `A B` (exact: `"A B"` → `"A\\u0020\\u0020B"`)');
     expect(body).toContain('- `image-ow-b.webp`: `A B` → `A B` (exact: `"A\\u0060B"` → `"A B"`)');
   });
 
-  it('shows plain ASCII changes without the exact forms', () => {
+  it('returns no exact form when a label change is plain ASCII', () => {
     const body = pullRequestBody(report([{id: 'image-ow-a.webp', before: 'Mei', after: 'Mei-Ling'}], [{id: 'image-ow-b.webp', label: 'Kiriko'}]));
     expect(body).toContain('- `image-ow-a.webp`: `Mei` → `Mei-Ling`\n');
     expect(body).toContain('- `image-ow-b.webp`: `Kiriko`\n');
   });
 
-  it('shows the whole exact form of the longest texts the gate accepts', () => {
+  it('returns the whole exact form when a text has the longest length the gate accepts', () => {
     const before = '😀'.repeat(200);
     const after = `${'😀'.repeat(199)}😁`;
     const body = pullRequestBody({...report([]), tagChanges: [{tag: 'h_all', kind: 'changed', fields: [{key: 'title', before, after}]}]});
@@ -664,7 +669,7 @@ describe('labels in the pull request', () => {
     expect(body).not.toContain('first difference');
   });
 
-  it('says where longer texts from before the gate first differ', () => {
+  it('returns the position of the first difference when the texts are longer than the gate accepts', () => {
     const before = '😀'.repeat(300);
     const after = `${'😀'.repeat(299)}😁`;
     const body = pullRequestBody(report([{id: 'image-ow-a.webp', before, after}]));
@@ -672,24 +677,27 @@ describe('labels in the pull request', () => {
     expect(body).toContain('; first difference at character 300)');
   });
 
-  it('escapes everything outside printable ASCII', () => {
+  it('returns unicode escapes from escapedText when a character is outside printable ASCII', () => {
     expect(escapedText('Torbjörn')).toBe('"Torbj\\u00f6rn"');
     expect(escapedText('\u202Eabc\u200B')).toBe('"\\u202eabc\\u200b"');
     expect(escapedText('😀')).toBe('"\\ud83d\\ude00"');
   });
 });
 
-describe('checkPackageEntry (the config entry of an updated official set)', () => {
+describe('checkPackageEntry', () => {
   type Config = {packages: Record<string, unknown>};
   const official = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
 
-  it('accepts the entries that prepareImages wrote for the official sets', () => {
+  it('returns tag names that match TAG_NAME, none named all or __proto__, when the official sets are read', () => {
     expect(official.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
     for (const [name] of official) {
       const tags = Object.keys(((imagesetConfig as Config).packages[name] as {tags: object}).tags);
       expect(tags.length, name).toBeGreaterThan(0);
       expect(tags.filter((tag) => !TAG_NAME.test(tag) || ['all', '__proto__', 'constructor', 'prototype'].includes(tag)), name).toEqual([]);
     }
+  });
+
+  it('writes no error when the entry is one that prepareImages wrote for an official set', () => {
     for (const [name, custom] of official) {
       const errors: string[] = [];
       checkPackageEntry(name, (imagesetConfig as Config).packages[name], custom, errors);
@@ -697,7 +705,7 @@ describe('checkPackageEntry (the config entry of an updated official set)', () =
     }
   });
 
-  it('refuses a display name, font or background image that imageset.custom.json does not give', () => {
+  it('writes a displayName, googleFont and backgroundImage error when they differ from imageset.custom.json', () => {
     const [name, custom] = official[0];
     const entry = structuredClone((imagesetConfig as Config).packages[name]) as Record<string, unknown>;
     entry.displayName = 'Renamed';
@@ -708,12 +716,17 @@ describe('checkPackageEntry (the config entry of an updated official set)', () =
     expect(errors.map((error) => error.split(':')[2]?.trim().split(' ')[0])).toEqual(['displayName', 'googleFont', 'backgroundImage']);
   });
 
-  it('uses the package name as the display name when imageset.custom.json has none, like buildPackageEntry', () => {
-    const entry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['everything']}], tags: {everything: {title: 'All', description: 'All', category: 'general'}}};
+  const newEntry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['everything']}], tags: {everything: {title: 'All', description: 'All', category: 'general'}}};
+
+  it('writes no error when the displayName is the package name and imageset.custom.json has none', () => {
     const errors: string[] = [];
-    checkPackageEntry('image-new', entry, {}, errors);
+    checkPackageEntry('image-new', newEntry, {}, errors);
     expect(errors).toEqual([]);
-    checkPackageEntry('image-new', {...entry, googleFont: 'Saira'}, {}, errors);
+  });
+
+  it('writes a googleFont error when the entry has a googleFont and imageset.custom.json has none', () => {
+    const errors: string[] = [];
+    checkPackageEntry('image-new', {...newEntry, googleFont: 'Saira'}, {}, errors);
     expect(errors).toEqual(['imageset.config.json: image-new: googleFont is "Saira", but imageset.custom.json at HEAD gives nothing.']);
   });
 });

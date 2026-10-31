@@ -1,7 +1,7 @@
 import LZString from 'lz-string';
 import imagesetConfig from '../../imageset.config.json';
 import legacyConfig from '../../imageset.legacy.json';
-import {lzWithRun} from '../unit/support/lzStream';
+import {lzWithRun} from '../unit/support/lz-stream';
 
 type PackageConfig = {images: {filename: string; label: string; tags: string[]}[]};
 const packages = (imagesetConfig as {packages: Record<string, PackageConfig>}).packages;

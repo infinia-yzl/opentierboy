@@ -23,8 +23,8 @@ beforeAll(async () => {
   placeholder = await image(456, 456, 'png');
 });
 
-describe('previewCopySize: the size of the PNG copies for link previews', () => {
-  it('makes the shorter side 128 px, keeps the aspect ratio and never enlarges', async () => {
+describe('previewCopySize', () => {
+  it('returns a 128 px shorter side at the same aspect ratio when larger, and the input size when smaller', async () => {
     const {PREVIEW_COPY_SIZE, previewCopySize} = await import('@/scripts/lib/image-sets.mjs');
     expect(PREVIEW_COPY_SIZE).toBe(128);
     expect(previewCopySize(2048, 2048)).toEqual({width: 128, height: 128});
@@ -37,7 +37,7 @@ describe('previewCopySize: the size of the PNG copies for link previews', () => 
   });
 });
 
-describe('prebuild: scripts/prepareImages.js and check:images --files', () => {
+describe('scripts/prepareImages.js and check:images --files', () => {
   let root: string;
 
   const write = (file: string, value: unknown) => {
@@ -100,7 +100,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     fs.rmSync(root, {recursive: true, force: true});
   });
 
-  it('copies the official sets with PNG copies, makes the legacy PNG copies, and writes the config in order', async () => {
+  it('writes the official images, all PNG copies and an ordered imageset.config.json when it runs with --copy', async () => {
     for (const file of ['image-one/a.webp', 'image-one/a.png', 'image-one/sub/b.webp', 'image-one/sub/b.png', 'image-two/c.webp', 'image-two/c.png']) {
       expect(exists(`public/images/${file}`), file).toBe(true);
     }
@@ -116,7 +116,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(files.status).toBe(0);
   });
 
-  it('makes the PNG copies at link preview size, for official and legacy sets, and the placeholder copy', async () => {
+  it('writes each PNG copy and placeholder-image.preview.png at previewCopySize when the images have various sizes', async () => {
     const {previewCopySize} = await import('@/scripts/lib/image-sets.mjs');
     const sizes: [string, number, number][] = [['wide.webp', 600, 300], ['tall.webp', 300, 900], ['finals.webp', 140, 144], ['small.webp', 100, 300]];
     for (const [file, width, height] of sizes) {
@@ -137,7 +137,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(await sharp(path.join(root, 'public/placeholder-image.preview.png')).metadata()).toMatchObject({format: 'png', width: 128, height: 128});
   });
 
-  it('fails when the placeholder tile is missing', () => {
+  it('returns exit code 1 when public/placeholder-image.png is missing', () => {
     fs.rmSync(path.join(root, 'public/placeholder-image.png'));
 
     const result = prepare();
@@ -145,7 +145,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(result.status).toBe(1);
   });
 
-  it('fails when a package was moved away, and leaves the config as it was', () => {
+  it('returns exit code 1 and writes no change to imageset.config.json when a package folder is missing', () => {
     const before = config();
     fs.renameSync(path.join(root, 'node_modules/image-two'), path.join(root, 'image-two-moved'));
 
@@ -156,7 +156,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(config()).toBe(before);
   });
 
-  it('fails when a package has no images', () => {
+  it('returns exit code 1 when a package has no images', () => {
     fs.rmSync(path.join(root, 'node_modules/image-one/public/images'), {recursive: true});
     fs.mkdirSync(path.join(root, 'node_modules/image-one/public/images'));
 
@@ -165,7 +165,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(result.status).toBe(1);
   });
 
-  it('fails when a committed legacy image is missing, and leaves the config as it was', () => {
+  it('returns exit code 1 and writes no change to imageset.config.json when a committed legacy image is missing', () => {
     const before = config();
     fs.rmSync(path.join(root, 'public/images/image-old/x.webp'));
 
@@ -176,7 +176,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(config()).toBe(before);
   });
 
-  it('fails when the PNG copy of a legacy image cannot be made', () => {
+  it('returns exit code 1 when a committed legacy image is not a valid WebP file', () => {
     // The PNG copy from the first run exists; prepareImages removes it before converting again.
     expect(exists('public/images/image-old/x.png')).toBe(true);
     write('public/images/image-old/x.webp', 'not a WebP image');
@@ -186,7 +186,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(result.status).toBe(1);
   });
 
-  it('check:images --files fails when the image of a shipped id is missing', () => {
+  it('returns exit code 1 from check:images --files when the image of a shipped id is missing', () => {
     fs.rmSync(path.join(root, 'public/images/image-one/sub/b.png'));
     fs.rmSync(path.join(root, 'public/images/image-old/x.webp'));
 

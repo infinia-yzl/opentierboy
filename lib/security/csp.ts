@@ -1,6 +1,6 @@
 /**
  * Content Security Policy header for OpenTierBoy (amendment A11). next.config.ts sends it on
- * every page; tests/e2e/csp.spec.ts fails on any violation.
+ * every page; tests/e2e/security.spec.ts fails on any violation.
  *
  * The policy:
  *   default-src 'self'
