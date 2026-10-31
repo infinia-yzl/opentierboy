@@ -42,3 +42,19 @@ export function rankingState(
   };
   return LZString.compressToEncodedURIComponent(JSON.stringify(state));
 }
+
+/**
+ * Builds a `state` value from raw link JSON in the current (v2) format, for lists that
+ * `rankingState()` cannot express, such as uploaded items (`{i: id, c: label}`) or odd ids.
+ */
+export function rawState(state: {title?: string; tiers: {i: string; n: string; t: {i: string; c?: string}[]}[]}): string {
+  return stateFromJson(state);
+}
+
+/**
+ * Builds a `state` value from any JSON, including lists that the app never writes (a tier
+ * name that is an object, no tiers at all). For tests of links with bad data.
+ */
+export function stateFromJson(json: unknown): string {
+  return LZString.compressToEncodedURIComponent(JSON.stringify(json));
+}

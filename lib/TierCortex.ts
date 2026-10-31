@@ -1,22 +1,21 @@
 import Tier, {DEFAULT_TIER_TEMPLATE} from "@/models/Tier";
 import Item from "@/models/Item";
 import imagesetConfig from "@/imageset.config.json";
+import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
-import LZString from 'lz-string';
+import {type CanonicalItem, decodeState, encodeState} from "@/lib/state";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
+const MAX_ALIAS_STEPS = 10;
 
-interface EncodedState {
-  title?: string;
-  tiers: SimplifiedTier[];
-}
+/** Old item id -> new item id, for renamed images (image-aliases.json). */
+export type ItemAliases = Readonly<Record<string, string>>;
 
-interface SimplifiedTier {
-  i: string; // id
-  n: string; // name
-  t: SimplifiedItem[]; // items
+export interface TierCortexOptions {
+  /** Replaces image-aliases.json (for tests). */
+  aliases?: ItemAliases;
 }
 
 interface SimplifiedItem {
@@ -53,10 +52,12 @@ export class TierCortex {
   private readonly packageItemLookup: PackageItemLookup;
   private customItemsMap: Map<string, StoredCustomItem>;
   private readonly isServer: boolean;
+  private readonly aliases: ItemAliases;
   private baseUrl: string;
 
 
-  constructor() {
+  constructor(options: TierCortexOptions = {}) {
+    this.aliases = options.aliases ?? (imageAliases as ItemAliases);
     this.isServer = typeof window === 'undefined';
     this.baseUrl = this.isServer ? process.env.VERCEL_PROJECT_PRODUCTION_URL
         ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -70,20 +71,16 @@ export class TierCortex {
     }
   }
 
+  // The link format lives in lib/state. This writes exactly the bytes it always wrote.
   public static encodeTierStateForURL(title: string | undefined, tiers: TierWithSimplifiedItems[]): string {
-    const simplifiedTiers: SimplifiedTier[] = tiers.map(tier => ({
-      i: tier.id,
-      n: tier.name,
-      t: tier.items
-    }));
-    const encodedState: EncodedState = {
-      tiers: simplifiedTiers
-    };
-    if (title) {
-      encodedState.title = title;
-    }
-    const jsonString = JSON.stringify(encodedState);
-    return LZString.compressToEncodedURIComponent(jsonString);
+    return encodeState({
+      title,
+      tiers: tiers.map(tier => ({
+        id: tier.id,
+        name: tier.name,
+        items: tier.items.map(toCanonicalItem),
+      })),
+    });
   }
 
   public isCustomItem(itemId: string): boolean {
@@ -95,36 +92,22 @@ export class TierCortex {
     return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
+  // lib/state decodes every link format; TierCortex turns the stored item ids into items.
   public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
+    const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
+    const state = decodeState(encodedState, {onError: logError});
+    if (!state) return null;
+
     try {
-      const jsonString = LZString.decompressFromEncodedURIComponent(encodedState);
-      if (!jsonString) throw new Error('Failed to decompress state');
-
-      const parsed = JSON.parse(jsonString);
-
-      let title: string | undefined;
-      let simplifiedTiers: SimplifiedTier[];
-
-      if (Array.isArray(parsed)) {
-        // Old format: array of tiers
-        simplifiedTiers = parsed;
-      } else if (typeof parsed === 'object' && Array.isArray(parsed.tiers)) {
-        // New format: object with title and tiers
-        title = parsed.title;
-        simplifiedTiers = parsed.tiers;
-      } else {
-        throw new Error('Invalid state format');
-      }
-
-      const tiers = simplifiedTiers.map(simplifiedTier => ({
-        id: simplifiedTier.i,
-        name: simplifiedTier.n,
-        items: simplifiedTier.t.map(item => this.resolveItem(item.i, item.c))
+      const tiers = state.tiers.map(tier => ({
+        id: tier.id,
+        name: tier.name,
+        items: tier.items.map(item => this.resolveItem(item.id, item.content))
       }));
 
-      return {title, tiers};
+      return {title: state.title, tiers};
     } catch (error) {
-      console.error('Failed to decode tier state from URL:', error);
+      logError(error);
       return null;
     }
   }
@@ -222,6 +205,9 @@ export class TierCortex {
     const packageItem = this.packageItemLookup[itemId];
     if (packageItem) return packageItem;
 
+    const renamedItem = this.resolveAlias(itemId);
+    if (renamedItem) return renamedItem;
+
     if (!this.isServer) {
       const customItem = this.customItemsMap.get(itemId);
       if (customItem) {
@@ -234,6 +220,22 @@ export class TierCortex {
     }
 
     return this.createPlaceholderItem(itemId, content || '');
+  }
+
+  /**
+   * Follows image-aliases.json from the id of a renamed image to the package item that
+   * replaced it, so links made before the rename keep showing the image.
+   */
+  private resolveAlias(itemId: string): Item | undefined {
+    let currentId = itemId;
+    for (let step = 0; step < MAX_ALIAS_STEPS; step++) {
+      if (!Object.prototype.hasOwnProperty.call(this.aliases, currentId)) return undefined;
+      const nextId = this.aliases[currentId];
+      if (typeof nextId !== 'string') return undefined;
+      if (Object.prototype.hasOwnProperty.call(this.packageItemLookup, nextId)) return this.packageItemLookup[nextId];
+      currentId = nextId;
+    }
+    return undefined;
   }
 
   private createPlaceholderItem(itemId: string, content: string): Item {
@@ -260,6 +262,10 @@ export class TierCortex {
   private getAbsoluteUrl(path: string): string {
     return new URL(path, this.baseUrl).toString();
   }
+}
+
+function toCanonicalItem(item: SimplifiedItem): CanonicalItem {
+  return item.c === undefined ? {id: item.i} : {id: item.i, content: item.c};
 }
 
 export default TierCortex;

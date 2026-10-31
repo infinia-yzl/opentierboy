@@ -9,6 +9,12 @@
 # Item id registry and renames (ids are permanent).
 /image-registry.lock.json    @infinia-yzl
 /image-aliases.json          @infinia-yzl
+# The checks and tests that guard these contracts. CI runs a pull request's own copy of them.
+/scripts/check-fixtures-append-only.mjs          @infinia-yzl
+/scripts/check-image-registry.mjs                @infinia-yzl
+/scripts/generate-legacy-fixtures.mjs            @infinia-yzl
+/tests/unit/state/                               @infinia-yzl
+/tests/unit/support/TierCortex.pre-refactor.ts   @infinia-yzl
 # Sites whose images load without asking.
 /trusted-image-sites.json    @infinia-yzl
 # Workflows, Dependabot, issue templates and this file.

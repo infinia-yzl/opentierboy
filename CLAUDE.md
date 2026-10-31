@@ -47,8 +47,10 @@ Next.js 14 (App Router) · React 18 · TypeScript (strict) · Tailwind CSS 3 + s
 npm ci                    # install exactly what package-lock.json says
 npm run dev               # prepare images, then the dev server on :3000
 npm run build             # production build (prepares images on the first build)
-npm run check             # type check + lint + unit tests (CI runs this)
+npm run check             # type check, lint, unit tests, item ids, fixtures (CI runs this)
 npm run test:unit         # Vitest only
+npm run check:images      # every shipped item id is registered (`-- --update` adds new ids)
+npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
@@ -73,23 +75,26 @@ app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (
                       image, edge runtime), /blog, /about, sitemap
 components/           React components; components/ui/ is shadcn/ui
 contexts/TierContext.tsx   editor settings (label position, show labels)
-lib/TierCortex.ts     link encode/decode, item lookup, custom items, preview helpers
+lib/TierCortex.ts     item lookup and aliases, custom items, preview helpers
+lib/state/            link format: decodeState (all formats), encodeState (v2); lz-string only
 lib/utils.ts          slugs for /rank URLs, tier gradients
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
 scripts/prepareImages.js   builds imageset.config.json and public/images from image-* packages
+scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
+image-registry.lock.json   every item id ever shipped (append-only)
+image-aliases.json    old item id → new item id, for renamed images
 imageset.custom.json  which image sets ship, with display names (edit this one)
 imageset.config.json  generated from the packages (do not edit by hand)
 articles/             blog posts (Markdown)
 tests/e2e/            Playwright specs, one file per user journey
 tests/pages/          page objects (TierListPage, SitePage)
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
-tests/fixtures/       golden shared links (append-only)
+tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts)
 docs/                 owner checklists
 ```
 
-Later phases add `lib/state/` (link format), `image-registry.lock.json` and
-`image-aliases.json` (item ids), and `trusted-image-sites.json`.
+A later phase adds `trusted-image-sites.json`.
 
 ## Link contract
 
@@ -98,9 +103,16 @@ Later phases add `lib/state/` (link format), `image-registry.lock.json` and
 - Formats: v0 is an array of tiers; v1 and v2 are `{title?, tiers: [{i, n, t: [{i, c?}]}]}`.
   The app writes v2 today. Future formats start with a version prefix (`3.`).
 - Old formats are decoded forever. Never change what an old link decodes to.
+- `lib/state/` holds the format. It imports only `lz-string` (no React, `window`,
+  `localStorage` or Node modules), because the edge OG route uses it too.
+- `lib/state/decoders/legacy.ts` is frozen: never edit it. If an old link stops decoding,
+  fix the code around it.
 - `tests/fixtures/shared-links.json` holds real links and what visitors must see.
-  It is **append-only**: never edit, reorder or delete an entry. A failing fixture means the
-  app broke old links: fix the app. Add links with `node scripts/capture-shared-links.mjs`.
+  `tests/fixtures/state/generated.json` holds links from the historical v0–v2 encoders
+  (`node scripts/generate-legacy-fixtures.mjs` runs them from git history and only appends).
+  Both are **append-only**: never edit, reorder or delete an entry. A failing fixture means
+  the app broke old links: fix the app. Add links with `node scripts/capture-shared-links.mjs`.
+  `npm run check:fixtures` fails when an entry changed or disappeared.
 - Do not update `lz-string` without the owner. A new version could decode old links
   differently.
 
@@ -110,7 +122,11 @@ Later phases add `lib/state/` (link format), `image-registry.lock.json` and
   `<packageName>-<filename>` and appears inside shared links.
 - Never rename or delete an image file in a shipped set, and never drop a shipped set.
   Old links that use those ids would show placeholders.
+- `image-registry.lock.json` lists every id ever shipped. Never remove or change an entry.
+  `npm run check:images` fails when a registered id is gone without an alias;
+  `npm run check:images -- --update` appends new ids.
 - A rename needs an alias entry (old id → new id) in `image-aliases.json`.
+  `TierCortex.resolveItem` follows it, so old links show the renamed image.
 
 ## Tests
 
@@ -132,8 +148,9 @@ Later phases add `lib/state/` (link format), `image-registry.lock.json` and
 
 - TypeScript strict. `tsconfig` has no `target`: avoid `for…of` over `Map`/`Set`
   iterators or `.entries()`; use `Array.from` or index loops.
-- `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts`) must not
-  use Node APIs (`fs`, `path`) or browser APIs (`window`, `localStorage`) at import time.
+- `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts`, `lib/state/`)
+  must not use Node APIs (`fs`, `path`) or browser APIs (`window`, `localStorage`) at import
+  time. ESLint enforces this for `lib/state/` and `app/api/og/`.
 - Follow the patterns in nearby code. Keep changes small and focused on the task.
 - Never commit secrets. Never add tracking, analytics or ads.
 

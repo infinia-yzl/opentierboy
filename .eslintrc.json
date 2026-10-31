@@ -3,5 +3,31 @@
     "next/core-web-vitals",
     "next",
     "prettier"
+  ],
+  "overrides": [
+    {
+      "files": ["lib/state/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["react", "react-dom", "react-dom/*", "next", "next/*", "fs", "fs/*", "path", "child_process", "node:*", "idb", "idb-keyval", "@/*"],
+            "message": "lib/state runs in the browser, on the server and in the edge OG route. ESLint blocks React, Next, Node modules, IndexedDB libraries and @/ app imports here; tests/unit/state/purity.test.ts enforces the full rule (only lz-string and lib/state files)."
+          }]
+        }],
+        "no-restricted-globals": ["error", "window", "document", "localStorage", "sessionStorage", "indexedDB", "navigator", "process"]
+      }
+    },
+    {
+      "files": ["app/api/og/**/*.ts", "app/api/og/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": ["error", {
+          "patterns": [{
+            "group": ["fs", "fs/*", "path", "child_process", "node:*", "idb", "idb-keyval"],
+            "message": "The OG route runs in the edge runtime: no Node modules and no IndexedDB."
+          }]
+        }],
+        "no-restricted-globals": ["error", "window", "document", "localStorage", "sessionStorage", "indexedDB"]
+      }
+    }
   ]
 }

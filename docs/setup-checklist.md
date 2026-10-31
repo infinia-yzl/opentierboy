@@ -32,8 +32,12 @@ GitHub: repository **Settings → Rules → Rulesets → New ruleset → New bra
      when another maintainer joins), first add **Repository admin** to the bypass list.
      Without that, you cannot merge your own pull requests.
 5. Turn on **Require status checks to pass**. Add these two checks:
-   - `checks` (type check, lint, unit tests)
+   - `checks` (type check, lint, unit tests, item ids, fixtures)
    - `e2e (chromium)` (end-to-end tests in Chromium, the API tests and the phone layout)
+
+   CI runs each pull request's own copy of the fixture and item id checks, so look closely
+   at a pull request that changes one of those checks and a fixture together (CODEOWNERS
+   marks both for your review).
 
    A check name appears in the search list only after it has run once. Open any pull
    request first if the list is empty.

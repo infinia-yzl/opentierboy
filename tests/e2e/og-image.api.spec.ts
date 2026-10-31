@@ -1,4 +1,5 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
+import {stateFromJson} from '../support/links';
 
 /**
  * The preview image that chat apps and social sites show for a shared link.
@@ -37,6 +38,38 @@ test.describe('Link preview images', () => {
       expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
     });
   }
+
+  /**
+   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
+   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
+   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
+   */
+  test.describe('Known bugs', () => {
+    const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
+    const links = [
+      // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
+      ...['constructor', 'toString', '__proto__'].map((id) => ({
+        name: `an item with the id "${id}"`,
+        reason: 'TierCortex resolves the id to a built-in member without imageUrl, so the image points at the site root and the route aborts the response.',
+        json: {title: 'Odd item ids', tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: id, c: 'Mystery'}]}, unranked]},
+      })),
+      {
+        name: 'a tier name that is an object',
+        reason: 'The route draws the tier name as text, and an object there aborts the response.',
+        json: {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, unranked]},
+      },
+    ];
+    for (const link of links) {
+      test(`a link with ${link.name} still gets a preview image`, async ({request}) => {
+        test.fail(true, link.reason);
+        const response = await request.get(`/api/og?state=${encodeURIComponent(stateFromJson(link.json))}`, {timeout: 10_000});
+
+        expect(response.status()).toBe(200);
+        expect(response.headers()['content-type']).toBe('image/png');
+        expect(pngSize(await response.body())).toEqual({width: 1200, height: 630});
+      });
+    }
+  });
 });
 
 function isLocalServerNotOnPort3000(baseURL: string | undefined) {

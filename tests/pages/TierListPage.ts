@@ -45,6 +45,20 @@ export class TierListPage {
     await expect(this.tiers.first()).toBeVisible();
   }
 
+  /**
+   * Opens a link that might break the page. Unlike goto(), it does not wait for the editor:
+   * it waits until the page has loaded and the network is idle, so the page has started in
+   * the browser (and would have crashed by then).
+   */
+  async gotoAndSettle(path: string, state: string) {
+    await this.page.goto(`${path}?state=${state}`, {waitUntil: 'networkidle'});
+  }
+
+  /** The message Next.js shows instead of the page when the page crashed in the browser. */
+  get crashMessage(): Locator {
+    return this.page.getByRole('heading', {name: /Application error/});
+  }
+
   /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
     await this.page.goto(link);
