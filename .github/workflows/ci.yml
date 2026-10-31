@@ -1,0 +1,105 @@
+name: CI
+
+# Branch protection requires the checks named "checks" and "e2e (chromium)".
+# See docs/setup-checklist.md.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One run per branch or pull request. A new push to a pull request cancels the older run.
+# Runs on main always finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: some checks compare files with the pull request base branch.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Type check, lint and unit tests. Every new check goes into this one npm script.
+      - name: Run checks
+        run: npm run check
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+  e2e:
+    name: e2e (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Only "e2e (chromium)" is a required check for now. Make Firefox and WebKit
+        # required once they are green here (docs/setup-checklist.md).
+        project: [chromium, firefox, webkit]
+        include:
+          - project: chromium
+            browser: chromium
+            # API tests need no browser. Phone tests on Chromium use the same browser.
+            projects: --project=api --project=chromium --project=mobile-chrome
+          - project: firefox
+            browser: firefox
+            projects: --project=firefox
+          - project: webkit
+            browser: webkit
+            projects: --project=webkit --project=mobile-safari
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps "$BROWSER"
+        env:
+          BROWSER: ${{ matrix.browser }}
+
+      # Port 3000: the link preview route loads item images from localhost:3000.
+      - name: Run Playwright tests
+        run: |
+          read -r -a projects <<< "$PROJECTS"
+          npx playwright test "${projects[@]}"
+        env:
+          PORT: 3000
+          PROJECTS: ${{ matrix.projects }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-report-${{ matrix.project }}
+          path: playwright-report/
+          retention-days: 14

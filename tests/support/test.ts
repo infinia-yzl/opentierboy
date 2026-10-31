@@ -2,6 +2,7 @@ import {test as base, expect, type Browser} from '@playwright/test';
 import {TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
 import sharedLinks from '../fixtures/shared-links.json';
+import {sendBypassOnlyToSite} from './vercel-bypass';
 
 export interface SharedLinkFixture {
   id: string;
@@ -26,17 +27,23 @@ type Fixtures = {
 };
 
 export const test = base.extend<Fixtures>({
+  // Against a protected Vercel deployment, send the bypass secret to that site only.
+  context: async ({context, baseURL}, use) => {
+    await sendBypassOnlyToSite(context, baseURL);
+    await use(context);
+  },
   tierList: async ({page}, use) => {
     await use(new TierListPage(page));
   },
   site: async ({page}, use) => {
     await use(new SitePage(page));
   },
-  openAsVisitor: async ({browser}, use) => {
+  openAsVisitor: async ({browser, baseURL}, use) => {
     const contexts: Awaited<ReturnType<Browser['newContext']>>[] = [];
     await use(async (link: string) => {
       const context = await browser.newContext();
       contexts.push(context);
+      await sendBypassOnlyToSite(context, baseURL);
       const visitor = new TierListPage(await context.newPage());
       await visitor.gotoLink(link);
       return visitor;

@@ -1,0 +1,55 @@
+name: OSV-Scanner
+
+# Checks npm dependencies (package-lock.json) against the OSV vulnerability database.
+# On pull requests it fails only when the pull request adds a known vulnerability.
+# On main and every week it reports all known vulnerabilities in the Security tab
+# without failing: the lockfile already has known vulnerabilities (npm audit: 31 on
+# 2026-10-25), and a run that is red every week hides new problems. The platform
+# upgrade (Phase 3) is expected to clear most of them.
+# Uses Google's reusable workflows: https://github.com/google/osv-scanner-action
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Wednesday 05:31 UTC.
+    - cron: '31 5 * * 3'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: osv-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan-scheduled:
+    name: scan (full)
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    permissions:
+      # Upload results to the Security tab.
+      security-events: write
+      actions: read
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      # Report only. Findings still appear under Security > Code scanning.
+      fail-on-vuln: false
+      scan-args: |-
+        --recursive
+        ./
+
+  scan-pr:
+    name: scan (pull request)
+    if: github.event_name == 'pull_request'
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
+    with:
+      scan-args: |-
+        --recursive
+        ./

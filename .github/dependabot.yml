@@ -1,16 +1,35 @@
 version: 2
+
 updates:
+  # Dependabot allows one schedule per ecosystem and folder, and groups share the schedule
+  # of their entry. So both npm groups below run weekly. Image set updates arrive first
+  # through the image-set-update workflow (added later); this group is the fallback.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
     ignore:
+      # Shared links are lz-string output. A new version could change how old links decode.
+      # Update it only by hand, after the golden link fixtures pass.
+      - dependency-name: "lz-string"
       - dependency-name: "eslint"
-        versions: [ "9.x" ]
+        versions: ["9.x"]
       - dependency-name: "react-day-picker"
-        versions: [ "9.x" ]
-    open-pull-requests-limit: 1
+        versions: ["9.x"]
+    # Wait 7 days after a release before proposing it. Most malicious releases are caught
+    # and pulled within days.
+    # The image-* packages are the owner's own, so they skip the wait.
+    cooldown:
+      default-days: 7
+      exclude:
+        - "image-*"
+    # One open pull request per group.
+    open-pull-requests-limit: 2
     groups:
+      # Listed first: a package goes into the first group that matches it.
+      image-sets:
+        patterns:
+          - "image-*"
       dependencies:
         patterns:
           - "*"
@@ -20,6 +39,26 @@ updates:
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
+      include: "scope"
+    pull-request-branch-name:
+      separator: "-"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 1
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
       include: "scope"
     pull-request-branch-name:
       separator: "-"

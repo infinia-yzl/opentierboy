@@ -23,12 +23,28 @@ Against a deployed site (no local server is started):
 BASE_URL=https://your-preview.vercel.app npm run test:e2e
 ```
 
+For a deployment behind Vercel Deployment Protection, also set
+`VERCEL_AUTOMATION_BYPASS_SECRET`. The tests send it only to the site under test: browser
+tests add it to requests for the `BASE_URL` origin (`tests/support/vercel-bypass.ts`), and
+API tests send it with every request because they only call that site. Images from other
+sites never receive it.
+
 Set `PORT` to run the local server on another port than 3000. The link preview tests in
 `og-image.api.spec.ts` skip themselves on a local server that is not on port 3000, because
 the preview route loads item images from `http://localhost:3000` outside Vercel.
 
-Rebuild after every change under `app/`, `components/`, `lib/` or `models/`: the tests run
-against the production build, not the dev server.
+The tests run against the production build, not the dev server. Rebuild after every change
+to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
+`public/`, `imageset.config.json`, `imageset.custom.json` and the config files
+(`next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`). The build prepares image
+sets only once and then writes `.prepare-images-lock`. After a change to
+`imageset.custom.json` or an `image-*` package, delete `.next` and `.prepare-images-lock`
+first.
+
+`npx playwright install` downloads the browsers once per machine. If the browsers are already
+installed in a shared folder (for example in a container image), set
+`PLAYWRIGHT_BROWSERS_PATH` to that folder instead. `@playwright/test` is pinned to an exact
+version, because each version expects its own browser builds.
 
 Projects (see `playwright.config.ts`):
 
