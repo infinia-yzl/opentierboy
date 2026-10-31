@@ -22,6 +22,7 @@ import {ListCard} from "@/components/ListCard";
 import {listCardFont} from "@/components/listCardFont";
 import {useListCardData} from "@/components/useListCardData";
 import type {ListCardData} from "@/lib/listCard/model";
+import {markdownText} from "@/lib/markdownText";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -216,11 +217,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}&quote=${encodeURIComponent(shareText)}`
       : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`;
 
-    window.open(url, '_blank');
+    // noopener: the share page gets no handle to this tab (it could redirect it otherwise).
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const copyAsMarkdown = () => {
-    const shareText = `I've just ranked **${title}** on OpenTierBoy.
+    // The title comes from the link: escaped, so it cannot add links or @mentions (markdownText).
+    const shareText = `I've just ranked **${markdownText(title)}** on OpenTierBoy.
 What do you think? 🤔
 [Check it out on OpenTierBoy!](${shareUrl()})
 -# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://www.opentierboy.com/\`.
