@@ -75,17 +75,15 @@ test.describe('List title', () => {
     await expect(tierList.title).toHaveText('OVERWATCH - Tank');
   });
 
-  test('the title sits right above the rows, and the hints under them', {tag: '@mobile'}, async ({tierList}) => {
+  test('the title sits right above the rows, and the hints sit in the Unranked tray', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
     const title = await tierList.title.boundingBox();
     const firstRow = await tierList.tier('S').boundingBox();
-    const lastRow = await tierList.unranked.boundingBox();
-    const hints = await tierList.hints.boundingBox();
     const tools = await tierList.editorTools.boundingBox();
-    if (!title || !firstRow || !lastRow || !hints || !tools) throw new Error('A part of the editor is not on the page');
+    if (!title || !firstRow || !tools) throw new Error('A part of the editor is not on the page');
 
     expect(firstRow.y - (title.y + title.height)).toBeLessThan(40);
-    expect(hints.y).toBeGreaterThanOrEqual(lastRow.y + lastRow.height);
+    await expect(tierList.unranked.getByText('Drag to reorder.')).toBeVisible();
     // Wide screens: the tools on the title's line. Phones: the tools above the title.
     if (tierList.page.viewportSize()!.width >= 640) {
       expect(tools.y).toBeLessThan(title.y + title.height);
@@ -101,5 +99,38 @@ test.describe('List title', () => {
     await expect(tierList.editTitleButton).toBeHidden();
     await expect(tierList.hints).toBeHidden();
     await expect(tierList.title).toBeVisible();
+  });
+});
+
+// The Clean rows (owner decisions, 2026-10-28 and 2026-10-31): flush rows, then Add row and Row
+// options, then Unranked as a fixed tray with the hints and an "Add images" tile.
+test.describe('Clean rows', () => {
+  test('Unranked is a fixed tray under Add row, with no row handle', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
+    await expect(tierList.unranked.getByRole('heading', {level: 2, name: 'Unranked'})).toBeVisible();
+    await expect(tierList.rowHandle('Unranked')).toHaveCount(0);
+    await expect(tierList.rowHandle('F')).toBeVisible();
+
+    const lastRanked = await tierList.tier('F').boundingBox();
+    const addRow = await tierList.addRowButton.boundingBox();
+    const tray = await tierList.unranked.boundingBox();
+    if (!lastRanked || !addRow || !tray) throw new Error('A part of the editor is not on the page');
+    expect(addRow.y).toBeGreaterThanOrEqual(lastRanked.y + lastRanked.height);
+    expect(tray.y).toBeGreaterThanOrEqual(addRow.y + addRow.height);
+  });
+
+  test('the tray\'s Add images tile opens the Add images menu', async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.addImagesTile.click();
+    await expect(tierList.page.getByRole('menuitem', {name: 'From template'})).toBeVisible();
+  });
+
+  test('the tile and the hints hide in Zen; the tray stays', async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.setZenMode(true);
+    await expect(tierList.addImagesTile).toBeHidden();
+    await expect(tierList.hints).toBeHidden();
+    await expect(tierList.unranked).toBeVisible();
   });
 });

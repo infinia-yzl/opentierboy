@@ -16,6 +16,11 @@ import type {ItemMove, RowMove} from "@/lib/dnd/model";
  * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
  * between rows, rows move by their handle, with the mouse, by touch (hold, then move) and with
  * the keyboard. The list changes only on drop: one history entry per move (product rule 2).
+ *
+ * The Clean layout (owner decisions, 2026-10-28 and 2026-10-31): the ranked rows sit flush, each
+ * with its tier letter in a column on its gradient, its tiles flush, and its handle at the end.
+ * Unranked, the last row, is a fixed tray under them, with the hints and an "Add images" tile;
+ * rows never move into its place (lib/dnd/moves.ts, reorderRows).
  */
 
 const TierItem = memo<{
@@ -35,7 +40,7 @@ const TierItem = memo<{
       aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
       aria-label={itemDisplayLabel(item)}
       // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
-      className={`m-0.5 rounded-md select-none [-webkit-touch-callout:none] ${isDragging ? 'shadow-md ring-2' : ''}`}
+      className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
     >
       <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
     </div>
@@ -47,7 +52,9 @@ const TierItems = memo<{
   tier: Tier;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
-}>(({tier, showLabels, onDeleteItem}) => {
+  /** After the items, inside the drop area: the tray's "Add images" tile. */
+  trailing?: React.ReactNode;
+}>(({tier, showLabels, onDeleteItem, trailing}) => {
   const descriptionIds = useId();
   const {ref, isDropTarget} = useTierItems({tierId: tier.id});
   // A link image names its site in the item's description, next to the drag instructions. The
@@ -60,7 +67,7 @@ const TierItems = memo<{
     <>
       <div
         ref={ref}
-        className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${isDropTarget ? 'ring-1 ring-accent-foreground' : ''}`}
+        className={`flex-1 min-w-0 min-h-16 md:min-h-20 flex flex-wrap content-start ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
       >
         {tier.items.map((item, itemIndex) => (
           <TierItem
@@ -73,6 +80,7 @@ const TierItems = memo<{
             onDeleteItem={onDeleteItem}
           />
         ))}
+        {trailing}
       </div>
       {sources.some(Boolean) && (
         <div hidden>
@@ -83,6 +91,16 @@ const TierItems = memo<{
   );
 });
 TierItems.displayName = 'TierItems';
+
+/** The tier letter's size: big for a letter or two, smaller for longer names, which wrap. */
+function rowLabelClass(name: string, labelPosition: LabelPosition): string {
+  const length = Array.from(name.trim()).length;
+  const size = labelPosition === 'top' ? 'text-lg'
+    : length <= 2 ? 'text-[1.625rem] sm:text-3xl'
+      : length <= 5 ? 'text-lg sm:text-xl'
+        : 'text-sm';
+  return `font-heading font-black leading-tight break-words ${size}`;
+}
 
 const TierRow = memo<{
   tier: Tier;
@@ -99,57 +117,88 @@ const TierRow = memo<{
   const {ref, handleRef, isDragging} = useTierRow({tierId: tier.id, index});
   const describedBy = useTierDragDescription();
   const tierGradient = getTierGradient(listIndex, tiersLength);
-  // Accessible name for the row. The unnamed last row holds unranked items; any other
-  // row whose label was cleared is named after its position.
-  const isLastRow = listIndex === tiersLength - 1;
-  const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${listIndex + 1}`);
+  // Accessible name for the row. A row whose label was cleared is named after its position.
+  const tierLabel = tier.name.trim() || `Tier ${listIndex + 1}`;
+  const label = (
+    <EditableLabel
+      text={tier.name}
+      onSave={(newText) => onSaveLabel(listIndex, newText)}
+      className={labelPosition === 'top'
+        ? 'px-2 pt-1'
+        : 'w-14 sm:w-24 shrink-0 self-stretch flex items-center justify-center p-1 text-center'}
+      contentClassName={rowLabelClass(tier.name, labelPosition)}
+      as="h2"
+      emptyLabel={tierLabel}
+    />
+  );
 
   return (
     <div
       ref={ref}
       role="group"
       aria-label={tierLabel}
-      className={`
-        border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px]
-        min-h-20
-        flex items-center
-        ${isDragging ? 'shadow-lg ring-2' : ''}
-      `}
+      className={`w-full min-h-16 md:min-h-20 flex border-b border-black/10 dark:border-white/10 ${isDragging ? 'relative z-10 shadow-lg ring-2 ring-ring' : ''}`}
       style={{background: tierGradient}}
     >
-      <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
-        {labelPosition === 'top' && !isLastRow && (
-          <EditableLabel
-            text={tier.name}
-            onSave={(newText) => onSaveLabel(listIndex, newText)}
-            className="p-1"
-            contentClassName="tracking-wide text-xl font-semibold"
-            as="h2"
-            emptyLabel={tierLabel}
-          />
-        )}
-        <div
-          className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
-          {(labelPosition === 'left' || labelPosition === 'right') && (
-            <div className="md:w-40">
-              <EditableLabel
-                text={tier.name}
-                onSave={(newText) => onSaveLabel(listIndex, newText)}
-                className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
-                contentClassName="tracking-wide text-xl font-semibold"
-                as="h2"
-                emptyLabel={tierLabel}
-              />
-            </div>
-          )}
+      {labelPosition === 'top' ? (
+        <div className="flex-1 min-w-0 flex flex-col">
+          {label}
           <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
         </div>
-      </div>
+      ) : (
+        <div className={`flex-1 min-w-0 flex ${labelPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+          {label}
+          <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
+        </div>
+      )}
       <RowHandle handleRef={handleRef} describedBy={describedBy} label={tierLabel}/>
     </div>
   );
 });
 TierRow.displayName = 'TierRow';
+
+/**
+ * Unranked, the last row: a fixed tray under the rows, with no handle (owner decision,
+ * 2026-10-31). Its heading reads "Unranked" until someone names it. The hints sit beside the
+ * heading, and the "Add images" tile ends the items; both hide in Zen.
+ */
+const UnrankedTray = memo<{
+  tier: Tier;
+  listIndex: number;
+  showLabels: boolean;
+  onSaveLabel: (index: number, newText: string) => void;
+  onDeleteItem: (itemId: string) => void;
+  addImagesTile?: React.ReactNode;
+}>(({tier, listIndex, showLabels, onSaveLabel, onDeleteItem, addImagesTile}) => {
+  const tierLabel = tier.name.trim() || 'Unranked';
+  return (
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <EditableLabel
+          text={tier.name}
+          onSave={(newText) => onSaveLabel(listIndex, newText)}
+          contentClassName="text-sm font-semibold"
+          as="h2"
+          emptyText="Unranked"
+        />
+        {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
+        <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
+          <span>Drag to reorder.</span>
+          <span className="tooltip-mouse">Right-click on any item to delete.</span>
+          <span className="tooltip-touch">Long-press on any item to delete.</span>
+          <span className="tooltip-mouse">Paste an image to add it as an item.</span>
+        </p>
+      </div>
+      <TierItems
+        tier={tier}
+        showLabels={showLabels}
+        onDeleteItem={onDeleteItem}
+        trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
+      />
+    </section>
+  );
+});
+UnrankedTray.displayName = 'UnrankedTray';
 
 const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
   const {rowDrag, dragging} = useTierDragState();
@@ -158,16 +207,22 @@ const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
     // (app/globals.css), as scrolling does: hundreds of blurred layers made every frame of a
     // drag slow. The blur comes back once the item has landed: at the release, the labels'
     // transitions back to the blur made the drop animation slow.
-    <div
-      className={`pt-4 py-4 ${rowDrag ? 'ring-2 ring-accent-foreground rounded' : ''}`}
-      data-dragging={dragging || undefined}
-    >
-      {children}
+    <div className="w-full" data-dragging={dragging || undefined}>
+      <div className={`w-full border-t border-black/10 dark:border-white/10 ${rowDrag ? 'ring-2 ring-ring' : ''}`}>
+        {children}
+      </div>
     </div>
   );
 };
 
-const DragDropTierList: React.FC = () => {
+interface DragDropTierListProps {
+  /** Between the rows and the Unranked tray: Add row and Row options (RowControls). */
+  belowRows?: React.ReactNode;
+  /** The tray's "Add images" tile (ItemManager with the tile trigger). */
+  addImagesTile?: React.ReactNode;
+}
+
+const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImagesTile}) => {
   const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
 
   const handleItemMove = useCallback((move: ItemMove) => moveItem(move.from, move.to), [moveItem]);
@@ -208,23 +263,42 @@ const DragDropTierList: React.FC = () => {
   return (
     // Announcements name rows and items by their labels, never by internal ids.
     <TierDragDrop tiers={tiers} onItemMove={handleItemMove} onRowMove={handleRowMove} itemLabel={itemDisplayLabel}>
-      {(shownTiers) => (
-        <RowList>
-          {shownTiers.map((tier, index) => (
-            <TierRow
-              key={tier.id}
-              tier={tier}
-              index={index}
-              listIndex={listIndexOf.get(tier.id) ?? index}
-              tiersLength={shownTiers.length}
-              labelPosition={labelPosition}
-              showLabels={showLabels}
-              onSaveLabel={renameTier}
-              onDeleteItem={handleDeleteItem}
-            />
-          ))}
-        </RowList>
-      )}
+      {(shownTiers) => {
+        // Unranked is always the last row, also in a preview: rows never move into its place.
+        const ranked = shownTiers.slice(0, -1);
+        const unranked = shownTiers[shownTiers.length - 1];
+        return (
+          <>
+            <RowList>
+              {ranked.map((tier, index) => (
+                <TierRow
+                  key={tier.id}
+                  tier={tier}
+                  index={index}
+                  listIndex={listIndexOf.get(tier.id) ?? index}
+                  tiersLength={shownTiers.length}
+                  labelPosition={labelPosition}
+                  showLabels={showLabels}
+                  onSaveLabel={renameTier}
+                  onDeleteItem={handleDeleteItem}
+                />
+              ))}
+            </RowList>
+            {belowRows}
+            {unranked && (
+              <UnrankedTray
+                key={unranked.id}
+                tier={unranked}
+                listIndex={shownTiers.length - 1}
+                showLabels={showLabels}
+                onSaveLabel={renameTier}
+                onDeleteItem={handleDeleteItem}
+                addImagesTile={addImagesTile}
+              />
+            )}
+          </>
+        );
+      }}
     </TierDragDrop>
   );
 };

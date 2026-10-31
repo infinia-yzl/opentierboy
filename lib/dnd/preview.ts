@@ -1,4 +1,4 @@
-import {findItem, moveItem} from './moves';
+import {findItem, isUnranked, moveItem} from './moves';
 import type {ItemLike, ItemMove, RowMove, TierLike} from './model';
 
 /**
@@ -53,6 +53,8 @@ export function previewItemOver<I extends ItemLike, T extends TierLike<I>>(previ
 export function previewRowOver<T extends TierLike>(preview: T[], tierId: string, overTierId: string): T[] {
   const from = preview.findIndex(tier => tier.id === tierId);
   const to = preview.findIndex(tier => tier.id === overTierId);
+  // Unranked (the last row) is a fixed tray: no row takes its place (lib/dnd/moves.ts, reorderRows).
+  if (isUnranked(preview, from) || isUnranked(preview, to)) return preview;
   return moveRowInPreview(preview, from, to);
 }
 

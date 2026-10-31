@@ -273,7 +273,9 @@ Decisions in the adapter:
   it (outside the rows) changes nothing, as before.
 - **Rows** take the place of the row they move onto, with their label while dragging. On drop
   `reorderRows` moves the contents (items, id and every other field) and leaves each label at
-  its position, exactly as before, Unranked row included (product rule 6).
+  its position, exactly as before (product rule 6). Since 2.0.0, Unranked (the last row) is a
+  fixed tray under the rows: it has no handle, and no row moves into its place, by pointer,
+  keyboard or store (owner decision, 2026-10-31).
 - **Keyboard.** Left and Right follow reading order across wrapped lines. Up and Down go to
   the nearest line above or below, keeping the horizontal place; inside a wrapping row the
   function replays the wrapping, so tiles of mixed shapes cannot pull the item back onto its

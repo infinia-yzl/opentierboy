@@ -50,8 +50,10 @@ export class TierListPage {
   readonly editTitleButton: Locator;
   /** The text box that replaces the title while it is edited. */
   readonly titleInput: Locator;
-  /** The editor's hints, under the rows. */
+  /** The editor's hints, in the Unranked tray. */
   readonly hints: Locator;
+  /** The dashed "Add images" tile that ends the Unranked tray. */
+  readonly addImagesTile: Locator;
   readonly tiers: Locator;
   /** The title row's tools: Add images, Zen and Share. */
   readonly editorTools: Locator;
@@ -72,8 +74,11 @@ export class TierListPage {
     this.editTitleButton = this.main.getByRole('button', {name: 'Edit title'});
     this.titleInput = this.main.getByRole('textbox', {name: 'Title'});
     this.hints = this.main.getByText('Drag to reorder.');
+    this.addImagesTile = this.main.getByRole('button', {name: 'Add images to Unranked'});
     // Rows are the groups with a row handle; the title row's "Editor tools" is a group too.
-    this.tiers = this.main.getByRole('group').filter({has: page.getByRole('button', {name: /^Move tier /})});
+    // Rows are the groups with a tier heading: the ranked rows and the Unranked tray (which has
+    // no handle). The title row's "Editor tools" group has none.
+    this.tiers = this.main.getByRole('group').filter({has: page.getByRole('heading', {level: 2})});
     this.editorTools = page.getByRole('group', {name: 'Editor tools'});
     this.rowOptionsButton = page.getByRole('button', {name: 'Row options'});
     this.addRowButton = page.getByRole('button', {name: 'Add row', exact: true});
@@ -130,7 +135,7 @@ export class TierListPage {
   /** All items in a tier, in display order. */
   itemsIn(tier: string | Locator): Locator {
     const row = typeof tier === 'string' ? this.tier(tier) : tier;
-    return row.getByRole('button', {name: /^(?!Move tier\b)/});
+    return row.getByRole('button', {name: /^(?!Move tier\b|Add images to\b)/});
   }
 
   item(name: string): Locator {

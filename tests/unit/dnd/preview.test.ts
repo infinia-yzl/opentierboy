@@ -79,6 +79,12 @@ describe('previewRowOver', () => {
     expect(moveRowInPreview(tiers, 0, 9)).toBe(tiers);
     expect(moveRowInPreview(tiers, 1.5, 0)).toBe(tiers);
   });
+
+  it('never moves a row into the place of Unranked, or Unranked anywhere: it is a fixed tray', () => {
+    const unrankedId = tiers[tiers.length - 1].id;
+    expect(previewRowOver(tiers, 'tier-s', unrankedId)).toBe(tiers);
+    expect(previewRowOver(tiers, unrankedId, 'tier-s')).toBe(tiers);
+  });
 });
 
 describe('moves from the preview', () => {

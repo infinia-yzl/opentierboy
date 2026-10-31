@@ -54,18 +54,14 @@ const TierListEditor: React.FC = () => {
         </div>
       </div>
       <LinkImageNotice/>
-      <DragDropTierList/>
-      {/* The hints sit with the unranked items, where items start (owner decision, 2026-10-31). */}
-      <div className="w-full -mt-2 mb-2 hide-in-zen" data-html2canvas-ignore>
-        {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
-        <p className="flex flex-wrap gap-x-1 text-sm text-muted-foreground">
-          <span>Drag to reorder.</span>
-          <span className="tooltip-mouse">Right-click on any item to delete.</span>
-          <span className="tooltip-touch">Long-press on any item to delete.</span>
-          <span className="tooltip-mouse">Paste an image to add it as an item.</span>
-        </p>
+      {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
+          "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
+      <div className="w-full mt-3">
+        <DragDropTierList
+          belowRows={<RowControls/>}
+          addImagesTile={<ItemManager onOpenFiles={openFiles} trigger="tile"/>}
+        />
       </div>
-      <RowControls/>
       <div className="w-full hide-in-zen" data-html2canvas-ignore>
         <UrlLengthWarning urlLength={urlLength}/>
       </div>
