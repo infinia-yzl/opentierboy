@@ -2,14 +2,14 @@
  * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`)
  * and writes imageset.config.json.
  *
- * Official sets (imageset.custom.json entries without "legacy"): copies (or, in development,
+ * Active sets (imageset.custom.json entries without "legacy"): copies (or, in development,
  * symlinks) the images of each npm package into public/images/<package>/ and makes a PNG copy
  * of every WebP image for link previews.
  *
  * Legacy sets ({"legacy": true} in imageset.custom.json): frozen. Their config entries come
  * from imageset.legacy.json, and their images are committed in public/images/<package>/.
  * This script checks that every committed image is there and makes the PNG copy of every
- * WebP image next to it, as for the official sets. The PNG copies are git-ignored.
+ * WebP image next to it, as for the active sets. The PNG copies are git-ignored.
  *
  * The PNG copies are made at link preview size (PREVIEW_COPY_SIZE in scripts/lib/image-sets.mjs:
  * the shorter side 128 px, never enlarged), and so is a copy of the placeholder tile
@@ -339,10 +339,10 @@ async function processPackage(packageName, customConfig, shouldCopy) {
 
 async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
   const {buildPackageEntry, mergeConfig} = await imageSets;
-  const officialEntries = {};
+  const activeEntries = {};
   for (const {packageName, displayName, images} of packagesData) {
     const metadata = await callPackageFunction(packageName, 'getImageMetadata');
-    officialEntries[packageName] = buildPackageEntry({
+    activeEntries[packageName] = buildPackageEntry({
       packageName,
       displayName,
       images,
@@ -351,7 +351,7 @@ async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
     });
   }
 
-  const config = mergeConfig(order, officialEntries, legacyConfig);
+  const config = mergeConfig(order, activeEntries, legacyConfig);
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
   console.log('Config updated at', CONFIG_PATH);
 }
@@ -379,15 +379,15 @@ async function main() {
   const {splitPackages, legacyEntry} = await imageSets;
   const customConfig = await getCustomConfig();
   const legacyConfig = await getLegacyConfig();
-  const {order, official, legacy} = splitPackages(customConfig, legacyConfig);
+  const {order, active, legacy} = splitPackages(customConfig, legacyConfig);
 
   await preparePlaceholderPreview();
   for (const packageName of legacy) {
     await prepareLegacySet(packageName, legacyEntry(packageName, legacyConfig[packageName]));
   }
 
-  const results = await Promise.allSettled(official.map(pkg => processPackage(pkg, customConfig, isProduction)));
-  const failed = official.filter((pkg, index) => results[index].status === 'rejected');
+  const results = await Promise.allSettled(active.map(pkg => processPackage(pkg, customConfig, isProduction)));
+  const failed = active.filter((pkg, index) => results[index].status === 'rejected');
   if (failed.length > 0) {
     throw new Error(`Could not prepare ${failed.join(', ')} (see the errors above).`);
   }

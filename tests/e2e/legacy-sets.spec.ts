@@ -75,12 +75,12 @@ test.describe('legacy sets', () => {
         await tierList.searchTemplates(set.packageName);
         await expect(tierList.templateOption(set.displayName)).toHaveCount(0);
       }
-      // The search still finds the tags of the official sets.
+      // The search still finds the tags of the active sets.
       await tierList.searchTemplates('Tank');
       await expect(tierList.templateOption(/^Tank\b.*OVERWATCH/)).toBeVisible();
     });
 
-    test('renders cards and links for the official sets and no legacy set when the landing page opens', {tag: '@mobile'}, async ({site}) => {
+    test('renders cards and links for the active sets and no legacy set when the landing page opens', {tag: '@mobile'}, async ({site}) => {
       await site.gotoHome();
 
       await expect(site.cardTitles).toHaveText(['THE FINALS', 'OVERWATCH', 'Others']);

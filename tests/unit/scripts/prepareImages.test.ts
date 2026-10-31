@@ -100,7 +100,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     fs.rmSync(root, {recursive: true, force: true});
   });
 
-  it('writes the official images, all PNG copies and an ordered imageset.config.json when it runs with --copy', async () => {
+  it('writes the active images, all PNG copies and an ordered imageset.config.json when it runs with --copy', async () => {
     for (const file of ['image-one/a.webp', 'image-one/a.png', 'image-one/sub/b.webp', 'image-one/sub/b.png', 'image-two/c.webp', 'image-two/c.png']) {
       expect(exists(`public/images/${file}`), file).toBe(true);
     }

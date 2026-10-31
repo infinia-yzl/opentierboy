@@ -54,7 +54,7 @@ export const CLASSIC_FONT_CLASS = 'font-classic';
 /** On <html>: game colours turned off. Game colours are on by default. */
 export const NO_GAME_COLOURS_CLASS = 'no-game-colours';
 
-/** The official image sets that have their own colour, by package name. */
+/** The active image sets that have their own colour, by package name. */
 export const GAME_COLOUR_KEYS: Readonly<Record<string, string>> = {
   'image-overwatch': 'overwatch',
   'image-reachthefinals': 'the-finals',

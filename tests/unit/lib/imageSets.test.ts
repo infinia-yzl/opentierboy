@@ -39,7 +39,7 @@ describe('rankPageTitle with rankPageNames', () => {
 describe('sitemap', () => {
   const urls = sitemap().map((entry) => entry.url);
 
-  it('returns the /rank pages and the landing pages of the official sets when called', () => {
+  it('returns the /rank pages and the landing pages of the active sets when called', () => {
     expect(urls).toContain('https://opentierboy.com/rank/the-finals/all');
     expect(urls).toContain('https://opentierboy.com/rank/image-reachthefinals/light');
     expect(urls).toContain('https://opentierboy.com/overwatch');

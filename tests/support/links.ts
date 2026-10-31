@@ -42,7 +42,7 @@ export function legacyFiles(packageName: string): string[] {
   ));
 }
 
-/** The number of items a template of an official set starts with: all items, or the items of one tag. */
+/** The number of items a template of an active set starts with: all items, or the items of one tag. */
 export function templateItemCount(packageName: string, tag = 'all'): number {
   const set = packages[packageName];
   if (!set) throw new Error(`No image set ${packageName}`);

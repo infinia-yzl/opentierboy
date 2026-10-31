@@ -1,4 +1,5 @@
-import {describe, expect, it} from 'vitest';
+import LZString from 'lz-string';
+import {describe, expect, it, vi} from 'vitest';
 import {decodeState, encodeState, type CanonicalState} from '@/lib/state';
 import {
   deviceItemIds,
@@ -110,6 +111,15 @@ describe('snapshotToOpen', () => {
   it('returns SNAPSHOT_MESSAGES.damaged when the state does not decode as a v3 link', () => {
     expect(snapshotToOpen(payload({state: '3.notAList'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
     expect(snapshotToOpen(payload({state: '9.abc'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
+  });
+
+  it('returns SNAPSHOT_MESSAGES.damaged, before decompressing, when the state has a version other than 3', () => {
+    // The legacy decoder decompresses without the v3 size cap, so a short value could expand to
+    // millions of characters. No decompression may start.
+    const decompress = vi.spyOn(LZString, 'decompressFromEncodedURIComponent');
+    expect(snapshotToOpen(payload({state: `4.${STATE.slice(2)}`}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
+    expect(decompress).not.toHaveBeenCalled();
+    decompress.mockRestore();
   });
 
   it('returns SNAPSHOT_MESSAGES.tooLarge when the state is over MAX_SNAPSHOT_LINK_CHARS (13,000)', () => {

@@ -11,7 +11,7 @@ import {
   legacyEntry,
   legacyFiles,
   mergeConfig,
-  officialPackages,
+  activePackages,
   splitPackages,
   tagShape,
   tagSlug,
@@ -20,7 +20,7 @@ import {createSEOFriendlyTagSlug} from '@/lib/utils';
 
 const repoRoot = path.resolve(__dirname, '../../../..');
 const LEGACY_SETS = ['image-set', 'image-wutheringwaves', 'image-webdev', 'image-supervive', 'image-helldivers2'];
-const OFFICIAL_SETS = ['image-reachthefinals', 'image-overwatch'];
+const ACTIVE_SETS = ['image-reachthefinals', 'image-overwatch'];
 
 type ConfigEntry = {displayName: string; images: {filename: string}[]; tags: object; legacy?: boolean};
 const configPackages = (imagesetConfig as {packages: Record<string, ConfigEntry>}).packages;
@@ -44,23 +44,23 @@ function gitIgnored(files: string[]): string[] {
 }
 
 describe('image sets in this repository', () => {
-  it('returns the 2 official and 5 legacy sets from splitPackages when it reads imageset.custom.json', () => {
-    const {official, legacy} = splitPackages(customConfig, legacyConfig);
-    expect(official).toEqual(OFFICIAL_SETS);
+  it('returns the 2 active and 5 legacy sets from splitPackages when it reads imageset.custom.json', () => {
+    const {active, legacy} = splitPackages(customConfig, legacyConfig);
+    expect(active).toEqual(ACTIVE_SETS);
     expect(legacy.sort()).toEqual([...LEGACY_SETS].sort());
-    expect(officialPackages(customConfig)).toEqual(OFFICIAL_SETS);
+    expect(activePackages(customConfig)).toEqual(ACTIVE_SETS);
   });
 
   it('returns the imageset.custom.json order when the keys of imageset.config.json are read', () => {
     expect(Object.keys(configPackages)).toEqual(Object.keys(customConfig.packages));
   });
 
-  it('returns the legacyEntry of each legacy set, and no legacy key on official sets, when imageset.config.json is read', () => {
+  it('returns the legacyEntry of each legacy set, and no legacy key on active sets, when imageset.config.json is read', () => {
     for (const name of LEGACY_SETS) {
       expect(configPackages[name], name).toEqual(legacyEntry(name, legacyPackages[name]));
       expect(configPackages[name].legacy, name).toBe(true);
     }
-    for (const name of OFFICIAL_SETS) expect(configPackages[name], name).not.toHaveProperty('legacy');
+    for (const name of ACTIVE_SETS) expect(configPackages[name], name).not.toHaveProperty('legacy');
   });
 
   it('returns exactly the WebP images of each legacy set when git ls-files lists public/images/<set>', () => {
@@ -91,10 +91,10 @@ describe('image sets in this repository', () => {
     }
   });
 
-  it('returns only the official image-* packages when the dependencies in package.json are read', () => {
+  it('returns only the active image-* packages when the dependencies in package.json are read', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const imageDependencies = Object.keys({...packageJson.dependencies, ...packageJson.devDependencies}).filter((name) => name.startsWith('image-'));
-    expect(imageDependencies.sort()).toEqual([...OFFICIAL_SETS].sort());
+    expect(imageDependencies.sort()).toEqual([...ACTIVE_SETS].sort());
   });
 });
 
@@ -121,17 +121,17 @@ describe('scripts/lib/image-sets.mjs', () => {
   describe('splitPackages', () => {
     const custom = {packages: {'image-one': {displayName: 'One'}, 'image-old': {legacy: true}, 'image-two': {displayName: 'Two'}}};
 
-    it('returns {order, official, legacy} in file order when official and legacy sets are mixed', () => {
+    it('returns {order, active, legacy} in file order when active and legacy sets are mixed', () => {
       expect(splitPackages(custom, {'image-old': entry('Old')})).toEqual({
         order: ['image-one', 'image-old', 'image-two'],
-        official: ['image-one', 'image-two'],
+        active: ['image-one', 'image-two'],
         legacy: ['image-old'],
       });
     });
 
     it.each([
       ['a legacy set without a frozen entry', custom, {}, 'has no entry in imageset.legacy.json'],
-      ['a frozen entry for an official set', custom, {'image-old': entry('Old'), 'image-one': entry('One')}, 'must mark it {"legacy": true}'],
+      ['a frozen entry for an active set', custom, {'image-old': entry('Old'), 'image-one': entry('One')}, 'must mark it {"legacy": true}'],
       ['a frozen entry missing from imageset.custom.json', custom, {'image-old': entry('Old'), 'image-gone': entry('Gone')}, 'is in imageset.legacy.json but not in imageset.custom.json'],
       ['"legacy": false', {packages: {'image-one': {legacy: false}}}, {}, 'Use true or leave it out'],
       ['a name that is not an image set', {packages: {'left-pad': {}}}, {}, 'is not an image set package name'],
@@ -141,9 +141,9 @@ describe('scripts/lib/image-sets.mjs', () => {
     });
   });
 
-  it('returns only image-* sets without legacy from officialPackages when the config is mixed or null', () => {
-    expect(officialPackages({packages: {'image-a': {}, 'image-b': {legacy: true}, 'bad name': {}}})).toEqual(['image-a']);
-    expect(officialPackages(null)).toEqual([]);
+  it('returns only image-* sets without legacy from activePackages when the config is mixed or null', () => {
+    expect(activePackages({packages: {'image-a': {}, 'image-b': {legacy: true}, 'bad name': {}}})).toEqual(['image-a']);
+    expect(activePackages(null)).toEqual([]);
   });
 
   describe('legacyEntry and legacyFiles', () => {

@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
  * Checks for .github/workflows/image-set-update.yml, the workflow that opens a pull request
- * when an official image set publishes a new version on npm.
+ * when an active image set publishes a new version on npm.
  *
  * The package name and version come from the event payload (repository_dispatch
  * `image-set-published` with {package, version}, or the workflow_dispatch inputs). They are
  * untrusted, so the workflow passes them only through the environment, never as arguments:
  *
  *   PACKAGE=image-overwatch VERSION=1.3.0 node scripts/image-set-update.mjs validate
- *     PACKAGE must be an official image set: an entry of imageset.custom.json at HEAD without
+ *     PACKAGE must be an active image set: an entry of imageset.custom.json at HEAD without
  *     "legacy". VERSION must be a plain x.y.z version (no "v", no pre-release, no "+build"),
  *     and not older than the version in package.json at HEAD (a replayed event never
  *     downgrades). Writes package=, version= and same= (true when package.json already has
@@ -39,7 +39,7 @@
  *     - image-registry.lock.json: only new ids of images that PACKAGE adds (append-only);
  *     - image-aliases.json: only new aliases from an id that this update removes to an id that
  *       this update adds (A32: an alias target must be a new id added in the same change);
- *     - nothing else: no other path (no file in public/images/: official sets are copied at
+ *     - nothing else: no other path (no file in public/images/: active sets are copied at
  *       build time and never committed), no deletion, no symbolic link, no executable file.
  *     Then it runs HEAD's scripts/check-image-registry.mjs on the staged registry files, and
  *     writes the pull request text to --body: added ids with their labels, changed labels,
@@ -63,7 +63,7 @@ import {
   ENTRY_KEYS,
   IMAGE_KEYS,
   isShape,
-  officialPackages,
+  activePackages,
   PACKAGE_NAME,
   SHAPES,
   TAG_KEYS,
@@ -158,7 +158,7 @@ export function compareVersions(a, b) {
 }
 
 /**
- * Checks the package name and version of an update request against the official sets and the
+ * Checks the package name and version of an update request against the active sets and the
  * version in package.json (`current`, when installed). Returns the values and whether the
  * version is the installed one, or throws with the reason.
  */
@@ -167,9 +167,9 @@ export function validateInput(packageName, version, customConfig, current) {
   if (packageName.length > MAX_PACKAGE_LENGTH || !PACKAGE_NAME.test(packageName)) {
     throw new Error(`The package name ${quote(packageName)} is not an image set name (image-<lowercase letters, digits, dashes>).`);
   }
-  const official = officialPackages(customConfig);
-  if (!official.includes(packageName)) {
-    throw new Error(`${packageName} is not an official image set. Official sets: ${official.join(', ') || 'none'} (imageset.custom.json).`);
+  const active = activePackages(customConfig);
+  if (!active.includes(packageName)) {
+    throw new Error(`${packageName} is not an active image set. Active sets: ${active.join(', ') || 'none'} (imageset.custom.json).`);
   }
   if (typeof version !== 'string' || version === '') throw new Error('No version was given.');
   if (!VERSION_PATTERN.test(version)) {
@@ -510,7 +510,7 @@ export function checkUpdate({packageName, version, changes, read, published}) {
   };
   if (changes.length === 0) errors.push('The patch changes nothing.');
 
-  // Official sets are copied into public/images/ at build time and never committed, so the
+  // Active sets are copied into public/images/ at build time and never committed, so the
   // patch may not hold image files: everything outside ALLOWED_FILES is refused.
   for (const change of changes) {
     const file = change.path;
@@ -696,7 +696,7 @@ function formatAdded(item) {
 
 export function pullRequestBody(report) {
   const {packageName, version, added, removed, relabelled, retagged = [], tagChanges = [], newAliases, shapes, removedLockEntries, flagChanges = []} = report;
-  let body = `Updates the official image set \`${packageName}\` to \`${version}\`, published on npm.\n\n`;
+  let body = `Updates the active image set \`${packageName}\` to \`${version}\`, published on npm.\n\n`;
   body += 'Prepared by the image-set-update workflow. Nothing merges on its own: review the lists below, then merge or close.\n\n';
   body += `### Added item ids (${added.length})\n\n${list(added, formatAdded)}\n`;
   body += `### Changed labels (${relabelled.length})\n\nOld links show the new label for these items.\n\n`;

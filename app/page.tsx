@@ -11,7 +11,7 @@ import {rankPageNames} from "@/lib/imageSets";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
-// Official sets only. Legacy sets (SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
+// Active sets only. Legacy sets (SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
 // Technologies and the example template) are hidden here; their /rank pages still work.
 const FEATURED_SETS = {
   "image-reachthefinals": ["all", "light", "medium", "heavy"],

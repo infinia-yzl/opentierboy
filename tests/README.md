@@ -37,7 +37,7 @@ The tests run against the production build, not the dev server. Rebuild after ev
 to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
 `public/`, `imageset.config.json`, `imageset.custom.json` and the config files
 (`next.config.ts`, `postcss.config.mjs`). `npm run build` copies the
-official image sets into `public/images/` before every build (the `prebuild` script). The
+active image sets into `public/images/` before every build (the `prebuild` script). The
 legacy image sets are committed there already.
 
 `npx playwright install` downloads the browsers once per machine. If the browsers are already

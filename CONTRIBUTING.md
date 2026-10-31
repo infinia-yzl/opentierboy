@@ -51,13 +51,14 @@ AI-assisted work is welcome, under these rules:
 
 ## Contributing Images
 
-OpenTierBoy has two kinds of image sets: official sets, which keep growing, and legacy sets,
+OpenTierBoy has two kinds of image sets: active sets, which keep growing, and legacy sets,
 which are frozen.
 
-### Official image sets
+### Active image sets
 
-The official image sets are THE FINALS and OVERWATCH. Each one lives in its own repository and
-is published as an npm package:
+The active image sets are THE FINALS and OVERWATCH, the two sets the owner submitted to start.
+More sets join as people submit them (see "New image sets"). Each one lives in its own
+repository and is published as an npm package:
 
 - THE FINALS (`image-reachthefinals`): https://github.com/infinia-yzl/image-reachthefinals
 - OVERWATCH (`image-overwatch`): https://github.com/infinia-yzl/image-overwatch
@@ -89,7 +90,7 @@ A new set starts from the [image-set template](https://github.com/infinia-yzl/im
 GitHub Actions (`release.yml`) only.
 
 Before you publish anything, propose the set in an issue (**Image Update or Addition**
-template). If the owner accepts it, it joins the official sets in a pull request here.
+template). If the owner accepts it, it joins the active sets in a pull request here.
 
 ## Reporting Issues
 

@@ -2,7 +2,7 @@
  * What the editor does with a file that someone opens, drops or pastes, and how a snapshot's
  * list gets its device images. Plain helpers for components/useSnapshotFiles.tsx.
  */
-import {decodeState, encodeState, type CanonicalState} from '@/lib/state';
+import {decodeState, encodeState, V3_PREFIX, type CanonicalState} from '@/lib/state';
 import type {SnapshotImage, SnapshotPayload} from './payload';
 import type {ReadSnapshotFileResult} from './index';
 
@@ -140,6 +140,9 @@ export type SnapshotToOpenResult = {ok: true; snapshot: SnapshotToOpen} | {ok: f
  */
 export function snapshotToOpen(payload: SnapshotPayload): SnapshotToOpenResult {
   if (snapshotLinkTooLong(payload.state)) return {ok: false, message: SNAPSHOT_MESSAGES.tooLarge};
+  // A file holds a v3 link. Any other version would go to the legacy decoder, which
+  // decompresses without the v3 size cap: refuse it before decoding.
+  if (!payload.state.startsWith(V3_PREFIX)) return {ok: false, message: SNAPSHOT_MESSAGES.damaged};
   const list = decodeState(payload.state);
   if (!list || list.version < 3) return {ok: false, message: SNAPSHOT_MESSAGES.damaged};
   const used = new Set(deviceItemIds(list));

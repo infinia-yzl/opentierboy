@@ -4,43 +4,36 @@ name: E2E on deployment
 # request CI (ci.yml) tests a local build. This workflow checks the real site: hosting,
 # headers and link preview images with Vercel's URLs.
 #
-# The tests come from the default branch. On a production deployment that is the code
+# Trigger: Vercel's GitHub App sends a repository_dispatch event, "vercel.deployment.success",
+# after each successful deployment, with the deployment's URL and environment in
+# github.event.client_payload (https://vercel.com/docs/git/vercel-for-github). release.yml
+# uses the same event. GitHub always runs repository_dispatch workflows from this file on the
+# default branch, so a fork's pull request cannot change the workflow that reads the
+# "vercel-e2e" secret. Only someone with write access to this repository can send the event.
+#
+# The tests come from the default branch too. On a production deployment that is the code
 # Vercel deployed, so the tests match it. Preview deployments of pull requests are skipped:
 # their code can be newer than the default branch's tests (or need a newer Playwright), so
 # those runs would fail for reasons that say nothing about the deployment. CI on the pull
 # request is the gate.
-#
-# Security: GitHub runs this workflow file from the deployed commit. A deployment of a
-# fork's pull request would run the fork's copy of this file with access to the
-# "vercel-e2e" environment secrets. Keep Vercel's Git Fork Protection on and never approve
-# a fork deployment without reading it first (docs/maintainers/repository-settings.md).
-# The job runs only for deployment statuses created by Vercel's GitHub App
-# ("vercel[bot]", the creator on this repository's real deployments).
-#
-# Owner option, not used yet: Vercel also sends a repository_dispatch event
-# ("vercel.deployment.success", URL in github.event.client_payload.url). GitHub always
-# runs repository_dispatch workflows from the default branch's file, so a fork cannot
-# change the workflow that receives the secret. Switching means changing the trigger
-# and the BASE_URL line. See https://vercel.com/docs/git/vercel-for-github.
 
 on:
-  deployment_status:
+  repository_dispatch:
+    types: [vercel.deployment.success]
 
 permissions:
   contents: read
 
 concurrency:
-  group: e2e-deployed-${{ github.event.deployment.environment }}-${{ github.event.deployment.ref }}
+  group: e2e-deployed-${{ github.event.client_payload.environment }}
   cancel-in-progress: true
 
 jobs:
   e2e-deployed:
     name: e2e (deployed)
     if: >-
-      github.event.deployment_status.state == 'success' &&
-      github.event.deployment.environment == 'Production' &&
-      github.event.deployment_status.creator.login == 'vercel[bot]' &&
-      startsWith(github.event.deployment_status.environment_url, 'https://')
+      github.event.client_payload.environment == 'production' &&
+      startsWith(github.event.client_payload.url, 'https://')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Holds VERCEL_AUTOMATION_BYPASS_SECRET. "deployment: false" uses the environment's
@@ -70,7 +63,7 @@ jobs:
       - name: Run Playwright tests against the deployment
         run: npx playwright test --project=api --project=chromium
         env:
-          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          BASE_URL: ${{ github.event.client_payload.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
       - name: Upload Playwright report
