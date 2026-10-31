@@ -104,7 +104,7 @@ export interface UseSnapshotFiles {
   openFiles: (files: File[]) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
   dialog: React.ReactNode;
-  /** The Open file button: focus returns to it when the dialog closes. */
+  /** The Add images button: focus returns to it when the dialog closes. */
   openFileButtonRef: React.RefObject<HTMLButtonElement | null>;
 }
 
@@ -366,7 +366,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       busy.current = false;
     }}>
       <AlertDialogContent onCloseAutoFocus={(event) => {
-        // The dialog has no trigger of its own: give focus back to the Open file button.
+        // The dialog has no trigger of its own: give focus back to the Add images button.
         event.preventDefault();
         openFileButtonRef.current?.focus();
       }}>

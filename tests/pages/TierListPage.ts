@@ -901,7 +901,7 @@ export class TierListPage {
   // ---- Files: snapshot files and pictures ---------------------------------------------------
 
   /**
-   * Chooses a file with "Open a saved picture…" in the Add images menu, as the file chooser
+   * Chooses a file with "Open a Freeze Frame…" in the Add images menu, as the file chooser
    * would. Pass `waitForEditor: false` when the test already waited for the editor
    * (waitUntilInteractive), for example to time the opening.
    */
@@ -909,7 +909,7 @@ export class TierListPage {
     if (waitForEditor) await this.waitUntilInteractive();
     const chooser = this.page.waitForEvent('filechooser');
     await this.manageItemsButton.click();
-    await this.page.getByRole('menuitem', {name: 'Open a saved picture…'}).click();
+    await this.page.getByRole('menuitem', {name: 'Open a Freeze Frame…'}).click();
     await (await chooser).setFiles(file);
   }
 
@@ -949,7 +949,7 @@ export class TierListPage {
   }
 
   /**
-   * Chooses a file with "Open file" and returns how long the page took, measured in the page,
+   * Chooses a file with "Open a Freeze Frame…" and returns how long the page took, measured in the page,
    * from receiving the file until a toast with `text` appeared (milliseconds). Playwright's own
    * waiting is not part of the time.
    */

@@ -95,6 +95,9 @@ async function downloadSnapshotOf(tierList: TierListPage): Promise<Buffer> {
   await tierList.addItemsFromDevice([imageFile('red-square.png')]);
   await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   await tierList.capturePreview();
+  // Download says what the file carries before anyone sends it on (owner decision, 2026-10-31).
+  await expect(tierList.sharePanel).toContainText(
+    'The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.');
   const file = await tierList.downloadCapturedImage();
   expect(file.name).toBe('tanks-with-a-cat.png');
   return file.buffer;
@@ -112,7 +115,7 @@ const SNAPSHOT_LIST = {
   ],
 };
 
-test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () => {
+test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (A10)', () => {
   // Each test builds a list, captures and downloads it, then opens the file, often in a second
   // browser: on a busy machine that takes longer than the default 30 seconds.
   test.slow();
@@ -487,7 +490,7 @@ test.describe('Files in turn', () => {
 });
 
 test.describe('Opening other files', () => {
-  test('an ordinary picture becomes an item, from Open file and from a drop', async ({tierList}) => {
+  test('an ordinary picture becomes an item, from Open a Freeze Frame and from a drop', async ({tierList}) => {
     await tierList.goto('/rank');
 
     await tierList.openFile(imageFile('red-square.png'));
@@ -603,7 +606,7 @@ test.describe('Opening other files', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 
-  test('SVG and BMP files become items through Open file and drops, as from your device', async ({tierList}) => {
+  test('SVG and BMP files become items through Open a Freeze Frame and drops, as from your device', async ({tierList}) => {
     await tierList.goto('/rank');
     const svg = {
       name: 'drawing.svg',

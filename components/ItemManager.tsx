@@ -33,7 +33,7 @@ import {useTierContext} from "@/contexts/TierContext";
 import {useAddItemsWithUndo} from "@/components/useAddItems";
 
 interface ItemManagerProps {
-  /** Opens files chosen with "Open a saved picture…" (components/useSnapshotFiles.tsx: openFiles). */
+  /** Opens files chosen with "Open a Freeze Frame…" (components/useSnapshotFiles.tsx: openFiles). */
   onOpenFiles: (files: File[]) => void;
   /** Focus returns here after the "Open the list in this file?" dialog. */
   openFocusRef?: React.RefObject<HTMLButtonElement | null>;
@@ -157,7 +157,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef}) =>
           <DropdownMenuSeparator/>
           {/* Opening a saved Freeze Frame picture brings a list in, so it sits with the list
               actions (owner decision, 2026-10-29). Pictures without a list become items. */}
-          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>Open a saved picture…</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => fileInput.current?.click()}>Open a Freeze Frame…</DropdownMenuItem>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
                             className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"

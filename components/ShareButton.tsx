@@ -374,7 +374,7 @@ What do you think? 🤔
                       Download
                     </Button>
                     <p className="w-full text-center text-xs text-muted-foreground">
-                      Download keeps the list inside the picture: open the file here later to edit it again.
+                      The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.
                     </p>
                   </div>
                 ) : (
