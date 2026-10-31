@@ -730,8 +730,14 @@ export function pullRequestBody(report) {
 
 function readRegistry(registryFile) {
   if (!registryFile) throw new Error('Pass the npm view answer with --registry <file>.');
-  if (fs.statSync(registryFile).size > MAX_REGISTRY_BYTES) throw new Error(`The npm view answer is larger than ${MAX_REGISTRY_BYTES} bytes.`);
-  return parseRegistry(fs.readFileSync(registryFile, 'utf8'));
+  // One open file: the size check and the read see the same file, even if the path changes.
+  const fd = fs.openSync(registryFile, 'r');
+  try {
+    if (fs.fstatSync(fd).size > MAX_REGISTRY_BYTES) throw new Error(`The npm view answer is larger than ${MAX_REGISTRY_BYTES} bytes.`);
+    return parseRegistry(fs.readFileSync(fd, 'utf8'));
+  } finally {
+    fs.closeSync(fd);
+  }
 }
 
 function gate(packageName, version, bodyFile, registryFile) {

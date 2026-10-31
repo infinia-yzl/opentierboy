@@ -75,7 +75,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-prepare-images-'));
-    for (const file of ['scripts/prepareImages.js', 'scripts/lib/image-sets.mjs', 'scripts/check-image-registry.mjs']) {
+    for (const file of ['scripts/prepareImages.js', 'scripts/lib/image-sets.mjs', 'scripts/lib/files.mjs', 'scripts/check-image-registry.mjs']) {
       write(file, fs.readFileSync(path.join(repoRoot, file)));
     }
     // prepareImages needs sharp. Link the installed copy into the temporary node_modules.

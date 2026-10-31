@@ -38,6 +38,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {readFileIfExists} from './lib/files.mjs';
 
 const MAX_ALIAS_STEPS = 10;
 
@@ -57,10 +58,12 @@ const errors = [];
 const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 
-function readJson(file, fallback) {
-  if (!fs.existsSync(file)) return fallback;
+/** The file's JSON and whether the file exists. A missing file gives `fallback`. */
+function readJsonFile(file, fallback) {
+  const text = readFileIfExists(file, 'utf8');
+  if (text === undefined) return {exists: false, value: fallback};
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return {exists: true, value: JSON.parse(text)};
   } catch (error) {
     console.error(`${path.relative(root, file)} is not valid JSON: ${error.message}`);
     process.exit(1);
@@ -82,16 +85,15 @@ function shippedIds(config) {
   return ids;
 }
 
-const config = readJson(configPath, undefined);
+const config = readJsonFile(configPath, undefined).value;
 if (!config) {
   console.error(`${path.relative(root, configPath) || configPath} is missing.`);
   process.exit(1);
 }
 const shipped = shippedIds(config);
 
-const lockExists = fs.existsSync(lockPath);
-const lock = readJson(lockPath, {});
-const aliases = readJson(aliasesPath, undefined);
+const {exists: lockExists, value: lock} = readJsonFile(lockPath, {});
+const aliases = readJsonFile(aliasesPath, undefined).value;
 
 if (!lockExists && !update) {
   errors.push('image-registry.lock.json is missing. Create it with: npm run check:images -- --update');
