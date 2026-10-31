@@ -1,0 +1,26 @@
+{
+  "$comment": "Sites whose link images load without asking the visitor first. A host matches exactly, unless its entry sets \"subdomains\": true. npm run check:trusted-sites fails when a host or its registrable domain is on the Disconnect tracker list (pinned in scripts/tracker-list.pin.json). See docs/custom-images.md.",
+  "sites": [
+    {
+      "host": "thefinals.wiki",
+      "subdomains": true,
+      "reason": "THE FINALS wiki. Its images are served from www.thefinals.wiki."
+    },
+    {
+      "host": "cdn.deadlock.wiki",
+      "reason": "Image server of the Deadlock wiki (deadlock.wiki)."
+    },
+    {
+      "host": "static.wikia.nocookie.net",
+      "reason": "Image server of Fandom wikis, such as the Overwatch wiki."
+    },
+    {
+      "host": "upload.wikimedia.org",
+      "reason": "Image server of Wikipedia and Wikimedia Commons."
+    },
+    {
+      "host": "i.imgur.com",
+      "reason": "Direct image links on Imgur."
+    }
+  ]
+}

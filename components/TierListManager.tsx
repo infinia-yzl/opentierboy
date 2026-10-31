@@ -3,6 +3,9 @@
 import React from 'react';
 import DragDropTierList from './DragDropTierList';
 import {TierListProvider, useTierContext} from '@/contexts/TierContext';
+import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
+import LinkImageNotice from "@/components/LinkImageNotice";
+import {usePasteImages} from "@/components/usePasteImages";
 import TierTemplateSelector from "@/components/TierTemplateSelector";
 import EditableLabel from "@/components/EditableLabel";
 import ItemManager from "@/components/ItemManager";
@@ -22,12 +25,15 @@ interface TierListManagerProps {
 /** The tier list editor. The list lives in the store (contexts/TierContext.tsx). */
 const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initialState, title}) => (
   <TierListProvider initialItemSet={initialItemSet} initialState={initialState} pageTitle={title ?? ''}>
-    <TierListEditor/>
+    <CustomImagesProvider>
+      <TierListEditor/>
+    </CustomImagesProvider>
   </TierListProvider>
 );
 
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
+  usePasteImages();
 
   return (
     <>
@@ -51,9 +57,13 @@ const TierListEditor: React.FC = () => {
           <p className="tooltip-touch text-sm text-muted-foreground text-center">
             Long-press on any item to delete.
           </p>
+          <p className="tooltip-mouse text-sm text-muted-foreground text-center">
+            Paste an image to add it as an item.
+          </p>
           <UrlLengthWarning urlLength={urlLength}/>
         </div>
       </div>
+      <LinkImageNotice/>
       <DragDropTierList/>
     </>
   );

@@ -265,24 +265,26 @@ out of links.
 - Uploads (custom items) are written as device images by their device image id. Uploads made
   before Phase 5c have ids from `Math.random().toString(36).slice(2, 11)`, which can be shorter
   than 8 characters. Such an id is written as `legacy-<id>`, which is always valid (A42,
-  `deviceImageIdForUpload` in `lib/state/deviceId.ts`). Phase 5c uses the same mapping when it
-  moves uploads to the device image store. A legacy id that no prefix makes valid is not an
+  `deviceImageIdForUpload` in `lib/state/deviceId.ts`). The editor uses the same mapping when it
+  moves old uploads from localStorage into the device image store. A legacy id that no prefix makes valid is not an
   upload: it is written as `{"i": id, "c": label}` (see above).
 - Link images are written with their address and label.
 
 **Reading** (`TierCortex.decodeTierStateFromURL`):
 
-- Link images show as label tiles: the label, and no image. Nothing loads their address. Phase
-  5c adds safe link images.
-- Device images show this browser's upload, found by their id or by the id before the
-  `legacy-` prefix. Without one, the label shows on the placeholder image, as for a legacy
-  upload in someone else's browser.
+- Link images load in the browser from trusted sites (`trusted-image-sites.json`), and from
+  other sites once the visitor allows them; until then, and when an image fails, the tile shows
+  the label (or, without a label, the site's name). See `docs/custom-images.md`.
+- Device images show the image this browser keeps under their id in the device image store.
+  Without one, the label shows on the placeholder image, as for an upload in someone else's
+  browser.
 - An upload or unknown id from a legacy link shows under the id its v3 link writes
   (`legacy-<id>` when the id breaks the device id rule, A42). So the item keeps one id on
   screen across Back and Forward between legacy and v3 versions of a list, and toast Undo never
-  adds it twice. The upload is still found under its own id.
-- Link previews (`/api/og`) draw link and device images as label tiles. Their addresses never
-  reach the local image inliner (A8, A36).
+  adds it twice. Its image is kept in the device image store under that same id.
+- Link previews (`/api/og`) draw link images from trusted sites (with caps), and label tiles for
+  other link images and for device images. Link image addresses never reach the local image
+  inliner (A8, A36).
 - `TierCortex` gives a row with a repeated tier id its own id (A38, Phase 5a). Hand-made links
   can also hold empty ids, which v3 refuses: an empty tier id gets a new id (`tier~1`, ...) and
   an empty item id gets one too (`item~1`, ..., keeping its label, written as `{"i", "c"}`). So a
@@ -311,11 +313,9 @@ out of links.
 address and the history as they are, also when the app would write that list differently
 (every v0, v1 and v2 link, and v3 links with defaults written out).
 
-**Known issue** (recorded as a known-bug test in `tests/e2e/items.spec.ts`): right after a page
-load, an upload kept in this browser shows the placeholder image. The server renders the list
-without this browser's uploads, and React keeps the server's image address when the page starts
-in the browser; the tile shows the upload once it renders again. Today uploads are `blob:` URLs
-that do not survive a page load anyway (#86). Phase 5c loads uploads in an effect.
+Uploads load in an effect, after the page has started, so the server and the browser render
+the same list and an upload shows its image right after a page load (fixed in Phase 5c; the
+former known-bug test in `tests/e2e/items.spec.ts` is a normal test now).
 
 `encodeState(list, {format: 2})` and `TierCortex.encodeTierStateForURL` still write v2.
 

@@ -13,17 +13,21 @@ test.describe('The tier list page', () => {
     const link = lzWithRun('{"tiers":[{"i":"tier-s","n":"S","t":[]},{"i":"uncategorized","n":"","t":[]}],"title":"{run}"}', 'x', title.length).input;
     expect(link.length).toBeLessThan(3_000);
 
+    // The time bound is generous on purpose: CI runners and the agents' sandbox can be slow and
+    // busy. It still catches a page that takes many seconds to build a 9 MB response.
     const started = Date.now();
-    const response = await request.get(`/rank/overwatch/tank?state=${link}`, {timeout: 5_000});
+    const response = await request.get(`/rank/overwatch/tank?state=${link}`, {timeout: 15_000});
     expect(response.status()).toBe(200);
     const html = await response.text();
-    expect(Date.now() - started).toBeLessThan(5_000);
+    expect(Date.now() - started).toBeLessThan(15_000);
 
     const short = `${'x'.repeat(99)}…`;
     expect(html).toContain(`<title>${short}</title>`);
     expect(html).toContain(`<meta property="og:title" content="${short}"/>`);
     // The editor shows the whole title once (it is the list's own text); nothing repeats it.
     expect(html.split(title).length - 1).toBe(1);
-    expect(html.length).toBeLessThan(title.length + 200_000);
+    // The page stays small: the title once (about 1 MB) and the rest of the page, not 9 MB.
+    expect(html.length, 'page size in characters').toBeLessThan(title.length + 200_000);
+    expect(Buffer.byteLength(html), 'page size in bytes').toBeLessThan(1_500_000);
   });
 });

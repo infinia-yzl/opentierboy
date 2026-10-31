@@ -36,7 +36,7 @@ the preview route loads item images from `http://localhost:3000` outside Vercel.
 The tests run against the production build, not the dev server. Rebuild after every change
 to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
 `public/`, `imageset.config.json`, `imageset.custom.json` and the config files
-(`next.config.mjs`, `postcss.config.mjs`). `npm run build` copies the
+(`next.config.ts`, `postcss.config.mjs`). `npm run build` copies the
 official image sets into `public/images/` before every build (the `prebuild` script). The
 legacy image sets are committed there already.
 
@@ -92,6 +92,18 @@ tests/
   await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
   ```
 
+- **Tests never reach real sites.** `tests/support/test.ts` blocks requests to hosts other
+  than the site under test and local addresses: from the browser (contexts from the fixtures,
+  `openAsVisitor`, `openInChromiumProfile` and the worker's `browser`), `page.request`,
+  `context.request`, the `request` fixture and the runner's `fetch()` (guarded when the module
+  is first imported). A blocked request fails the test, also one marked `test.fail()`; one
+  outside a test fails its file or the worker. Play image sites with
+  `tests/support/imageSites.ts`. Lint refuses the ways around it (`route.continue()`,
+  `route.fetch()`, `browser.newContext()`, `browser.newPage()`, `launch()`...) outside
+  `tests/support`. Known limits, not guarded: `node:http` and `node:https` in tests, a route
+  that answers a site address with a redirect to an outside host (or falls back with an
+  outside `url`), and fetches the server makes for `/api/og` (no test sends it a trusted-site
+  image).
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
 - **Run a new test under load before you commit it**, for example

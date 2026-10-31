@@ -1,4 +1,4 @@
-import React, {useCallback, memo} from 'react';
+import React, {useCallback, memo, useId} from 'react';
 import {
   DragDropContext,
   DraggableLocation,
@@ -18,6 +18,7 @@ import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {DragSubject, dragEndMessage, dragStartMessage, dragUpdateMessage} from "@/lib/dragAnnouncements";
+import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
 
 // Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
 // so an item id such as "__proto__" would never register as a draggable, and an item id equal
@@ -42,7 +43,15 @@ const TierItems = memo<{
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
 }>(({tier, showLabels, onDeleteItem}) => {
+  const descriptionIds = useId();
+  // A link image names its site in the item's description, next to the drag instructions. The
+  // descriptions sit in a hidden list after the row, so they stay out of the items' text.
+  const sources = tier.items.map((item, itemIndex) => {
+    const domain = linkImageOf(item)?.domain;
+    return domain ? {id: `${descriptionIds}-${itemIndex}`, domain} : null;
+  });
   return (
+    <>
     <Droppable droppableId={rowDropId(tier.id)} direction="horizontal">
       {(provided, snapshot) => (
         <div
@@ -50,14 +59,17 @@ const TierItems = memo<{
           {...provided.droppableProps}
           className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
         >
-          {tier.items.map((item, itemIndex) => (
+          {tier.items.map((item, itemIndex) => {
+            const sourceId = sources[itemIndex]?.id;
+            return (
             <Draggable key={item.id} draggableId={itemDragId(item.id)} index={itemIndex}>
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
-                  aria-label={item.content}
+                  aria-describedby={[provided.dragHandleProps?.['aria-describedby'], sourceId].filter(Boolean).join(' ') || undefined}
+                  aria-label={itemDisplayLabel(item)}
                   className={`
                     m-0.5 rounded-md
                     ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
@@ -73,11 +85,18 @@ const TierItems = memo<{
                 </div>
               )}
             </Draggable>
-          ))}
+            );
+          })}
           {provided.placeholder}
         </div>
       )}
     </Droppable>
+    {sources.some(Boolean) && (
+      <div hidden>
+        {sources.map((source) => source && <span key={source.id} id={source.id}>Image from {source.domain}</span>)}
+      </div>
+    )}
+    </>
   );
 });
 TierItems.displayName = 'TierItems';
@@ -187,7 +206,7 @@ const DragDropTierList: React.FC = () => {
 
     let restored = false;
     toast('Item deleted', {
-      description: `${deleted.item.content} was removed.`,
+      description: `${itemDisplayLabel(deleted.item)} was removed.`,
       action: {
         label: 'Undo',
         onClick: () => {
@@ -196,7 +215,7 @@ const DragDropTierList: React.FC = () => {
           // Undo is a new change to the list, so it adds a history entry (A6).
           restoreItem(deleted.item, deleted.tierId);
           toast('Item restored', {
-            description: `${deleted.item.content} has been restored.`,
+            description: `${itemDisplayLabel(deleted.item)} has been restored.`,
           });
         },
       },

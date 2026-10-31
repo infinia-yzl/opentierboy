@@ -31,7 +31,7 @@ export interface LocalImageLimits {
 
 export const DEFAULT_LIMITS: LocalImageLimits = {maxBytes: 2 * 1024 * 1024, timeoutMs: 5_000};
 
-function timeoutSignal(ms: number): AbortSignal {
+export function timeoutSignal(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
   const controller = new AbortController();
   setTimeout(() => controller.abort(), ms);
@@ -39,7 +39,7 @@ function timeoutSignal(ms: number): AbortSignal {
 }
 
 /** Reads the body, or returns null as soon as it grows past `maxBytes`. */
-async function readCapped(response: Response, maxBytes: number): Promise<Uint8Array | null> {
+export async function readCapped(response: Response, maxBytes: number): Promise<Uint8Array | null> {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) return null;
   if (!response.body) return null;
@@ -65,6 +65,16 @@ async function readCapped(response: Response, maxBytes: number): Promise<Uint8Ar
   return bytes;
 }
 
+/** A `data:` URL of the bytes, base64-encoded. */
+export function toBase64DataUrl(type: string, bytes: Uint8Array): string {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let start = 0; start < bytes.length; start += chunk) {
+    binary += String.fromCharCode(...Array.from(bytes.subarray(start, start + chunk)));
+  }
+  return `data:${type};base64,${btoa(binary)}`;
+}
+
 async function toDataUrl(url: string, limits: LocalImageLimits): Promise<string> {
   try {
     const response = await fetch(url, {signal: timeoutSignal(limits.timeoutMs)});
@@ -73,12 +83,7 @@ async function toDataUrl(url: string, limits: LocalImageLimits): Promise<string>
     if (!/^image\/[a-z0-9.+-]+$/.test(type)) return BLANK_IMAGE;
     const bytes = await readCapped(response, limits.maxBytes);
     if (!bytes || bytes.byteLength === 0) return BLANK_IMAGE;
-    let binary = '';
-    const chunk = 0x8000;
-    for (let start = 0; start < bytes.length; start += chunk) {
-      binary += String.fromCharCode(...Array.from(bytes.subarray(start, start + chunk)));
-    }
-    return `data:${type};base64,${btoa(binary)}`;
+    return toBase64DataUrl(type, bytes);
   } catch {
     return BLANK_IMAGE;
   }

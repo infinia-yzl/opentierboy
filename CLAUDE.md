@@ -47,12 +47,13 @@ Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwin
 npm ci                    # install exactly what package-lock.json says
 npm run dev               # prepare images, then the dev server on :3000
 npm run build             # prepare images, check item ids, then the production build
-npm run check             # type check, lint, unit tests, item ids, fixtures (CI runs this)
+npm run check             # type check, lint, unit tests, item ids, trusted sites, fixtures (CI runs this)
 npm run lint              # ESLint (`eslint .`, config in eslint.config.mjs)
 npm run test:unit         # Vitest only
 npm run check:images      # every shipped item id is registered (`-- --update` adds new ids;
                           # `-- --files`: its image and PNG copy are in public/images/)
 npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
+npm run check:trusted-sites   # no trusted image site is on the pinned tracker list (downloads it with git)
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
@@ -61,7 +62,7 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 - Run `npm run check` before every commit. CI runs the same script.
 - Playwright runs against the production build. Rebuild before e2e tests after any change
   to `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`, `public/`,
-  `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.mjs`,
+  `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.ts`,
   `postcss.config.mjs`). Tailwind 4 has no config file: the theme lives in
   `app/globals.css`.
 - `npm run build` first runs the `prebuild` script: it copies the official image sets from
@@ -82,6 +83,8 @@ components/           React components; components/ui/ is shadcn/ui
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
                       syncs it with the address (one router.push per list change, one at a time;
                       label settings use router.replace, owner decision A3)
+contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
+                      uploads) and link images (allowed sites, load checks)
 lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue
 lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom items, preview
                       helpers, the link encode and decode used by the store
@@ -91,6 +94,10 @@ lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landin
 lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
 lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
 lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
+lib/images/           images from links and devices: address checks, trusted sites, device
+                      image store (the only IndexedDB code), image load check
+lib/security/         Content Security Policy header (sent by next.config.ts)
+lib/zod.ts            zod without eval (import `z` from here, never from `zod`)
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
@@ -101,6 +108,8 @@ scripts/image-set-update.mjs   checks for the image-set-update workflow (payload
 scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
+trusted-image-sites.json   sites whose link images load without asking
+scripts/tracker-list.pin.json   the tracker list check:trusted-sites downloads (no copy in the repo)
 imageset.custom.json  which image sets ship, in display order: official sets with display names,
                       legacy sets as {"legacy": true} (the official list)
 imageset.legacy.json  frozen config entries of the legacy sets (append-only, never edit an entry)
@@ -116,8 +125,6 @@ tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts)
 docs/                 owner checklists
 ```
-
-A later phase adds `trusted-image-sites.json`.
 
 ## Link contract
 
@@ -199,6 +206,38 @@ A later phase adds `trusted-image-sites.json`.
   a `.gitignore` negation; never the PNG copies), set its `imageset.custom.json` entry to
   `{"legacy": true}`, `npm uninstall` the package, add it to `LEGACY_SETS` in
   `tests/support/links.ts`, and check that `imageset.config.json` only gained `"legacy": true`.
+
+## Custom images
+
+- **Link images** (`{u, c}` items) load from other sites in the visitor's browser. An address
+  must pass `checkLinkImageUrl` (`lib/images/linkImage.ts`): https only, no IP addresses, no
+  local or private names, no user names, passwords or ports, at most 2,000 characters. Store
+  the normalised address it returns.
+- Render link images with a plain `<img referrerPolicy="no-referrer" loading="lazy">`. Never
+  send them through `next/image` or `/_next/image`, and never add `https://**` to
+  `images.remotePatterns` (A8).
+- **Trusted sites** (`trusted-image-sites.json`) load without asking. Images from any other
+  site load only after the visitor chooses Load (this page) or Always allow these sites (kept
+  in localStorage). Nothing may request such an image before that.
+  `npm run check:trusted-sites` checks the list against the pinned Disconnect tracker list.
+- **The server never fetches a user's address**, with one exception: the OG route draws images
+  from trusted sites, with caps (`app/api/og/link-images.ts`). Every other link image and every
+  device image is a label tile. A link image address never reaches `inlineLocalImages`.
+- **Device images** (`{d, c}` items: uploads and pasted images) stay in the visitor's browser,
+  in IndexedDB. `lib/images/deviceStore.ts` is the only module that may use IndexedDB (ESLint
+  enforces it). The list holds only the image id (`isDeviceImageId` in `lib/state/deviceId.ts`).
+  Open the store only in effects (`contexts/CustomImagesContext.tsx`), never during rendering,
+  so the server and the browser render the same list. Make object URLs only from a Blob of the
+  type sniffed from the bytes (`ObjectUrlRegistry.urlFor(id, blob, type)`,
+  `previewableImage`), never from a `File`: its type comes from its name, and a `text/html`
+  `blob:` URL runs as a page of this site.
+- Uploads that older versions kept in localStorage (`customItems`) move into the store, under
+  `legacy-<id>` when the id is too short (A42). Old links keep their images.
+- **Content Security Policy**: `next.config.ts` sends the header from `lib/security/csp.ts`.
+  Inline scripts are allowed; eval is not (only `next dev` allows it). A new external script,
+  font or connection needs a change to the policy and to `tests/e2e/csp.spec.ts`.
+- **zod**: import `z` from `@/lib/zod`, never from `zod`. Plain zod tries eval when it builds a
+  schema, which the policy reports as a violation (A39).
 
 ## Tests
 

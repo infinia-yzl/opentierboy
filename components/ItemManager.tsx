@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
+import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
 import {DashboardIcon} from "@radix-ui/react-icons";
 import {cn} from "@/lib/utils";
@@ -29,13 +30,15 @@ import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
-import {itemsToAdd} from "@/lib/tierListReducer";
+import {useAddItemsWithUndo} from "@/components/useAddItems";
 
 const ItemManager: React.FC = () => {
-  const {tiers, tierCortex, addItems, removeItems, resetRankings, removeAllItems, restoreTiers} = useTierContext();
+  const {tiers, tierCortex, resetRankings, removeAllItems, restoreTiers} = useTierContext();
+  const addItemsWithUndo = useAddItemsWithUndo();
   const showGradientBorder = tiers.every(tier => tier.items.length === 0);
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
+  const [isLinkCreatorOpen, setIsLinkCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
   // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
@@ -71,18 +74,10 @@ const ItemManager: React.FC = () => {
 
   // Each Undo below is a new change to the list, so it adds a history entry (A6).
   const handleCreateItems = (newItems: Item[]) => {
-    // Undo removes only the items this really added: the list may hold some of them already.
-    const addedIds = itemsToAdd(tiers, newItems).map(item => item.id);
-    addItems(newItems);
+    addItemsWithUndo(newItems);
     setIsItemCreatorOpen(false);
+    setIsLinkCreatorOpen(false);
     setIsItemSetSelectorOpen(false);
-    toast('Items Added', {
-      description: `${newItems.length} item(s) have been added.`,
-      action: {
-        label: 'Undo',
-        onClick: () => removeItems(addedIds),
-      },
-    });
   };
 
   const handleReset = () => {
@@ -109,6 +104,13 @@ const ItemManager: React.FC = () => {
     });
   };
 
+  // The item dialogs have no trigger of their own (they open from the menu), so give focus back
+  // to the menu button when they close.
+  const focusManageItems = (event: Event) => {
+    event.preventDefault();
+    manageItemsButton.current?.focus();
+  };
+
   const handleItemSetSelect = (packageName: string, images: string[]) => {
     handleCreateItems(tierCortex.resolveItemsFromPackage(packageName, images));
   };
@@ -132,6 +134,9 @@ const ItemManager: React.FC = () => {
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setIsItemCreatorOpen(true)}>
               From your device
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setIsLinkCreatorOpen(true)}>
+              From a link
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
@@ -166,7 +171,7 @@ const ItemManager: React.FC = () => {
       </AlertDialog>
 
       <Dialog open={isItemCreatorOpen} onOpenChange={setIsItemCreatorOpen}>
-        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col" onCloseAutoFocus={focusManageItems}>
           <DialogHeader>
             <DialogTitle>Add New Items</DialogTitle>
             <DialogDescription>
@@ -174,6 +179,19 @@ const ItemManager: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <ItemCreator onItemsCreate={handleCreateItems}/>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isLinkCreatorOpen} onOpenChange={setIsLinkCreatorOpen}>
+        <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col" onCloseAutoFocus={focusManageItems}>
+          <DialogHeader>
+            <DialogTitle>Add an Image from a Link</DialogTitle>
+            <DialogDescription>
+              Paste the address of an image on the web. People who open your list load the image from
+              that site.
+            </DialogDescription>
+          </DialogHeader>
+          <LinkImageCreator onItemsCreate={handleCreateItems}/>
         </DialogContent>
       </Dialog>
 

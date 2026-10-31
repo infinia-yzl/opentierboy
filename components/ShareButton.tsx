@@ -14,6 +14,30 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {useTierContext} from "@/contexts/TierContext";
+import {checkImage} from "@/lib/images/imageCheck";
+
+/**
+ * Link images come from other sites, and a canvas that draws them without the site's consent
+ * (CORS) cannot be exported. html2canvas draws them with CORS (useCORS) where the site allows
+ * it. Images from sites that do not become label tiles in the copy of the page that html2canvas
+ * draws, so the capture always works.
+ */
+async function prepareLinkImagesForCapture(): Promise<(clonedDocument: Document) => void> {
+  const urls = Array.from(new Set(Array.from(document.querySelectorAll<HTMLImageElement>('img[data-link-image]'))
+    .map((image) => image.dataset.linkImage ?? '')
+    .filter((url) => url !== '')));
+  const results = await Promise.all(urls.map((url) => checkImage(url, {crossOrigin: 'anonymous', limits: {timeoutMs: 5_000}})));
+  const withoutCors = new Set(urls.filter((_, index) => !results[index].ok));
+  return (clonedDocument: Document) => {
+    clonedDocument.querySelectorAll<HTMLImageElement>('img[data-link-image]').forEach((image) => {
+      if (!withoutCors.has(image.dataset.linkImage ?? '')) return;
+      const tile = clonedDocument.createElement('div');
+      tile.textContent = image.alt;
+      tile.setAttribute('style', 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:12px;line-height:1.2;text-align:center;overflow:hidden;');
+      image.replaceWith(tile);
+    });
+  };
+}
 
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
@@ -40,6 +64,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     if (toastContainer) (toastContainer as HTMLElement).style.display = 'none';
 
     try {
+      const onclone = await prepareLinkImagesForCapture();
       let canvas;
       if (captureMethod === 'original') {
         const scale = window.devicePixelRatio;
@@ -69,9 +94,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
           return originalDrawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
         };
 
-        await html2canvas(element, {canvas, scale});
+        await html2canvas(element, {canvas, scale, useCORS: true, onclone});
       } else {
-        canvas = await html2canvasPro(element, {});
+        canvas = await html2canvasPro(element, {useCORS: true, onclone});
       }
 
       canvas.toBlob((blob: Blob | null) => {

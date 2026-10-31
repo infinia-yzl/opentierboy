@@ -30,6 +30,9 @@ export interface CapturedImage {
  * - An item is a `button` named after its label (it is the drag handle as well).
  * - The handle that reorders a row is a `button` named "Move tier <label>".
  */
+/** Files for the file picker: paths, or files made in the test. */
+type DeviceFiles = string[] | {name: string; mimeType: string; buffer: Buffer}[];
+
 export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
@@ -133,6 +136,23 @@ export class TierListPage {
       const [red, green, blue] = context.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data;
       return [red, green, blue] as [number, number, number];
     });
+  }
+
+  /**
+   * Opens an image's blob: URL in a new tab, as the browser's "Open image in new tab" does.
+   * Returns the type of the document the tab shows (image/png for a picture, text/html for a
+   * page) and the localStorage item `pwned`, which a script in a disguised page would set.
+   */
+  async openImageInNewTab(image: Locator): Promise<{contentType: string; pwned: string | null}> {
+    const src = await image.evaluate((img: HTMLImageElement) => img.currentSrc || img.src);
+    expect(src).toMatch(/^blob:/);
+    const tab = await this.page.context().newPage();
+    try {
+      await tab.goto(src);
+      return await tab.evaluate(() => ({contentType: document.contentType, pwned: localStorage.getItem('pwned')}));
+    } finally {
+      await tab.close();
+    }
   }
 
   rowHandle(tierName: string): Locator {
@@ -422,14 +442,194 @@ export class TierListPage {
     await picker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
   }
 
-  /** Uploads images from the device. Item names default to the file names. */
-  async addItemsFromDevice(files: string[]) {
+  /**
+   * Uploads images from the device: file paths, or files made in the test. Item names default to
+   * the file names. `timeout`: how long adding may take (hundreds of files take a while).
+   */
+  async addItemsFromDevice(files: DeviceFiles, {timeout}: {timeout?: number} = {}) {
+    const dialog = await this.chooseFilesFromDevice(files);
+    await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
+    await expect(dialog).toBeHidden({timeout});
+  }
+
+  /** Opens "From your device" and chooses files. Returns the dialog, still open. */
+  async chooseFilesFromDevice(files: DeviceFiles): Promise<Locator> {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'From your device'}).click();
     const dialog = this.page.getByRole('dialog', {name: 'Add New Items'});
     await dialog.getByLabel('Upload Images').setInputFiles(files);
-    await dialog.getByRole('button', {name: /^Add \d+ Items?$/}).click();
-    await expect(dialog).toBeHidden();
+    return dialog;
+  }
+
+  /**
+   * How many item images show an upload from this browser (a loaded `blob:` image).
+   */
+  async loadedUploadImageCount(): Promise<number> {
+    return this.main.locator('img').evaluateAll((images) => images.filter((image) => (
+      image instanceof HTMLImageElement && image.currentSrc.startsWith('blob:') && image.complete && image.naturalWidth > 0
+    )).length);
+  }
+
+  /**
+   * Scrolls an item into view and tells whether its tile shows an upload from this browser (a
+   * loaded `blob:` image), rather than a placeholder or its name only. Use it with expect.poll().
+   */
+  async itemShowsUpload(name: string): Promise<boolean> {
+    const image = this.item(name).getByRole('img');
+    if ((await image.count()) === 0) return false;
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => img.currentSrc.startsWith('blob:') && img.complete && img.naturalWidth > 0);
+  }
+
+  /**
+   * Makes one later URL.createObjectURL() call throw, as a browser that cannot make an object URL
+   * would: the call after `skip` calls that still work. Calls after it work again.
+   */
+  async failObjectUrl({skip = 0}: {skip?: number} = {}) {
+    await this.page.evaluate((callsBefore) => {
+      const original = URL.createObjectURL;
+      let left = callsBefore;
+      URL.createObjectURL = (object: Blob | MediaSource) => {
+        if (left-- > 0) return original(object);
+        URL.createObjectURL = original;
+        throw new Error('This browser could not make an object URL.');
+      };
+    }, skip);
+  }
+
+  // ---- Data kept in this browser -------------------------------------------------------------
+
+  /**
+   * Keeps old uploads in localStorage, as the app kept them before Phase 5c. Writes them on the
+   * landing page, which does not open the device image store, so the next editor page moves them.
+   */
+  async keepOldUploads(uploads: {id: string; label: string; png: Buffer}[]) {
+    await this.page.goto('/');
+    const entries = uploads.map(({id, label, png}) => ({i: id, c: label, d: `data:image/png;base64,${png.toString('base64')}`}));
+    await this.page.evaluate((value) => localStorage.setItem('customItems', value), JSON.stringify(entries));
+  }
+
+  /** The ids of old uploads still waiting in localStorage to move into the image store. */
+  async oldUploadIds(): Promise<string[]> {
+    const stored = await this.page.evaluate(() => localStorage.getItem('customItems'));
+    return stored === null ? [] : (JSON.parse(stored) as {i: string}[]).map((entry) => entry.i);
+  }
+
+  /** The ids of images the image store removed to make room, as the editor records them. */
+  async evictedImageIds(): Promise<string[]> {
+    return this.page.evaluate(() => JSON.parse(localStorage.getItem('evictedDeviceImages') ?? '[]') as string[]);
+  }
+
+  /** The "From a link" dialog. */
+  get linkImageDialog(): Locator {
+    return this.page.getByRole('dialog', {name: 'Add an Image from a Link'});
+  }
+
+  /** Opens "From a link", fills in the address (and a name), and presses the add button. Leaves the dialog open. */
+  async submitLinkImage(address: string, name?: string) {
+    if (!(await this.linkImageDialog.isVisible())) {
+      await this.openItemsMenu();
+      await this.page.getByRole('menuitem', {name: 'From a link'}).click();
+    }
+    const dialog = this.linkImageDialog;
+    await dialog.getByLabel('Image address').fill(address);
+    if (name !== undefined) await dialog.getByLabel('Name (optional)').fill(name);
+    await dialog.getByRole('button', {name: /^Add (Item|Anyway)$/}).click();
+  }
+
+  /** Adds an image from a link and waits until the dialog has closed. */
+  async addItemFromLink(address: string, name?: string) {
+    await this.submitLinkImage(address, name);
+    await expect(this.linkImageDialog).toBeHidden();
+  }
+
+  /** After an image failed its check: adds it anyway, as a label tile. */
+  async confirmAddAnyway() {
+    await this.linkImageDialog.getByRole('button', {name: 'Add Anyway'}).click();
+    await expect(this.linkImageDialog).toBeHidden();
+  }
+
+  /** The message the "From a link" dialog shows about the address or the image. */
+  get linkImageMessage(): Locator {
+    return this.linkImageDialog.getByRole('alert');
+  }
+
+  /** The notice about images from sites that are not trusted, with [Load] and [Always allow these sites]. */
+  get imageSitesNotice(): Locator {
+    return this.page.getByRole('region', {name: 'Images from other sites'});
+  }
+
+  async loadImagesFromOtherSites() {
+    await this.imageSitesNotice.getByRole('button', {name: 'Load', exact: true}).click();
+    await expect(this.imageSitesNotice).toBeHidden();
+  }
+
+  async alwaysAllowImageSites() {
+    await this.imageSitesNotice.getByRole('button', {name: 'Always allow these sites'}).click();
+    await expect(this.imageSitesNotice).toBeHidden();
+  }
+
+  /**
+   * Waits until the editor responds to input. The server-rendered rows show before the page has
+   * started in the browser; a paste event before that finds no listener. Opening the items menu
+   * proves the page has started.
+   */
+  private async waitUntilInteractive() {
+    const menu = this.page.getByRole('menu');
+    await expect(async () => {
+      if (!(await menu.isVisible())) await this.manageItemsButton.click();
+      await expect(menu).toBeVisible({timeout: 1_000});
+    }).toPass();
+    await this.page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+  }
+
+  /** The text an item's right-click (or long-press) menu shows about the image's site, if any. */
+  async itemImageSite(itemName: string): Promise<string | null> {
+    await this.item(itemName).click({button: 'right'});
+    const menu = this.page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    const site = menu.getByText(/^Image from /);
+    const text = (await site.count()) > 0 ? await site.textContent() : null;
+    await this.page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+    return text;
+  }
+
+  /**
+   * Pastes image files into the editor (or into `target`, for example a text field), as a paste
+   * from the clipboard would. The test builds the paste event: browsers do not let tests write
+   * images to the real clipboard.
+   */
+  async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
+    // A target (such as a text field the test typed into) proves the page has started already.
+    if (!target) await this.waitUntilInteractive();
+    await (target ?? this.page.locator('body')).evaluate((element, payload) => {
+      const transfer = new DataTransfer();
+      for (const file of payload) {
+        const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
+        transfer.items.add(new File([bytes], file.name, {type: file.mimeType}));
+      }
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, files.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
+  }
+
+  /**
+   * Pastes several groups of images at once, one paste event per group, as quick pastes do: the
+   * editor handles them while the earlier ones are still being added.
+   */
+  async pasteImagesAtOnce(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
+    await this.waitUntilInteractive();
+    await this.page.locator('body').evaluate((element, payload) => {
+      for (const group of payload) {
+        const transfer = new DataTransfer();
+        for (const file of group) {
+          const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
+          transfer.items.add(new File([bytes], file.name, {type: file.mimeType}));
+        }
+        element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+      }
+    }, groups.map((group) => group.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')}))));
   }
 
   async deleteItem(itemName: string) {

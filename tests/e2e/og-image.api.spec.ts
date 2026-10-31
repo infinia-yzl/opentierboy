@@ -124,6 +124,25 @@ test.describe('Link preview images', () => {
     }
   });
 
+  /** The preview of a 3-row v3 list with Mauga and the given link images in S. */
+  async function linkImagePreview(request: import('@playwright/test').APIRequestContext, images: {u: string; c?: string}[]) {
+    const json = {t: 'Link images', tp: 3, r: [['S', [packageItemId('image-overwatch', 'Mauga'), ...images]], ['A', []], ['B', []], ['', []]]};
+    const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`, {timeout: 15_000});
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+    return response.body();
+  }
+
+  test('an image from a site that is not trusted is a label tile, whatever its address (A8)', async ({request}) => {
+    const first = await linkImagePreview(request, [{u: 'https://images.example.org/a.png', c: 'Cat'}]);
+    const second = await linkImagePreview(request, [{u: 'https://cdn.example.net/b.jpg', c: 'Cat'}]);
+    expect(first.equals(defaultImage), 'preview should show the ranking').toBe(false);
+    expect(first.equals(second), 'only the label is drawn').toBe(true);
+    // A link image without a label shows its site's name: another picture than with a label.
+    const unlabelled = await linkImagePreview(request, [{u: 'https://images.example.org/a.png'}]);
+    expect(unlabelled.equals(first)).toBe(false);
+  });
+
   test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
     const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
     const response = await request.get(previewPath(json), {timeout: 10_000});

@@ -13,15 +13,14 @@ import {
   type EncodableState,
   encodeState,
   encodeV3,
-  LEGACY_UPLOAD_ID_PREFIX,
   type RowTemplate,
 } from "@/lib/state";
 import {isVersionedValue} from "@/lib/state/decode";
 import {measureDecompressedLength} from "@/lib/state/lz";
 import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
 
-const CUSTOM_ITEMS_KEY = 'customItems';
-const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
+/** The tile image of an item whose image the app cannot show (unknown id, upload not in this browser). */
+export const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
 /** The placeholder at link preview size (made by scripts/prepareImages.js). */
 const PLACEHOLDER_PREVIEW_URL = '/placeholder-image.preview.png';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -62,12 +61,6 @@ export interface DecodedList {
   layout?: ListLayout;
 }
 
-interface StoredCustomItem {
-  i: string; // id
-  c: string; // content
-  d: string; // imageData
-}
-
 /**
  * Package items by id. A Map, so that an id from a link such as `constructor` or `__proto__`
  * finds nothing, like any other unknown id (a plain object would return its built-in members).
@@ -87,7 +80,6 @@ const OG_TIER_GRADIENTS = [
 export class TierCortex {
   // this class isn't concerned about managing UI states, so tiers are managed externally
   private readonly packageItemLookup: PackageItemLookup;
-  private customItemsMap: Map<string, StoredCustomItem>;
   private readonly isServer: boolean;
   private readonly aliases: ItemAliases;
   private readonly imageSetConfig: ImageSetConfig;
@@ -103,11 +95,8 @@ export class TierCortex {
         : 'http://localhost:3000'
       : window.location.origin;
     this.packageItemLookup = this.initializePackageItemLookup();
-    this.customItemsMap = new Map<string, StoredCustomItem>();
-
-    if (!this.isServer) {
-      this.initializeCustomItemsMap();
-    }
+    // Uploads are not read here: the editor loads them from the device image store in an effect
+    // (contexts/CustomImagesContext.tsx), so the server and the browser render the same list.
   }
 
   /**
@@ -210,21 +199,6 @@ export class TierCortex {
     }
   }
 
-  public addCustomItems(items: Item[]): void {
-    if (this.isServer) return;
-
-    const newItems = items.map(item => ({
-      i: item.id,
-      c: item.content,
-      d: item.imageUrl ?? ''
-    }));
-
-    newItems.forEach(item => this.customItemsMap.set(item.i, item));
-
-    const allItems = Array.from(this.customItemsMap.values());
-    localStorage.setItem(CUSTOM_ITEMS_KEY, JSON.stringify(allItems));
-  }
-
   public getInitialTiers(initialState: string | undefined, initialItemSet: ItemSet | undefined): Tier[] {
     if (initialState) {
       const decodedState = this.decodeTierStateFromURL(initialState);
@@ -322,13 +296,6 @@ export class TierCortex {
     return packageItemLookup;
   }
 
-  private initializeCustomItemsMap(): void {
-    if (this.customItemsMap.size === 0) {
-      const customItems = this.loadCustomItemsFromLocalStorage();
-      customItems.forEach(item => this.customItemsMap.set(item.i, item));
-    }
-  }
-
   /**
    * Resolves the items of every tier. Duplicate ids break drag and drop, so:
    * - an item id that appears twice, also after following an alias (an old id and its new id
@@ -356,7 +323,8 @@ export class TierCortex {
   /** An item from a decoded link: by its kind in v3 links, by its id in legacy links. */
   private resolveCanonicalItem(item: CanonicalItem, version: CanonicalState['version']): Item {
     if (item.kind === 'link') {
-      // A label tile until Phase 5c: no image URL, so nothing loads the address.
+      // No image URL: the editor loads the address only from allowed sites
+      // (contexts/CustomImagesContext.tsx), and link previews only from trusted ones.
       return {id: item.id, content: item.content, source: 'link', url: item.url};
     }
     if (item.kind === 'device') return this.resolveDeviceItem(item.id, item.content);
@@ -374,19 +342,11 @@ export class TierCortex {
   }
 
   /**
-   * A device image from a v3 link: the upload this browser stored under that id, or under the
-   * id before the `legacy-` prefix (A42). Otherwise its label on the placeholder image, as for a
-   * legacy custom item that this browser does not have.
+   * A device image from a v3 link: its label on the placeholder image, the same on the server
+   * and in the browser. In the editor, the tile then shows the image this browser keeps under
+   * that id in the device image store, if any (contexts/CustomImagesContext.tsx).
    */
   private resolveDeviceItem(id: string, content: string): Item {
-    let stored: StoredCustomItem | undefined;
-    if (!this.isServer) {
-      stored = this.customItemsMap.get(id);
-      if (!stored && id.startsWith(LEGACY_UPLOAD_ID_PREFIX)) {
-        stored = this.customItemsMap.get(id.slice(LEGACY_UPLOAD_ID_PREFIX.length));
-      }
-    }
-    if (stored) return {id, content: content || stored.c, imageUrl: stored.d, source: 'device'};
     return {id, content, imageUrl: PLACEHOLDER_IMAGE_URL, source: 'device'};
   }
 
@@ -405,8 +365,8 @@ export class TierCortex {
    * An item of a legacy link (or a template image): the image-set item, also by an alias, or
    * else an upload or an unknown id. Such an item shows under the id that a v3 link writes for
    * it (A42: `legacy-<id>` for an upload id that breaks the device id rule), so the item keeps
-   * one id on screen across Back and Forward between legacy and v3 versions of the list. The
-   * upload is still found under its own id.
+   * one id on screen across Back and Forward between legacy and v3 versions of the list. Its
+   * image is in the device image store under the same id (old localStorage uploads move there).
    */
   private resolveItem(itemId: string, content?: string): Item {
     const packageItem = this.packageItemLookup.get(itemId);
@@ -415,18 +375,10 @@ export class TierCortex {
     const renamedItem = this.resolveAlias(itemId);
     if (renamedItem) return renamedItem;
 
+    // An upload (custom item) or an image the sets no longer have, under the id its v3 link
+    // writes (A42). In the editor, an upload's tile shows the image from the device image store,
+    // kept under that same id (contexts/CustomImagesContext.tsx).
     const shownId = deviceImageIdForUpload(itemId) ?? itemId;
-    if (!this.isServer) {
-      const customItem = this.customItemsMap.get(itemId);
-      if (customItem) {
-        return {
-          id: shownId,
-          content: content || customItem.c,
-          imageUrl: customItem.d,
-        };
-      }
-    }
-
     return this.createPlaceholderItem(shownId, content || '');
   }
 
@@ -459,19 +411,6 @@ export class TierCortex {
       content,
       imageUrl: PLACEHOLDER_IMAGE_URL,
     };
-  }
-
-  private loadCustomItemsFromLocalStorage(): StoredCustomItem[] {
-    if (this.isServer) return [];
-
-    const storedItems = localStorage.getItem(CUSTOM_ITEMS_KEY);
-    if (!storedItems) return [];
-    try {
-      return JSON.parse(storedItems);
-    } catch (error) {
-      console.error('Failed to parse stored custom items:', error);
-      return [];
-    }
   }
 
   private getAbsoluteUrl(path: string): string {

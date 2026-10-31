@@ -3,9 +3,9 @@
  * and '_'), and never the name of an Object.prototype member such as `__proto__`,
  * `constructor` or `toString`, in case an id ever becomes an object key.
  *
- * The same rule as `isDeviceImageId` in lib/images/deviceStore.ts (Phase 5c), which creates
- * ids of 16 characters. The v3 link decoder refuses a device image (`d`) whose id breaks it.
- * Changing the rule changes which v3 links decode: only ever widen it.
+ * This is the one definition: lib/images/deviceStore.ts (which creates ids of 16 characters)
+ * and the snapshot file import it. The v3 link decoder refuses a device image (`d`) whose id
+ * breaks it. Changing the rule changes which v3 links decode: only ever widen it.
  */
 const DEVICE_IMAGE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 

@@ -9,6 +9,9 @@
 # testing
 /coverage
 
+# downloads made by checks (scripts/check-trusted-sites.mjs)
+/.cache/
+
 # next.js
 /.next/
 /out/

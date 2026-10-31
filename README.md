@@ -32,8 +32,9 @@
 - **BYOI (Bring Your Own Images)**: Upload images from your device to personalize your tier list
 - **Copy Jutsu**: Easily share your rankings with a stateful URL
 - **Freeze Frame**: Capture your rankings as an image
-- **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking - we only use local storage for
-  functionality
+- **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking. Your list lives in its link.
+  Images you upload or paste stay in your browser and never reach our server. Images from trusted sites load
+  straight from those sites; images from other sites load only after you allow them.
 
 ## ♨️ Open Source
 

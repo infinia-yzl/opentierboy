@@ -164,22 +164,24 @@ describe('TierCortex after moving the link format to lib/state', () => {
     }
   });
 
-  it('decodes every link to the same items in the browser, with uploaded images in localStorage', () => {
-    const stored = JSON.stringify([
-      {i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'},
-      {i: 'm0n9b8v7c', c: 'label for an empty one', d: 'data:image/png;base64,BBBB'},
-      {i: 'q8w7e6r5t', c: '', d: ''},
-    ]);
-    vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
-    vi.stubGlobal('localStorage', {getItem: (key: string) => (key === 'customItems' ? stored : null), setItem: () => undefined});
-
-    const customItems = new TierCortex().decodeTierStateFromURL(fixtureStates.find(state =>
-      LZString.decompressFromEncodedURIComponent(state)?.includes('k3j9x0a1b'))!);
-    expect(customItems?.tiers.flatMap(tier => tier.items).find(item => item.id === 'k3j9x0a1b')?.imageUrl)
-      .toBe('data:image/png;base64,AAAA');
-
-    for (const input of [...sharedLinks.map(link => link.state), ...fixtureStates, ...MALFORMED]) {
-      expectSameAsBefore(input, input.slice(0, 40));
+  // Phase 5c: TierCortex no longer reads uploads from localStorage. The editor loads them from
+  // the device image store in an effect, so the browser decodes every link exactly as the server.
+  it('decodes every link in the browser exactly as on the server, without reading localStorage', () => {
+    const inputs = [...sharedLinks.map(link => link.state), ...fixtureStates, ...MALFORMED];
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const onServer = inputs.map(input => new TierCortex().decodeTierStateFromURL(input));
+      const getItem = vi.fn(() => JSON.stringify([{i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'}]));
+      vi.stubGlobal('window', {location: {origin: 'https://opentierboy.com'}});
+      vi.stubGlobal('localStorage', {getItem, setItem: () => undefined});
+      inputs.forEach((input, index) => {
+        expect(new TierCortex().decodeTierStateFromURL(input), input.slice(0, 40)).toStrictEqual(onServer[index]);
+      });
+      expect(getItem).not.toHaveBeenCalled();
+      const upload = onServer.flatMap(list => list?.tiers ?? []).flatMap(tier => tier.items).find(item => item.id === 'k3j9x0a1b');
+      expect(upload?.imageUrl).toBe('/placeholder-image.png');
+    } finally {
+      errorSpy.mockRestore();
     }
   });
 
@@ -420,16 +422,14 @@ describe('TierCortex with v3 links', () => {
     }
   });
 
-  it('shows a device image from this browser\'s uploads, also under its id before "legacy-" (A42)', () => {
-    browserWithUploads([
-      {i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'},
-      {i: 'ab3c9', c: 'short id', d: 'data:image/png;base64,BBBB'},
-    ]);
+  it('shows a device image with its label on the placeholder, the same in the browser and on the server (Phase 5c)', () => {
+    // The editor puts the image from the device image store on the tile (CustomImagesContext).
+    browserWithUploads([{i: 'k3j9x0a1b', c: 'stored label', d: 'data:image/png;base64,AAAA'}]);
     const cortex = new TierCortex();
     const items = cortex.decodeTierStateFromURL(v3('{"r":[["x","",[{"d":"k3j9x0a1b","c":"my cat"},{"d":"legacy-ab3c9"},{"d":"gone-image"}]]]}'))!.tiers[0].items;
     expect(items).toEqual([
-      {id: 'k3j9x0a1b', content: 'my cat', imageUrl: 'data:image/png;base64,AAAA', source: 'device'},
-      {id: 'legacy-ab3c9', content: 'short id', imageUrl: 'data:image/png;base64,BBBB', source: 'device'},
+      {id: 'k3j9x0a1b', content: 'my cat', imageUrl: PLACEHOLDER, source: 'device'},
+      {id: 'legacy-ab3c9', content: '', imageUrl: PLACEHOLDER, source: 'device'},
       {id: 'gone-image', content: '', imageUrl: PLACEHOLDER, source: 'device'},
     ]);
     // Link previews draw device images as label tiles.
@@ -460,9 +460,9 @@ describe('TierCortex with v3 links', () => {
     const saved = cortex.encodeListForURL('', opened.tiers);
     expect(v3Json(saved)).toBe('{"r":[["tier-s","S",[{"d":"legacy-ab3c9","c":"My cat"},{"d":"k3j9x0a1b","c":"Nine"},' +
       '{"i":"image-overwatch-gone.webp","c":"Gone"},"image-overwatch-mau.webp"]],["uncategorized","",[]]]}');
-    // Reopened, the upload shows with its label and image.
+    // Reopened, the upload shows with its label (its image comes from the device image store).
     const reopened = cortex.decodeTierStateFromURL(saved)!.tiers[0].items[0];
-    expect(reopened).toEqual({id: 'legacy-ab3c9', content: 'My cat', imageUrl: 'data:image/png;base64,BBBB', source: 'device'});
+    expect(reopened).toEqual({id: 'legacy-ab3c9', content: 'My cat', imageUrl: PLACEHOLDER, source: 'device'});
     // Saving the reopened list writes the same link.
     expect(cortex.encodeListForURL('', cortex.decodeTierStateFromURL(saved)!.tiers)).toBe(saved);
   });
