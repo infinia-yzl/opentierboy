@@ -1,12 +1,13 @@
 import zlib from 'node:zlib';
 import {expect, expectTierList, test} from '../support/test';
-import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
+import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshotFiles';
 import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/TierListPage';
 import {SitePage} from '../pages/SitePage';
 
 const TANKS = '/rank/overwatch/tank';
+const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
 /** A 2 x 2 green BMP picture (24 bits per pixel), which browsers show but the store does not keep as it is. */
 function greenBmp(): Buffer {
@@ -301,14 +302,35 @@ test.describe('Snapshot files: Freeze Frame Download, then Open a Freeze Frame (
     await expect.poll(() => friend.itemImageHasLoaded('blue-square')).toBe(true);
   });
 
-  test('dropping or pasting a snapshot file asks to open its list too', async ({tierList, openAsVisitor, browserName}) => {
+  test('dropping a snapshot file asks to open its list, and Back returns to the list before', async ({tierList, openAsVisitor}) => {
+    const snapshot = await downloadSnapshotOf(tierList);
+    const friend = await openAsVisitor('/rank/overwatch/tank');
+    await friend.waitUntilInteractive();
+    const before = friend.page.url();
+    const entries = await friend.historyLength();
+
+    await friend.dropFile(pngFile('snapshot.png', snapshot));
+    await expect(friend.openListDialog).toBeVisible();
+    await friend.confirmOpenList();
+    await expectTierList(friend, SNAPSHOT_LIST);
+    expect(await friend.historyLength()).toBe(entries + 1);
+
+    await friend.page.goBack();
+    await expect(friend.page).toHaveURL(before);
+    await expect(friend.itemsIn(friend.unranked)).toHaveCount(TANK_COUNT);
+    await friend.page.goForward();
+    await expectTierList(friend, SNAPSHOT_LIST);
+  });
+
+  test('pasting a snapshot file asks to open its list too, and Cancel keeps the list', async ({tierList, openAsVisitor, browserName}) => {
     test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     const snapshot = await downloadSnapshotOf(tierList);
     const friend = await openAsVisitor('/rank');
 
-    await friend.dropFile(pngFile('snapshot.png', snapshot));
+    await friend.pasteImages([pngFile('snapshot.png', snapshot)]);
     await expect(friend.openListDialog).toBeVisible();
     await friend.cancelOpenList();
+    await expect(friend.page).toHaveURL(/\/rank$/);
 
     await friend.pasteImages([pngFile('snapshot.png', snapshot)]);
     await friend.confirmOpenList();
@@ -500,6 +522,25 @@ test.describe('Opening other files', () => {
 
     await tierList.dropFile(imageFile('blue-square.png', BLUE_SQUARE));
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square', 'blue-square']);
+    await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
+  });
+
+  test('a dropped picture is one Back step, and Forward brings it back with its image', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.waitUntilInteractive();
+    const before = page.url();
+    const entries = await tierList.historyLength();
+
+    await tierList.dropFile(imageFile('blue-square.png', BLUE_SQUARE));
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
+    await expect(page).not.toHaveURL(before);
+    expect(await tierList.historyLength()).toBe(entries + 1);
+
+    await page.goBack();
+    await expect(page).toHaveURL(before);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    await page.goForward();
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
     await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
   });
 

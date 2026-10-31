@@ -5,13 +5,13 @@ const TANKS = '/rank/overwatch/tank';
 const SUPPORT = '/rank/overwatch/sup';
 
 test.describe('Recently viewed', () => {
-  test('the landing page shows no section before any list was opened', async ({site}) => {
+  test('the landing page shows no section before any list was opened', {tag: '@mobile'}, async ({site}) => {
     await site.gotoHome();
     await expect(site.main.getByRole('heading', {name: 'Create a New Tier List'})).toBeVisible();
     await expect(site.recentlyViewed).toHaveCount(0);
   });
 
-  test('records opened lists; pin, unpin and remove; keeps them after a reload', async ({tierList, site, page}) => {
+  test('records opened lists; pin, unpin and remove; keeps them after a reload', {tag: '@mobile'}, async ({tierList, site, page}) => {
     // The editor records a list once it has started in the browser.
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks list'));
     await tierList.waitUntilInteractive();
@@ -56,7 +56,7 @@ test.describe('Recently viewed', () => {
     await expect(site.recentLinks).toHaveText(['Edited list']);
   });
 
-  test('a list without its own title shows the page name', async ({tierList, site}) => {
+  test('a list without its own title shows the page name', {tag: '@mobile'}, async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.waitUntilInteractive();
     await site.gotoHome();

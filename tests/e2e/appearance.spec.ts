@@ -18,6 +18,23 @@ test.describe('Appearance', () => {
     await expect.poll(() => site.pageHasClass('dark')).toBe(false);
   });
 
+  test('System follows the device\'s light or dark setting, also when it changes', {tag: '@mobile'}, async ({site, page}) => {
+    await page.emulateMedia({colorScheme: 'dark'});
+    await site.gotoHome();
+    await site.chooseMode('light');
+    await expect.poll(() => site.pageHasClass('dark')).toBe(false);
+
+    await site.chooseMode('system');
+    await expect.poll(() => site.pageHasClass('dark')).toBe(true);
+    await page.emulateMedia({colorScheme: 'light'});
+    await expect.poll(() => site.pageHasClass('dark')).toBe(false);
+
+    await page.reload();
+    await expect.poll(() => site.pageHasClass('dark')).toBe(false);
+    await page.emulateMedia({colorScheme: 'dark'});
+    await expect.poll(() => site.pageHasClass('dark')).toBe(true);
+  });
+
   test('visitors who chose the retired Ocean or Forest themes keep their mode', async ({site}) => {
     await site.rememberBeforeLoad('theme', 'ocean-dark');
     await site.gotoHome();

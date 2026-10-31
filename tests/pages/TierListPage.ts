@@ -271,6 +271,38 @@ export class TierListPage {
   }
 
   /**
+   * Drags an item with the mouse over a tier, then presses Escape before releasing the button,
+   * so the drag is cancelled. Returns once the cancel is announced and the drop animation ended.
+   */
+  async dragItemToTierThenCancel(itemName: string, tierName: string) {
+    await this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
+      x: box.x + box.width - 120,
+      y: box.y + box.height / 2,
+    }), {cancel: true});
+  }
+
+  /**
+   * Lifts an item with the keyboard (Space), moves it with the given keys, then presses Escape.
+   * Returns once the cancel is announced and focus is back on the item.
+   */
+  async moveItemWithKeyboardThenCancel(itemName: string, keys: string[]) {
+    const keyboard = this.page.keyboard;
+    await expect(async () => {
+      await this.item(itemName).focus();
+      await keyboard.press('Space');
+      await expect(this.dragAnnouncer).toContainText('Picked up', {timeout: 1_000});
+    }).toPass();
+    for (const key of keys) {
+      const before = await this.dragAnnouncer.textContent();
+      await keyboard.press(key);
+      await expect(this.dragAnnouncer).not.toHaveText(before ?? '');
+    }
+    await keyboard.press('Escape');
+    await expect(this.dragAnnouncer).toContainText('Move cancelled.');
+    await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(itemName);
+  }
+
+  /**
    * Drags an item with the mouse onto another item and drops it there: it takes that item's
    * place. Coming from before it (in reading order) it lands just after it, otherwise just
    * before it.
@@ -324,7 +356,7 @@ export class TierListPage {
    * The page auto-scrolls while the pointer is near the top or bottom of the window. The
    * helper keeps moving the pointer to the same page point until the scrolling stops.
    */
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false} = {}) {
+  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false} = {}) {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
@@ -366,6 +398,11 @@ export class TierListPage {
         expect(onPage(pointIn(await boxOf(target)), scrollAfter), 'the target should stay put').toEqual(dropAtOnPage);
       }
     }).toPass({timeout: 15_000});
+    if (cancel) {
+      // Escape ends the drag where it is; the button is released after that.
+      await this.page.keyboard.press('Escape');
+      await expect(this.dragAnnouncer).toContainText('Move cancelled.');
+    }
     await mouse.up();
     await this.dropSettled();
   }
@@ -1122,8 +1159,38 @@ export class TierListPage {
     await expect(this.toast('Markdown copied to clipboard')).toBeVisible();
   }
 
+  /**
+   * Lets the test read the text the app copies. Call it before goto(). Chromium grants read
+   * access to the real clipboard. Firefox and WebKit refuse a test that access, so there the
+   * page's navigator.clipboard.writeText keeps the text in the page instead, and resolves as
+   * the real one does. Either way the test reads what the app handed out.
+   */
+  async readCopiedText() {
+    const context = this.page.context();
+    if (context.browser()?.browserType().name() === 'chromium') {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      return;
+    }
+    await this.page.addInitScript(() => {
+      const copied = window as unknown as {__otbCopiedText?: string};
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          ...navigator.clipboard,
+          writeText: async (text: string) => {
+            copied.__otbCopiedText = text;
+          },
+        },
+      });
+    });
+  }
+
+  /** The text the app copied last (see readCopiedText). */
   async clipboardText(): Promise<string> {
-    return this.page.evaluate(() => navigator.clipboard.readText());
+    return this.page.evaluate(async () => {
+      const copied = (window as unknown as {__otbCopiedText?: string}).__otbCopiedText;
+      return copied ?? navigator.clipboard.readText();
+    });
   }
 
   /** The preview that "Capture Preview" (Freeze Frame) shows in the share panel. */
