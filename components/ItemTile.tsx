@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback, memo, useRef} from 'react';
+import React, {useCallback, memo} from 'react';
 import Image from 'next/image';
 import {
   ContextMenu,
@@ -12,6 +12,8 @@ import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
 import {useDeviceImage, useLinkImage} from "@/contexts/CustomImagesContext";
 import {itemDisplayLabel} from "@/lib/images/listImages";
+import {tileSize} from "@/lib/tileSize";
+import {usePageScrolling, useZenMode} from "@/components/usePageState";
 
 interface ItemTileProps extends Item {
   onDelete?: (id: string) => void;
@@ -24,6 +26,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   imageUrl,
   source,
   url,
+  shape,
   onDelete = () => {
   },
   showLabel = true,
@@ -40,45 +43,17 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   const tileImageUrl = link ? undefined : device?.status === 'evicted' ? undefined : deviceSrc ?? imageUrl;
   const domain = link?.domain ?? '';
   const label = itemDisplayLabel(item);
+  // Tiles render at their shape (square, landscape or portrait), all with the same height.
+  const size = tileSize({shape});
 
-  const [isZenMode, setIsZenMode] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const checkZenMode = () => {
-      setIsZenMode(document.documentElement.classList.contains('zen-mode'));
-    };
-
-    checkZenMode();
-    const observer = new MutationObserver(checkZenMode);
-    observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
-
-    const handleScroll = () => {
-      setIsScrolling(true);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 450);
-    };
-
-    window.addEventListener('scroll', handleScroll, {passive: true});
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', handleScroll);
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-  }, []);
+  // One listener for the whole page, shared by every tile (components/usePageState.ts).
+  const isZenMode = useZenMode();
+  const isScrolling = usePageScrolling();
 
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
   const tileContent = (
-    <div className="relative w-16 h-16 md:w-20 md:h-20 overflow-hidden rounded-md"
+    <div className={`relative ${size.className} overflow-hidden rounded-md`}
          title={domain ? `Image from ${domain}` : undefined}>
       {linkSrc || tileImageUrl ? (
         <>
@@ -99,7 +74,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
                 src={tileImageUrl as string}
                 alt={label}
                 fill
-                sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, 96px"
+                sizes={size.sizes}
                 style={{
                   objectFit: "contain"
                 }}
@@ -114,7 +89,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
             // cannot read the oklab() colour that Tailwind 4 writes for bg-black/30.
             <div
               className={`absolute bottom-0 left-0 right-0 bg-[rgb(0_0_0/0.3)] ${
-                isScrolling ? '' : 'backdrop-blur-xs will-change-transform transform-gpu'
+                isScrolling ? '' : 'tile-label-blur backdrop-blur-xs will-change-transform transform-gpu'
               }  p-1 transition-all ease-in-out`}
             >
               <span

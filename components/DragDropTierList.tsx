@@ -1,42 +1,47 @@
-import React, {useCallback, memo, useId} from 'react';
-import {
-  DragDropContext,
-  DraggableLocation,
-  DragStart,
-  DragUpdate,
-  Droppable,
-  Draggable,
-  DropResult,
-  ResponderProvided,
-} from '@hello-pangea/dnd';
+import React, {useCallback, memo, useId, useLayoutEffect, useMemo, useRef} from 'react';
 import {toast} from "sonner";
 import {useTierContext} from "@/contexts/TierContext";
 import Tier, {LabelPosition} from "@/models/Tier";
+import Item from "@/models/Item";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
-import {DragSubject, dragEndMessage, dragStartMessage, dragUpdateMessage} from "@/lib/dragAnnouncements";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
+import {TierDragDrop, useTierDragDescription, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
+import type {ItemMove, RowMove} from "@/lib/dnd/model";
 
-// Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
-// so an item id such as "__proto__" would never register as a draggable, and an item id equal
-// to a tier id would clash. A prefix per kind keeps every id unique and harmless.
-const itemDragId = (itemId: string) => `item:${itemId}`;
-const rowDragId = (tierId: string) => `row:${tierId}`;
-const ROW_DROP_PREFIX = 'items:';
-const rowDropId = (tierId: string) => `${ROW_DROP_PREFIX}${tierId}`;
-const tierIdOfRowDrop = (dropId: string) => dropId.slice(ROW_DROP_PREFIX.length);
+/**
+ * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
+ * between rows, rows move by their handle, with the mouse, by touch (hold, then move) and with
+ * the keyboard. The list changes only on drop: one history entry per move (product rule 2).
+ */
 
-const spotOf = (location: DraggableLocation) => ({tierId: tierIdOfRowDrop(location.droppableId), index: location.index});
-
-/** A drag of the library, for the announcements (lib/dragAnnouncements.ts). */
-function dragSubject(drag: DragStart | DragUpdate): DragSubject {
-  const destination = 'destination' in drag ? drag.destination : undefined;
-  if (drag.type === 'TIER') return {kind: 'row', from: drag.source.index, to: destination?.index ?? null};
-  return {kind: 'item', from: spotOf(drag.source), to: destination ? spotOf(destination) : null};
-}
+const TierItem = memo<{
+  item: Item;
+  tierId: string;
+  index: number;
+  sourceId?: string;
+  showLabels: boolean;
+  onDeleteItem: (itemId: string) => void;
+}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => {
+  const {ref, isDragging, describedBy} = useTierItem({itemId: item.id, tierId, index});
+  return (
+    <div
+      ref={ref}
+      role="button"
+      tabIndex={0}
+      aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
+      aria-label={itemDisplayLabel(item)}
+      // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
+      className={`m-0.5 rounded-md select-none [-webkit-touch-callout:none] ${isDragging ? 'shadow-md ring-2' : ''}`}
+    >
+      <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
+    </div>
+  );
+});
+TierItem.displayName = 'TierItem';
 
 const TierItems = memo<{
   tier: Tier;
@@ -44,6 +49,7 @@ const TierItems = memo<{
   onDeleteItem: (itemId: string) => void;
 }>(({tier, showLabels, onDeleteItem}) => {
   const descriptionIds = useId();
+  const {ref, isDropTarget} = useTierItems({tierId: tier.id});
   // A link image names its site in the item's description, next to the drag instructions. The
   // descriptions sit in a hidden list after the row, so they stay out of the items' text.
   const sources = tier.items.map((item, itemIndex) => {
@@ -52,50 +58,27 @@ const TierItems = memo<{
   });
   return (
     <>
-    <Droppable droppableId={rowDropId(tier.id)} direction="horizontal">
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
-        >
-          {tier.items.map((item, itemIndex) => {
-            const sourceId = sources[itemIndex]?.id;
-            return (
-            <Draggable key={item.id} draggableId={itemDragId(item.id)} index={itemIndex}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                  aria-describedby={[provided.dragHandleProps?.['aria-describedby'], sourceId].filter(Boolean).join(' ') || undefined}
-                  aria-label={itemDisplayLabel(item)}
-                  className={`
-                    m-0.5 rounded-md
-                    ${snapshot.isDragging ? 'shadow-md ring-2' : ''}
-                  `}
-                  style={{
-                    ...provided.draggableProps.style,
-                    transition: snapshot.isDropAnimating
-                      ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-                      : provided.draggableProps.style?.transition,
-                  }}
-                >
-                  <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
-                </div>
-              )}
-            </Draggable>
-            );
-          })}
-          {provided.placeholder}
+      <div
+        ref={ref}
+        className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${isDropTarget ? 'ring-1 ring-accent-foreground' : ''}`}
+      >
+        {tier.items.map((item, itemIndex) => (
+          <TierItem
+            key={item.id}
+            item={item}
+            tierId={tier.id}
+            index={itemIndex}
+            sourceId={sources[itemIndex]?.id}
+            showLabels={showLabels}
+            onDeleteItem={onDeleteItem}
+          />
+        ))}
+      </div>
+      {sources.some(Boolean) && (
+        <div hidden>
+          {sources.map((source) => source && <span key={source.id} id={source.id}>Image from {source.domain}</span>)}
         </div>
       )}
-    </Droppable>
-    {sources.some(Boolean) && (
-      <div hidden>
-        {sources.map((source) => source && <span key={source.id} id={source.id}>Image from {source.domain}</span>)}
-      </div>
-    )}
     </>
   );
 });
@@ -103,104 +86,100 @@ TierItems.displayName = 'TierItems';
 
 const TierRow = memo<{
   tier: Tier;
+  /** The row's place on screen (during a row drag, in the preview). */
   index: number;
+  /** The row's place in the list. During a row drag the row keeps its look and name until the drop. */
+  listIndex: number;
   tiersLength: number;
   labelPosition: LabelPosition;
   showLabels: boolean;
   onSaveLabel: (index: number, newText: string) => void;
   onDeleteItem: (itemId: string) => void;
-}>(({tier, index, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
-  const tierGradient = getTierGradient(index, tiersLength);
+}>(({tier, index, listIndex, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
+  const {ref, handleRef, isDragging} = useTierRow({tierId: tier.id, index});
+  const describedBy = useTierDragDescription();
+  const tierGradient = getTierGradient(listIndex, tiersLength);
   // Accessible name for the row. The unnamed last row holds unranked items; any other
   // row whose label was cleared is named after its position.
-  const isLastRow = index === tiersLength - 1;
-  const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${index + 1}`);
+  const isLastRow = listIndex === tiersLength - 1;
+  const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${listIndex + 1}`);
 
   return (
-    <Draggable draggableId={rowDragId(tier.id)} index={index}>
-      {(provided, snapshot) => (
+    <div
+      ref={ref}
+      role="group"
+      aria-label={tierLabel}
+      className={`
+        border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px]
+        min-h-20
+        flex items-center
+        ${isDragging ? 'shadow-lg ring-2' : ''}
+      `}
+      style={{background: tierGradient}}
+    >
+      <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
+        {labelPosition === 'top' && !isLastRow && (
+          <EditableLabel
+            text={tier.name}
+            onSave={(newText) => onSaveLabel(listIndex, newText)}
+            className="p-1"
+            contentClassName="tracking-wide text-xl font-semibold"
+            as="h2"
+          />
+        )}
         <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          role="group"
-          aria-label={tierLabel}
-          className={`
-            border rounded-md min-w-full sm:min-w-[500px] md:min-w-[600px] lg:min-w-[800px] 
-            min-h-20
-            flex items-center
-            ${snapshot.isDragging ? 'shadow-lg ring-2' : ''}
-          `}
-          style={{
-            ...provided.draggableProps.style,
-            background: tierGradient,
-            transition: snapshot.isDropAnimating
-              ? 'all 0.3s cubic-bezier(0.2, 0, 0, 1)'
-              : provided.draggableProps.style?.transition,
-          }}
-        >
-          <div className={`flex-1 ${labelPosition === 'top' && 'pl-2'}`}>
-            {labelPosition === 'top' && index !== tiersLength - 1 && (
+          className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
+          {(labelPosition === 'left' || labelPosition === 'right') && (
+            <div className="md:w-40">
               <EditableLabel
                 text={tier.name}
-                onSave={(newText) => onSaveLabel(index, newText)}
-                className="p-1"
+                onSave={(newText) => onSaveLabel(listIndex, newText)}
+                className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
                 contentClassName="tracking-wide text-xl font-semibold"
                 as="h2"
               />
-            )}
-            <div
-              className={`flex ${labelPosition === 'left' ? 'flex-row' : labelPosition === 'right' ? 'flex-row-reverse' : 'flex-col'} items-center`}>
-              {(labelPosition === 'left' || labelPosition === 'right') && (
-                <div className="md:w-40">
-                  <EditableLabel
-                    text={tier.name}
-                    onSave={(newText) => onSaveLabel(index, newText)}
-                    className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
-                    contentClassName="tracking-wide text-xl font-semibold"
-                    as="h2"
-                  />
-                </div>
-              )}
-              <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
             </div>
-          </div>
-          <RowHandle dragHandleProps={provided.dragHandleProps} label={tierLabel}/>
+          )}
+          <TierItems tier={tier} showLabels={showLabels} onDeleteItem={onDeleteItem}/>
         </div>
-      )}
-    </Draggable>
+      </div>
+      <RowHandle handleRef={handleRef} describedBy={describedBy} label={tierLabel}/>
+    </div>
   );
 });
 TierRow.displayName = 'TierRow';
 
+const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
+  const {rowDrag, dragging} = useTierDragState();
+  return (
+    // data-dragging turns off the tile label blur during a drag (app/globals.css), as scrolling
+    // does: hundreds of blurred layers made every frame of a drag slow.
+    <div
+      className={`pt-4 py-4 ${rowDrag ? 'ring-2 ring-accent-foreground rounded' : ''}`}
+      data-dragging={dragging || undefined}
+    >
+      {children}
+    </div>
+  );
+};
+
 const DragDropTierList: React.FC = () => {
   const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
 
-  // Announcements name rows and items by their labels, never by internal ids.
-  const onDragStart = useCallback((start: DragStart, provided: ResponderProvided) => {
-    provided.announce(dragStartMessage(tiers, dragSubject(start)));
+  const handleItemMove = useCallback((move: ItemMove) => moveItem(move.from, move.to), [moveItem]);
+  const listIndexOf = useMemo(() => new Map(tiers.map((tier, index) => [tier.id, index])), [tiers]);
+  const handleRowMove = useCallback((move: RowMove) => moveTier(move.from, move.to), [moveTier]);
+
+  // The list as of the last render, for the delete handler. Reading it from a ref keeps the
+  // handler the same function across list changes, so a drop or a delete renders only the
+  // rows that changed (the tiles are memoised), and every other tile stays as it is.
+  const tiersRef = useRef(tiers);
+  useLayoutEffect(() => {
+    tiersRef.current = tiers;
   }, [tiers]);
-
-  const onDragUpdate = useCallback((update: DragUpdate, provided: ResponderProvided) => {
-    provided.announce(dragUpdateMessage(tiers, dragSubject(update)));
-  }, [tiers]);
-
-  const onDragEnd = useCallback((result: DropResult, provided: ResponderProvided) => {
-    provided.announce(dragEndMessage(tiers, dragSubject(result), result.reason === 'CANCEL'));
-    const {source, destination, type} = result;
-    if (!destination) return;
-
-    if (type === 'TIER') {
-      moveTier(source.index, destination.index);
-    } else {
-      moveItem(
-        {tierId: tierIdOfRowDrop(source.droppableId), index: source.index},
-        {tierId: tierIdOfRowDrop(destination.droppableId), index: destination.index},
-      );
-    }
-  }, [tiers, moveItem, moveTier]);
 
   const handleDeleteItem = useCallback((itemId: string) => {
-    const deleted = findItemToDelete(tiers, itemId);
+    const deleted = findItemToDelete(tiersRef.current, itemId);
     if (!deleted) return;
     deleteItem(itemId);
 
@@ -220,34 +199,29 @@ const DragDropTierList: React.FC = () => {
         },
       },
     });
-  }, [tiers, deleteItem, restoreItem]);
+  }, [deleteItem, restoreItem]);
 
   return (
-    <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
-      <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
-        {(provided, snapshot) => (
-          <div
-            className={`pt-4 py-4 ${snapshot.isDraggingOver ? 'ring-2 ring-accent-foreground rounded' : ''}`}
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-          >
-            {tiers.map((tier, index) => (
-              <TierRow
-                key={tier.id}
-                tier={tier}
-                index={index}
-                tiersLength={tiers.length}
-                labelPosition={labelPosition}
-                showLabels={showLabels}
-                onSaveLabel={renameTier}
-                onDeleteItem={handleDeleteItem}
-              />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </DragDropContext>
+    // Announcements name rows and items by their labels, never by internal ids.
+    <TierDragDrop tiers={tiers} onItemMove={handleItemMove} onRowMove={handleRowMove} itemLabel={itemDisplayLabel}>
+      {(shownTiers) => (
+        <RowList>
+          {shownTiers.map((tier, index) => (
+            <TierRow
+              key={tier.id}
+              tier={tier}
+              index={index}
+              listIndex={listIndexOf.get(tier.id) ?? index}
+              tiersLength={shownTiers.length}
+              labelPosition={labelPosition}
+              showLabels={showLabels}
+              onSaveLabel={renameTier}
+              onDeleteItem={handleDeleteItem}
+            />
+          ))}
+        </RowList>
+      )}
+    </TierDragDrop>
   );
 };
 

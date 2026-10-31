@@ -207,9 +207,10 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
    expires if nothing publishes through it within 2 days.
 5. Then, on the same npm settings page, under **Publishing access**, choose
    **Require two-factor authentication and disallow tokens** → **Update Package Settings**.
-6. **Do not publish landscape or portrait images before the drag and drop update (Phase 5e)
-   is merged.** Until then, OpenTierBoy shows every tile as a square: such images are
-   letterboxed in tiles and cropped in link previews. The image repositories refuse it on
-   release while `src/set-config.json` has `"allowNonSquare": false`, and OpenTierBoy's unit
-   tests fail on an update that brings such a shape. Set `allowNonSquare` to `true` only
-   after Phase 5e ships.
+6. **Landscape and portrait images: your decision.** Since the drag and drop update (Phase 5e),
+   tiles show such images at their shape, but link previews still draw every image as a square
+   and crop it. The image repositories refuse such images on release while
+   `src/set-config.json` has `"allowNonSquare": false`, and OpenTierBoy's unit tests
+   (`tests/unit/shapes.test.ts`) fail on an update that brings one. Set `allowNonSquare` to
+   `true`, and remove that guard test, once cropped link previews are fine for you (or once
+   link previews draw shapes).

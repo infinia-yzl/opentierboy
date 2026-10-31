@@ -1,0 +1,142 @@
+import {Rectangle, type Axis, type Coordinates} from '@dnd-kit/geometry';
+
+import {getScrollPosition, type ScrollPosition} from './getScrollPosition.ts';
+import {getFrameTransform} from '../frame/getFrameTransform.ts';
+import {getComputedStyles} from '../styles/getComputedStyles.ts';
+import {parseTransform} from '../transform/parseTransform.ts';
+
+export enum ScrollDirection {
+  Idle = 0,
+  Forward = 1,
+  Reverse = -1,
+}
+
+const defaultThreshold: Record<Axis, number> = {
+  x: 0.2,
+  y: 0.2,
+};
+
+const defaultTolerance: Record<Axis, number> = {
+  x: 10,
+  y: 10,
+};
+
+interface ScrollIntent {
+  x: ScrollDirection;
+  y: ScrollDirection;
+}
+
+export function detectScrollIntent(
+  scrollableElement: Element,
+  coordinates: Coordinates,
+  intent?: ScrollIntent,
+  acceleration = 25,
+  thresholdPercentage = defaultThreshold,
+  tolerance = defaultTolerance,
+  scrollPosition: ScrollPosition = getScrollPosition(scrollableElement)
+) {
+  const {x, y} = coordinates;
+  const {rect, isTop, isBottom, isLeft, isRight} = scrollPosition;
+  const frameTransform = getFrameTransform(scrollableElement);
+  const computedStyles = getComputedStyles(scrollableElement, true);
+  const parsedTransform = parseTransform(computedStyles);
+  const isXAxisInverted =
+    parsedTransform !== null ? parsedTransform?.scaleX < 0 : false;
+  const isYAxisInverted =
+    parsedTransform !== null ? parsedTransform?.scaleY < 0 : false;
+  const scrollContainerRect = new Rectangle(
+    rect.left * frameTransform.scaleX + frameTransform.x,
+    rect.top * frameTransform.scaleY + frameTransform.y,
+    rect.width * frameTransform.scaleX,
+    rect.height * frameTransform.scaleY
+  );
+  const direction: Record<Axis, ScrollDirection> = {
+    x: ScrollDirection.Idle,
+    y: ScrollDirection.Idle,
+  };
+  const speed = {
+    x: 0,
+    y: 0,
+  };
+  const threshold = {
+    height: scrollContainerRect.height * thresholdPercentage.y,
+    width: scrollContainerRect.width * thresholdPercentage.x,
+  };
+
+  if (
+    threshold.height > 0 &&
+    (!isTop || (isYAxisInverted && !isBottom)) &&
+    y <= scrollContainerRect.top + threshold.height &&
+    intent?.y !== ScrollDirection.Forward &&
+    x >= scrollContainerRect.left - tolerance.x &&
+    x <= scrollContainerRect.right + tolerance.x
+  ) {
+    // Scroll Up (or Down if inverted)
+    direction.y = isYAxisInverted
+      ? ScrollDirection.Forward
+      : ScrollDirection.Reverse;
+    speed.y =
+      acceleration *
+      Math.abs(
+        (scrollContainerRect.top + threshold.height - y) / threshold.height
+      );
+  } else if (
+    threshold.height > 0 &&
+    (!isBottom || (isYAxisInverted && !isTop)) &&
+    y >= scrollContainerRect.bottom - threshold.height &&
+    intent?.y !== ScrollDirection.Reverse &&
+    x >= scrollContainerRect.left - tolerance.x &&
+    x <= scrollContainerRect.right + tolerance.x
+  ) {
+    // Scroll Down (or Up if inverted)
+    direction.y = isYAxisInverted
+      ? ScrollDirection.Reverse
+      : ScrollDirection.Forward;
+    speed.y =
+      acceleration *
+      Math.abs(
+        (scrollContainerRect.bottom - threshold.height - y) / threshold.height
+      );
+  }
+
+  if (
+    threshold.width > 0 &&
+    (!isRight || (isXAxisInverted && !isLeft)) &&
+    x >= scrollContainerRect.right - threshold.width &&
+    intent?.x !== ScrollDirection.Reverse &&
+    y >= scrollContainerRect.top - tolerance.y &&
+    y <= scrollContainerRect.bottom + tolerance.y
+  ) {
+    // Scroll Right (or Left if inverted)
+    direction.x = isXAxisInverted
+      ? ScrollDirection.Reverse
+      : ScrollDirection.Forward;
+    speed.x =
+      acceleration *
+      Math.abs(
+        (scrollContainerRect.right - threshold.width - x) / threshold.width
+      );
+  } else if (
+    threshold.width > 0 &&
+    (!isLeft || (isXAxisInverted && !isRight)) &&
+    x <= scrollContainerRect.left + threshold.width &&
+    intent?.x !== ScrollDirection.Forward &&
+    y >= scrollContainerRect.top - tolerance.y &&
+    y <= scrollContainerRect.bottom + tolerance.y
+  ) {
+    // Scroll Left (or Right if inverted)
+    direction.x = isXAxisInverted
+      ? ScrollDirection.Forward
+      : ScrollDirection.Reverse;
+    speed.x =
+      acceleration *
+      Math.abs(
+        (scrollContainerRect.left + threshold.width - x) / threshold.width
+      );
+  }
+
+  return {
+    direction,
+    speed,
+  };
+}

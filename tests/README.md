@@ -117,12 +117,46 @@ tests/
 
 ### Drag and drop
 
-The app uses `@hello-pangea/dnd`. The drag library measures every row and item when a drag
-starts, moves other elements out of the way during the drag, and auto-scrolls the page near
-the window edges. `TierListPage.dragWithMouse` therefore measures the drop point once,
-before the drag starts, in page coordinates, and then keeps the pointer on that page point
-until the page stops scrolling. Do not re-measure the drop target during a drag: it has
-already moved out of the way.
+The editor's drag and drop runs on dnd-kit through `lib/dnd` (`docs/dnd-fork.md`). During a
+drag the editor shows the list as it would be after the drop: rows and items move out of the
+way of the dragged one. The list itself changes only on the drop, with one history entry.
+
+- **Mouse.** `TierListPage.dragWithMouse` presses, moves a few pixels (a mouse drag starts
+  after 5 px) and waits for the lift announcement. After the drop it waits until the drop
+  animation (about 300 ms) ends: until then a press starts no drag and the drag library blocks
+  text selection on the page, so typing into a label would go nowhere.
+- **Where to aim.** Drops on a row (its free space, or the place of another row) measure the
+  drop point once, before the drag starts: a row measured during the drag has already moved.
+  Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
+  it stays put: an item goes before or after the item under the pointer, by the half the
+  pointer is over, so following the target settles.
+- **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
+  after each key, and after the drop for focus to come back to the item or row handle.
+- **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with
+  `dnd-kit-announcement`). dnd-kit reads moves after 500 ms, so wait for the text.
+- **Touch.** `touchDragItemToTier`, `longPressItem` and `swipeUpFromItem` send touch events
+  through the Chrome DevTools Protocol, so those tests run only on Chromium phones
+  (`mobile-chrome`). The hold before a touch drag lives in the event times, so the test does
+  not wait for it; the long press waits until the item menu shows.
+- **Rows that wrap** are tested at the default window size: twelve tiles do not fit on one
+  line.
+
+### Tile shapes
+
+`tests/e2e/tile-shapes.spec.ts` checks tiles of mixed shapes (square, landscape, portrait).
+No image set publishes another shape than square yet, so the spec skips itself unless the
+build has a made-up shapes config. To run it (never commit the changed config):
+
+```bash
+npm run build                                  # prepares the images and imageset.config.json
+node tests/support/synthetic-shapes.mjs        # marks some OVERWATCH images landscape or portrait
+npx next build                                 # builds again without prebuild, which would rewrite the config
+npx playwright test tests/e2e/tile-shapes.spec.ts
+git checkout imageset.config.json              # back to the real config, then build again
+```
+
+While the made-up config is in place, the guard in `tests/unit/shapes.test.ts` fails on
+purpose.
 
 ## Golden shared links
 

@@ -244,11 +244,35 @@ export class TierListPage {
     );
   }
 
-  /** Drags an item with the mouse and drops it where another item is. */
+  /**
+   * Drags an item with the mouse onto another item and drops it there: it takes that item's
+   * place. Coming from before it (in reading order) it lands just after it, otherwise just
+   * before it.
+   */
   async dragItemOnto(itemName: string, targetItemName: string) {
+    const [from, to] = await Promise.all([boxOf(this.item(itemName)), boxOf(this.item(targetItemName))]);
+    const comesFromBefore = from.y + from.height <= to.y || (from.y < to.y + to.height && from.x < to.x);
+    await this.dragItemNextTo(itemName, targetItemName, comesFromBefore ? 'after' : 'before');
+  }
+
+  /**
+   * Drags an item with the mouse onto the left or right half of another item, and drops it just
+   * before or just after that item. Items move out of the way during the drag, so the helper
+   * follows the target item until it stays put.
+   */
+  async dragItemNextTo(itemName: string, targetItemName: string, side: 'before' | 'after') {
     await this.changeAndWaitForLink(() =>
-      this.dragWithMouse(this.item(itemName), this.item(targetItemName), centerOfBox),
+      this.dragWithMouse(this.item(itemName), this.item(targetItemName), (box) => ({
+        x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
+        y: box.y + box.height / 2,
+      }), {followTarget: true}),
     );
+  }
+
+  /** Drags an item with the mouse a little and drops it back where it started. The list stays as it was. */
+  async dragItemAndDropInPlace(itemName: string) {
+    await this.dragWithMouse(this.item(itemName), this.item(itemName), centerOfBox);
+    await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\. It stays in `));
   }
 
   /** Drags a whole row by its handle and drops it on the position of another row. */
@@ -262,48 +286,74 @@ export class TierListPage {
    * Presses the mouse on a drag handle, moves it to a point on the drop target, and
    * releases it there.
    *
-   * The drag library measures every row and item once, when the drag starts, and works
-   * out the drop position from those measurements and the window scroll. The helper does
-   * the same: it measures the drop point before the drag starts, in page coordinates.
-   * Measuring during the drag goes wrong in two ways:
-   * - The library moves rows and items out of the way of the dragged one. A target
-   *   measured during the drag has already moved, and following it pulls the dragged
-   *   element back, so the target moves back too, and so on.
-   * - The page auto-scrolls while the pointer is near the top or bottom of the window.
-   *   The helper keeps moving the pointer to the same page point until the scrolling stops.
+   * During a drag the editor shows the list as it would be after the drop: rows and items
+   * move out of the way of the dragged one. By default the helper measures the drop point
+   * once, before the drag starts, in page coordinates, for drops on a row (its free space, or
+   * the place of another row): a row target measured during the drag has already moved, and
+   * following it pulls the dragged row back, so the target moves back too, and so on.
+   * With `followTarget` it aims at the target where it is during the drag, until the target
+   * stays put. That suits drops before or after an item: they depend only on the half of the
+   * item under the pointer, so following the item settles.
+   *
+   * The page auto-scrolls while the pointer is near the top or bottom of the window. The
+   * helper keeps moving the pointer to the same page point until the scrolling stops.
    */
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point) {
+  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false} = {}) {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
-    const dropAt = pointIn(await boxOf(target));
-    const dropAtOnPage = {x: dropAt.x + scrollBefore.x, y: dropAt.y + scrollBefore.y};
+    const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
+    let dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
 
     const from = await centerOf(handle);
     const mouse = this.page.mouse;
-    const lastAnnouncement = await this.dragAnnouncer.textContent();
-    await mouse.move(from.x, from.y);
-    await mouse.down();
-    // The drag library starts a drag only after the pointer moves a few pixels.
-    await mouse.move(from.x + 8, from.y + 8, {steps: 4});
-    // Once a drag starts, the library announces the lift, and then every change of the
-    // drop position. Only the latest message stays in the live region.
-    await expect(this.dragAnnouncer, 'the drag should start').not.toHaveText(lastAnnouncement ?? '');
+    // A press starts no drag while the previous drop still animates (about 300 ms), so the
+    // helper presses again until the drag starts.
+    await expect(async () => {
+      await mouse.move(from.x, from.y);
+      await mouse.down();
+      // A mouse drag starts only after the pointer moves a few pixels.
+      await mouse.move(from.x + 8, from.y + 8, {steps: 4});
+      // Once a drag starts, the editor announces the lift, and then every change of the
+      // drop position. Only the latest message stays in the live region.
+      await expect(this.dragAnnouncer).toHaveText(/^Picked up /, {timeout: 1_000}).catch(async (error) => {
+        await mouse.up();
+        throw error;
+      });
+    }, 'the drag should start').toPass();
 
     await expect(async () => {
       const scroll = await this.scrollPosition();
+      if (followTarget) dropAtOnPage = onPage(pointIn(await boxOf(target)), scroll);
       // A drop point outside the window is reached by holding the pointer at the edge,
       // where the page auto-scrolls towards it.
       const x = clamp(dropAtOnPage.x - scroll.x, 1, viewport.width - 2);
       const y = clamp(dropAtOnPage.y - scroll.y, 1, viewport.height - 2);
       await mouse.move(x, y, {steps: 5});
-      // The library reads the pointer once per animation frame. Waiting a few frames
+      // The drag library reads the pointer once per animation frame. Waiting a few frames
       // lets it handle the last move, and shows whether the page is still scrolling.
       const scrollAfter = await this.scrollPositionAfterFrames();
       expect(scrollAfter, 'the page should stop auto-scrolling').toEqual(scroll);
       expect({x: x + scroll.x, y: y + scroll.y}, 'the pointer should be on the drop point').toEqual(dropAtOnPage);
+      if (followTarget) {
+        // Items slide to their new places (an animation): the target must have stopped moving.
+        expect(onPage(pointIn(await boxOf(target)), scrollAfter), 'the target should stay put').toEqual(dropAtOnPage);
+      }
     }).toPass({timeout: 15_000});
     await mouse.up();
+    await this.dropSettled();
+  }
+
+  /**
+   * Waits until a drop has finished animating (about 300 ms). Until then the drag library
+   * blocks text selection on the whole page (typing into a label right away goes nowhere) and
+   * a press starts no new drag.
+   */
+  private async dropSettled() {
+    await expect.poll(() => this.page.evaluate(() => document.getAnimations()
+      .filter((animation) => animation.playState === 'running' && animation.effect?.getTiming().iterations !== Infinity).length), {
+      message: 'the drop animation should end',
+    }).toBe(0);
   }
 
   private async scrollPosition(): Promise<Point> {
@@ -326,36 +376,135 @@ export class TierListPage {
    * the address bar (for quick changes one after another).
    */
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
-    const move = () => this.moveWithKeyboard(this.item(itemName), keys);
+    const move = () => this.moveWithKeyboard(this.item(itemName), keys, itemName);
     await (waitForLink ? this.changeAndWaitForLink(move) : move());
+  }
+
+  /**
+   * Moves an item with the keyboard and checks what screen readers hear after each arrow key:
+   * returns the announcements, the drop included.
+   */
+  async moveItemWithKeyboardAndListen(itemName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
+    return heard;
   }
 
   /** Moves a whole row with the keyboard, using its row handle. */
   async moveTierWithKeyboard(tierName: string, keys: string[]) {
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys));
+    // The labels stay in place, so the moved row's handle has the name of its new position.
+    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
   }
 
-  private async moveWithKeyboard(handle: Locator, keys: string[]) {
+  private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
     const keyboard = this.page.keyboard;
-    // The drag library announces every step to screen readers. Waiting for those
-    // announcements keeps the test in step with the app without fixed sleeps.
+    // The editor announces every step to screen readers. Waiting for those announcements
+    // keeps the test in step with the app without fixed sleeps.
     await expect(async () => {
       await handle.focus();
       await keyboard.press('Space');
-      await expect(this.dragAnnouncer).toContainText('You have lifted an item', {timeout: 1_000});
+      await expect(this.dragAnnouncer).toContainText('Picked up', {timeout: 1_000});
     }).toPass();
     for (const key of keys) {
       const before = await this.dragAnnouncer.textContent();
       await keyboard.press(key);
       await expect(this.dragAnnouncer).not.toHaveText(before ?? '');
+      heard.push(await this.dragAnnouncer.textContent() ?? '');
     }
     await keyboard.press('Space');
-    await expect(this.dragAnnouncer).toContainText('You have dropped the item');
+    await expect(this.dragAnnouncer).toContainText('Dropped');
+    heard.push(await this.dragAnnouncer.textContent() ?? '');
+    // Then focus goes back to the item or handle (in the next frame), and the next action can start.
+    await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
+      message: 'focus should come back to what was moved',
+    }).toMatch(typeof focusAfter === 'string' ? new RegExp(`^${escapeRegExp(focusAfter)}$`) : focusAfter);
   }
 
-  /** The live region where the drag library announces lifts, moves and drops. */
+  // ---- Touch (Chromium only: touch events through the Chrome DevTools Protocol) --------------
+
+  /**
+   * Touches an item, holds it still, then drags it to the end of a tier and lifts the finger.
+   * The hold is in the event times (300 ms between touching and moving), so the test does not
+   * wait for it. The drag starts after a 250 ms hold (lib/dnd/activation.ts).
+   */
+  async touchDragItemToTier(itemName: string, tierName: string) {
+    await this.changeAndWaitForLink(async () => {
+      const touch = await this.touchscreen();
+      const item = this.item(itemName);
+      await item.scrollIntoViewIfNeeded();
+      const from = await centerOf(item);
+      const start = Date.now() / 1000;
+      await touch('touchStart', from, start);
+      // Still after the hold, then a few pixels: the drag starts.
+      await touch('touchMove', {x: from.x, y: from.y + 1}, start + 0.3);
+      await touch('touchMove', {x: from.x, y: from.y - 10}, start + 0.32);
+      await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(itemName)},`));
+      const box = await boxOf(this.tier(tierName));
+      const to = {x: box.x + box.width - 80, y: box.y + box.height / 2};
+      for (let step = 1; step <= 10; step++) {
+        await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
+        await this.scrollPositionAfterFrames(2);
+      }
+      await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
+      await touch('touchEnd', null, start + 0.7);
+      await this.dropSettled();
+    });
+  }
+
+  /**
+   * Touches an item and holds the finger still until its menu opens (a long press), then lifts
+   * the finger. Returns the menu.
+   */
+  async longPressItem(itemName: string): Promise<Locator> {
+    const touch = await this.touchscreen();
+    const item = this.item(itemName);
+    await item.scrollIntoViewIfNeeded();
+    await touch('touchStart', await centerOf(item));
+    const menu = this.page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', {name: 'Delete'})).toBeVisible();
+    await touch('touchEnd', null);
+    return menu;
+  }
+
+  /**
+   * A quick swipe up that starts on an item, as when scrolling the page: the finger moves at
+   * once, before any hold. Returns how far the page scrolled.
+   */
+  async swipeUpFromItem(itemName: string, distance: number): Promise<number> {
+    const touch = await this.touchscreen();
+    const item = this.item(itemName);
+    await item.scrollIntoViewIfNeeded();
+    const scrollBefore = await this.scrollPosition();
+    const from = await centerOf(item);
+    const start = Date.now() / 1000;
+    await touch('touchStart', from, start);
+    for (let step = 1; step <= 10; step++) {
+      await touch('touchMove', {x: from.x, y: from.y - distance * step / 10}, start + step * 0.01);
+    }
+    await touch('touchEnd', null, start + 0.12);
+    let scrolled = 0;
+    await expect.poll(async () => {
+      scrolled = (await this.scrollPosition()).y - scrollBefore.y;
+      return scrolled;
+    }, {message: 'the page should scroll'}).toBeGreaterThan(distance / 2);
+    return scrolled;
+  }
+
+  /** Sends touch events to the page (one finger), with optional event times in seconds. */
+  private async touchscreen() {
+    const cdp = await this.page.context().newCDPSession(this.page);
+    return async (type: 'touchStart' | 'touchMove' | 'touchEnd', point: Point | null, timestamp?: number) => {
+      await cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: point ? [{x: point.x, y: point.y}] : [],
+        ...(timestamp !== undefined && {timestamp}),
+      });
+    };
+  }
+
+  /** The live region where the editor announces lifts, moves and drops (dnd-kit's Accessibility plugin). */
   get dragAnnouncer(): Locator {
-    return this.page.locator('[aria-live="assertive"][id^="rfd-announcement"]');
+    return this.page.locator('[role="status"][aria-live][id^="dnd-kit-announcement"]');
   }
 
   // ---- Editing labels --------------------------------------------------------------------
@@ -403,6 +552,47 @@ export class TierListPage {
   // ---- Row and label settings ------------------------------------------------------------
 
   /** Switches the row template. A new history entry, like any change to the list. */
+  /** Adds an empty row above Unranked, from the row options menu (#182). */
+  async addTierRow() {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitem', {name: 'Add a row'}).click();
+    });
+  }
+
+  /** Removes a ranked row from the row options menu (#182). Its items go to Unranked. */
+  async removeTierRow(tierName: string) {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await this.page.getByRole('menuitem', {name: 'Remove a row'}).click();
+      await this.page.getByRole('menu').getByRole('menuitem', {name: tierName, exact: true}).click();
+    });
+  }
+
+  /**
+   * What the row options menu offers: whether "Add a row" and "Remove a row" can be chosen, and
+   * the rows "Remove a row" lists. Closes the menu again.
+   */
+  async rowChanges(): Promise<{canAdd: boolean; canRemove: boolean; removable: string[]}> {
+    await this.rowOptionsButton.click();
+    const add = this.page.getByRole('menuitem', {name: 'Add a row'});
+    const remove = this.page.getByRole('menuitem', {name: 'Remove a row'});
+    await expect(add).toBeVisible();
+    const canAdd = await add.isEnabled();
+    const canRemove = await remove.isEnabled();
+    let removable: string[] = [];
+    if (canRemove) {
+      await remove.click();
+      const submenu = this.page.getByRole('menu').filter({hasNot: add});
+      await expect(submenu.getByRole('menuitem').first()).toBeVisible();
+      removable = await submenu.getByRole('menuitem').allTextContents();
+    }
+    await this.page.keyboard.press('Escape');
+    await this.page.keyboard.press('Escape');
+    await expect(add).toBeHidden();
+    return {canAdd, canRemove, removable};
+  }
+
   async chooseRowCount(count: RowCount) {
     await this.changeAndWaitForLink(async () => {
       await this.rowOptionsButton.click();

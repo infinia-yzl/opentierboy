@@ -55,3 +55,6 @@ public/images/*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Build tools of the dnd-kit fork (node packages/dnd-kit/build.mjs --keep-tools)
+/packages/dnd-kit/node_modules/

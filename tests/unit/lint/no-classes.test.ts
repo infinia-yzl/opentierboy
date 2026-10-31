@@ -1,5 +1,7 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import {ESLint} from 'eslint';
+import ts from 'typescript';
 import {beforeAll, describe, expect, it} from 'vitest';
 import {ALLOWED_CLASS_FILES, ROOT_CONFIG_FILES} from '../../../eslint.config.mjs';
 
@@ -81,6 +83,30 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     expect((await reported('scripts/probe.mjs', code)).lines).toEqual([1, 2]);
     expect((await reported('lib/zod.ts', code)).lines).toEqual([1]);
     expect((await reported('tests/unit/probe.test.ts', code)).lines).toEqual([2]);
+  });
+
+  it('allows a class in lib/dnd only in dndKit.ts, for the dnd-kit activation constraint', async () => {
+    expect(ALLOWED_CLASS_FILES).toEqual(['lib/dnd/dndKit.ts']);
+    const others = ['lib/dnd/activation.ts', 'lib/dnd/moves.ts', 'lib/dnd/index.ts', 'lib/dnd/react.tsx', 'lib/dnd/dndKit.tsx', 'lib/dnd/sub/dndKit.ts', 'lib/dndKit.ts'];
+    for (const file of [...others, ...fs.readdirSync(path.join(repoRoot, 'lib/dnd')).map(name => `lib/dnd/${name}`).filter(file => file !== 'lib/dnd/dndKit.ts')]) {
+      expect((await reported(file, CLASSES)).lines, file).toEqual(CLASS_LINES);
+    }
+    expect((await reported('lib/dnd/dndKit.ts', CLASSES)).lines).toEqual([]);
+  });
+
+  it('finds exactly one class in lib/dnd/dndKit.ts: HoldThenMoveConstraint, a dnd-kit ActivationConstraint', () => {
+    const file = path.join(repoRoot, 'lib/dnd/dndKit.ts');
+    const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const classes: string[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+        const base = node.heritageClauses?.flatMap(clause => clause.types.map(type => type.expression.getText(source))) ?? [];
+        classes.push(`${node.name?.text ?? '(anonymous)'} extends ${base.join(', ')}`);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    expect(classes).toEqual(['HoldThenMoveConstraint extends ActivationConstraint']);
   });
 
   it('allows a class only in the files listed in ALLOWED_CLASS_FILES, which keep the other rules', async () => {

@@ -455,3 +455,14 @@ html.zen-mode .show-in-zen {
     @apply hidden;
   }
 }
+
+/*
+ * During a drag the tile labels drop their blur and their own compositing layer, as they do
+ * while the page scrolls (components/ItemTile.tsx). With hundreds of tiles, the blurred layers
+ * were most of the cost of each frame of a drag. Unlayered, so it wins over the utilities.
+ */
+[data-dragging] .tile-label-blur {
+  backdrop-filter: none;
+  will-change: auto;
+  transform: none;
+}

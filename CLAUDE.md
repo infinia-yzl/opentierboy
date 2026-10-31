@@ -38,8 +38,9 @@ When unsure, stop and ask. Explain the change and its risk in plain words.
 ## Stack
 
 Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind CSS 4 + shadcn/ui ·
-`@hello-pangea/dnd` (drag and drop) · `lz-string` (link compression) · `html2canvas-pro`
-(screenshots) · Playwright (end-to-end tests) · Vitest (unit tests) · hosted on Vercel.
+dnd-kit (drag and drop; a fork in `packages/dnd-kit`, used only through `lib/dnd`) · `lz-string`
+(link compression) · `html2canvas-pro` (screenshots) · Playwright (end-to-end tests) · Vitest
+(unit tests) · hosted on Vercel.
 
 ## Commands
 
@@ -57,6 +58,7 @@ npm run check:trusted-sites   # no trusted image site is on the pinned tracker l
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
+npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tiles (needs a running build)
 ```
 
 - Run `npm run check` before every commit. CI runs the same script.
@@ -79,13 +81,18 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 ```
 app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (link preview
                       image, edge runtime), /blog, /about, sitemap
-components/           React components; components/ui/ is shadcn/ui
+proxy.ts              HTTP status of /rank paths, decided before the page streams (308 for old
+                      tag paths, 404 for templates that do not exist, noindex for legacy sets)
+components/           React components; components/ui/ is shadcn/ui; DragDropTierList.tsx is the
+                      editor's rows (drag and drop through lib/dnd/react.tsx); usePageState.ts:
+                      one scroll listener and one zen-mode observer shared by every tile
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
                       syncs it with the address (one router.push per list change, one at a time;
                       label settings use router.replace, owner decision A3)
 contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
                       uploads) and link images (allowed sites, load checks)
-lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue
+lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue;
+                      moves and added or removed rows come from lib/dnd/moves.ts
 lib/TierCortex.ts     createTierCortex(): the functions of the next three modules, bound to the
                       app's aliases, image sets and base URL (used by the store, /rank and /api/og)
 lib/packageItems.ts   item lookup (built once per image-set config, shared), aliases, placeholder
@@ -93,7 +100,10 @@ lib/packageItems.ts   item lookup (built once per image-set config, shared), ali
 lib/listLink.ts       the link encode and decode used by the store: link to tiers of items, and back
 lib/linkPreview.ts    preview helpers for the OG route: row gradients, preview image URLs, base URL
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
-lib/dragAnnouncements.ts  screen reader messages for drag and drop (labels, never ids)
+lib/dnd/              drag and drop adapter, the only code that imports dnd-kit: pure moves, previews,
+                      keyboard targets, announcements (labels, never ids), touch activation, and
+                      the React API in react.tsx (docs/dnd-fork.md)
+lib/tileSize.ts       tile sizes by shape (square, landscape, portrait)
 lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
 lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
 lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
@@ -106,14 +116,17 @@ lib/snapshot/         snapshot files: the list inside a Freeze Frame PNG (iTXt c
                       reader, zod payload), and what opening a file does
 lib/recent/           Recently viewed: links this browser opened, in local storage (pins, caps)
 lib/rankPath.ts       the /rank path rule for stored paths, and page names for lists without a title
+lib/rankRoute.ts      the set and tag a /rank path names, and its HTTP answer (page and proxy.ts)
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
+packages/dnd-kit/     the vendored dnd-kit fork (npm workspaces, committed build; docs/dnd-fork.md)
 scripts/prepareImages.js   builds imageset.config.json and public/images from the official image-*
                       packages, and checks the committed legacy images (see "Image sets")
 scripts/lib/image-sets.mjs   shared rules: official vs legacy, config entries, shapes
 scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
 scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
+scripts/bench-drag.mjs   drag performance benchmark (docs/dnd-fork.md, "Performance")
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
 trusted-image-sites.json   sites whose link images load without asking
@@ -193,10 +206,10 @@ docs/                 owner checklists
   old links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
 - **Shapes**: an image set may declare `shape` (`square`, `landscape` or `portrait`) per image
   and per category. `imageset.config.json` stores it only when it is not square, and
-  `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles still
-  render square until the drag and drop update (Phase 5e). Until then, image sets must not
-  publish other shapes; a unit test in `tests/unit/shapes.test.ts` fails if
-  `imageset.config.json` holds one.
+  `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles render
+  at their shape (`lib/tileSize.ts`), but link previews still draw every image as a square.
+  Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
+  `tests/unit/shapes.test.ts` fails if `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
   (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
   1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
@@ -295,8 +308,9 @@ docs/                 owner checklists
 - Functional style (owner, A47): plain functions and readonly data. No classes in any code
   file (ESLint enforces it); only `tests/`, `packages/` and the root config files named in
   `ROOT_CONFIG_FILES` may use them. The other exception is a class that a third-party API
-  requires: it goes in a file of its own, listed in `ALLOWED_CLASS_FILES` in
-  `eslint.config.mjs`. Never turn the rule off with an `eslint-disable` comment.
+  requires: it goes in the one file that wraps that API, listed in `ALLOWED_CLASS_FILES` in
+  `eslint.config.mjs` (today `lib/dnd/dndKit.ts`, for dnd-kit's activation constraint). Never
+  turn the rule off with an `eslint-disable` comment.
 - State that outlives a call lives in a factory function with closures (for example
   `createTierCortex`, `createMemoryDeviceStore`). UI state lives in React hooks.
 - Errors are plain `Error` objects with a `name` and a `code` (see `pixelCapError()` in

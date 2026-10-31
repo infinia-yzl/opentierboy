@@ -90,7 +90,7 @@ test.describe('Ranking with the keyboard', () => {
     await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
 
     await expect(tierList.dragAnnouncer)
-      .toHaveText('You have dropped the item Mauga. It has moved from position 1 in Unranked to position 1 in tier F.');
+      .toHaveText('Dropped Mauga in tier F, position 1 of 1.');
   });
 
   test('move a row down by its handle, and the labels stay in order', async ({tierList}) => {
