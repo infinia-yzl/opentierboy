@@ -59,7 +59,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-          # Full history: npm run check regenerates the legacy link fixtures from old commits.
+          # Full history. npm run check no longer reads old commits (the legacy link fixtures
+          # are committed), so a shallow clone would also work.
           fetch-depth: 0
           persist-credentials: false
 

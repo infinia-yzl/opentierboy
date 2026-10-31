@@ -13,7 +13,8 @@ Each step says where the setting is and what to choose.
 | --- | --- | --- | --- |
 | `checks` | required status check | ruleset for `main` | `ci.yml` |
 | `e2e (chromium)` | required status check | ruleset for `main` | `ci.yml` |
-| `CLAUDE_CODE_OAUTH_TOKEN` | repository secret | opentierboy | `claude-review.yml` |
+| `ANTHROPIC_API_KEY` | repository secret | opentierboy | `claude-review.yml` |
+| `review-claude` | label | opentierboy | `claude-review.yml` |
 | `vercel-e2e` | environment | opentierboy | `playwright.yml` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | environment secret in `vercel-e2e` | opentierboy | `playwright.yml` |
 | `bot` | environment (main only) | opentierboy and each image repo | `image-set-update.yml`; image repos: `release.yml`, `weekly-extract.yml` |
@@ -95,21 +96,30 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
 
 ## 4. Claude review on pull requests
 
-`claude-review.yml` asks Claude to review each pull request and comment on bugs, security
-problems and broken project rules. It uses your Claude subscription. It skips itself, without
-failing, while the secret below is missing. It also skips drafts, forks, and pull requests
-opened or updated by bots (Dependabot, the image pipeline bot).
+`claude-review.yml` asks Claude to review a pull request and comment on bugs, security
+problems and broken project rules. It runs only when someone adds the `review-claude` label to
+the pull request. Only people with triage or write access can add labels, so pull requests
+from other people cost nothing until you choose to review them. Each review is billed to the
+API key below.
+
+It skips itself, without failing, while the secret is missing. It also skips drafts, forks
+(GitHub gives their runs no secrets) and pull requests opened by bots (Dependabot, the image
+pipeline bot).
 
 Claude reviews a pull request once. The code-review plugin skips a pull request that already
-has a comment from Claude, so later pushes are not reviewed again. To get a new review,
-delete Claude's comment, then push again or re-run the "Claude review" job.
+has a comment from Claude. To get a new review, delete Claude's comment, then remove the
+`review-claude` label and add it again.
 
 1. Install the Claude GitHub App: https://github.com/apps/claude → **Install** → choose
-   **Only select repositories** → `opentierboy`.
-2. On your computer, run `claude setup-token` and sign in. It prints a long-lived token.
+   **Only select repositories** → `opentierboy`. The app posts the comments.
+2. Create an API key in the Claude Console: https://console.anthropic.com → **API keys**. A
+   spending limit on the Console account caps the cost.
 3. GitHub: **Settings → Secrets and variables → Actions → New repository secret**.
-   Name: `CLAUDE_CODE_OAUTH_TOKEN`. Value: the token from step 2.
-4. To pause the reviews, delete the secret. The workflow then skips itself.
+   Name: `ANTHROPIC_API_KEY`. Value: the key from step 2.
+4. Create the `review-claude` label (section 5).
+5. The review works only once `claude-review.yml` is on `main`: the Claude GitHub App accepts
+   only a workflow that matches the copy on the default branch.
+6. To pause the reviews, delete the secret. The workflow then skips itself.
 
 ## 5. Labels
 
@@ -117,37 +127,39 @@ GitHub: **Issues → Labels → New label**. GitHub and Dependabot skip labels t
 so create any of these that are missing:
 
 - `agent-task`: added by the "Agent task" issue form.
+- `review-claude`: add it to a pull request to start a Claude review (section 4). Labels that
+  start a review bot are named `review-<bot>`, so a later bot gets its own `review-` label.
 - `dependencies`, `npm`, `github-actions`: added to Dependabot pull requests.
 
 ## 6. Tests against Vercel deployments
 
 `playwright.yml` runs the end-to-end tests against every successful Vercel production
 deployment, with the tests from `main`. Preview deployments of pull requests skip it, because
-their code can be newer than `main`'s tests; CI tests each pull request instead. It runs only
-for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
+their code can be newer than `main`'s tests; CI tests each pull request instead.
 
-1. Vercel: **Project → Settings → Git**. Keep **deployment_status Events** on. The workflow
-   starts from these events.
+It starts from Vercel's `repository_dispatch` event `vercel.deployment.success`, the same event
+as `release.yml`. Vercel's GitHub App sends it after each deployment, and GitHub always runs
+the workflow file on `main` for it. A fork's pull request therefore cannot change the workflow
+that reads the secret below.
+
+1. Vercel: **Project → Settings → Git**. Keep **deployment_status Events** on. This workflow
+   no longer needs them, but `release.yml` reads the deployment records they create.
 2. Vercel: **Project → Settings → Build and Deployment**. The **Build Command** must be
    `npm run build`. If it shows `next build`, override it. npm runs the `prebuild` script
    first: it copies the image sets into `public/images/` and checks that no item id is lost.
    A plain `next build` skips that step and deploys without item images.
-3. If Vercel Deployment Protection is on for previews: Vercel **Project → Settings →
-   Deployment Protection → Protection Bypass for Automation** → create a secret and copy it.
-4. GitHub: **Settings → Environments → New environment**. Name: `vercel-e2e`.
+3. If Vercel Deployment Protection is on: Vercel **Project → Settings → Deployment Protection →
+   Protection Bypass for Automation** → create a secret and copy it.
+4. GitHub: **Settings → Environments → New environment**. Name: `vercel-e2e`. Create it before
+   the first run: GitHub creates a missing environment on its own, with no branch rule.
    - Deployment branches and tags: **Selected branches and tags** → add `main` only. The
-     job runs for production deployments, which come from `main`, and other branches then
-     cannot read the secret.
+     workflow always runs on `main`, and other branches then cannot read the secret.
    - Under **Environment secrets**, add `VERCEL_AUTOMATION_BYPASS_SECRET` with the value
      from step 3. Skip this if Deployment Protection is off.
-5. Vercel: **Project → Settings → Security**. Keep **Git Fork Protection** on.
-6. **Never approve a Vercel deployment of a fork's pull request without reading its changes
-   first.** A deployment runs `playwright.yml` from the fork's code, and that run can read
-   the `vercel-e2e` secret.
-7. Optional, safer: Vercel also sends a `vercel.deployment.success` event
-   (`repository_dispatch`). GitHub always runs that kind of workflow from the file on `main`,
-   so a fork cannot change it. Switching needs a small change to `playwright.yml`; ask for it
-   if you want it.
+5. Vercel: **Project → Settings → Security**. Keep **Git Fork Protection** on, so a fork's
+   pull request deploys only after you approve it.
+6. GitHub runs the workflow only once `playwright.yml` is on `main`. After the first
+   production deployment, check **Actions → E2E on deployment**.
 
 ## 7. Bot app for the image pipeline (Phase 4)
 
