@@ -22,6 +22,8 @@ from a link, and images from the visitor's device (uploads and pasted images).
   look like addresses (`https://...`, `data:`), so pasted sentences do nothing. One drop or
   paste adds at most 20 addresses (`MAX_LINKS_PER_ADD`) and reads at most 100,000 characters,
   and all its images are one change (one Back step). The server never fetches these addresses.
+- **While something is dragged over the editor**, an overlay says where to drop it. An empty
+  list shows a drop area in the Unranked tray, with Template, Upload and Link.
 - **Images from other sites**: when a list holds link images from sites that are not trusted,
   a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
   (remembered in this browser). Until then, those items show as label tiles and the browser
