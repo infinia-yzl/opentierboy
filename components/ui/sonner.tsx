@@ -1,16 +1,19 @@
 "use client"
 
 import { useTheme } from "next-themes"
+import { modeOf } from "@/lib/appearance"
 import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
+  // Retired themes (Ocean, Forest) keep their mode (lib/appearance.ts).
+  const mode = modeOf(theme)
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={mode}
       className="toaster group"
       toastOptions={{
         classNames: {

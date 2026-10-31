@@ -1,7 +1,7 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 
-export type ColorTheme = 'classic' | 'ocean' | 'forest';
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type FontChoice = 'Modern' | 'Classic';
 
 /** Page object for the content pages that share the site navigation. */
 export class SitePage {
@@ -27,15 +27,77 @@ export class SitePage {
     return this.main.getByRole('heading', {name});
   }
 
-  /** Picks a colour theme and mode in the theme menu of the site header. */
-  async chooseTheme(colorTheme: ColorTheme, mode: ThemeMode) {
-    await this.page.getByRole('button', {name: 'Select theme'}).click();
-    await this.page.getByRole('button', {name: `Set ${colorTheme} ${mode} theme`}).click();
+  /** The Appearance menu button in the site header. */
+  get appearanceButton(): Locator {
+    return this.page.getByRole('banner').getByRole('button', {name: 'Appearance'});
+  }
+
+  /** Opens the Appearance menu. It stays open after a choice; Escape closes it. */
+  async openAppearance(): Promise<Locator> {
+    await this.appearanceButton.click();
+    const menu = this.page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    return menu;
+  }
+
+  async closeAppearance() {
     await this.page.keyboard.press('Escape');
     await expect(this.page.getByRole('menu')).toBeHidden();
+  }
+
+  /** Picks Light, Dark or System in the Appearance menu. */
+  async chooseMode(mode: ThemeMode) {
+    const menu = await this.openAppearance();
+    await menu.getByRole('menuitemradio', {name: mode[0].toUpperCase() + mode.slice(1)}).click();
+    await this.closeAppearance();
     // The site remembers the choice (next-themes keeps it in localStorage).
-    const stored = colorTheme === 'classic' ? mode : `${colorTheme}-${mode}`;
-    await expect.poll(() => this.page.evaluate(() => localStorage.getItem('theme'))).toBe(stored);
+    await expect.poll(() => this.page.evaluate(() => localStorage.getItem('theme'))).toBe(mode);
+  }
+
+  /** Picks the Modern or Classic font in the Appearance menu. */
+  async chooseFont(font: FontChoice) {
+    const menu = await this.openAppearance();
+    await menu.getByRole('menuitemradio', {name: font}).click();
+    await this.closeAppearance();
+  }
+
+  /** Turns Game colours on or off in the Appearance menu. */
+  async setGameColours(on: boolean) {
+    const menu = await this.openAppearance();
+    const item = menu.getByRole('menuitemcheckbox', {name: 'Game colours'});
+    if ((await item.getAttribute('aria-checked')) !== String(on)) await item.click();
+    await expect(item).toHaveAttribute('aria-checked', String(on));
+    await this.closeAppearance();
+  }
+
+  /** The font family the page body uses, as the browser computes it. */
+  async bodyFont(): Promise<string> {
+    return this.page.evaluate(() => getComputedStyle(document.body).fontFamily);
+  }
+
+  /** The value of a colour token on <html> (for example `--primary`). */
+  async token(name: string): Promise<string> {
+    return this.page.evaluate((property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim(), name);
+  }
+
+  /** True while <html> carries a class (the mode, the font and the game colours setting live there). */
+  async pageHasClass(name: string): Promise<boolean> {
+    return this.page.evaluate((className) => document.documentElement.classList.contains(className), name);
+  }
+
+  /** Stores an appearance value before the next page load, as an earlier visit would have. */
+  async rememberBeforeLoad(key: string, value: string) {
+    await this.page.addInitScript(([storageKey, storedValue]) => {
+      if (!sessionStorage.getItem('test-remembered-' + storageKey)) {
+        localStorage.setItem(storageKey, storedValue);
+        sessionStorage.setItem('test-remembered-' + storageKey, '1');
+      }
+    }, [key, value]);
+  }
+
+  /** The site footer. */
+  get footer(): Locator {
+    return this.page.getByRole('contentinfo');
   }
 
   /** The background and text colours of an element and of the page, as the browser computes them. */
