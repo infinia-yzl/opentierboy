@@ -125,6 +125,7 @@ const TierRow = memo<{
             className="p-1"
             contentClassName="tracking-wide text-xl font-semibold"
             as="h2"
+            emptyLabel={tierLabel}
           />
         )}
         <div
@@ -137,6 +138,7 @@ const TierRow = memo<{
                 className="p-1 flex flex-1 min-w-16 max-w-20 sm:max-w-full justify-center text-center"
                 contentClassName="tracking-wide text-xl font-semibold"
                 as="h2"
+                emptyLabel={tierLabel}
               />
             </div>
           )}
