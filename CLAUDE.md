@@ -191,8 +191,8 @@ The format, its limits, the fixtures and how to add a version: `docs/reference/l
 
 ## Image sets
 
-The image set pipeline, adding DEADLOCK, making a set legacy, and shapes:
-`docs/maintainers/image-sets.md`.
+Image set updates and the shapes decision: `docs/maintainers/repository-settings.md`
+(sections 8 and 9). How to contribute to an image set: `CONTRIBUTING.md`.
 
 - **Official sets** come from npm: THE FINALS (`image-reachthefinals`) and OVERWATCH
   (`image-overwatch`). They are the entries of `imageset.custom.json` without `"legacy"`.
@@ -208,6 +208,11 @@ The image set pipeline, adding DEADLOCK, making a set legacy, and shapes:
 - **Shapes**: until the owner decides otherwise, image sets must not publish landscape or
   portrait images. `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json`
   holds one.
+- **Making a set legacy**: copy its entry from `imageset.config.json` into
+  `imageset.legacy.json` with `"legacy": true`, commit its WebP images in `public/images/` (with
+  a `.gitignore` negation; never the PNG copies), set its `imageset.custom.json` entry to
+  `{"legacy": true}`, `npm uninstall` the package, add it to `LEGACY_SETS` in
+  `tests/support/links.ts`, and check that `imageset.config.json` only gained `"legacy": true`.
 
 ## Custom images
 

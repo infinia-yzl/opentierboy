@@ -2,8 +2,8 @@
 
 For the owner: the GitHub and Vercel settings that only the repository owner can change.
 The workflow files in `.github/` do nothing until these are in place.
-Each step says where the setting is and what to choose. The settings of the image pipeline
-(the bot app and npm trusted publishing) are in `docs/maintainers/image-sets.md`.
+Each step says where the setting is and what to choose. Each image set's own repository
+documents its own settings.
 
 ## Names at a glance
 
@@ -14,10 +14,9 @@ Each step says where the setting is and what to choose. The settings of the imag
 | `CLAUDE_CODE_OAUTH_TOKEN` | repository secret | opentierboy | `claude-review.yml` |
 | `vercel-e2e` | environment | opentierboy | `playwright.yml` |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | environment secret in `vercel-e2e` | opentierboy | `playwright.yml` |
-| `bot` | environment (main only) | opentierboy and each image repo | `image-set-update.yml`; image repos: `release.yml`, `weekly-extract.yml` |
-| `OTB_BOT_APP_ID` | environment secret in `bot` | opentierboy and each image repo | the same workflows |
-| `OTB_BOT_PRIVATE_KEY` | environment secret in `bot` | opentierboy and each image repo | the same workflows |
-| `npm-publish` | environment (main only) | each image repo | image repos: `release.yml` |
+| `bot` | environment (main only) | opentierboy | `image-set-update.yml` |
+| `OTB_BOT_APP_ID` | environment secret in `bot` | opentierboy | `image-set-update.yml` |
+| `OTB_BOT_PRIVATE_KEY` | environment secret in `bot` | opentierboy | `image-set-update.yml` |
 
 ## 1. Protect the `main` branch
 
@@ -90,7 +89,7 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
    group (all `image-*` packages) also runs weekly: Dependabot cannot give one group its
    own daily schedule. The main path for image set updates is the image-set-update
    workflow, which opens a pull request when a new version is published
-   (`docs/maintainers/image-sets.md`). Dependabot is the fallback.
+   (section 8). Dependabot is the fallback.
 
 ## 4. Claude review on pull requests
 
@@ -161,3 +160,36 @@ for deployments that Vercel's GitHub App (`vercel[bot]`) reports.
    as `2.0.0`), or the release fails.
 4. After a release, check **Actions → Release**: the run says which tag it created, or why it
    created none. **Run workflow** there repeats the check, for example after a missed event.
+
+## 8. Image set updates
+
+When an image set publishes a new version on npm, its repository tells OpenTierBoy, and
+`image-set-update.yml` opens a pull request with the update. A GitHub App (the "bot") pushes
+that branch and opens the pull request.
+
+1. Install the bot app on `opentierboy`: GitHub, your profile **Settings → Developer
+   settings → GitHub Apps** → the app → **Install App** → add `opentierboy`. The app needs
+   **Contents: Read and write** and **Pull requests: Read and write**.
+2. GitHub: **Settings → Environments → New environment** → name `bot`.
+   - **Deployment branches and tags**: **Selected branches and tags** → add `main` only.
+     Only workflow runs on `main` can then read the bot's secrets.
+   - Under **Environment secrets**, add `OTB_BOT_APP_ID` (the app's App ID or Client ID) and
+     `OTB_BOT_PRIVATE_KEY` (the full contents of the app's private key file).
+3. Pull requests from the bot never merge on their own. You review and merge each one, and CI
+   runs on them like on any pull request. Leave **Allow GitHub Actions to create and approve
+   pull requests** off (section 2): the bot app does not need it.
+4. Without the secrets, nothing breaks: `image-set-update.yml` keeps the prepared change as a
+   run artifact and opens no pull request, and Dependabot's weekly `image-sets` group still
+   proposes new versions. If both open a pull request for the same version, merge the bot's
+   (it registers new item ids) and close the other.
+5. To run an update by hand: **Actions → Image set update → Run workflow**, with the package
+   (for example `image-overwatch`) and the exact version (for example `1.3.0`). It accepts
+   only the sets in `imageset.custom.json` that are not legacy, plain `x.y.z` versions, and
+   never a downgrade.
+
+## 9. Landscape and portrait images: your decision
+
+Tiles show landscape and portrait images at their shape, but link previews still draw every
+image as a square and crop it. OpenTierBoy's unit tests (`tests/unit/rules/image-shapes.test.ts`)
+fail on an image set update that brings such an image. Remove that guard test once cropped
+link previews are fine for you (or once link previews draw shapes).
