@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import LZString from 'lz-string';
+import {readFileIfExists} from './lib/files.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixturePath = path.join(root, 'tests/fixtures/shared-links.json');
@@ -114,7 +115,8 @@ if (sourceIndex === -1 || !args[sourceIndex + 1]) {
 const source = args[sourceIndex + 1];
 const links = args.filter((_, i) => i !== sourceIndex && i !== sourceIndex + 1);
 
-const existing = fs.existsSync(fixturePath) ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : [];
+const existingText = readFileIfExists(fixturePath, 'utf8');
+const existing = existingText === undefined ? [] : JSON.parse(existingText);
 // One entry per page and state: the same state under another template path can expect another
 // page title, so it is a different test.
 const keyOf = (entry) => `${entry.path}\n${entry.state}`;

@@ -45,6 +45,7 @@ import {fileURLToPath} from 'node:url';
 import {isDeepStrictEqual} from 'node:util';
 import LZString from 'lz-string';
 import ts from 'typescript';
+import {readFileIfExists} from './lib/files.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -408,7 +409,8 @@ function generateEntries() {
 function main() {
   const checkOnly = process.argv.includes('--check');
   const generated = generateEntries();
-  const existing = fs.existsSync(outputPath) ? JSON.parse(fs.readFileSync(outputPath, 'utf8')) : [];
+  const existingText = readFileIfExists(outputPath, 'utf8');
+  const existing = existingText === undefined ? [] : JSON.parse(existingText);
   const stored = new Map(existing.map((entry) => [entry.id, entry]));
 
   const changed = generated.filter((entry) => stored.has(entry.id) && !isDeepStrictEqual(stored.get(entry.id), entry));

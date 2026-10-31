@@ -18,9 +18,11 @@ describe('scripts/capture-shared-links.mjs', () => {
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'capture-links-'));
-    fs.mkdirSync(path.join(root, 'scripts'));
+    fs.mkdirSync(path.join(root, 'scripts/lib'), {recursive: true});
     fs.mkdirSync(path.join(root, 'tests/fixtures'), {recursive: true});
-    fs.copyFileSync(path.join(repoRoot, 'scripts/capture-shared-links.mjs'), path.join(root, 'scripts/capture-shared-links.mjs'));
+    for (const file of ['scripts/capture-shared-links.mjs', 'scripts/lib/files.mjs']) {
+      fs.copyFileSync(path.join(repoRoot, file), path.join(root, file));
+    }
     fs.copyFileSync(path.join(repoRoot, 'imageset.config.json'), path.join(root, 'imageset.config.json'));
     fs.symlinkSync(path.join(repoRoot, 'node_modules'), path.join(root, 'node_modules'), 'dir');
   });
