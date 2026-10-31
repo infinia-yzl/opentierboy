@@ -59,12 +59,9 @@ describe('validateInput', () => {
   });
 
   it('throws a one-line message with the quoted value when the version has a workflow command', () => {
-    try {
-      validateInput('image-overwatch', '1.3.0\n::error::injected', customConfig);
-    } catch (error) {
-      expect((error as Error).message).not.toContain('\n');
-      expect((error as Error).message).toContain('"1.3.0\\n::error::injected"');
-    }
+    const call = () => validateInput('image-overwatch', '1.3.0\n::error::injected', customConfig);
+    expect(call).toThrow('"1.3.0\\n::error::injected"');
+    expect(call).toThrow(/^[^\n]*$/);
   });
 
   it('returns a numeric order from compareVersions when the version parts have different digit counts', () => {

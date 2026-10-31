@@ -16,6 +16,7 @@ import {
   snapshotToOpen,
 } from '@/lib/snapshot/open';
 import {snapshotImageId} from '@/lib/snapshot/imageId';
+import {heicStart} from '../../support/avif';
 import type {SnapshotPayload} from '@/lib/snapshot/payload';
 import {makePng} from '../../support/pngHelpers';
 
@@ -232,6 +233,14 @@ describe('snapshotImageTypeOf, dataUrlFromImageBytes and imageBytesFromDataUrl',
     // The app never writes one.
     expect(snapshotImageTypeOf(avif)).toBeNull();
     expect(dataUrlFromImageBytes(avif)).toBeNull();
+  });
+
+  it('returns HEIC bytes with their declared type from imageBytesFromDataUrl, and null when encoding them', () => {
+    const heic = heicStart();
+    const base64 = Buffer.from(heic).toString('base64');
+    expect(imageBytesFromDataUrl(`data:image/heic;base64,${base64}`)).toEqual({type: 'image/heic', bytes: heic});
+    expect(snapshotImageTypeOf(heic)).toBeNull();
+    expect(dataUrlFromImageBytes(heic)).toBeNull();
   });
 
   it('returns null when the bytes or the data URL are not a raster image', () => {

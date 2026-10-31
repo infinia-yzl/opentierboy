@@ -158,9 +158,10 @@ describe('fitListCard in an auto frame', () => {
     expect(fit.rows.every((row) => row.more === 0)).toBe(true);
   });
 
-  it('returns extraRows for the rest when 400 rows pass maxCanvasHeight at tileFloor', () => {
+  it('returns tile tileFloor and extraRows for the rest when 400 rows pass maxCanvasHeight at tileFloor', () => {
     const counts = Array.from({length: 400}, () => 2);
     const fit = fitListCard(auto(counts, {tileFloor: 24}));
+    expect(fit.tile).toBe(24);
     expect(fit.height).toBeLessThanOrEqual(8000);
     expect(fit.rows.length + fit.extraRows).toBe(400);
     expect(fit.extraRows).toBeGreaterThan(0);

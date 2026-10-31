@@ -265,7 +265,14 @@ test.describe('drag and drop', () => {
       await expect(tierList.dragAnnouncer).toHaveText(announcement ?? '');
       await expect.poll(() => tierList.page.evaluate(() => String(window.getSelection()))).toBe('');
       await expect(menu).toBeVisible();
+    });
+
+    test('renders row S without the item when the user long-presses it and taps Delete in the item menu', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+
+      await tierList.longPressItem('Mauga');
       await tierList.menuItem('Delete').tap();
+
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
     });
 

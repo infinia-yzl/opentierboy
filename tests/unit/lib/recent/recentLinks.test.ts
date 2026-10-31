@@ -265,6 +265,14 @@ describe('createRecentLinks remove and clear', () => {
     expect(recent.list().map(l => l.state)).toEqual(['N4Ig3', 'N4Ig1']);
   });
 
+  it('returns the list without the link when remove gets an unpinned link', () => {
+    const {recent} = setup();
+    for (let n = 1; n <= 3; n++) recent.record(link(n));
+    recent.pin(link(2));
+    expect(paths(recent.remove(link(3)).links)).toEqual(paths(recent.list()));
+    expect(recent.list().map(l => l.state)).toEqual(['N4Ig2', 'N4Ig1']);
+  });
+
   it('writes no key to storage and returns an empty list when clear runs', () => {
     const {recent, storage} = setup();
     recent.record(link(1));

@@ -133,6 +133,11 @@ export class SitePage {
     return this.recentlyViewed.getByRole('link');
   }
 
+  /** The link of one recently viewed list, by its name. */
+  recentLink(name: string): Locator {
+    return this.recentlyViewed.getByRole('link', {name, exact: true});
+  }
+
   /** The pin toggle of a recently viewed list (pressed when pinned). */
   recentPinButton(name: string): Locator {
     return this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true});

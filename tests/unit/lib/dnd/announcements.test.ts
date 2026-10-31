@@ -109,8 +109,10 @@ describe('previewAnnouncement', () => {
     expect(previewAnnouncement('over', tiers, [], 'item:o')).toBeUndefined();
     expect(previewAnnouncement('over', tiers, [], 'row:tier-a')).toBeUndefined();
   });
+});
 
-  it('returns text naming Space or Enter, arrow keys and Escape when SCREEN_READER_INSTRUCTIONS is read', () => {
+describe('SCREEN_READER_INSTRUCTIONS', () => {
+  it('returns text naming Space or Enter, arrow keys and Escape when it is read', () => {
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/Space or Enter/);
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/arrow keys/);
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/Escape/);

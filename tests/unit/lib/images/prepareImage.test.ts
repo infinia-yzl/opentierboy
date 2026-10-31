@@ -89,16 +89,6 @@ describe('prepareImageForStore', () => {
     expect(decode).not.toHaveBeenCalled();
   });
 
-  it('returns a Blob of the sniffed type from asRasterImage, or null when the bytes are not a raster image', async () => {
-    const evil = new Blob([await fileOf('image/png', 100).arrayBuffer(), '<script>alert(1)</script>'], {type: 'text/html'});
-    const raster = await asRasterImage(evil);
-    expect(raster?.type).toBe('image/png');
-    expect(raster?.blob.type).toBe('image/png');
-    expect(raster?.blob.size).toBe(evil.size);
-    expect(await asRasterImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
-    expect(await asRasterImage(new Blob([]))).toBeNull();
-  });
-
   it('returns reason \'too-many-pixels\', without decoding, when the PNG header declares 50,000 × 50,000 pixels', async () => {
     // A PNG of a few bytes that declares 50,000 x 50,000 pixels (10 GB once decoded).
     const bomb = new Uint8Array(64);
@@ -111,7 +101,7 @@ describe('prepareImageForStore', () => {
     expect(decode).not.toHaveBeenCalled();
   });
 
-  it('returns reason \'avif-heic\', without decoding, and previewableImage returns null, when the file is AVIF or HEIC', async () => {
+  it('returns reason \'avif-heic\', without decoding, when the file is AVIF or HEIC', async () => {
     const {decode} = decodeAs(100, 100);
     // The review's file: "ispe" says 100 x 100, the AV1 data 9,000 x 9,000 (190 MB to decode).
     const liar = avifWithFalseSize([100, 100], [9000, 9000]);
@@ -124,36 +114,8 @@ describe('prepareImageForStore', () => {
       [new Blob(['not even ISO media'], {type: 'image/heif'}), 'reported as HEIF'],
     ] as const) {
       expect(await prepareImageForStore(file, {maxBytes: 5_000_000, decode}), label).toEqual({ok: false, reason: 'avif-heic'});
-      expect(await previewableImage(file), label).toBeNull();
     }
     expect(decode).not.toHaveBeenCalled();
-  });
-
-  it('returns a plain Error with name PixelCapError and code PIXEL_CAP when pixelCapError is called', () => {
-    const error = pixelCapError();
-    expect(error).toBeInstanceOf(Error);
-    expect(Object.getPrototypeOf(error)).toBe(Error.prototype);
-    expect(error).toMatchObject({name: 'PixelCapError', code: 'PIXEL_CAP'});
-    expect(isPixelCapError(error)).toBe(true);
-    expect(isPixelCapError(new Error('other'))).toBe(false);
-    expect(isPixelCapError({code: 'PIXEL_CAP'})).toBe(false);
-  });
-
-  it('returns a Blob of the sniffed type from previewableImage only when the header declares a size within the caps', async () => {
-    const png = (width: number, height: number, type = 'image/png') => {
-      const bytes = new Uint8Array(100);
-      bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
-      new DataView(bytes.buffer).setUint32(16, width);
-      new DataView(bytes.buffer).setUint32(20, height);
-      return new Blob([bytes, '<script>alert(1)</script>'], {type});
-    };
-    const preview = await previewableImage(png(300, 200, 'text/html'));
-    expect(preview?.type).toBe('image/png');
-    expect(preview?.blob.type).toBe('image/png');
-    expect(await previewableImage(png(12_000, 12_000))).toBeNull();
-    expect(await previewableImage(png(8192, 4097))).toBeNull();
-    expect(await previewableImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
-    expect(await previewableImage(fileOf('image/png', 12))).toBeNull(); // no IHDR: the size is unknown
   });
 
   it('returns reason \'too-many-pixels\' within 500 ms, without decoding, when a 688-byte PNG declares 12,000 × 12,000 pixels', async () => {
@@ -245,5 +207,78 @@ describe('prepareImageForStore', () => {
       toBlob: (callback) => callback(new Blob(['not an image'])),
     });
     expect(await prepareImageForStore(new Blob(['<svg/>'], {type: 'image/svg+xml'}), {maxBytes: 5000, decode, createCanvas})).toEqual({ok: false, reason: 'too-large'});
+  });
+});
+
+describe('asRasterImage', () => {
+  it('returns a Blob of the sniffed type when the bytes are a PNG reported as text/html', async () => {
+    const evil = new Blob([await fileOf('image/png', 100).arrayBuffer(), '<script>alert(1)</script>'], {type: 'text/html'});
+    const raster = await asRasterImage(evil);
+    expect(raster?.type).toBe('image/png');
+    expect(raster?.blob.type).toBe('image/png');
+    expect(raster?.blob.size).toBe(evil.size);
+  });
+
+  it('returns null when the bytes are SVG or empty', async () => {
+    expect(await asRasterImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
+    expect(await asRasterImage(new Blob([]))).toBeNull();
+  });
+});
+
+describe('previewableImage', () => {
+  /** A PNG header that declares this size, followed by markup. */
+  const png = (width: number, height: number, type = 'image/png') => {
+    const bytes = new Uint8Array(100);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+    new DataView(bytes.buffer).setUint32(16, width);
+    new DataView(bytes.buffer).setUint32(20, height);
+    return new Blob([bytes, '<script>alert(1)</script>'], {type});
+  };
+
+  it('returns a Blob of the sniffed type when the header declares a size within the caps', async () => {
+    const preview = await previewableImage(png(300, 200, 'text/html'));
+    expect(preview?.type).toBe('image/png');
+    expect(preview?.blob.type).toBe('image/png');
+  });
+
+  it('returns null when the header declares a size over the caps', async () => {
+    expect(await previewableImage(png(12_000, 12_000))).toBeNull();
+    expect(await previewableImage(png(8192, 4097))).toBeNull();
+  });
+
+  it('returns null when the file is SVG or a PNG without IHDR', async () => {
+    expect(await previewableImage(new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], {type: 'image/svg+xml'}))).toBeNull();
+    expect(await previewableImage(fileOf('image/png', 12))).toBeNull(); // no IHDR: the size is unknown
+  });
+
+  it('returns null when the file is AVIF or HEIC', async () => {
+    const liar = avifWithFalseSize([100, 100], [9000, 9000]);
+    for (const [file, label] of [
+      [new Blob([liar], {type: 'image/avif'}), 'false size'],
+      [new Blob([REAL_AVIF], {type: 'image/avif'}), 'a real AVIF'],
+      [new Blob([heicStart()], {type: 'image/heic'}), 'HEIC'],
+    ] as const) {
+      expect(await previewableImage(file), label).toBeNull();
+    }
+  });
+});
+
+describe('pixelCapError', () => {
+  it('returns a plain Error with name PixelCapError and code PIXEL_CAP when it is called', () => {
+    const error = pixelCapError();
+    expect(error).toBeInstanceOf(Error);
+    expect(Object.getPrototypeOf(error)).toBe(Error.prototype);
+    expect(error).toMatchObject({name: 'PixelCapError', code: 'PIXEL_CAP'});
+  });
+});
+
+describe('isPixelCapError', () => {
+  it('returns true when the error comes from pixelCapError', () => {
+    expect(isPixelCapError(pixelCapError())).toBe(true);
+  });
+
+  it('returns false when the value is another Error or a plain object with code PIXEL_CAP', () => {
+    expect(isPixelCapError(new Error('other'))).toBe(false);
+    expect(isPixelCapError({code: 'PIXEL_CAP'})).toBe(false);
   });
 });

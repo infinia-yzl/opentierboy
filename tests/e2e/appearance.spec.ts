@@ -16,6 +16,9 @@ const OVERWATCH_ORANGE = 'rgb(194, 65, 12)';
 // Toasts take the page's colours in every theme. Sonner, the toast library, ships its own
 // styles; if they win, a toast can turn transparent over the tier list.
 const MODES: ThemeMode[] = ['light', 'dark'];
+/** Themes saved before 2.0.0, and the mode each one applies (THEME_CLASSES in lib/appearance.ts). */
+const RETIRED_THEMES: [string, 'light' | 'dark'][] = [['ocean-light', 'light'], ['ocean-dark', 'dark'], ['forest-light', 'light'], ['forest-dark', 'dark']];
+const MODE_LABELS = {light: 'Light', dark: 'Dark'} as const;
 
 test.describe('appearance', () => {
   test.describe('settings', () => {
@@ -48,14 +51,16 @@ test.describe('appearance', () => {
       await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
     });
 
-    test('renders the dark page background and checks Dark when localStorage theme is the retired value ocean-dark', async ({site}) => {
-      await site.rememberBeforeLoad('theme', 'ocean-dark');
-      await site.gotoHome();
-      await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
+    for (const [retired, mode] of RETIRED_THEMES) {
+      test(`renders the ${mode} page background and checks ${MODE_LABELS[mode]} when localStorage theme is the retired value ${retired}`, async ({site}) => {
+        await site.rememberBeforeLoad('theme', retired);
+        await site.gotoHome();
+        await expect.poll(() => site.pageBackground()).toBe(mode === 'dark' ? DARK_BACKGROUND : LIGHT_BACKGROUND);
 
-      await site.openAppearance();
-      await expect(site.modeOption('dark')).toBeChecked();
-    });
+        await site.openAppearance();
+        await expect(site.modeOption(mode)).toBeChecked();
+      });
+    }
 
     test('renders Geologica by default, and Nunito Sans after a reload, when the user chooses the font Classic', async ({site, page}) => {
       await site.gotoHome();

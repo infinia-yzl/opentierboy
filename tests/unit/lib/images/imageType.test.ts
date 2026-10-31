@@ -50,14 +50,10 @@ describe('readImageSize', () => {
     expect(readImageSize(bytes('GIF89a', [1, 0, 1, 0, 0, 0, 0], [0x2c, 0, 0, 0, 0]))).toBeNull();
   });
 
-  it('returns null when the bytes are AVIF, and isIsoMediaFile returns true for AVIF and HEIC', () => {
+  it('returns null when the bytes are AVIF', () => {
     const liar = avifWithFalseSize([100, 100], [9000, 9000]);
     expect(sniffImageType(liar)).toBe('image/avif');
     expect(readImageSize(liar)).toBeNull();
-    expect(isIsoMediaFile(liar)).toBe(true);
-    expect(isIsoMediaFile(heicStart())).toBe(true);
-    expect(isIsoMediaFile(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(false);
-    expect(isIsoMediaFile(bytes('GIF89a'))).toBe(false);
   });
 
   it('returns null when the header has no size (PNG without IHDR, JPEG without SOF, SVG, empty bytes)', () => {
@@ -66,5 +62,17 @@ describe('readImageSize', () => {
     expect(readImageSize(bytes([0xff, 0xd8, 0xff, 0xda, 0, 8], new Array(20).fill(0)))).toBeNull();
     expect(readImageSize(bytes('<svg width="99999" height="99999"/>'))).toBeNull();
     expect(readImageSize(new Uint8Array())).toBeNull();
+  });
+});
+
+describe('isIsoMediaFile', () => {
+  it('returns true when the bytes are AVIF or HEIC', () => {
+    expect(isIsoMediaFile(avifWithFalseSize([100, 100], [9000, 9000]))).toBe(true);
+    expect(isIsoMediaFile(heicStart())).toBe(true);
+  });
+
+  it('returns false when the bytes are PNG or GIF', () => {
+    expect(isIsoMediaFile(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(false);
+    expect(isIsoMediaFile(bytes('GIF89a'))).toBe(false);
   });
 });

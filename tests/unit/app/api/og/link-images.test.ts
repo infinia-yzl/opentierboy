@@ -58,23 +58,28 @@ describe('inlineTrustedLinkImages', () => {
     }
   });
 
-  it('returns undefined when the image exceeds maxBytes or timeoutMs or comes after maxImages addresses', async () => {
+  it('returns 1 MiB, 4,000 ms and 24 images when DEFAULT_LINK_IMAGE_LIMITS is read', () => {
     expect(DEFAULT_LINK_IMAGE_LIMITS).toEqual({maxBytes: 1024 * 1024, timeoutMs: 4_000, maxImages: 24});
+  });
+
+  it('returns undefined when the image is larger than maxBytes', async () => {
     const big = new Uint8Array(2048);
     big.set(PNG);
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      if (String(url).endsWith('slow.png')) {
-        return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))));
-      }
-      return image(big);
-    });
-    const src = await inlineTrustedLinkImages(['https://i.imgur.com/big.png', 'https://i.imgur.com/slow.png'], {
-      fetchImpl: fetchImpl as typeof fetch,
-      limits: {maxBytes: 1024, timeoutMs: 50},
-    });
+    const fetchImpl = vi.fn(async () => image(big));
+    const src = await inlineTrustedLinkImages(['https://i.imgur.com/big.png'], {fetchImpl, limits: {maxBytes: 1024}});
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(src('https://i.imgur.com/big.png')).toBeUndefined();
-    expect(src('https://i.imgur.com/slow.png')).toBeUndefined();
+  });
 
+  it('returns undefined when the image takes longer than timeoutMs', async () => {
+    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))));
+    const src = await inlineTrustedLinkImages(['https://i.imgur.com/slow.png'], {fetchImpl: fetchImpl as typeof fetch, limits: {timeoutMs: 50}});
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(src('https://i.imgur.com/slow.png')).toBeUndefined();
+  });
+
+  it('returns undefined, and writes no fetch request, when the address comes after maxImages addresses', async () => {
     const many = Array.from({length: 40}, (_, index) => `https://i.imgur.com/${index}.png`);
     const counted = vi.fn(async () => image(PNG));
     const capped = await inlineTrustedLinkImages(many, {fetchImpl: counted, limits: {maxImages: 5}});

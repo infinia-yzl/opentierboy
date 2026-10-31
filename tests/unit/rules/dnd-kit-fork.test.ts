@@ -57,16 +57,23 @@ function satisfies(version: string, range: string): boolean {
 }
 
 describe('satisfies', () => {
-  it('returns true inside and false outside the caret or exact range, and throws when the version is a prerelease', () => {
+  it('returns true when the version is inside the caret or exact range', () => {
     expect(satisfies('0.5.1', '^0.5.1')).toBe(true);
     expect(satisfies('0.5.9', '^0.5.1')).toBe(true);
+    expect(satisfies('1.14.4', '^1.10.0')).toBe(true);
+    expect(satisfies('0.0.3', '^0.0.3')).toBe(true);
+    expect(satisfies('0.5.1', '0.5.1')).toBe(true);
+  });
+
+  it('returns false when the version is outside the caret or exact range', () => {
     expect(satisfies('0.5.0', '^0.5.1')).toBe(false);
     expect(satisfies('0.6.0', '^0.5.1')).toBe(false);
-    expect(satisfies('1.14.4', '^1.10.0')).toBe(true);
     expect(satisfies('2.0.0', '^1.10.0')).toBe(false);
-    expect(satisfies('0.0.3', '^0.0.3')).toBe(true);
     expect(satisfies('0.0.4', '^0.0.3')).toBe(false);
-    expect(satisfies('0.5.1', '0.5.1')).toBe(true);
+    expect(satisfies('0.5.2', '0.5.1')).toBe(false);
+  });
+
+  it('throws when the version is a prerelease', () => {
     expect(() => satisfies('0.5.1-otb.1', '^0.5.1')).toThrow();
   });
 });

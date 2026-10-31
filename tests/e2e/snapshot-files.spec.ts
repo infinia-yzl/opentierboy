@@ -138,7 +138,7 @@ test.describe('snapshot files', () => {
     // browser: on a busy machine that takes longer than the default 30 seconds.
     test.slow();
 
-    test('writes the v3 state and the device images into the PNG when the user clicks Download in the share panel', async ({tierList, openAsVisitor}) => {
+    test('writes the v3 state and the device images into the PNG when the user clicks Download in the share panel', async ({tierList}) => {
       const snapshot = await downloadSnapshotOf(tierList);
       // Still an ordinary PNG, with the list inside.
       expect(snapshot.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -146,6 +146,10 @@ test.describe('snapshot files', () => {
       expect(payload).toMatchObject({version: 1, path: TANKS, state: expect.stringMatching(/^3\./)});
       expect(payload.images).toHaveLength(1);
       expect(payload.images[0].dataUrl).toMatch(/^data:image\/(webp|png);base64,/);
+    });
+
+    test('renders the list and its device image, also after a reload, when a visitor opens the downloaded snapshot file', async ({tierList, openAsVisitor}) => {
+      const snapshot = await downloadSnapshotOf(tierList);
 
       // A friend without the image opens the file in an empty list.
       const friend = await openAsVisitor('/rank');
@@ -375,12 +379,17 @@ test.describe('snapshot files', () => {
       await expect.poll(() => tierList.deviceImageCount()).toBe(0);
     });
 
-    test('writes no list into the downloaded PNG when the state would pass 13,000 characters with the ids of another browser', async ({tierList, page, openAsVisitor}) => {
+    /** Uploads 30 pictures and returns the v3 JSON of the list that holds them. */
+    async function listOf30Uploads(tierList: TierListPage): Promise<V3Json> {
       await tierList.goto('/rank');
       const files = Array.from({length: 30}, (_, index) => imageFile(`pic${String(index).padStart(2, '0')}.png`, noisePng(12, 12, index + 1)));
       await tierList.addItemsFromDevice(files, {timeout: 60_000});
-      await expect.poll(() => deviceItemsOf(page.url())).toBe(30);
-      const json = v3LinkJson(page.url()) as V3Json;
+      await expect.poll(() => deviceItemsOf(tierList.page.url())).toBe(30);
+      return v3LinkJson(tierList.page.url()) as V3Json;
+    }
+
+    test('writes no list into the downloaded PNG when the state would pass 13,000 characters with the ids of another browser', async ({tierList}) => {
+      const json = await listOf30Uploads(tierList);
 
       // Just under the cap as written: opened elsewhere, the images' longer ids would pass it.
       const written = stateNearCap(json, 13_000);
@@ -390,6 +399,10 @@ test.describe('snapshot files', () => {
       await tierList.capturePreview();
       const picture = await tierList.downloadCapturedImageWithoutList();
       expect(snapshotTextOf(picture.buffer)).toBeNull();
+    });
+
+    test('writes the list into the PNG, and renders its 30 device images for a visitor, when the state is 12,300 characters', async ({tierList, openAsVisitor}) => {
+      const json = await listOf30Uploads(tierList);
 
       // Further under the cap: the file keeps the list, and a friend opens it with its images.
       await tierList.goto('/rank', stateNearCap(json, 12_300));
@@ -408,24 +421,37 @@ test.describe('snapshot files', () => {
   test.describe('slow server', () => {
     test.slow();
 
-    test('renders the dialog "Opening the list…" until the URL has the list when the user clicks Open list on a slow server', async ({tierList, page, browserName}) => {
-      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+    /** Opens a snapshot file on a server that answers after 1 s, and returns the history length from before. */
+    async function startOpeningOnSlowServer(tierList: TierListPage): Promise<number> {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
       const before = await tierList.historyLength();
       await tierList.simulateSlowServer(1_000);
       await tierList.openFile(listFile('snapshot.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]}));
-
       await tierList.startOpeningList();
+      return before;
+    }
+
+    test('renders the dialog "Opening the list…" until the URL has the list when the user clicks Open list on a slow server', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await startOpeningOnSlowServer(tierList);
+
       // Meanwhile a paste (it lands in the dialog) adds nothing, and Escape does not close it.
       await tierList.pasteImages([imageFile('early.png', BLUE_SQUARE)], tierList.openListDialog);
       await page.keyboard.press('Escape');
       await expect(tierList.openListDialog).toContainText('Opening the list…');
       await expect(tierList.openListDialog).toBeHidden();
       await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
       await expect(tierList.title).toHaveText('Snapshot list');
+    });
 
-      // Right after: a paste goes onto the opened list, as its own Back step.
+    test('writes 1 history entry for the paste when the user pastes right after a snapshot file opens on a slow server', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      const before = await startOpeningOnSlowServer(tierList);
+      await expect(tierList.openListDialog).toBeHidden();
+
       await tierList.pasteImages([imageFile('late.png', BLUE_SQUARE)]);
+
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['late']);
       await expect.poll(() => tierList.historyLength(), {timeout: 15_000}).toBe(before + 2);
       await page.goBack();
@@ -434,11 +460,17 @@ test.describe('snapshot files', () => {
       await page.goBack();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.title).toHaveText('Old list');
+    });
 
-      // Recently viewed has the file's list (recorded once it was in the address).
+    test('writes the list of the file to Recently viewed when the user opens a snapshot file on a slow server', async ({tierList, page}) => {
+      await startOpeningOnSlowServer(tierList);
+      await expect(tierList.openListDialog).toBeHidden();
+      await expect(tierList.title).toHaveText('Snapshot list');
+
+      // Recorded once the list is in the address.
       const site = new SitePage(page);
       await site.gotoHome();
-      await expect(site.recentLinks.filter({hasText: 'Snapshot list'})).toHaveCount(1);
+      await expect(site.recentLink('Snapshot list')).toHaveCount(1);
     });
   });
 

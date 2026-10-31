@@ -234,11 +234,6 @@ describe('createPlugins', () => {
       expect(manager.registry.plugins.get(Accessibility)).toBeDefined();
       expect(manager.registry.plugins.get(Feedback)?.options).toEqual({dropAnimation: DROP_ANIMATION});
       expect(manager.registry.sensors.get(PointerSensor)?.options?.activationConstraints).toBeTypeOf('function');
-      // Keyboard drags drop without the animation; pointer drags use DROP_ANIMATION.
-      chooseDropAnimation(manager, true);
-      expect(manager.registry.plugins.get(Feedback)?.dropAnimation).toBeTypeOf('function');
-      chooseDropAnimation(manager, false);
-      expect(manager.registry.plugins.get(Feedback)?.dropAnimation).toBeUndefined();
     } finally {
       manager.destroy();
     }
@@ -248,5 +243,26 @@ describe('createPlugins', () => {
     type ProviderProps = ComponentProps<typeof DragDropProvider>;
     const props: Pick<ProviderProps, 'sensors' | 'plugins'> = {sensors: createSensors(), plugins: createPlugins(createAnnouncements(() => undefined), {id: 'r1'})};
     expect(props.sensors).toHaveLength(2);
+  });
+});
+
+describe('chooseDropAnimation', () => {
+  /** Keyboard drags drop without the animation; pointer drags use DROP_ANIMATION. */
+  function dropAnimationAfter(...keyboardDrags: boolean[]) {
+    const manager = new DragDropManager({sensors: createSensors(), plugins: createPlugins(createAnnouncements(() => undefined), {id: 'r1'})});
+    try {
+      for (const keyboard of keyboardDrags) chooseDropAnimation(manager, keyboard);
+      return manager.registry.plugins.get(Feedback)?.dropAnimation;
+    } finally {
+      manager.destroy();
+    }
+  }
+
+  it('writes a drop animation function to Feedback when the drag is a keyboard drag', () => {
+    expect(dropAnimationAfter(true)).toBeTypeOf('function');
+  });
+
+  it('writes undefined to the Feedback drop animation when a pointer drag follows a keyboard drag', () => {
+    expect(dropAnimationAfter(true, false)).toBeUndefined();
   });
 });
