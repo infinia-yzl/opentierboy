@@ -29,9 +29,13 @@
 
 - **Tier Studio**: Modern, user-friendly interface for effortless tier list creation
 - **No Login Required**: Create and share without an account
-- **BYOI (Bring Your Own Images)**: Upload images from your device to personalize your tier list
+- **BYOI (Bring Your Own Images)**: Upload, paste or drop pictures from your device, or add images from other websites by
+  their address
 - **Copy Jutsu**: Easily share your rankings with a stateful URL
-- **Freeze Frame**: Capture your rankings as an image
+- **Freeze Frame**: Capture your rankings as an image. A downloaded Freeze Frame reopens as an editable list
+- **Recently Viewed**: The lists you opened come back on the home page. Pin the ones you want to keep
+- **Appearance**: Light, Dark or System mode, each game's own colours, and a Modern or Classic font
+- **Zen**: Hide the buttons and rank by dragging, without distractions
 - **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking. Your list lives in its link.
   Images you upload or paste stay in your browser and never reach our server. Images from trusted sites load
   straight from those sites; images from other sites load only after you allow them.
@@ -61,9 +65,18 @@ Found a bug or have a suggestion? Open an issue on GitHub:
 
 1. Go to the [Issues](https://github.com/infinia-yzl/opentierboy/issues) tab.
 2. Click "New Issue".
-3. Choose the appropriate template (Bug Report, Feature Request, or Image Update/Addition).
+3. Choose the appropriate template (Bug Report, Feature Request / Feedback, or Image Update or Addition).
 4. Provide a clear title and detailed description.
 5. Add relevant labels if necessary.
+
+## 🤖 Built with AI Agents
+
+OpenTierBoy is built mostly by AI coding agents (Claude, by Anthropic). The work is spec-driven: the owner writes
+what to build, the agents follow the rules in [CLAUDE.md](CLAUDE.md), and automated tests check the result. The owner
+makes some checks by hand and may not review every line of code.
+
+OpenTierBoy is provided "as is", without warranty of any kind, and its authors are not liable for any damages arising
+from its use. See sections 15 and 16 of the [LICENSE](LICENSE).
 
 ## 📜 License
 

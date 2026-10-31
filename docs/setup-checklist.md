@@ -78,6 +78,9 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
      setup is on. Click **Switch to advanced**, then **Disable CodeQL**. This turns off the
      default setup only. `codeql.yml` takes over once it is merged.
    - If it shows **Set up**, do nothing. `codeql.yml` starts once it is on `main`.
+   - `codeql.yml` scans pull requests into `main`, pushes to `main`, and every Monday. Pull
+     requests into `epic/ui-revamp` get no scan of their own; the scan on the epic's pull
+     request (#202) covers them.
 6. **Copilot Autofix**: On. It suggests fixes on CodeQL alerts in pull requests. It is free
    for public repositories.
 7. OpenSSF Scorecard (`scorecard.yml`) and OSV-Scanner (`osv-scanner.yml`) need no setting.
