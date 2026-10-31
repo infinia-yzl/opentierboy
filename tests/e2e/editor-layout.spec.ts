@@ -1,4 +1,5 @@
 import {expect, test} from '../support/test';
+import {rankingState} from '../support/links';
 
 // The editor's layout (owner decisions, 2026-10-28): three tools beside the title, the site
 // header keeps site-level controls only, and rows are changed under the rows.
@@ -106,6 +107,70 @@ test.describe('editor layout', () => {
       await expect(tierList.addImagesTile).toBeHidden();
       await expect(tierList.hints).toBeHidden();
       await expect(tierList.unranked).toBeVisible();
+    });
+  });
+
+  // The dense editor (owner decision, 2026-10-31): Compact and Comfortable tiles, a view setting
+  // of this browser in the Row options menu.
+  test.describe('tile size', () => {
+    test.use({viewport: {width: 1280, height: 800}});
+    const LIST = rankingState('image-overwatch', {S: ['Reinhardt', 'Zarya'], '': ['Mauga', 'Winston']});
+
+    test('renders 48 px tiles and rows with no names on the tiles when the user chooses Compact', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
+
+      await tierList.chooseTileSize('Compact');
+
+      expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
+      expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 48, height: 48});
+      expect((await tierList.sizeOf(tierList.tier('C'))).height).toBeLessThanOrEqual(49);
+      await expect(tierList.item('Reinhardt')).not.toContainText('Reinhardt', {useInnerText: true});
+      await expect(tierList.itemNameTag('Reinhardt')).toBeHidden();
+    });
+
+    test('renders the name under a Compact tile when the mouse is over the tile', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.chooseTileSize('Compact');
+
+      await tierList.hoverItem('Zarya');
+
+      await expect(tierList.itemNameTag('Zarya')).toBeVisible();
+      await expect(tierList.itemNameTag('Zarya')).toHaveText('Zarya');
+      await expect(tierList.itemNameTag('Reinhardt')).toBeHidden();
+    });
+
+    test('renders Compact tiles when the page reloads after the user chose Compact', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.chooseTileSize('Compact');
+
+      await tierList.reload();
+
+      expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
+      await tierList.openRowOptions();
+      await expect(tierList.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
+    });
+
+    test('renders 80 px tiles with their names when the user chooses Comfortable after Compact', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.chooseTileSize('Compact');
+
+      await tierList.chooseTileSize('Comfortable');
+
+      expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
+      await expect(tierList.item('Reinhardt')).toContainText('Reinhardt', {useInnerText: true});
+    });
+
+    test('writes no history entry and leaves the address as it is when the user chooses Compact and Comfortable', async ({tierList, page}) => {
+      await tierList.goto(TANKS, LIST);
+      const address = page.url();
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.chooseTileSize('Compact');
+      await tierList.chooseTileSize('Comfortable');
+
+      expect(await newEntries()).toBe(0);
+      expect(page.url()).toBe(address);
     });
   });
 });

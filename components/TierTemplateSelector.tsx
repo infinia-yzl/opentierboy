@@ -19,6 +19,8 @@ import {useTierContext} from '@/contexts/TierContext';
 import {LabelPosition, TierTemplate, tierTemplates} from "@/models/Tier";
 import {canAddTier, canRemoveTier} from "@/lib/dnd/moves";
 import {tierLabel} from "@/lib/dnd/labels";
+import {useTileSizeChoice} from "@/components/useAppearance";
+import type {TileSizeChoice} from "@/lib/appearance";
 
 const TierTemplateSelector: React.FC = () => {
   const {
@@ -30,6 +32,8 @@ const TierTemplateSelector: React.FC = () => {
     onTemplateChange,
     removeTier,
   } = useTierContext();
+
+  const [tileSize, setTileSize] = useTileSizeChoice();
 
   const rowCount = `${tiers.length - 1}rows`;
 
@@ -94,6 +98,14 @@ const TierTemplateSelector: React.FC = () => {
         <DropdownMenuRadioGroup value={showLabels ? 'show' : 'hide'} onValueChange={handleLabelVisibilityChange}>
           <DropdownMenuRadioItem value="show">Show Labels</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="hide">Hide Labels</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        {/* The dense editor (owner decision, 2026-10-31): a view setting of this browser, never
+            part of the link (components/useAppearance.ts). Compact shows names on hover. */}
+        <DropdownMenuSeparator/>
+        <DropdownMenuLabel>Tile Size</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={tileSize} onValueChange={(value) => setTileSize(value as TileSizeChoice)}>
+          <DropdownMenuRadioItem value="comfortable">Comfortable</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

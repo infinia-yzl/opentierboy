@@ -33,7 +33,7 @@ The Service keeps some data in your browser, on your device, so that it works as
 device and is not shared with us or any third parties.
 
 - **Local storage** holds your appearance choices (Light, Dark or System mode, game colours, and the Modern or Classic
-  font), the lists you opened recently and the ones you pinned ("Recently viewed"), the websites whose images you chose
+  font), the tile size you chose in the editor (Comfortable or Compact), the lists you opened recently and the ones you pinned ("Recently viewed"), the websites whose images you chose
   to always load, and the ids of pictures your browser had to remove for lack of space. It can also hold pictures
   that older versions of the Service saved there, until the Service can move them to IndexedDB.
 - **IndexedDB** holds the pictures you upload, paste or drop from your device, so that your lists still show them on

@@ -87,7 +87,7 @@ tests/
 
   | File | Area |
   | --- | --- |
-  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen |
+  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen; tile sizes |
   | `editor-labels` | the title, row names, label position and label visibility |
   | `editor-rows` | adding and removing rows |
   | `editor-items` | adding, removing and resetting items; unknown items |
@@ -99,6 +99,7 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
+| `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlays |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
   | `shared-links` | golden links people shared, and their page tags |

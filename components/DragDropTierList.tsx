@@ -14,7 +14,10 @@ import type {ItemMove, RowMove} from "@/lib/dnd/model";
 import {useZenMode} from "@/components/usePageState";
 import {useRankingOrder} from "@/components/useRankingOrder";
 import {itemsLeftText, queueOrder, type RankingOrder} from "@/lib/zen/queue";
-import {tileSize} from "@/lib/tileSize";
+import {tileClassName} from "@/lib/tileSize";
+import {useActiveStage} from "@/components/useZenLayout";
+import {shownQueue} from "@/lib/zen/layouts";
+import {cn} from "@/lib/utils";
 
 /**
  * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
@@ -58,7 +61,9 @@ const TierItems = memo<{
   onDeleteItem: (itemId: string) => void;
   /** After the items, inside the drop area: the tray's "Add images" tile. */
   trailing?: React.ReactNode;
-}>(({tier, showLabels, onDeleteItem, trailing}) => {
+  /** More classes for the drop area (the tray's). */
+  className?: string;
+}>(({tier, showLabels, onDeleteItem, trailing, className = ''}) => {
   const descriptionIds = useId();
   const {ref, isDropTarget} = useTierItems({tierId: tier.id});
   // A link image names its site in the item's description, next to the drag instructions. The
@@ -71,7 +76,7 @@ const TierItems = memo<{
     <>
       <div
         ref={ref}
-        className={`flex-1 min-w-0 min-h-16 md:min-h-20 flex flex-wrap content-start ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
+        className={`flex-1 min-w-0 min-h-16 md:min-h-20 compact:min-h-12 stage:min-h-(--stage-tile) flex flex-wrap content-start ${className} ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
       >
         {tier.items.map((item, itemIndex) => (
           <TierItem
@@ -96,13 +101,17 @@ const TierItems = memo<{
 });
 TierItems.displayName = 'TierItems';
 
-/** The tier letter's size: big for a letter or two, smaller for longer names, which wrap. */
+/**
+ * The tier letter's size: big for a letter or two, smaller for longer names, which wrap. Compact
+ * tiles (the dense editor) take smaller letters; the frame layouts take theirs from the frame
+ * (`--stage-letter`, lib/zen/layouts.ts).
+ */
 function rowLabelClass(name: string, labelPosition: LabelPosition): string {
   const length = Array.from(name.trim()).length;
-  const size = labelPosition === 'top' ? 'text-lg'
-    : length <= 2 ? 'text-[1.625rem] sm:text-3xl'
-      : length <= 5 ? 'text-lg sm:text-xl'
-        : 'text-sm';
+  const size = labelPosition === 'top' ? 'text-lg stage:text-[length:calc(var(--stage-letter)*0.4)]'
+    : length <= 2 ? 'text-[1.625rem] sm:text-3xl compact:text-xl stage:text-(length:--stage-letter)'
+      : length <= 5 ? 'text-lg sm:text-xl compact:text-[15px] stage:text-[length:calc(var(--stage-letter)*0.5)]'
+        : 'text-sm stage:text-[length:calc(var(--stage-letter)*0.3)]';
   return `font-heading font-black leading-tight break-words ${size}`;
 }
 
@@ -129,7 +138,7 @@ const TierRow = memo<{
       onSave={(newText) => onSaveLabel(listIndex, newText)}
       className={labelPosition === 'top'
         ? 'px-2 pt-1'
-        : 'w-14 sm:w-24 shrink-0 self-stretch flex items-center justify-center p-1 text-center'}
+        : 'w-14 sm:w-24 compact:sm:w-22 stage:w-(--stage-letter-column) shrink-0 self-stretch flex items-center justify-center p-1 text-center'}
       contentClassName={rowLabelClass(tier.name, labelPosition)}
       as="h2"
       emptyLabel={tierLabel}
@@ -141,7 +150,7 @@ const TierRow = memo<{
       ref={ref}
       role="group"
       aria-label={tierLabel}
-      className={`w-full min-h-16 md:min-h-20 flex border-b border-black/10 dark:border-white/10 ${isDragging ? 'relative z-10 shadow-lg ring-2 ring-ring' : ''}`}
+      className={`w-full min-h-16 md:min-h-20 compact:min-h-12 stage:min-h-(--stage-tile) flex border-b border-black/10 dark:border-white/10 ${isDragging ? 'relative z-10 shadow-lg ring-2 ring-ring' : ''}`}
       style={{background: tierGradient}}
     >
       {labelPosition === 'top' ? (
@@ -193,17 +202,19 @@ const UnrankedTray = memo<{
     );
   }
   return (
-    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2">
+    // In a frame layout the tray has no box, and its tiles take the frame's tray size; in 9:16 it
+    // fills the space under the rows, in the middle (the board "9:16 · Pick freely").
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <EditableLabel
           text={tier.name}
           onSave={(newText) => onSaveLabel(listIndex, newText)}
-          contentClassName="text-sm font-semibold"
+          contentClassName="text-sm font-semibold stage:text-(length:--stage-tray-heading) stage:font-black"
           as="h2"
           emptyText="Unranked"
         />
         {isZenMode && (
-          <span className="text-sm text-muted-foreground">· {itemsLeftText(tier.items.length)}</span>
+          <span className="text-sm text-muted-foreground stage:text-(length:--stage-tray-count)">· {itemsLeftText(tier.items.length)}</span>
         )}
         {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
         <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
@@ -218,6 +229,8 @@ const UnrankedTray = memo<{
         showLabels={showLabels}
         onDeleteItem={onDeleteItem}
         trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
+        // In 9:16 the tray fills the space under the rows and centres its items in it.
+        className="stage-tall:flex-none"
       />
     </section>
   );
@@ -242,45 +255,86 @@ const UpNextTray = memo<{
 }>(({tier, tierLabel, order, shuffled, hideQueue, showLabels, onDeleteItem}) => {
   const queueLabelId = useId();
   const {ref, isDropTarget} = useTierItems({tierId: tier.id});
+  // The frame layouts show the same parts in their own places (owner decision, 2026-10-31):
+  // 16:9 as the editor; 9:16 with the item up next large in the middle and its name under it;
+  // the overlay as one strip of small tiles without labels. The frames show one line of queue.
+  const stage = useActiveStage();
+  const tall = stage === 'tall';
+  const strip = stage === 'overlay';
   const places = new Map(tier.items.map((item, index) => [item.id, {item, index}]));
   const [nextId, ...restIds] = queueOrder(tier.items.map(item => item.id), order, shuffled);
   const next = nextId === undefined ? undefined : places.get(nextId);
-  const rest = restIds.flatMap(id => places.get(id)?.item ?? []);
+  const rest = shownQueue(restIds.flatMap(id => places.get(id)?.item ?? []), stage ?? 'editor');
+  const left = itemsLeftText(tier.items.length);
+  const queueLabel = hideQueue ? 'Queue (hidden)' : 'Queue';
   return (
-    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3">
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage-tall:flex stage-tall:flex-col">
       <div
         ref={ref}
-        className={`min-h-16 md:min-h-20 flex flex-wrap items-end gap-x-6 gap-y-3 ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
+        className={cn(
+          'flex',
+          !stage && 'min-h-16 md:min-h-20 flex-wrap items-end gap-x-6 gap-y-3',
+          stage === 'wide' && 'flex-wrap items-end gap-x-[calc(var(--u)*28)] gap-y-[calc(var(--u)*12)]',
+          tall && 'flex-col items-center gap-[calc(var(--u)*20)]',
+          strip && 'items-center',
+          isDropTarget && 'ring-2 ring-inset ring-ring/60',
+        )}
       >
-        <div className="flex flex-col gap-2">
-          <div className="flex items-baseline gap-2">
-            <h2 className="text-sm font-semibold">Up next</h2>
-            <span className="text-sm text-muted-foreground">{itemsLeftText(tier.items.length)}</span>
+        <div className={cn(
+          'flex',
+          !stage && 'flex-col gap-2',
+          stage === 'wide' && 'flex-col gap-[calc(var(--u)*10)]',
+          tall && 'flex-col items-center gap-[calc(var(--u)*20)]',
+          strip && 'items-center gap-[calc(var(--u)*12)]',
+        )}>
+          <div className="flex items-baseline gap-2 stage:gap-[calc(var(--u)*12)]">
+            <h2 className={cn(
+              'text-sm font-semibold stage:text-(length:--stage-tray-heading) stage:font-black',
+              tall && 'font-semibold text-muted-foreground',
+            )}>
+              Up next
+            </h2>
+            {!strip && (
+              <span className="text-sm text-muted-foreground stage:text-(length:--stage-tray-count) stage-tall:font-semibold">
+                {tall ? `· ${left}` : left}
+              </span>
+            )}
           </div>
           {next && (
-            <div className="relative self-start">
-              <TierItem
-                item={next.item}
-                tierId={tier.id}
-                index={next.index}
-                showLabels={showLabels}
-                onDeleteItem={onDeleteItem}
-              />
-              <span aria-hidden="true" className="pointer-events-none absolute inset-0 ring-4 ring-inset ring-ring"/>
-            </div>
+            <>
+              {/* The item up next: the tile to drag, with a ring. In 9:16 it is large, with its name under it. */}
+              <div className={cn('relative self-start stage:[--stage-tile:var(--stage-hero)]', tall && 'self-center')}>
+                <TierItem
+                  item={next.item}
+                  tierId={tier.id}
+                  index={next.index}
+                  showLabels={showLabels && !tall && !strip}
+                  onDeleteItem={onDeleteItem}
+                />
+                <span aria-hidden="true" className="pointer-events-none absolute inset-0 ring-4 ring-inset ring-ring stage:ring-(length:--stage-ring)"/>
+              </div>
+              {tall && (
+                <p aria-hidden="true" className="font-heading font-black leading-tight text-center text-(length:--stage-hero-name)">
+                  {itemDisplayLabel(next.item)}
+                </p>
+              )}
+            </>
           )}
         </div>
         {rest.length > 0 && (
-          <div className="flex min-w-0 flex-col gap-2">
-            <span id={queueLabelId} className="text-sm text-muted-foreground">{hideQueue ? 'Queue (hidden)' : 'Queue'}</span>
-            <ol aria-labelledby={queueLabelId} className="flex flex-wrap">
+          <div className={cn('flex min-w-0 flex-col', stage ? 'gap-[calc(var(--u)*10)]' : 'gap-2', tall && 'items-center')}>
+            {/* 9:16 and the overlay show no queue heading (the boards); the list keeps its name. */}
+            <span id={queueLabelId} className={cn('text-sm text-muted-foreground stage:text-(length:--stage-tray-count)', (tall || strip) && 'sr-only')}>
+              {queueLabel}
+            </span>
+            <ol aria-labelledby={queueLabelId} className={cn('flex flex-wrap stage:[--stage-tile:var(--stage-queue-tile)]', stage && 'flex-nowrap')}>
               {rest.map(item => hideQueue ? (
-                <li key={item.id} aria-hidden="true" className={`${tileSize(item).className} flex items-center justify-center border-r border-muted bg-muted-foreground/15 font-heading text-3xl font-black text-muted-foreground`}>
+                <li key={item.id} aria-hidden="true" className={`${tileClassName(item)} flex items-center justify-center border-r border-muted bg-muted-foreground/15 font-heading text-3xl stage:text-[length:calc(var(--stage-tile)*0.4)] font-black text-muted-foreground`}>
                   ?
                 </li>
               ) : (
                 <li key={item.id} aria-label={itemDisplayLabel(item)}>
-                  <ItemTile {...item} showLabel={showLabels}/>
+                  <ItemTile {...item} showLabel={showLabels && !strip}/>
                 </li>
               ))}
             </ol>

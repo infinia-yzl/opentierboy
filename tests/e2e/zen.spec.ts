@@ -53,8 +53,8 @@ test.describe('zen', () => {
       await expect(tierList.editorTools).toBeHidden();
       await expect(tierList.title).toBeVisible();
       await expect(tierList.zenWordmark).toBeVisible();
-      await expect(tierList.zenBar.getByRole('button')).toHaveCount(4);
-      for (const button of [tierList.zenBarButton('Back'), tierList.zenBarButton('Forward'), tierList.rankingOrderButton, tierList.zenBarButton('Exit Zen')]) {
+      await expect(tierList.zenBar.getByRole('button')).toHaveCount(5);
+      for (const button of [tierList.zenBarButton('Back'), tierList.zenBarButton('Forward'), tierList.rankingOrderButton, tierList.layoutButton, tierList.zenBarButton('Exit Zen')]) {
         await expect(button).toBeAttached();
       }
       await expect(tierList.rankingOrderButton).toHaveAccessibleName('Ranking order: Pick freely');

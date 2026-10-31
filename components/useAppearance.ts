@@ -3,10 +3,13 @@
 import {useCallback, useSyncExternalStore} from 'react';
 import {
   CLASSIC_FONT_CLASS,
+  COMPACT_TILES_CLASS,
   FONT_STORAGE_KEY,
   GAME_COLOURS_STORAGE_KEY,
   NO_GAME_COLOURS_CLASS,
+  TILE_SIZE_STORAGE_KEY,
   type FontChoice,
+  type TileSizeChoice,
 } from '@/lib/appearance';
 
 /**
@@ -48,4 +51,18 @@ export function useGameColours(): [boolean, (on: boolean) => void] {
     remember(GAME_COLOURS_STORAGE_KEY, on ? null : 'off');
   }, []);
   return [!off, setOn];
+}
+
+/**
+ * The dense editor's tile size (owner decision, 2026-10-31): Comfortable (the tiles the editor
+ * always had) or Compact (48 px, names on hover), for big lists. A view setting of this browser,
+ * like the font: never part of the list's link. Chosen in the Row options menu.
+ */
+export function useTileSizeChoice(): [TileSizeChoice, (choice: TileSizeChoice) => void] {
+  const compact = useSyncExternalStore(subscribeToHtmlClass, hasHtmlClass(COMPACT_TILES_CLASS), () => false);
+  const setTileSize = useCallback((choice: TileSizeChoice) => {
+    document.documentElement.classList.toggle(COMPACT_TILES_CLASS, choice === 'compact');
+    remember(TILE_SIZE_STORAGE_KEY, choice === 'compact' ? 'compact' : null);
+  }, []);
+  return [compact ? 'compact' : 'comfortable', setTileSize];
 }

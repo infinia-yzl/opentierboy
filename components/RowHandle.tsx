@@ -21,7 +21,8 @@ const RowHandle: React.FC<RowHandleProps> = ({handleRef, describedBy, label}) =>
       tabIndex={0}
       aria-describedby={describedBy || undefined}
       aria-label={label ? `Move tier ${label}` : 'Move tier'}
-      className="w-10 shrink-0 self-stretch flex items-center justify-center border-l border-black/10 dark:border-white/10 cursor-grab select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      // The frame layouts (Zen 16:9, 9:16, the overlay) show no handles, as their boards.
+      className="w-10 stage:hidden shrink-0 self-stretch flex items-center justify-center border-l border-black/10 dark:border-white/10 cursor-grab select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <DragHandleDots2Icon aria-hidden="true" className="h-4 w-4"/>
     </div>

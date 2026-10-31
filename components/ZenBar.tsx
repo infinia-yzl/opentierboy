@@ -2,12 +2,22 @@
 
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, Cross2Icon} from '@radix-ui/react-icons';
-import {LuLayoutGrid, LuListOrdered, LuShuffle} from 'react-icons/lu';
+import {
+  LuCast,
+  LuLayoutGrid,
+  LuListOrdered,
+  LuPanelsTopLeft,
+  LuRectangleHorizontal,
+  LuRectangleVertical,
+  LuShuffle,
+} from 'react-icons/lu';
+import {toast} from 'sonner';
 import {Button} from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -21,6 +31,14 @@ import {setZenMode} from '@/components/zenMode';
 import {stepBack, stepForward, useListSteps} from '@/components/useListSteps';
 import {getRankingOrder, setHideQueue, setRankingOrder, useRankingOrder} from '@/components/useRankingOrder';
 import {RANKING_ORDER_NAMES, RANKING_ORDERS, type RankingOrder} from '@/lib/zen/queue';
+import {setLayoutChoice, setWordmark, useZenLayout} from '@/components/useZenLayout';
+import {
+  LAYOUT_CHOICE_NAMES,
+  LAYOUT_CHOICES,
+  layoutAddress,
+  layoutChoiceId,
+  type ZenLayout,
+} from '@/lib/zen/layouts';
 import {cn} from '@/lib/utils';
 
 /** How long the mouse stays still before the Zen bar hides. */
@@ -31,6 +49,32 @@ const ORDER_ICONS: Record<RankingOrder, React.ComponentType<{className?: string;
   order: LuListOrdered,
   shuffle: LuShuffle,
 };
+
+const LAYOUT_ICONS: Record<ZenLayout, React.ComponentType<{className?: string; 'aria-hidden'?: boolean}>> = {
+  editor: LuPanelsTopLeft,
+  wide: LuRectangleHorizontal,
+  tall: LuRectangleVertical,
+  overlay: LuCast,
+};
+
+/** The size classes of the bar's buttons and icons; in a frame layout, the frame's sizes (lib/zen/layouts.ts). */
+const BUTTON_SIZE = 'h-8 w-8 stage:size-(--stage-bar-button)';
+const ICON_SIZE = 'h-4 w-4 stage:size-(--stage-bar-icon)';
+const SEPARATOR = 'mx-1 h-5 w-px bg-border stage:h-[calc(var(--stage-bar)*0.57)]';
+
+/**
+ * Copies the address of this list in the overlay, for an OBS browser source (lib/zen/layouts.ts,
+ * layoutAddress). The address is the page's own, with the `layout` parameter.
+ */
+async function copyOverlayAddress(choiceId: string) {
+  const {origin, pathname, search} = window.location;
+  try {
+    await navigator.clipboard.writeText(layoutAddress(origin, pathname, search, LAYOUT_CHOICES[choiceId]));
+    toast.success('Link for OBS copied', {description: 'Add it to OBS as a browser source.'});
+  } catch {
+    toast.error('Failed to copy the link');
+  }
+}
 
 /** The ids of the Unranked items (the last row). */
 const trayIdsOf = (tiers: readonly {items: readonly {id: string}[]}[]) => tiers[tiers.length - 1]?.items.map(item => item.id) ?? [];
@@ -106,7 +150,10 @@ function ZenBarContent() {
   const {tiers} = useTierContext();
   const {step, total} = useListSteps();
   const {order, hideQueue} = useRankingOrder();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const zenLayout = useZenLayout();
+  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
+  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
+  const menuOpen = orderMenuOpen || layoutMenuOpen;
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const shown = useBarShown(menuOpen || hovered || focused);
@@ -154,10 +201,16 @@ function ZenBarContent() {
 
   const orderName = RANKING_ORDER_NAMES[order];
   const OrderIcon = ORDER_ICONS[order];
+  const layoutId = layoutChoiceId(zenLayout);
+  const layoutName = LAYOUT_CHOICE_NAMES[layoutId];
+  const LayoutIcon = LAYOUT_ICONS[zenLayout.layout];
 
   return (
     // The wrapper lets clicks through: while the bar is hidden, the page under it stays usable.
-    <div className="pointer-events-none fixed top-6 left-1/2 z-40 -translate-x-1/2" data-html2canvas-ignore>
+    // In a frame layout the bar sits at the frame's padding and takes the frame's sizes: at the
+    // top, at the bottom in 9:16 (the board "9:16 · In order"), and at the top left beside the
+    // overlay's panel.
+    <div className="pointer-events-none fixed top-6 left-1/2 z-40 -translate-x-1/2 stage:top-(--stage-pad-y) stage-tall:top-auto stage-tall:bottom-(--stage-pad-y) stage-overlay:left-(--stage-pad-x) stage-overlay:translate-x-0" data-html2canvas-ignore>
       <TooltipProvider>
         <div
           ref={barRef}
@@ -171,26 +224,27 @@ function ZenBarContent() {
           }}
           className={cn(
             'flex h-11 items-center gap-0.5 rounded-lg border outline-none bg-background/95 px-1.5 text-sm font-medium shadow-md transition-opacity duration-300',
+            'stage:h-(--stage-bar) stage:text-(length:--stage-bar-text)',
             shown ? 'pointer-events-auto opacity-100' : 'opacity-0',
           )}
         >
           <BarButton label="Back" tip="Back: the previous version of the list" shown={shown} disabled={step <= 1} onClick={stepBack}>
-            <ChevronLeftIcon className="h-4 w-4"/>
+            <ChevronLeftIcon className={ICON_SIZE}/>
           </BarButton>
           <span role="status" className="px-1 whitespace-nowrap tabular-nums text-muted-foreground">
             {step} / {total}
           </span>
           <BarButton label="Forward" tip="Forward: the next version of the list" shown={shown} disabled={step >= total} onClick={stepForward}>
-            <ChevronRightIcon className="h-4 w-4"/>
+            <ChevronRightIcon className={ICON_SIZE}/>
           </BarButton>
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border"/>
-          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <span aria-hidden="true" className={SEPARATOR}/>
+          <DropdownMenu open={orderMenuOpen} onOpenChange={setOrderMenuOpen}>
             <Tooltip open={shown ? undefined : false}>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 gap-1 px-2" aria-label={`Ranking order: ${orderName}`}>
-                    <OrderIcon aria-hidden className="h-4 w-4"/>
-                    <ChevronDownIcon aria-hidden className="h-3 w-3"/>
+                  <Button variant="ghost" className="h-8 gap-1 px-2 stage:h-(--stage-bar-button)" aria-label={`Ranking order: ${orderName}`}>
+                    <OrderIcon aria-hidden className={ICON_SIZE}/>
+                    <ChevronDownIcon aria-hidden className="h-3 w-3 stage:size-[calc(var(--stage-bar-icon)*0.75)]"/>
                   </Button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
@@ -214,9 +268,41 @@ function ZenBarContent() {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border"/>
+          {/* Layout (owner decision, 2026-10-31): Zen in the editor, 16:9, 9:16 or the stream
+              overlay, and the wordmark. View settings: they never write the link or history. */}
+          <DropdownMenu open={layoutMenuOpen} onOpenChange={setLayoutMenuOpen}>
+            <Tooltip open={shown ? undefined : false}>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 gap-1 px-2 stage:h-(--stage-bar-button)" aria-label={`Layout: ${layoutName}`}>
+                    <LayoutIcon aria-hidden className={ICON_SIZE}/>
+                    <ChevronDownIcon aria-hidden className="h-3 w-3 stage:size-[calc(var(--stage-bar-icon)*0.75)]"/>
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>Layout: {layoutName}</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent align="center" className="w-56">
+              <DropdownMenuLabel>Layout</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={layoutId} onValueChange={(value) => setLayoutChoice(LAYOUT_CHOICES[value])}>
+                {Object.keys(LAYOUT_CHOICES).map((id) => (
+                  <DropdownMenuRadioItem key={id} value={id}>
+                    {LAYOUT_CHOICE_NAMES[id]}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator/>
+              <DropdownMenuCheckboxItem checked={zenLayout.wordmark} onCheckedChange={setWordmark}>
+                Wordmark
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuItem disabled={zenLayout.layout !== 'overlay'} onSelect={() => copyOverlayAddress(layoutId)}>
+                Copy link for OBS
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span aria-hidden="true" className={SEPARATOR}/>
           <BarButton label="Exit Zen" tip="Exit Zen (Esc)" shown={shown} onClick={() => setZenMode(false)}>
-            <Cross2Icon className="h-4 w-4"/>
+            <Cross2Icon className={ICON_SIZE}/>
           </BarButton>
         </div>
       </TooltipProvider>
@@ -238,7 +324,7 @@ function BarButton({label, tip, shown, disabled, onClick, children}: {
       <TooltipTrigger asChild>
         {/* A disabled button gets no pointer events, so the tooltip needs a wrapper to show. */}
         <span className="inline-flex" tabIndex={-1}>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={label} disabled={disabled} onClick={onClick}>
+          <Button variant="ghost" size="icon" className={BUTTON_SIZE} aria-label={label} disabled={disabled} onClick={onClick}>
             {children}
           </Button>
         </span>

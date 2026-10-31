@@ -10,7 +10,8 @@ import {cn} from '@/lib/utils';
 
 // The page's h1, the biggest text on the page (owner decision, 2026-10-31). The text box uses
 // the same size, so nothing moves while the title is edited.
-const TITLE_TEXT = 'font-heading text-3xl sm:text-[2.5rem] font-black tracking-tight leading-tight';
+// In Zen's frame layouts the title takes the frame's size (lib/zen/layouts.ts).
+const TITLE_TEXT = 'font-heading text-3xl sm:text-[2.5rem] stage:text-(length:--stage-title) font-black tracking-tight leading-tight';
 
 /**
  * The list title: the page's h1, with a pencil button that shows it can be edited (owner

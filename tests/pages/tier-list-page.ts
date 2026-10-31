@@ -4,6 +4,18 @@ import {escapeRegExp} from '../support/regexp';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
+/** The choices of the Zen bar's Layout menu. */
+export type ZenLayoutName = 'Editor' | '16:9' | '9:16' | 'Overlay · green key' | 'Overlay · transparent';
+/** The values of the `layout` address parameter (lib/zen/layouts.ts). */
+export type LayoutParam = '16x9' | '9x16' | 'overlay-green' | 'overlay-transparent';
+/** The tile sizes in the Row options menu (the dense editor). */
+export type TileSizeName = 'Comfortable' | 'Compact';
+
+/** A box on screen, in CSS pixels. */
+export interface Size {
+  width: number;
+  height: number;
+}
 /** The capture methods offered under "Options" in the Image tab of the share panel. */
 export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
 
@@ -1572,6 +1584,91 @@ export class TierListPage {
   async openRankingOrderMenu(): Promise<Locator> {
     await this.clickInZenBar(this.rankingOrderButton);
     return this.page.getByRole('menu');
+  }
+
+  // ---- Zen layouts (16:9, 9:16, stream overlay) -----------------------------------------
+
+  /** The Zen bar's button that opens the Layout menu; its name says the layout. */
+  get layoutButton(): Locator {
+    return this.zenBar.getByRole('button', {name: /^Layout: /});
+  }
+
+  /** Opens a list in a layout with the `layout` address parameter, as an OBS browser source does. */
+  async gotoInLayout(path: string, state: string, layout: LayoutParam) {
+    await this.page.goto(`${path}?state=${state}&layout=${layout}`);
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
+  /** Chooses a layout in the Zen bar's Layout menu. It writes no history entry. */
+  async chooseLayout(name: ZenLayoutName) {
+    await this.clickInZenBar(this.layoutButton);
+    await this.page.getByRole('menuitemradio', {name, exact: true}).click();
+    await expect(this.layoutButton).toHaveAccessibleName(`Layout: ${name}`);
+  }
+
+  /** Opens the Zen bar's Layout menu, and returns it. */
+  async openLayoutMenu(): Promise<Locator> {
+    await this.clickInZenBar(this.layoutButton);
+    return this.page.getByRole('menu');
+  }
+
+  /** Turns the Layout menu's "Wordmark" on or off. */
+  async setWordmarkShown(on: boolean) {
+    const menu = await this.openLayoutMenu();
+    const item = menu.getByRole('menuitemcheckbox', {name: 'Wordmark'});
+    await expect(item).toHaveAttribute('aria-checked', String(!on));
+    await item.click();
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  /** The Layout menu's "Copy link for OBS". Open the menu first (openLayoutMenu). */
+  get copyOverlayLinkMenuItem(): Locator {
+    return this.page.getByRole('menuitem', {name: 'Copy link for OBS'});
+  }
+
+  /** The frame of a creator layout: "Frame 16:9" (16:9 and the overlays) or "Frame 9:16". */
+  get zenFrame(): Locator {
+    return this.page.getByRole('region', {name: /^Frame /});
+  }
+
+  /** The size of an element on screen, in CSS pixels, rounded. */
+  async sizeOf(locator: Locator): Promise<Size> {
+    const box = await locator.boundingBox();
+    if (!box) throw new Error('The element is not on screen');
+    return {width: Math.round(box.width), height: Math.round(box.height)};
+  }
+
+  /**
+   * The background colours behind the frame: the cover the frame sits on, the page's <body> and
+   * <html>, as computed CSS colours. A transparent overlay has rgba(0, 0, 0, 0) for all three.
+   */
+  async frameBackdrop(): Promise<{cover: string; body: string; html: string}> {
+    return this.zenFrame.evaluate((frame) => ({
+      cover: getComputedStyle(frame.parentElement as Element).backgroundColor,
+      body: getComputedStyle(document.body).backgroundColor,
+      html: getComputedStyle(document.documentElement).backgroundColor,
+    }));
+  }
+
+
+  // ---- Tile size (the dense editor) ------------------------------------------------------
+
+  /** Chooses a tile size in the Row options menu. A view setting: it writes no link. */
+  async chooseTileSize(name: TileSizeName) {
+    await this.rowOptionsButton.click();
+    const choice = this.rowOption(name);
+    await choice.click();
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  /** The name tag that a Compact tile shows under itself on hover or keyboard focus. */
+  itemNameTag(name: string): Locator {
+    return this.item(name).getByRole('tooltip');
+  }
+
+  /** Moves the mouse over an item. */
+  async hoverItem(name: string) {
+    await this.item(name).hover();
   }
 
   // ---- Notifications ---------------------------------------------------------------------

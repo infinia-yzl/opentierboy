@@ -25,7 +25,7 @@ import ItemCreator from "@/components/ItemCreator";
 import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
 import {ImageIcon, PlusIcon} from "@radix-ui/react-icons";
-import {TILE_SIZES} from "@/lib/tileSize";
+import {COMPACT_TILE_CLASSES, TILE_SIZES} from "@/lib/tileSize";
 import {cn} from "@/lib/utils";
 import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
@@ -142,10 +142,11 @@ const ItemManager: React.FC<ItemManagerProps> = ({onOpenFiles, openFocusRef, tri
         <DropdownMenuTrigger asChild>
           {trigger === 'tile' ? (
             <Button variant="ghost" ref={setTriggerRef} aria-label="Add images to Unranked"
-                    className={`${TILE_SIZES.square.className} p-0 flex-col gap-1 whitespace-normal leading-tight text-center rounded-md border border-dashed border-muted-foreground/40 text-[11px] text-muted-foreground hover:text-foreground`}
+                    className={`${TILE_SIZES.square.className} ${COMPACT_TILE_CLASSES.square} p-0 flex-col gap-1 whitespace-normal leading-tight text-center rounded-md border border-dashed border-muted-foreground/40 text-[11px] text-muted-foreground hover:text-foreground`}
             >
               <PlusIcon className="h-4 w-4"/>
-              Add images
+              {/* Compact tiles (48 px) keep only the icon; the button keeps its name. */}
+              <span className="compact:sr-only">Add images</span>
             </Button>
           ) : (
             <Button variant="outline" ref={setTriggerRef}
