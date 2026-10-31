@@ -125,7 +125,6 @@ scripts/prepareImages.js   builds imageset.config.json and public/images from th
                       packages, and checks the committed legacy images (see "Image sets")
 scripts/lib/image-sets.mjs   shared rules: official vs legacy, config entries, shapes
 scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
-scripts/generate-legacy-fixtures.mjs   golden links from the historical encoders (git history)
 scripts/bench-drag.mjs   drag performance benchmark (docs/dnd-fork.md, "Performance")
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
@@ -165,8 +164,9 @@ docs/                 owner checklists
 - `lib/state/decoders/legacy.ts` is frozen: never edit it. If an old link stops decoding,
   fix the code around it.
 - `tests/fixtures/shared-links.json` holds real links and what visitors must see.
-  `tests/fixtures/state/generated.json` holds links from the historical v0–v2 encoders
-  (`node scripts/generate-legacy-fixtures.mjs` runs them from git history and only appends).
+  `tests/fixtures/state/generated.json` holds 24 links written by the 2024 code of formats
+  v0, v1 and v2. A script made them once from git history; it was removed in 2.0.0, and git
+  history keeps it (`scripts/generate-legacy-fixtures.mjs`) if more such links are ever needed.
   Both are **append-only**: never edit, reorder or delete an entry. A failing fixture means
   the app broke old links: fix the app. Add links with `node scripts/capture-shared-links.mjs`.
   `npm run check:fixtures` fails when an entry changed or disappeared.

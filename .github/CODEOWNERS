@@ -20,7 +20,6 @@
 # The checks and tests that guard these contracts. CI runs a pull request's own copy of them.
 /scripts/check-fixtures-append-only.mjs          @infinia-yzl
 /scripts/check-image-registry.mjs                @infinia-yzl
-/scripts/generate-legacy-fixtures.mjs            @infinia-yzl
 /scripts/image-set-update.mjs                    @infinia-yzl
 /scripts/lib/image-sets.mjs                      @infinia-yzl
 /tests/unit/state/                               @infinia-yzl
