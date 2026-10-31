@@ -23,7 +23,8 @@ Raise it with `npm version X.Y.Z --no-git-tag-version --ignore-scripts`, which c
 ## Releases happen on their own
 
 `.github/workflows/release.yml` runs after each successful Vercel deployment. When the live
-production commit carries a version with no tag yet, it tags that commit `vX.Y.Z` and creates the
+production commit carries a version with no tag yet, it tags that commit with the plain version
+(`X.Y.Z`, with no "v", such as `2.0.0`) and creates the
 GitHub release, with notes from the merged pull requests. A deployment whose version already has a
 tag does nothing. The workflow explains its safety checks at the top.
 
@@ -37,7 +38,6 @@ an older version, use its tag: the tag names the commit, and Vercel lists its de
 
 ## 2.0.0, the UI revamp
 
-The revamp is built on `epic/ui-revamp`; PR #202 brings it into `main`. Before merging #202, create
-the `v1.0.0` release by hand (GitHub, **Releases → Draft a new release**, tag `v1.0.0`, target
-`bf2ff6e`), so the 2.0.0 release notes start from it. The workflow then releases `v2.0.0` once
-Vercel deploys the merge.
+The revamp is built on `epic/ui-revamp`; PR #202 brings it into `main`. The site before it is the
+`1.0.0` release (tag `1.0.0` at `bf2ff6e`, created by hand on 2026-10-31), so the 2.0.0 release
+notes start from it. The workflow releases `2.0.0` once Vercel deploys the merge.

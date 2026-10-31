@@ -16,7 +16,8 @@ name: Release
 #
 # Safety: no checkout, no npm, no third-party actions: no code from the repository runs here.
 # Only gh and jq, which the runner provides. Event data reaches the script through env only.
-# A tag is created once and never moved or deleted. A version lower than the newest release tag
+# Tags are the plain version, such as 2.0.0 (owner decision, 2026-10-31: no "v"). A tag is
+# created once and never moved or deleted. A version lower than the newest release tag
 # is refused, so redeploying an old commit never releases anything.
 
 on:
@@ -81,7 +82,7 @@ jobs:
             echo "::error::package.json at $sha has version '$version', which is not x.y.z. Nothing released."
             exit 1
           fi
-          tag="v$version"
+          tag="$version"
 
           # 4. Once per version: an existing tag means this version is already released.
           if gh api "repos/$REPO/git/ref/tags/$tag" --silent 2>/dev/null; then
@@ -91,7 +92,7 @@ jobs:
 
           # 5. Never release a version below the newest release tag.
           newest=$(gh api "repos/$REPO/tags?per_page=100" --jq '.[].name' \
-                     | grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1 || true)
+                     | grep -E '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' | sort -V | tail -n 1 || true)
           if [ -n "$newest" ] && [ "$(printf '%s\n%s\n' "$newest" "$tag" | sort -V | tail -n 1)" != "$tag" ]; then
             echo "::error::$tag is lower than the newest release $newest. Nothing released."
             exit 1
