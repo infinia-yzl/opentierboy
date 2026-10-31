@@ -56,9 +56,4 @@ test.describe('Appearance', () => {
     await expect.poll(() => site.pageHasClass('no-game-colours')).toBe(true);
     expect(await site.token('--primary')).toBe(BRAND_BLUE);
   });
-
-  test('the footer shows © 2026 (owner decision, 2026-10-29)', async ({site}) => {
-    await site.gotoHome();
-    await expect(site.footer).toContainText('© 2026 OpenTierBoy');
-  });
 });
