@@ -7,14 +7,14 @@ const TANKS = '/rank/overwatch/tank';
 test.describe('Editor layout', () => {
   test('the title row holds Add images, Zen and Share, in that order', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    await expect(tierList.editorTools.getByRole('button')).toHaveText(['Add images', 'Zen', 'Share']);
+    await expect(tierList.editorToolButtons).toHaveText(['Add images', 'Zen', 'Share']);
   });
 
   test('on a 320 px screen the three tools stay on the screen', async ({tierList}) => {
     await tierList.page.setViewportSize({width: 320, height: 700});
     await tierList.goto(TANKS);
     for (const name of ['Add images', 'Zen', 'Share']) {
-      const box = await tierList.editorTools.getByRole('button', {name, exact: true}).boundingBox();
+      const box = await tierList.editorToolButtons.filter({hasText: name}).boundingBox();
       if (!box) throw new Error(`${name} is not on the page`);
       expect(box.x, `${name} starts on the screen`).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width, `${name} ends on the screen`).toBeLessThanOrEqual(320);
@@ -24,7 +24,7 @@ test.describe('Editor layout', () => {
   test('the site header holds Appearance, and Zen sits with the editor', async ({tierList, site}) => {
     await tierList.goto(TANKS);
     await expect(site.appearanceButton).toBeVisible();
-    await expect(tierList.page.getByRole('banner').getByRole('button', {name: 'Zen', exact: true})).toHaveCount(0);
+    await expect(site.headerButton('Zen')).toHaveCount(0);
   });
 
   test('Add row and Row options sit under the rows, and hide in Zen', async ({tierList}) => {
@@ -43,16 +43,13 @@ test.describe('Editor layout', () => {
 test.describe('List title', () => {
   test('the title is the page\'s only h1, and bigger than the row labels', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    await expect(tierList.page.getByRole('heading', {level: 1})).toHaveCount(1);
-    const size = (heading: typeof tierList.title) => heading.evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
-    const titleSize = await size(tierList.title);
-    const rowLabelSize = await size(tierList.tier('S').getByRole('heading', {level: 2}));
-    expect(titleSize).toBeGreaterThan(rowLabelSize);
+    await expect(tierList.pageHeadings).toHaveCount(1);
+    await expect.poll(async () => await tierList.fontSize(tierList.title) - await tierList.fontSize(tierList.tierLabel('S'))).toBeGreaterThan(0);
   });
 
   test('the Unranked row heading has a name', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    await expect(tierList.unranked.getByRole('heading', {level: 2, name: 'Unranked'})).toBeAttached();
+    await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
   });
 
   test('Edit title opens the title in a text box, and Enter saves it', async ({tierList}) => {
@@ -77,7 +74,7 @@ test.describe('List title', () => {
 
   test('the title sits right above the rows, and the hints sit in the Unranked tray', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    await expect(tierList.unranked.getByText('Drag to reorder.')).toBeVisible();
+    await expect(tierList.unranked).toContainText('Drag to reorder.');
     await expect(async () => {
       const title = await tierList.title.boundingBox();
       const firstRow = await tierList.tier('S').boundingBox();
@@ -109,7 +106,7 @@ test.describe('Clean rows', () => {
   test('Unranked is a fixed tray under Add row, with no row handle', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
     await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
-    await expect(tierList.unranked.getByRole('heading', {level: 2, name: 'Unranked'})).toBeVisible();
+    await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
     await expect(tierList.rowHandle('Unranked')).toHaveCount(0);
     await expect(tierList.rowHandle('F')).toBeVisible();
 
@@ -126,7 +123,7 @@ test.describe('Clean rows', () => {
   test('the tray\'s Add images tile opens the Add images menu', async ({tierList}) => {
     await tierList.goto(TANKS);
     await tierList.addImagesTile.click();
-    await expect(tierList.page.getByRole('menuitem', {name: 'From template'})).toBeVisible();
+    await expect(tierList.menuItem('From template')).toBeVisible();
   });
 
   test('the tile and the hints hide in Zen; the tray stays', async ({tierList}) => {

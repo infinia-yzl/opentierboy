@@ -13,7 +13,7 @@ test.describe('Ranking items', () => {
 
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
-    await expect(tierList.unranked.getByRole('button', {name: 'Mauga'})).toHaveCount(0);
+    await expect(tierList.itemIn(tierList.unranked, 'Mauga')).toHaveCount(0);
   });
 
   test('drag an item from one tier to another', async ({tierList}) => {

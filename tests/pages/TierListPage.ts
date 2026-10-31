@@ -150,12 +150,63 @@ export class TierListPage {
     return this.main.getByRole('button', {name, exact: true});
   }
 
+  /** An item's image. An item without an image (a label tile) has none. */
+  itemImage(name: string): Locator {
+    return this.item(name).getByRole('img');
+  }
+
+  /** An item, by its label, in a tier. */
+  itemIn(tier: string | Locator, name: string): Locator {
+    const row = typeof tier === 'string' ? this.tier(tier) : tier;
+    return row.getByRole('button', {name, exact: true});
+  }
+
+  /** A tier's label: the row's h2 heading. */
+  tierLabel(tierName: string): Locator {
+    return this.tier(tierName).getByRole('heading', {level: 2});
+  }
+
+  /** The text box that edits a tier's label, while it is open. */
+  tierNameInput(tierName: string): Locator {
+    return this.tier(tierName).getByRole('textbox');
+  }
+
+  /** Every open text box in the editor (title and labels). */
+  get openTextBoxes(): Locator {
+    return this.main.getByRole('textbox');
+  }
+
+  /** The h1 headings of the page. The list title is the only one. */
+  get pageHeadings(): Locator {
+    return this.page.getByRole('heading', {level: 1});
+  }
+
+  /** The buttons in the title row's tools, in order. */
+  get editorToolButtons(): Locator {
+    return this.editorTools.getByRole('button');
+  }
+
+  /** A menu item in the open menu, by its name (the item menu, Add images, Row options). */
+  menuItem(name: string): Locator {
+    return this.page.getByRole('menuitem', {name});
+  }
+
+  /** The font size of an element in pixels, as the browser computes it. */
+  async fontSize(element: Locator): Promise<number> {
+    return element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
+  }
+
+  /** The content of a meta tag in the page head, such as og:title. Meta tags have no role, so this is the one CSS selector. */
+  metaTag(property: string): Locator {
+    return this.page.locator(`meta[property="${property}"]`);
+  }
+
   /**
    * Scrolls an item into view (tile images load lazily) and tells whether its image has
    * loaded. Use it with expect.poll().
    */
   async itemImageHasLoaded(name: string): Promise<boolean> {
-    const image = this.item(name).getByRole('img');
+    const image = this.itemImage(name);
     await image.scrollIntoViewIfNeeded();
     return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
   }
@@ -580,7 +631,11 @@ export class TierListPage {
     };
   }
 
-  /** The live region where the editor announces lifts, moves and drops (dnd-kit's Accessibility plugin). */
+  /**
+   * The live region where the editor announces lifts, moves and drops (dnd-kit's Accessibility
+   * plugin). It is a `status` with no name, like the toasts, so its id tells it apart: this and
+   * metaTag() are the only CSS selectors in the tests.
+   */
   get dragAnnouncer(): Locator {
     return this.page.locator('[role="status"][aria-live][id^="dnd-kit-announcement"]');
   }
@@ -651,10 +706,15 @@ export class TierListPage {
     return this.page.getByRole('menuitem', {name: 'Remove a row'});
   }
 
-  /** Opens the Row options menu. */
+  /**
+   * Opens the Row options menu. Right after a navigation the editor may not have started yet,
+   * so a click can go unanswered: it clicks again until the menu shows.
+   */
   async openRowOptions() {
-    await this.rowOptionsButton.click();
-    await expect(this.removeRowMenuItem).toBeVisible();
+    await expect(async () => {
+      if (!(await this.removeRowMenuItem.isVisible())) await this.rowOptionsButton.click();
+      await expect(this.removeRowMenuItem).toBeVisible({timeout: 1_000});
+    }).toPass();
   }
 
   /** Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items. */
@@ -701,24 +761,9 @@ export class TierListPage {
     });
   }
 
-  /**
-   * The label settings that the row options menu shows as chosen. Closes the menu again.
-   * Right after a navigation (Back, a reload) the server-rendered page shows before it responds
-   * to clicks, so it clicks the menu button again until the menu opens, like waitUntilInteractive.
-   */
-  async labelSettings(): Promise<{position: LabelPosition; labelsShown: boolean}> {
-    const menu = this.page.getByRole('menu');
-    const checked = this.page.getByRole('menuitemradio', {checked: true});
-    await expect(async () => {
-      if (!(await menu.isVisible())) await this.rowOptionsButton.click();
-      await expect(checked).toHaveCount(3, {timeout: 1_000});
-    }).toPass();
-    const names = await checked.allTextContents();
-    await this.page.keyboard.press('Escape');
-    await expect(checked).toHaveCount(0);
-    const position = (['Left', 'Right', 'Top'] as const).find((name) => names.includes(name));
-    if (!position) throw new Error(`No label position chosen: ${names.join(', ')}`);
-    return {position, labelsShown: names.includes('Show Labels')};
+  /** A choice in the Row options menu (row count, label position, label visibility). Open the menu first (openRowOptions). */
+  rowOption(name: string): Locator {
+    return this.page.getByRole('menu').getByRole('menuitemradio', {name, exact: true});
   }
 
   /** True when the label of a tier sits above the given item, as with labels on Top. */
@@ -743,6 +788,11 @@ export class TierListPage {
   /** The template picker ("From template"): a searchable list of image sets and their tags. */
   get templatePicker(): Locator {
     return this.page.getByRole('dialog');
+  }
+
+  /** The options of the open template picker (image sets, then tags). */
+  templateOption(name?: string | RegExp): Locator {
+    return name === undefined ? this.templatePicker.getByRole('option') : this.templatePicker.getByRole('option', {name});
   }
 
   /** Opens the template picker. Its first page lists the image sets as options. */
@@ -787,6 +837,26 @@ export class TierListPage {
     await expect(dialog).toBeHidden({timeout});
   }
 
+  /** The image previews in the "From your device" dialog. */
+  uploadPreview(name: string): Locator {
+    return this.uploadDialog.getByRole('img', {name});
+  }
+
+  /** The text that stands for a file the dialog cannot preview. */
+  get uploadNoPreview(): Locator {
+    return this.uploadDialog.getByText('No preview');
+  }
+
+  /** The dialog's add button ("Add 1 Item", "Add 2 Items"...). */
+  get uploadAddButton(): Locator {
+    return this.uploadDialog.getByRole('button', {name: /^Add \d+ Items?$/});
+  }
+
+  /** The dialog's error message. */
+  get uploadError(): Locator {
+    return this.uploadDialog.getByRole('alert');
+  }
+
   /** Opens "From your device" and chooses files. Returns the dialog, still open. */
   async chooseFilesFromDevice(files: DeviceFiles): Promise<Locator> {
     await this.openItemsMenu();
@@ -800,7 +870,7 @@ export class TierListPage {
    * How many item images show an upload from this browser (a loaded `blob:` image).
    */
   async loadedUploadImageCount(): Promise<number> {
-    return this.main.locator('img').evaluateAll((images) => images.filter((image) => (
+    return this.main.getByRole('img').evaluateAll((images) => images.filter((image) => (
       image instanceof HTMLImageElement && image.currentSrc.startsWith('blob:') && image.complete && image.naturalWidth > 0
     )).length);
   }
@@ -894,6 +964,11 @@ export class TierListPage {
     return this.page.getByRole('region', {name: 'Images from other sites'});
   }
 
+  /** The sites the notice lists. */
+  get imageSitesNoticeHosts(): Locator {
+    return this.imageSitesNotice.getByRole('listitem');
+  }
+
   async loadImagesFromOtherSites() {
     await this.imageSitesNotice.getByRole('button', {name: 'Load', exact: true}).click();
     await expect(this.imageSitesNotice).toBeHidden();
@@ -940,7 +1015,7 @@ export class TierListPage {
   async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
     // A target (such as a text field the test typed into) proves the page has started already.
     if (!target) await this.waitUntilInteractive();
-    await (target ?? this.page.locator('body')).evaluate((element, payload) => {
+    await (target ?? this.main).evaluate((element, payload) => {
       const transfer = new DataTransfer();
       for (const file of payload) {
         const bytes = Uint8Array.from(atob(file.base64), (char) => char.charCodeAt(0));
@@ -956,7 +1031,7 @@ export class TierListPage {
    */
   async pasteImagesAtOnce(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
     await this.waitUntilInteractive();
-    await this.page.locator('body').evaluate((element, payload) => {
+    await this.main.evaluate((element, payload) => {
       for (const group of payload) {
         const transfer = new DataTransfer();
         for (const file of group) {
@@ -990,6 +1065,25 @@ export class TierListPage {
     return this.page.evaluate(() => (window as unknown as {__otbInjected?: unknown}).__otbInjected !== undefined);
   }
 
+  /**
+   * Sends several paste and drop events at once, in order, each with one file: as when a
+   * visitor pastes and drops quickly, before the editor has handled the first one. Firefox
+   * drops the files of a scripted paste (SCRIPTED_PASTE_SKIP).
+   */
+  async sendFileEventsAtOnce(events: {event: 'paste' | 'drop'; file: {name: string; mimeType: string; buffer: Buffer}}[]) {
+    await this.waitUntilInteractive();
+    await this.main.evaluate((_main, payload) => {
+      for (const {event, name, mimeType, base64} of payload) {
+        const data = new DataTransfer();
+        data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
+        const init = {bubbles: true, cancelable: true};
+        document.body.dispatchEvent(event === 'paste'
+          ? new ClipboardEvent('paste', {...init, clipboardData: data})
+          : new DragEvent('drop', {...init, dataTransfer: data}));
+      }
+    }, events.map(({event, file}) => ({event, name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
+  }
+
   // ---- Files: snapshot files and pictures ---------------------------------------------------
 
   /**
@@ -1006,19 +1100,25 @@ export class TierListPage {
   }
 
   /**
-   * Drops a file onto the editor, as dragging it from the desktop would. With `onPage`, it drops
-   * on the page itself (for example beside an open dialog), without waiting for the editor first.
+   * Drops a file onto the editor's first row, as dragging it from the desktop would. With
+   * `onto`, it drops onto that element instead (for example an open menu or dialog), without
+   * waiting for the editor first.
    */
-  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onPage = false} = {}) {
-    if (!onPage) await this.waitUntilInteractive();
+  async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onto}: {onto?: Locator} = {}) {
+    if (!onto) await this.waitUntilInteractive();
     const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
       const data = new DataTransfer();
       data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
       return data;
     }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
-    const element = onPage ? this.page.locator('body') : this.tiers.first();
+    const element = onto ?? this.tiers.first();
     await element.dispatchEvent('dragover', {dataTransfer: transfer});
     await element.dispatchEvent('drop', {dataTransfer: transfer});
+  }
+
+  /** The open menu (the Add images menu, an item menu, Row options). */
+  get openMenu(): Locator {
+    return this.page.getByRole('menu');
   }
 
   /**
@@ -1172,6 +1272,16 @@ export class TierListPage {
   /** A share button in the URL tab of the share panel, by its accessible name. */
   socialShareButton(name: string | RegExp): Locator {
     return this.sharePanel.getByRole('button', {name});
+  }
+
+  /** A tab of the share panel ("URL" or "Image"). */
+  shareTab(name: 'URL' | 'Image'): Locator {
+    return this.sharePanel.getByRole('tab', {name});
+  }
+
+  /** The Copy Markdown button of the share panel. */
+  get copyMarkdownButton(): Locator {
+    return this.sharePanel.getByRole('button', {name: 'Copy Markdown'});
   }
 
   async copyMarkdown() {

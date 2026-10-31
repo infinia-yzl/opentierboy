@@ -73,7 +73,7 @@ test.describe('Images from a link (#107)', () => {
     await tierList.confirmAddAnyway();
 
     await expect(tierList.item('Missing')).toBeVisible();
-    await expect(tierList.item('Missing').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('Missing')).toHaveCount(0);
     await expect(tierList.item('Missing')).toContainText('i.imgur.com');
   });
 
@@ -83,7 +83,7 @@ test.describe('Images from a link (#107)', () => {
 
     await expect(tierList.item('i.imgur.com')).toBeVisible();
     await expect.poll(() => tierList.itemImageHasLoaded('i.imgur.com')).toBe(true);
-    await expect(tierList.item('i.imgur.com').getByRole('img')).toHaveAccessibleName('i.imgur.com');
+    await expect(tierList.itemImage('i.imgur.com')).toHaveAccessibleName('i.imgur.com');
     // A site that waits for consent: a label tile with the site's name as its caption.
     await expect(tierList.item('example.org')).toContainText('example.org');
   });
@@ -96,11 +96,11 @@ test.describe('Images from other sites', () => {
     await tierList.goto(TANKS, listWith([{u: `https://${OTHER}/blue.png`, c: 'Blue'}, {u: 'https://i.imgur.com/red.png', c: 'Red'}]));
 
     await expect(tierList.imageSitesNotice).toBeVisible();
-    await expect(tierList.imageSitesNotice.getByRole('listitem')).toHaveText([OTHER]);
+    await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER]);
     // Trusted sites load at once.
     await expect.poll(() => tierList.itemImageHasLoaded('Red')).toBe(true);
     expect(trusted.requests.length).toBeGreaterThan(0);
-    await expect(tierList.item('Blue').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('Blue')).toHaveCount(0);
     await expect(tierList.item('Blue')).toContainText(OTHER);
     expect(other.requests, 'no request reaches the unknown site before Load').toEqual([]);
 
@@ -112,7 +112,7 @@ test.describe('Images from other sites', () => {
     const requestsBefore = other.requests.length;
     await page.reload();
     await expect(tierList.imageSitesNotice).toBeVisible();
-    await expect(tierList.item('Blue').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('Blue')).toHaveCount(0);
     expect(other.requests.length).toBe(requestsBefore);
   });
 
@@ -137,7 +137,7 @@ test.describe('Images from other sites', () => {
     await tierList.goto(TANKS, listWith([{u: 'http://127.0.0.1:9/secret.png', c: 'Local'}]));
 
     await expect(tierList.item('Local')).toBeVisible();
-    await expect(tierList.item('Local').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('Local')).toHaveCount(0);
     await expect(tierList.imageSitesNotice).toHaveCount(0);
     expect(requests).toEqual([]);
   });
@@ -162,17 +162,17 @@ test.describe('Images from the device', () => {
     await tierList.goto('/rank');
 
     const dialog = await tierList.chooseFilesFromDevice([evil]);
-    const preview = dialog.getByRole('img', {name: 'evil'});
+    const preview = tierList.uploadPreview('evil');
     await expect(preview).toBeVisible();
     expect(await tierList.openImageInNewTab(preview)).toEqual({contentType: 'image/png', pwned: null});
-    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
+    await tierList.uploadAddButton.click();
     await expect(dialog).toBeHidden();
 
     await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
-    expect(await tierList.openImageInNewTab(tierList.item('evil').getByRole('img'))).toEqual({contentType: 'image/png', pwned: null});
+    expect(await tierList.openImageInNewTab(tierList.itemImage('evil'))).toEqual({contentType: 'image/png', pwned: null});
     await tierList.page.reload();
     await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
-    expect(await tierList.openImageInNewTab(tierList.item('evil').getByRole('img'))).toEqual({contentType: 'image/png', pwned: null});
+    expect(await tierList.openImageInNewTab(tierList.itemImage('evil'))).toEqual({contentType: 'image/png', pwned: null});
   });
 
   test('a small file that declares a huge picture is refused at once, without a preview', async ({tierList}) => {
@@ -185,10 +185,10 @@ test.describe('Images from the device', () => {
     await tierList.goto('/rank');
 
     const dialog = await tierList.chooseFilesFromDevice([imageFile('huge.png', huge)]);
-    await expect(dialog.getByText('No preview')).toBeVisible();
-    await expect(dialog.locator('img')).toHaveCount(0);
-    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
-    await expect(dialog.getByRole('alert')).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.', {timeout: 3_000});
+    await expect(tierList.uploadNoPreview).toBeVisible();
+    await expect(tierList.uploadPreview('huge')).toHaveCount(0);
+    await tierList.uploadAddButton.click();
+    await expect(tierList.uploadError).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.', {timeout: 3_000});
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
 
@@ -198,10 +198,10 @@ test.describe('Images from the device', () => {
     await tierList.goto('/rank');
 
     const dialog = await tierList.chooseFilesFromDevice([imageFile('photo.avif', avif, 'image/avif')]);
-    await expect(dialog.getByText('No preview')).toBeVisible();
-    await expect(dialog.locator('img')).toHaveCount(0);
-    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
-    await expect(dialog.getByRole('alert'))
+    await expect(tierList.uploadNoPreview).toBeVisible();
+    await expect(tierList.uploadPreview('photo')).toHaveCount(0);
+    await tierList.uploadAddButton.click();
+    await expect(tierList.uploadError)
       .toHaveText('photo: AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.', {timeout: 3_000});
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
@@ -252,7 +252,7 @@ test.describe('Images from the device', () => {
     await tierList.goto(TANKS, listWith([{d: 'Gone1234ImageId0', c: 'Old upload'}, {d: 'NeverHere1234567', c: 'Not here'}]));
 
     await expect(tierList.item('Old upload')).toBeVisible();
-    await expect(tierList.item('Old upload').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('Old upload')).toHaveCount(0);
     // An upload this browser never had keeps the placeholder image, as before.
     await expect.poll(() => tierList.itemImageHasLoaded('Not here')).toBe(true);
   });
@@ -284,7 +284,7 @@ test.describe('Images from the device', () => {
 
     // The old list: the oldest image made room and shows its name only; the others are there.
     await tierList.gotoLink(oldList);
-    await expect(tierList.item('old-1').getByRole('img')).toHaveCount(0);
+    await expect(tierList.itemImage('old-1')).toHaveCount(0);
     for (const name of ['old-2', 'old-3', 'old-4']) await expect.poll(() => tierList.itemImageHasLoaded(name)).toBe(true);
   });
 
@@ -377,12 +377,12 @@ test.describe('Pasting images', () => {
   test('when an image cannot be shown, the upload dialog says so and can be used again', async ({tierList}) => {
     await tierList.goto('/rank');
     const dialog = await tierList.chooseFilesFromDevice([imageFile('red-square.png')]);
-    await expect(dialog.getByRole('img', {name: 'red-square'})).toBeVisible();
+    await expect(tierList.uploadPreview('red-square')).toBeVisible();
     // The first URL is the one the editor reads the file through; the second one shows the tile.
     await tierList.failObjectUrl({skip: 1});
-    await dialog.getByRole('button', {name: 'Add 1 Item'}).click();
-    await expect(dialog.getByRole('alert')).toHaveText('red-square: Your browser could not save the image.');
-    await expect(dialog.getByRole('button', {name: 'Add 1 Item'})).toBeEnabled();
+    await tierList.uploadAddButton.click();
+    await expect(tierList.uploadError).toHaveText('red-square: Your browser could not save the image.');
+    await expect(tierList.uploadAddButton).toBeEnabled();
   });
 
   test('a paste into a text field is left alone', async ({tierList, browserName}) => {

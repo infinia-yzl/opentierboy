@@ -180,7 +180,10 @@ test.describe('Browser history and settings', () => {
       await page.goBack();
       await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+      await tierList.openRowOptions();
+      await expect(tierList.rowOption('Top')).toBeChecked();
+      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+      await tierList.closeMenus();
     }
   });
 
@@ -194,13 +197,19 @@ test.describe('Browser history and settings', () => {
     await page.goBack();
     await expect(tierList.itemsIn('A')).toHaveCount(0);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await tierList.openRowOptions();
+    await expect(tierList.rowOption('Top')).toBeChecked();
+    await expect(tierList.rowOption('Show Labels')).toBeChecked();
+    await tierList.closeMenus();
     await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
     // Forward shows Winston in A again, still with labels on Top.
     await page.goForward();
     await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await tierList.openRowOptions();
+    await expect(tierList.rowOption('Top')).toBeChecked();
+    await expect(tierList.rowOption('Show Labels')).toBeChecked();
+    await tierList.closeMenus();
   });
 
   test('coming back to the editor from another page opens the link fresh, with its settings', async ({tierList, page}) => {
@@ -211,7 +220,10 @@ test.describe('Browser history and settings', () => {
     await page.goto('/about');
     await page.goBack();
     await expect(tierList.itemsIn('S')).toHaveText(['']);
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Right', labelsShown: false});
+    await tierList.openRowOptions();
+    await expect(tierList.rowOption('Right')).toBeChecked();
+    await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+    await tierList.closeMenus();
   });
 
   test('Undo from a toast adds a new history entry', async ({tierList, page}) => {

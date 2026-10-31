@@ -29,11 +29,11 @@ test.describe('Zen mode', () => {
     await tierList.setZenMode(true);
 
     await tierList.item('Mauga').click({button: 'right'});
-    await expect(page.getByRole('menuitem', {name: 'Delete'})).toHaveCount(0);
+    await expect(tierList.menuItem('Delete')).toHaveCount(0);
 
     await page.keyboard.press('Escape');
     await tierList.setZenMode(false);
     await tierList.item('Mauga').click({button: 'right'});
-    await expect(page.getByRole('menuitem', {name: 'Delete'})).toBeVisible();
+    await expect(tierList.menuItem('Delete')).toBeVisible();
   });
 });

@@ -26,13 +26,13 @@ test.describe('Shared links', {tag: '@mobile'}, () => {
 });
 
 test.describe('Link previews', () => {
-  test('a shared link previews with its own title and image', async ({page}) => {
+  test('a shared link previews with its own title and image', async ({page, tierList}) => {
     const link = SHARED_LINKS.find((entry) => entry.id === 'link-002')!;
     await page.goto(`${link.path}?state=${link.state}`);
 
-    await expect(page.locator('meta[property="og:title"]'))
+    await expect(tierList.metaTag('og:title'))
       .toHaveAttribute('content', link.expected.title);
-    await expect(page.locator('meta[property="og:image"]'))
+    await expect(tierList.metaTag('og:image'))
       .toHaveAttribute('content', new RegExp(escapeRegExp(`/api/og?state=${encodeURIComponent(link.state)}`) + '$'));
   });
 });

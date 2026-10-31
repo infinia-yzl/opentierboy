@@ -176,7 +176,8 @@ test.describe('Touch', () => {
     // No drag started, and no text is selected.
     await expect(tierList.dragAnnouncer).toHaveText(announcement ?? '');
     await expect.poll(() => tierList.page.evaluate(() => String(window.getSelection()))).toBe('');
-    await menu.getByRole('menuitem', {name: 'Delete'}).tap();
+    await expect(menu).toBeVisible();
+    await tierList.menuItem('Delete').tap();
     await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
   });
 

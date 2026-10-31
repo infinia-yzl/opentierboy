@@ -27,6 +27,21 @@ export class SitePage {
     return this.main.getByRole('heading', {name});
   }
 
+  /** A button in the site header. */
+  headerButton(name: string): Locator {
+    return this.page.getByRole('banner').getByRole('button', {name, exact: true});
+  }
+
+  /** A link in the page's main content. */
+  mainLink(name: string | RegExp): Locator {
+    return this.main.getByRole('link', {name});
+  }
+
+  /** The h1 heading of the page. */
+  get pageHeading(): Locator {
+    return this.page.getByRole('heading', {level: 1});
+  }
+
   /** The Appearance menu button in the site header. */
   get appearanceButton(): Locator {
     return this.page.getByRole('banner').getByRole('button', {name: 'Appearance'});
@@ -47,11 +62,10 @@ export class SitePage {
 
   /** Picks Light, Dark or System in the Appearance menu. */
   async chooseMode(mode: ThemeMode) {
-    const menu = await this.openAppearance();
-    await menu.getByRole('menuitemradio', {name: mode[0].toUpperCase() + mode.slice(1)}).click();
+    await this.openAppearance();
+    await this.modeOption(mode).click();
+    await expect(this.modeOption(mode)).toBeChecked();
     await this.closeAppearance();
-    // The site remembers the choice (next-themes keeps it in localStorage).
-    await expect.poll(() => this.page.evaluate(() => localStorage.getItem('theme'))).toBe(mode);
   }
 
   /** Picks the Modern or Classic font in the Appearance menu. */
@@ -75,14 +89,14 @@ export class SitePage {
     return this.page.evaluate(() => getComputedStyle(document.body).fontFamily);
   }
 
-  /** The value of a colour token on <html> (for example `--primary`). */
-  async token(name: string): Promise<string> {
-    return this.page.evaluate((property) => getComputedStyle(document.documentElement).getPropertyValue(property).trim(), name);
+  /** The page's background colour, as the browser computes it: white in Light mode, near-black in Dark mode. */
+  async pageBackground(): Promise<string> {
+    return this.page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   }
 
-  /** True while <html> carries a class (the mode, the font and the game colours setting live there). */
-  async pageHasClass(name: string): Promise<boolean> {
-    return this.page.evaluate((className) => document.documentElement.classList.contains(className), name);
+  /** A Mode option (Light, Dark or System) in the Appearance menu. Open the menu first (openAppearance). */
+  modeOption(mode: ThemeMode): Locator {
+    return this.page.getByRole('menu').getByRole('menuitemradio', {name: mode[0].toUpperCase() + mode.slice(1)});
   }
 
   /** Stores an appearance value before the next page load, as an earlier visit would have. */

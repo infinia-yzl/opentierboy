@@ -487,22 +487,17 @@ test.describe('Files in turn', () => {
     await expect(page).toHaveURL(/^[^?]*\/$/);
   });
 
-  test('pictures waiting behind a list file are not added, and a message says so', async ({tierList, page, browserName}) => {
+  test('pictures waiting behind a list file are not added, and a message says so', async ({tierList, browserName}) => {
     test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
     await tierList.goto('/rank');
     const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
     await tierList.waitUntilInteractive();
     // A paste, a dropped list file and another paste, all at once.
-    await page.locator('body').evaluate((element, files) => {
-      const transfer = (name: string, base64: string) => {
-        const data = new DataTransfer();
-        data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: 'image/png'}));
-        return data;
-      };
-      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer('first.png', files.first), bubbles: true, cancelable: true}));
-      element.dispatchEvent(new DragEvent('drop', {dataTransfer: transfer('list.png', files.list), bubbles: true, cancelable: true}));
-      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer('second.png', files.second), bubbles: true, cancelable: true}));
-    }, {first: BLUE_SQUARE.toString('base64'), list: snapshot.buffer.toString('base64'), second: RED_SQUARE.toString('base64')});
+    await tierList.sendFileEventsAtOnce([
+      {event: 'paste', file: imageFile('first.png', BLUE_SQUARE)},
+      {event: 'drop', file: snapshot},
+      {event: 'paste', file: imageFile('second.png', RED_SQUARE)},
+    ]);
 
     await expect(tierList.openListDialog).toBeVisible();
     await expect(tierList.toast('Files not added')).toContainText('A list file was being opened, so they were not added: second.png.');
@@ -684,7 +679,7 @@ test.describe('Opening other files', () => {
     await tierList.goto('/rank');
     await tierList.openManageItemsMenu();
 
-    await tierList.dropFile(imageFile('red-square.png'), {onPage: true});
+    await tierList.dropFile(imageFile('red-square.png'), {onto: tierList.openMenu});
 
     await page.keyboard.press('Escape');
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
@@ -698,7 +693,7 @@ test.describe('Opening other files', () => {
     await tierList.goto('/rank');
     await tierList.openUploadDialog();
 
-    await tierList.dropFile(imageFile('red-square.png'), {onPage: true});
+    await tierList.dropFile(imageFile('red-square.png'), {onto: tierList.uploadDialog});
 
     await expect(tierList.uploadDialog).toBeVisible();
     await page.keyboard.press('Escape');

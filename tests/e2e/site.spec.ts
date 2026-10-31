@@ -13,12 +13,12 @@ test.describe('Site pages', () => {
   test('a blog article links to a working tier list', async ({site, tierList}) => {
     await site.gotoHome();
     await site.openFromNavigation('Blog');
-    await site.main.getByRole('link', {name: /THE FINALS Season 3 World/}).click();
+    await site.mainLink(/THE FINALS Season 3 World/).click();
 
     // Article links point at the live site and open in a new tab. The test checks the
     // link, then opens the same path on the server under test, so it never depends on
     // production.
-    const link = site.main.getByRole('link', {name: /THE FINALS S3 - LIGHT All-/}).first();
+    const link = site.mainLink(/THE FINALS S3 - LIGHT All-/).first();
     await expect(link).toHaveAttribute('href', /^https:\/\/(www\.)?opentierboy\.com\/rank\/.+\?state=/);
     const href = new URL((await link.getAttribute('href'))!);
     await tierList.gotoLink(href.pathname + href.search);

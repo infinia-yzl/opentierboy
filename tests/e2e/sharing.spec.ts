@@ -10,9 +10,9 @@ test.describe('Sharing', () => {
 
     await tierList.openSharePanel();
 
-    await expect(tierList.sharePanel.getByRole('tab', {name: 'URL'})).toBeVisible();
-    await expect(tierList.sharePanel.getByRole('tab', {name: 'Image'})).toBeVisible();
-    await expect(tierList.sharePanel.getByRole('button', {name: 'Copy Markdown'})).toBeVisible();
+    await expect(tierList.shareTab('URL')).toBeVisible();
+    await expect(tierList.shareTab('Image')).toBeVisible();
+    await expect(tierList.copyMarkdownButton).toBeVisible();
   });
 
   test('Copy Markdown puts a message with the current link on the clipboard', {tag: '@mobile'}, async ({
@@ -53,7 +53,10 @@ test.describe('Sharing', () => {
     const friend = await openAsVisitor(linkInMarkdown!);
     await expect(friend.itemsIn('S')).toHaveCount(0);
     await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga', 'Winston']);
-    await expect.poll(() => friend.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await friend.openRowOptions();
+    await expect(friend.rowOption('Top')).toBeChecked();
+    await expect(friend.rowOption('Show Labels')).toBeChecked();
+    await friend.closeMenus();
   });
 
   test('on a slow connection, Copy Markdown right after quick changes shares the latest list', async ({
@@ -81,7 +84,10 @@ test.describe('Sharing', () => {
     await tierList.setItemLabelsVisible(false);
 
     const friend = await openAsVisitor(await tierList.shareLink());
-    await expect.poll(() => friend.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await friend.openRowOptions();
+    await expect(friend.rowOption('Top')).toBeChecked();
+    await expect(friend.rowOption('Hide Labels')).toBeChecked();
+    await friend.closeMenus();
     await expect.poll(() => friend.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     await expect(friend.item('Mauga')).toHaveText('');
   });
@@ -92,11 +98,17 @@ test.describe('Sharing', () => {
     await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
     await expect(tierList.title).toHaveText('Blank list');
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await tierList.openRowOptions();
+    await expect(tierList.rowOption('Top')).toBeChecked();
+    await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+    await tierList.closeMenus();
     await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
     await tierList.reload();
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: false});
+    await tierList.openRowOptions();
+    await expect(tierList.rowOption('Top')).toBeChecked();
+    await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+    await tierList.closeMenus();
     await expect(tierList.item('Mauga')).toHaveText('');
   });
 
@@ -104,7 +116,13 @@ test.describe('Sharing', () => {
     const mauga = packageItemId('image-overwatch', 'Mauga');
     await tierList.goto(TANKS, v3State({tp: 5, lp: 'top', r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
-    await expect.poll(() => tierList.labelSettings()).toEqual({position: 'Top', labelsShown: true});
+    await tierList.openRowOptions();
+
+    await expect(tierList.rowOption('Top')).toBeChecked();
+
+    await expect(tierList.rowOption('Show Labels')).toBeChecked();
+
+    await tierList.closeMenus();
     await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     await expect(tierList.item('Mauga')).toHaveText('Mauga');
   });

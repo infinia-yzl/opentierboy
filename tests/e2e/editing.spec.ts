@@ -29,10 +29,10 @@ test.describe('Editing labels, other ways', () => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
     await tierList.typeTierName('S', 'Must pick');
-    await tierList.page.getByText('Drag to reorder.').click();
+    await tierList.hints.click();
 
     await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
-    await expect(tierList.tier('Must pick').getByRole('textbox')).toHaveCount(0);
+    await expect(tierList.tierNameInput('Must pick')).toHaveCount(0);
   });
 
   test('clearing a tier label keeps the row and its items, also in the shared link', async ({
@@ -139,10 +139,10 @@ test.describe('Cancelling an edit', () => {
     const input = await tierList.typeTierName('S', 'Changed my mind');
     await input.press('Escape');
 
-    await expect(tierList.main.getByRole('textbox')).toHaveCount(0);
+    await expect(tierList.openTextBoxes).toHaveCount(0);
     await expect(tierList.tiers.first()).toHaveAccessibleName('S');
     // Nothing was saved: clicking elsewhere keeps the old name, and the link is unchanged.
-    await page.getByText('Drag to reorder.').click();
+    await tierList.hints.click();
     await expect(tierList.tiers.first()).toHaveAccessibleName('S');
     await tierList.dragItemToTier('Mauga', 'A');
     await page.goBack();
@@ -157,8 +157,8 @@ test.describe('Cancelling an edit', () => {
     await input.press('Escape');
 
     await expect(tierList.title).toHaveText('OVERWATCH - Tank');
-    await expect(tierList.main.getByRole('textbox')).toHaveCount(0);
-    await page.getByText('Drag to reorder.').click();
+    await expect(tierList.openTextBoxes).toHaveCount(0);
+    await tierList.hints.click();
     await expect(tierList.title).toHaveText('OVERWATCH - Tank');
     await tierList.dragItemToTier('Mauga', 'A');
     await page.goBack();

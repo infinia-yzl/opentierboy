@@ -18,12 +18,12 @@ test.describe('Content Security Policy', () => {
     expect(policy).not.toContain('unsafe-eval');
   });
 
-  test('home, a template, a blog article and a shared link load without violations', {tag: '@mobile'}, async ({page, tierList, cspViolations}) => {
+  test('home, a template, a blog article and a shared link load without violations', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
     await page.goto('/', {waitUntil: 'networkidle'});
-    await expect(page.getByRole('main')).toBeVisible();
+    await expect(site.main).toBeVisible();
     await tierList.goto('/rank/overwatch/tank');
     await page.goto('/blog/overwatch-2-karq-tier-list-season-11', {waitUntil: 'networkidle'});
-    await expect(page.getByRole('heading', {level: 1})).toBeVisible();
+    await expect(site.pageHeading).toBeVisible();
     await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
     await page.waitForLoadState('networkidle');
     await expect.poll(() => cspViolations()).toEqual([]);

@@ -67,16 +67,16 @@ test.describe('Legacy image sets are hidden', () => {
     await tierList.goto('/rank');
     await tierList.openTemplatePicker();
 
-    await expect(tierList.templatePicker.getByRole('option')).toHaveText(['OVERWATCH', 'THE FINALS']);
+    await expect(tierList.templateOption()).toHaveText(['OVERWATCH', 'THE FINALS']);
     for (const set of LEGACY_SETS) {
       await tierList.searchTemplates(set.tagTitle);
-      await expect(tierList.templatePicker.getByRole('option', {name: set.displayName})).toHaveCount(0);
+      await expect(tierList.templateOption(set.displayName)).toHaveCount(0);
       await tierList.searchTemplates(set.packageName);
-      await expect(tierList.templatePicker.getByRole('option', {name: set.displayName})).toHaveCount(0);
+      await expect(tierList.templateOption(set.displayName)).toHaveCount(0);
     }
     // The search still finds the tags of the official sets.
     await tierList.searchTemplates('Tank');
-    await expect(tierList.templatePicker.getByRole('option', {name: /^Tank\b.*OVERWATCH/})).toBeVisible();
+    await expect(tierList.templateOption(/^Tank\b.*OVERWATCH/)).toBeVisible();
   });
 
   test('the landing page shows cards for the official sets only', {tag: '@mobile'}, async ({site}) => {

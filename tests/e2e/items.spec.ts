@@ -48,7 +48,7 @@ test.describe('Managing items', () => {
     await tierList.addItemsFromDevice([path.join(IMAGES, 'red-square.png'), path.join(IMAGES, 'blue-square.png')]);
 
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square', 'blue-square']);
-    await expect.poll(() => imageHasLoaded(tierList.item('red-square').getByRole('img'))).toBe(true);
+    await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   });
 
   test('reset puts every item back in Unranked', async ({tierList}) => {
@@ -219,7 +219,7 @@ test.describe('Uploads kept in this browser', () => {
     const reopened = new TierListPage(await context.newPage());
     await reopened.gotoLink(link);
 
-    const image = reopened.item('red-square').getByRole('img');
+    const image = reopened.itemImage('red-square');
     await expect(image).toBeVisible();
     // The tile must show the uploaded red square. Checking only that an image loaded is not
     // enough: an item the app cannot find shows the placeholder image, which loads too.
@@ -269,7 +269,3 @@ test.describe('Known bugs', () => {
   });
 });
 
-/** True when the browser decoded the image, so a broken image counts as not loaded. */
-async function imageHasLoaded(image: import('@playwright/test').Locator) {
-  return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
-}

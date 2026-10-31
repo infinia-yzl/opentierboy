@@ -7,7 +7,7 @@ const SUPPORT = '/rank/overwatch/sup';
 test.describe('Recently viewed', () => {
   test('the landing page shows no section before any list was opened', {tag: '@mobile'}, async ({site}) => {
     await site.gotoHome();
-    await expect(site.main.getByRole('heading', {name: 'Create a New Tier List'})).toBeVisible();
+    await expect(site.heading('Create a New Tier List')).toBeVisible();
     await expect(site.recentlyViewed).toHaveCount(0);
   });
 
