@@ -4,9 +4,15 @@ import imagesetConfig from "@/imageset.config.json";
 import imageAliases from "@/image-aliases.json";
 import ImageSetConfig from "@/models/ImageSet";
 import {ItemSet} from "@/models/ItemSet";
-import {type CanonicalItem, decodeState, encodeState} from "@/lib/state";
+import {type CanonicalItem, type CanonicalState, decodeState, encodeState} from "@/lib/state";
+import {isVersionedValue} from "@/lib/state/decode";
+import {measureDecompressedLength} from "@/lib/state/lz";
+import {checkLegacyState, LEGACY_LINK_LIMITS} from "@/lib/legacyLinkLimits";
 
 const CUSTOM_ITEMS_KEY = 'customItems';
+const PLACEHOLDER_IMAGE_URL = '/placeholder-image.png';
+/** The placeholder at link preview size (made by scripts/prepareImages.js). */
+const PLACEHOLDER_PREVIEW_URL = '/placeholder-image.preview.png';
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const MAX_ALIAS_STEPS = 10;
 
@@ -35,9 +41,11 @@ interface StoredCustomItem {
   d: string; // imageData
 }
 
-export interface PackageItemLookup {
-  [key: string]: Item;
-}
+/**
+ * Package items by id. A Map, so that an id from a link such as `constructor` or `__proto__`
+ * finds nothing, like any other unknown id (a plain object would return its built-in members).
+ */
+export type PackageItemLookup = ReadonlyMap<string, Item>;
 
 const OG_TIER_GRADIENTS = [
   'linear-gradient(to right, #d21203, #c40a01)',
@@ -87,8 +95,19 @@ export class TierCortex {
     });
   }
 
+  /**
+   * The link of a list, in the format the app writes (v2 today, encodeTierStateForURL). Only
+   * custom items keep their label in the link; package items get theirs from the image set.
+   */
+  public encodeListForURL(title: string, tiers: Tier[]): string {
+    return TierCortex.encodeTierStateForURL(title, tiers.map(tier => ({
+      ...tier,
+      items: tier.items.map(item => ({i: item.id, c: this.isCustomItem(item.id) ? item.content : undefined})),
+    })));
+  }
+
   public isCustomItem(itemId: string): boolean {
-    return !this.packageItemLookup.hasOwnProperty(itemId);
+    return !this.packageItemLookup.has(itemId);
   }
 
   public getOgTierGradient(index: number, tiersLength: number): string {
@@ -96,20 +115,37 @@ export class TierCortex {
     return OG_TIER_GRADIENTS[index % OG_TIER_GRADIENTS.length];
   }
 
-  // lib/state decodes every link format; TierCortex turns the stored item ids into items.
+  /**
+   * lib/state decodes every link format; TierCortex checks legacy links against
+   * LEGACY_LINK_LIMITS and turns the stored item ids into items. Returns null for a link that
+   * does not decode or breaks a limit, so callers fall back to the template and the default
+   * preview image.
+   */
   public decodeTierStateFromURL(encodedState: string): { title?: string, tiers: Tier[] } | null {
     const logError = (error: unknown) => console.error('Failed to decode tier state from URL:', error);
-    const state = decodeState(encodedState, {onError: logError});
-    if (!state) return null;
+
+    // A short link can decompress to a huge text, so legacy links are measured first (A29).
+    const isLegacy = !isVersionedValue(encodedState);
+    if (isLegacy && measureDecompressedLength(encodedState, LEGACY_LINK_LIMITS.maxJsonLength) === null) {
+      logError(new Error(`The link is not complete lz-string data, or holds more than ${LEGACY_LINK_LIMITS.maxJsonLength} characters`));
+      return null;
+    }
+
+    const decoded = decodeState(encodedState, {onError: logError});
+    if (!decoded) return null;
+
+    let state: CanonicalState = decoded;
+    if (isLegacy) {
+      const check = checkLegacyState(decoded);
+      if (!check.ok) {
+        logError(new Error(`The link holds ${check.reason}`));
+        return null;
+      }
+      state = check.state;
+    }
 
     try {
-      const tiers = state.tiers.map(tier => ({
-        id: tier.id,
-        name: tier.name,
-        items: tier.items.map(item => this.resolveItem(item.id, item.content))
-      }));
-
-      return {title: state.title, tiers};
+      return {title: state.title, tiers: this.resolveTiers(state)};
     } catch (error) {
       logError(error);
       return null;
@@ -144,14 +180,20 @@ export class TierCortex {
 
       initialTiers[lastTierIndex].items = initialItemSet.images.map((filename) => {
         const itemId = `${initialItemSet.packageName}-${filename}`;
-        return this.packageItemLookup[itemId] || this.createPlaceholderItem(itemId, filename);
+        return this.packageItemLookup.get(itemId) ?? this.createPlaceholderItem(itemId, filename);
       });
     }
 
     return initialTiers;
   }
 
+  /**
+   * The image URL for link previews: the PNG copy of a WebP image, or the placeholder's copy.
+   * These copies are made at preview size (scripts/prepareImages.js), so previews draw fast.
+   */
   public getOgSafeImageUrl(url: string): string {
+    if (url === PLACEHOLDER_IMAGE_URL) url = PLACEHOLDER_PREVIEW_URL;
+
     // Convert WebP to PNG
     if (url.toLowerCase().endsWith('.webp')) {
       url = url.substring(0, url.length - 5) + '.png';
@@ -197,18 +239,18 @@ export class TierCortex {
   }
 
   private initializePackageItemLookup(): PackageItemLookup {
-    let packageItemLookup: PackageItemLookup = {};
+    const packageItemLookup = new Map<string, Item>();
     for (const [packageName, packageData] of Object.entries(this.imageSetConfig.packages)) {
       for (const image of packageData.images) {
         const id = `${packageName}-${image.filename}`;
         // Square is the default, so only other shapes are stored on the item.
         const shape = isItemShape(image.shape) && image.shape !== DEFAULT_ITEM_SHAPE ? image.shape : undefined;
-        packageItemLookup[id] = {
+        packageItemLookup.set(id, {
           id,
           content: image.label || image.filename.split('.')[0],
           imageUrl: `/images/${packageName}/${image.filename}`,
           ...(shape && {shape}),
-        };
+        });
       }
     }
     return packageItemLookup;
@@ -221,8 +263,30 @@ export class TierCortex {
     }
   }
 
+  /**
+   * Resolves the items of every tier. Duplicate ids break drag and drop, so:
+   * - an item id that appears twice, also after following an alias (an old id and its new id
+   *   in one list), keeps only its first place (A32);
+   * - a tier id that appears twice keeps its first row, and each later row gets a new id (A38).
+   */
+  private resolveTiers(state: CanonicalState): Tier[] {
+    const seen = new Set<string>();
+    const tierIds = uniqueTierIds(state.tiers.map(tier => tier.id));
+    return state.tiers.map((tier, index) => ({
+      id: tierIds[index],
+      name: tier.name,
+      items: tier.items
+        .map(item => this.resolveItem(item.id, item.content))
+        .filter(item => {
+          if (seen.has(item.id)) return false;
+          seen.add(item.id);
+          return true;
+        }),
+    }));
+  }
+
   private resolveItem(itemId: string, content?: string): Item {
-    const packageItem = this.packageItemLookup[itemId];
+    const packageItem = this.packageItemLookup.get(itemId);
     if (packageItem) return packageItem;
 
     const renamedItem = this.resolveAlias(itemId);
@@ -252,17 +316,24 @@ export class TierCortex {
       if (!Object.prototype.hasOwnProperty.call(this.aliases, currentId)) return undefined;
       const nextId = this.aliases[currentId];
       if (typeof nextId !== 'string') return undefined;
-      if (Object.prototype.hasOwnProperty.call(this.packageItemLookup, nextId)) return this.packageItemLookup[nextId];
+      const renamedItem = this.packageItemLookup.get(nextId);
+      if (renamedItem) return renamedItem;
       currentId = nextId;
     }
     return undefined;
   }
 
+  /**
+   * An unknown item: its stored label on the placeholder image. The image URL is relative, like
+   * the package images, so next/image loads it on every host (A37). An absolute URL went
+   * through the image optimizer as a remote image, which refused every host but localhost:3000,
+   * so on Vercel the tile showed no image. Link previews make it absolute (getOgSafeImageUrl).
+   */
   private createPlaceholderItem(itemId: string, content: string): Item {
     return {
       id: itemId,
       content,
-      imageUrl: this.getAbsoluteUrl('/placeholder-image.png'),
+      imageUrl: PLACEHOLDER_IMAGE_URL,
     };
   }
 
@@ -282,6 +353,27 @@ export class TierCortex {
   private getAbsoluteUrl(path: string): string {
     return new URL(path, this.baseUrl).toString();
   }
+}
+
+/**
+ * The tier ids with each later duplicate renamed to `<id>~2`, `<id>~3`... (the first number not
+ * used by any tier), so every row has its own id. The first row with an id keeps it. The same
+ * ids always give the same result.
+ */
+export function uniqueTierIds(ids: readonly string[]): string[] {
+  const taken = new Set(ids);
+  const seen = new Set<string>();
+  return ids.map(id => {
+    if (!seen.has(id)) {
+      seen.add(id);
+      return id;
+    }
+    let number = 2;
+    while (taken.has(`${id}~${number}`)) number++;
+    const newId = `${id}~${number}`;
+    taken.add(newId);
+    return newId;
+  });
 }
 
 function toCanonicalItem(item: SimplifiedItem): CanonicalItem {

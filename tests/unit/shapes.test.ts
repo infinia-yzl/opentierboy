@@ -47,9 +47,15 @@ describe('TierCortex with tile shapes', () => {
     const shapes = tiers.map((tier) => tier.items.map((item) => [item.content, itemShape(item)]));
     expect(shapes).toEqual([
       [['Map', 'landscape'], ['Hero', 'portrait']],
-      // A renamed item takes the shape of the image it now points to. Uploaded and unknown items are square.
-      [['Icon', 'square'], ['Map', 'landscape'], ['my cat', 'square']],
+      // The old id of Map points to Map, which is already in S, so it keeps only that place (A32).
+      // Uploaded and unknown items are square.
+      [['Icon', 'square'], ['my cat', 'square']],
     ]);
+  });
+
+  it('gives a renamed item the shape of the image it now points to', () => {
+    const renamed = cortex.decodeTierStateFromURL(lz({tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-mixed-old-map.webp'}]}]}))!;
+    expect(renamed.tiers[0].items.map((item) => [item.content, itemShape(item)])).toEqual([['Map', 'landscape']]);
   });
 
   it('stores only shapes other than square on items, and ignores unknown shapes', () => {

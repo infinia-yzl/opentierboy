@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,7 +19,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
@@ -30,34 +29,17 @@ import Item from "@/models/Item";
 import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
+import {itemsToAdd} from "@/lib/tierListReducer";
 
-interface ItemManagerProps {
-  onItemsCreate: (newItems: Item[]) => void;
-  onUndoItemsCreate: (itemIds: string[]) => void;
-  resetItems: () => void;
-  deleteAllItems: () => void;
-  undoReset: () => void;
-  undoDelete: () => void;
-}
-
-const ItemManager: React.FC<ItemManagerProps> = ({
-  onItemsCreate,
-  onUndoItemsCreate,
-  resetItems,
-  deleteAllItems,
-  undoReset,
-  undoDelete,
-}) => {
-  const {tiers, tierCortex} = useTierContext();
-  const [showGradientBorder, setShowGradientBorder] = useState(false);
-
-  useEffect(() => {
-    const totalItems = tiers.reduce((sum, tier) => sum + tier.items.length, 0);
-    setShowGradientBorder(totalItems === 0);
-  }, [tiers]);
+const ItemManager: React.FC = () => {
+  const {tiers, tierCortex, addItems, removeItems, resetRankings, removeAllItems, restoreTiers} = useTierContext();
+  const showGradientBorder = tiers.every(tier => tier.items.length === 0);
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
+  // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
+  const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
+  const manageItemsButton = useRef<HTMLButtonElement>(null);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
@@ -87,37 +69,42 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     return sets;
   }, []);
 
+  // Each Undo below is a new change to the list, so it adds a history entry (A6).
   const handleCreateItems = (newItems: Item[]) => {
-    onItemsCreate(newItems);
+    // Undo removes only the items this really added: the list may hold some of them already.
+    const addedIds = itemsToAdd(tiers, newItems).map(item => item.id);
+    addItems(newItems);
     setIsItemCreatorOpen(false);
     setIsItemSetSelectorOpen(false);
     toast('Items Added', {
       description: `${newItems.length} item(s) have been added.`,
       action: {
         label: 'Undo',
-        onClick: () => onUndoItemsCreate(newItems.map(item => item.id)),
+        onClick: () => removeItems(addedIds),
       },
     });
   };
 
   const handleReset = () => {
-    resetItems();
+    const tiersBefore = tiers;
+    resetRankings();
     toast('Items Reset', {
       description: 'All item rankings have been reset.',
       action: {
         label: 'Undo',
-        onClick: undoReset,
+        onClick: () => restoreTiers(tiersBefore),
       },
     });
   };
 
   const handleDelete = () => {
-    deleteAllItems();
+    const tiersBefore = tiers;
+    removeAllItems();
     toast('All Items Deleted', {
       description: 'All items have been removed.',
       action: {
         label: 'Undo',
-        onClick: undoDelete,
+        onClick: () => restoreTiers(tiersBefore),
       },
     });
   };
@@ -130,7 +117,7 @@ const ItemManager: React.FC<ItemManagerProps> = ({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon"
+          <Button variant="outline" size="icon" ref={manageItemsButton}
                   className={`${showGradientBorder ? 'glow-effect' : ''}`}
           >
             <DashboardIcon className="h-4 w-4"/>
@@ -149,31 +136,34 @@ const ItemManager: React.FC<ItemManagerProps> = ({
           </DropdownMenuGroup>
           <DropdownMenuSeparator/>
           <DropdownMenuItem onSelect={handleReset}>Reset</DropdownMenuItem>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}
-                                className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
-              >
-                Remove All
-              </DropdownMenuItem>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will remove all items from all tiers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
-                  Remove All Items
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <DropdownMenuItem onSelect={() => setIsRemoveAllOpen(true)}
+                            className="dark:focus:bg-destructive dark:focus:text-primary focus:text-destructive"
+          >
+            Remove All
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog open={isRemoveAllOpen} onOpenChange={setIsRemoveAllOpen}>
+        <AlertDialogContent onCloseAutoFocus={(event) => {
+          // The dialog has no trigger of its own, so give focus back to the menu button.
+          event.preventDefault();
+          manageItemsButton.current?.focus();
+        }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all items from all tiers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: "destructive"}))}>
+              Remove All Items
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={isItemCreatorOpen} onOpenChange={setIsItemCreatorOpen}>
         <DialogContent className="max-h-[80vh] overflow-hidden flex flex-col">

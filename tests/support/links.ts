@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import imagesetConfig from '../../imageset.config.json';
 import legacyConfig from '../../imageset.legacy.json';
+import {lzWithRun} from '../unit/support/lzStream';
 
 type PackageConfig = {images: {filename: string; label: string; tags: string[]}[]};
 const packages = (imagesetConfig as {packages: Record<string, PackageConfig>}).packages;
@@ -25,6 +26,13 @@ export function legacyItems(packageName: string, tag?: string): string[] {
   return set.images
     .filter((image) => tag === undefined || image.tags.includes(tag))
     .map((image) => image.label || image.filename.split('.')[0]);
+}
+
+/** The item ids of a legacy set, in the order its template lists them. */
+export function legacyItemIds(packageName: string): string[] {
+  const set = legacyPackages[packageName];
+  if (!set) throw new Error(`${packageName} is not a legacy set`);
+  return set.images.map((image) => `${packageName}-${image.filename}`);
 }
 
 /** The files of a legacy set in public/images/<package>/: each image and its PNG copy for link previews. */
@@ -94,4 +102,13 @@ export function rawState(state: {title?: string; tiers: {i: string; n: string; t
  */
 export function stateFromJson(json: unknown): string {
   return LZString.compressToEncodedURIComponent(JSON.stringify(json));
+}
+
+/**
+ * A short `state` value (about 2,600 characters) that decompresses to a list with a
+ * 1,000,001-character tier name: more JSON than the app accepts (1,000,000 characters,
+ * lib/legacyLinkLimits.ts), so it falls back to the template (A29).
+ */
+export function hugeTierNameState(): string {
+  return lzWithRun('{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}', 'x', 1_000_001).input;
 }

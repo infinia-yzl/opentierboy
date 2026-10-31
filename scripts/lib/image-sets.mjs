@@ -23,6 +23,27 @@ export function tagSlug(tag) {
   return tag ? tag.toLowerCase().replace(/_+/g, '-').replace(/^-|-$/g, '') : '';
 }
 
+/**
+ * The PNG copies that link previews load (app/api/og/route.tsx draws each item as a 64 x 64 px
+ * tile, object-cover) are made at twice that size: the shorter side becomes 128 px, the aspect
+ * ratio stays, and a smaller image is never enlarged. Full-size copies (legacy images reach 4
+ * megapixels) made previews slower to draw and to load: a preview of the largest images took 13 s
+ * instead of 10 s before the row limit in the route (A43). The tiles look the same. The WebP
+ * images the app shows stay as they are.
+ */
+export const PREVIEW_COPY_SIZE = 128;
+
+/**
+ * The size of the preview copy of an image of `width` x `height` px: what sharp's resize with
+ * fit "outside" and withoutEnlargement gives for a PREVIEW_COPY_SIZE square
+ * (scripts/prepareImages.js).
+ */
+export function previewCopySize(width, height, size = PREVIEW_COPY_SIZE) {
+  const scale = Math.max(size / width, size / height);
+  if (scale >= 1) return {width, height};
+  return {width: Math.round(width * scale), height: Math.round(height * scale)};
+}
+
 /** Tile shapes. Images and categories (tags) without a shape are square. */
 export const SHAPES = Object.freeze(['square', 'landscape', 'portrait']);
 export const DEFAULT_SHAPE = 'square';

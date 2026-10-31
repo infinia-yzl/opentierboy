@@ -79,10 +79,16 @@ npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
 app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (link preview
                       image, edge runtime), /blog, /about, sitemap
 components/           React components; components/ui/ is shadcn/ui
-contexts/TierContext.tsx   editor settings (label position, show labels)
-lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom items, preview helpers
+contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
+                      syncs it with the address (one router.push per change, one at a time)
+lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue
+lib/TierCortex.ts     item lookup and aliases, item and category shapes, custom items, preview
+                      helpers, the link encode and decode used by the store
+lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
+lib/dragAnnouncements.ts  screen reader messages for drag and drop (labels, never ids)
 lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
 lib/state/            link format: decodeState (all formats), encodeState (v2); lz-string only
+lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet

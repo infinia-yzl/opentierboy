@@ -13,6 +13,7 @@ import {FaFacebookF, FaMarkdown, FaXTwitter} from "react-icons/fa6";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {useTierContext} from "@/contexts/TierContext";
 
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
@@ -22,6 +23,7 @@ interface ShareButtonProps {
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
+  const {pendingLink} = useTierContext();
   const [imageBlob, setImageBlob] = useState<Blob | null>(null);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -101,11 +103,19 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     }
   };
 
+  /**
+   * The link to share: the address, or the link of the latest change while it has not reached
+   * the address yet (the editor writes one link at a time).
+   */
+  const shareUrl = () => pendingLink === null
+    ? window.location.href
+    : `${window.location.origin}${window.location.pathname}?state=${pendingLink}`;
+
   const shareToSocial = (platform: SocialPlatform) => {
     const shareText = `I've just ranked "${title}" on OpenTierBoy. What do you think? 🤔`;
     const url = platform === 'facebook'
-      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(shareText)}`
-      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(window.location.href)}`;
+      ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}&quote=${encodeURIComponent(shareText)}`
+      : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`;
 
     window.open(url, '_blank');
   };
@@ -113,7 +123,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const copyAsMarkdown = () => {
     const shareText = `I've just ranked **${title}** on OpenTierBoy.
 What do you think? 🤔
-[Check it out on OpenTierBoy!](${window.location.href})
+[Check it out on OpenTierBoy!](${shareUrl()})
 -# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://www.opentierboy.com/\`.
 `;
     navigator.clipboard.writeText(shareText).then(() => {

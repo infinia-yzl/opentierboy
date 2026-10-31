@@ -11,28 +11,6 @@ export default defineConfig([
   ...nextCoreWebVitals,
   // Turns off style rules that Prettier owns.
   prettier,
-  // eslint-plugin-react-hooks 7 (from eslint-config-next 16) adds React Compiler rules. They
-  // flag existing code in the files below. Fixing that means changing how the components
-  // work, which waits for the editor state rework. Until then each rule only warns in the
-  // files where it fires today; everywhere else it stays an error.
-  {
-    files: [
-      'components/EditableLabel.tsx',
-      'components/ItemManager.tsx',
-      'components/ThemeSelector.tsx',
-      'components/TierListManager.tsx',
-      'components/ZenToggle.tsx',
-    ],
-    rules: {'react-hooks/set-state-in-effect': 'warn'},
-  },
-  {
-    files: ['components/ItemCreator.tsx'],
-    rules: {'react-hooks/refs': 'warn'},
-  },
-  {
-    files: ['components/TierListManager.tsx'],
-    rules: {'react-hooks/static-components': 'warn'},
-  },
   // Playwright fixtures receive a function named `use`. The hooks rule mistakes it for
   // React's use() hook. The tests contain no React components.
   {

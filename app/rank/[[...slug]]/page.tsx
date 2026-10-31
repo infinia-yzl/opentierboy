@@ -7,6 +7,7 @@ import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {redirect} from "next/navigation";
 import TierCortex from "@/lib/TierCortex";
 import {visibleImageSets} from "@/lib/imageSets";
+import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 import {Skeleton} from "@/components/ui/skeleton";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -125,6 +126,9 @@ export async function generateMetadata(props: Props, parent: ResolvingMetadata):
       title = decodedState.title;
     }
   }
+  // The title repeats in <title>, og:title, twitter:title and the JSON-LD, so a long one is
+  // shortened (A43). The editor itself still shows the whole title.
+  title = shorten(title, MAX_TITLE_LENGTH);
 
   // Generate the OG image URL
   let ogImageUrl = '/api/og';

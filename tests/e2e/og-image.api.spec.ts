@@ -1,5 +1,6 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
-import {LEGACY_SETS, legacyItems, packageItemId, stateFromJson} from '../support/links';
+import {LEGACY_SETS, legacyItemIds, legacyItems, packageItemId, stateFromJson} from '../support/links';
+import {lzBomb, lzWithRun} from '../unit/support/lzStream';
 
 /**
  * The preview image that chat apps and social sites show for a shared link.
@@ -59,11 +60,6 @@ test.describe('Link preview images', () => {
     expect(image.equals(reversed), 'tiles should show the item images').toBe(false);
   });
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
-   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
-   */
   test('a link with an unknown item id gets a preview with a placeholder tile', async ({request}) => {
     const response = await request.get(previewPath(oddIdLink('unknown-item-x')));
 
@@ -74,35 +70,119 @@ test.describe('Link preview images', () => {
     expect(image.equals(defaultImage), 'preview should show the ranking').toBe(false);
   });
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite stays green while the bug exists. When a fix lands, the test starts to pass,
-   * Playwright reports "Expected to fail, but passed", and the marker must be removed.
-   */
-  test.describe('Known bugs', () => {
-    // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
-    for (const id of ['constructor', 'toString', '__proto__']) {
-      test(`a link with an item with the id "${id}" gets the same preview as an unknown item`, async ({request}) => {
-        test.fail(true, 'TierCortex resolves the id to a built-in object member without imageUrl, so the tile points at the site root, an HTML page. Locally the route draws a blank tile instead of the placeholder; on Vercel next/og fetches the HTML itself and aborts the response.');
-        const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
-        const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
+  // Names that every JavaScript object has, used as item ids (see shared-links.spec.ts).
+  for (const id of ['constructor', 'toString', '__proto__']) {
+    test(`a link with an item with the id "${id}" gets the same preview as an unknown item`, async ({request}) => {
+      const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
+      const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
 
-        expect(odd.status()).toBe(200);
-        expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
-      });
-    }
+      expect(odd.status()).toBe(200);
+      expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
+    });
+  }
 
-    test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
-      test.fail(true, 'The route draws the tier name as text, and an object there aborts the response.');
-      const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
-      const response = await request.get(previewPath(json), {timeout: 10_000});
+  test('a link with a tier name that is an object still gets a preview image', async ({request}) => {
+    const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
+    const response = await request.get(previewPath(json), {timeout: 10_000});
+
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toBe('image/png');
+    const image = await response.body();
+    expect(pngSize(image)).toEqual({width: 1200, height: 630});
+    // The link breaks the type checks (A29), so it gets the preview of a link that does not decode.
+    expect(image.equals(defaultImage), 'default preview').toBe(true);
+  });
+
+  // Links made to hang or crash the server (A29). Each one must get the default preview quickly,
+  // and the server must keep answering other requests. The links are built here in milliseconds
+  // (tests/unit/support/lzStream.ts); lz-string itself would take seconds to compress them.
+  const HOSTILE_TIMEOUT = 5_000;
+  const hostileLinks = [
+    {name: 'a 5-million-character tier name', state: () => lzWithRun(HUGE_NAME_JSON, 'x', 5_000_000).input},
+    {name: 'data that expands to 12 million characters', state: () => lzBomb(5_000).input},
+    {name: 'no tiers', state: () => stateFromJson({tiers: []})},
+    {name: 'a title that is an object', state: () => stateFromJson({title: {text: 'x'}, tiers: [UNRANKED]})},
+    // The same id 5,001 times keeps the link short (the item cap counts before duplicates go).
+    {name: 'more items than any list can hold', state: () => stateFromJson({tiers: [
+      {i: 'tier-s', n: 'S', t: Array.from({length: 5_001}, () => ({i: 'x'}))}, UNRANKED,
+    ]})},
+  ];
+  for (const link of hostileLinks) {
+    test(`a link with ${link.name} gets the default preview quickly`, async ({request}) => {
+      const response = await request.get(`/api/og?state=${encodeURIComponent(link.state())}`, {timeout: HOSTILE_TIMEOUT});
 
       expect(response.status()).toBe(200);
-      expect(response.headers()['content-type']).toBe('image/png');
-      expect(pngSize(await response.body())).toEqual({width: 1200, height: 630});
+      expect((await response.body()).equals(defaultImage), 'default preview').toBe(true);
+      const next = await request.get(previewPath(oddIdLink('unknown-item-x')), {timeout: HOSTILE_TIMEOUT});
+      expect(next.status(), 'the server still answers').toBe(200);
     });
-  });
+  }
 });
+
+/**
+ * Lists at the limits that a link may hold (lib/legacyLinkLimits.ts: 100 rows, text of any
+ * length within 1,000,000 characters of JSON). Each one must get its preview quickly, while
+ * a plain preview request at the same time answers quickly too (A43). The texts repeat, so
+ * the links stay short enough for a URL.
+ *
+ * Image tiles: the preview draws at most 7 rows of 10 tiles (an 8th row made it take about 9 s),
+ * from PNG copies made at preview size (scripts/prepareImages.js), so even rows full of the
+ * largest legacy images (up to 4 megapixels as WebP) stay fast.
+ */
+const ROWS_AT_LIMIT = 99; // plus the Unranked row: 100 rows
+const listAtLimit = (title: string, row: (index: number) => object) => ({
+  title,
+  tiers: [...Array.from({length: ROWS_AT_LIMIT}, (_, index) => row(index)), UNRANKED_FOR_LIMITS],
+});
+const listsAtLimits = [
+  {name: '100 short, empty rows', json: () => listAtLimit('Many rows', (index) => ({i: `t${index}`, n: `R${index}`, t: []}))},
+  {
+    name: '100 rows, each with an item with a 4,800-character label',
+    json: () => listAtLimit('Long labels', (index) => ({i: `t${index}`, n: `R${index}`, t: [{i: `r${index}`, c: 'Label '.repeat(800)}]})),
+  },
+  {
+    // The legacy sets with the largest images first: all their tiles that the preview draws.
+    name: '100 rows, the first ones full of the largest legacy images',
+    json: () => {
+      const ids = ['image-set', 'image-webdev', 'image-helldivers2'].flatMap(legacyItemIds);
+      return listAtLimit('Large images', (index) => ({i: `t${index}`, n: `R${index}`, t: ids.slice(index * 11, index * 11 + 11).map((i) => ({i}))}));
+    },
+  },
+  {
+    name: '100 rows of 10 unknown items, drawn as placeholder tiles',
+    json: () => listAtLimit('Unknown items', (index) => ({i: `t${index}`, n: `R${index}`, t: Array.from({length: 11}, (_, item) => ({i: `r${index}i${item}`}))})),
+  },
+  {
+    name: '100 rows with 5,000-character names and a 90,000-character title',
+    json: () => listAtLimit('Title '.repeat(15_000), (index) => ({i: `t${index}`, n: 'Name '.repeat(1_000), t: [{i: 'image-overwatch-mau.webp'}]})),
+  },
+];
+
+test.describe('Link previews at the limits', () => {
+  test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
+    'Preview images need the local server on port 3000, see TierCortex.baseUrl.');
+
+  for (const list of listsAtLimits) {
+    test(`a list with ${list.name} gets its preview quickly`, async ({request}) => {
+      const [preview, plain] = await Promise.all([
+        request.get(previewPath(list.json()), {timeout: 5_000}),
+        request.get('/api/og', {timeout: 5_000}),
+      ]);
+
+      expect(preview.status()).toBe(200);
+      expect(preview.headers()['content-type']).toBe('image/png');
+      const image = await preview.body();
+      expect(pngSize(image)).toEqual({width: 1200, height: 630});
+      expect(image.equals(await plain.body()), 'preview should show the ranking').toBe(false);
+      expect(plain.status(), 'a plain preview at the same time').toBe(200);
+    });
+  }
+});
+
+const UNRANKED_FOR_LIMITS = {i: 'uncategorized', n: '', t: []};
+
+/** A list whose tier name is the run of characters that lzWithRun() writes in place of {run}. */
+const HUGE_NAME_JSON = '{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}';
 
 const UNRANKED = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
 

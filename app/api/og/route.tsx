@@ -1,10 +1,31 @@
 import {ImageResponse} from 'next/og';
 import {TierCortex} from '@/lib/TierCortex';
 import {inlineLocalImages} from './local-images';
+import {MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 
 export const runtime = 'edge';
 
 const LOGO = 'brand/otb-logo-wide.png';
+
+// Limits for what the preview draws (A43). Drawing cost grows with every row, tile and
+// character, and a link may hold 100 rows and text of any length, which kept the route busy for
+// minutes. No real list reaches the text limits: the golden links have 49-character titles and
+// 33-character tier names at most.
+//
+// Rows: only the rows that can show. The header takes at least 72 px and each row at least 80 px
+// (satori drops the spacing between rows, and shrinks the padding above them when they overflow),
+// so 7 rows reach the bottom of the 630 px image and an 8th row starts below it. The golden
+// previews draw 7 rows at most. Drawing an 8th row also made satori take about 9 s instead of
+// 2 s on the test machine.
+const MAX_ROWS = 7;
+/** Tier names and item labels. */
+const MAX_TEXT_LENGTH = 40;
+// Tiles drawn per row (plus a "+N" tile for the rest). A row has 1,008 px for tiles (1,200 px,
+// less the 16 px padding on each side and the 160 px label) and a tile takes 72 px (64 px and a
+// 4 px margin on each side), so 14 fit: all 11 are visible, none is clipped. Images come at
+// preview size (scripts/prepareImages.js), which keeps each tile cheap to draw.
+const ITEMS_PER_ROW = 10;
+
 
 // Previews use Noto Sans, the default font of next/og up to Next.js 15. Next.js 16 changed
 // the default to Geist, so the route passes the same font file itself to keep previews
@@ -64,14 +85,15 @@ export async function GET(request: Request) {
 
   const {title, tiers} = decodedState;
   tiers.pop(); // Remove uncategorized tier
+  const rows = tiers.slice(0, MAX_ROWS);
 
   const logoUrl = tierCortex.getAssetUrl(LOGO);
   const imageSrc = await inlineLocalImages([
     logoUrl,
-    ...tiers.flatMap((tier) => tier.items.slice(0, 10).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
+    ...rows.flatMap((tier) => tier.items.slice(0, ITEMS_PER_ROW).map((item) => tierCortex.getOgSafeItem(item).imageUrl ?? '')),
   ]);
 
-  const titleText = title ? `${title}` : 'OpenTierBoy';
+  const titleText = title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy';
 
   return new ImageResponse(
     (
@@ -89,7 +111,7 @@ export async function GET(request: Request) {
         </div>
 
         <div tw="flex flex-col space-y-4 px-4 pt-6">
-          {tiers.map((tier, index) => (
+          {rows.map((tier, index) => (
             <div
               key={tier.id}
               style={{
@@ -99,12 +121,13 @@ export async function GET(request: Request) {
             >
               <div tw="w-40 h-full flex items-center justify-center">
                 <div tw="text-2xl font-semibold text-white text-center">
-                  {tier.name}
+                  {shorten(tier.name, MAX_TEXT_LENGTH)}
                 </div>
               </div>
               <div tw="flex-1 flex flex-wrap">
-                {tier.items.slice(0, 10).map((item) => {
+                {tier.items.slice(0, ITEMS_PER_ROW).map((item) => {
                   const safeItem = tierCortex.getOgSafeItem(item);
+                  const label = shorten(safeItem.content, MAX_TEXT_LENGTH);
                   return (
                     <div
                       key={safeItem.id}
@@ -113,20 +136,20 @@ export async function GET(request: Request) {
                       {safeItem.imageUrl ? (
                         <img
                           src={imageSrc(safeItem.imageUrl)}
-                          alt={safeItem.content}
+                          alt={label}
                           tw="w-full h-full object-cover"
                         />
                       ) : (
                         <div tw="text-xs text-gray-600 text-center p-1">
-                          {safeItem.content}
+                          {label}
                         </div>
                       )}
                     </div>
                   );
                 })}
-                {tier.items.length > 10 && (
+                {tier.items.length > ITEMS_PER_ROW && (
                   <div tw="w-16 h-16 m-1 rounded-md bg-gray-700 flex items-center justify-center text-white font-bold">
-                    +{tier.items.length - 10}
+                    +{tier.items.length - ITEMS_PER_ROW}
                   </div>
                 )}
               </div>

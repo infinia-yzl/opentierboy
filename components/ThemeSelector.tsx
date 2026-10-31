@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useEffect, useState} from 'react';
+import React, {useSyncExternalStore} from 'react';
 import {useTheme} from 'next-themes';
 import {MoonIcon, SunIcon} from "@radix-ui/react-icons";
 import {Button} from "@/components/ui/button";
@@ -13,13 +13,13 @@ import {
 
 const colorThemes = ['classic', 'ocean', 'forest'];
 
-export function ThemeSelector() {
-  const [mounted, setMounted] = useState(false);
-  const {theme, setTheme} = useTheme();
+const subscribeToNothing = () => () => {};
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+export function ThemeSelector() {
+  // The theme is known only in the browser: render the plain button on the server and while
+  // hydrating, then the real menu.
+  const mounted = useSyncExternalStore(subscribeToNothing, () => true, () => false);
+  const {theme, setTheme} = useTheme();
 
   const handleThemeChange = (newColorTheme: string, forcedMode?: 'light' | 'dark') => {
     const currentMode = isDarkTheme() ? 'dark' : 'light';

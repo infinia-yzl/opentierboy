@@ -110,8 +110,45 @@ export class TierListPage {
     return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
   }
 
+  /**
+   * The colour at the centre of an item's image as red, green and blue (0 to 255), or null
+   * while the image has not loaded. Scrolls the item into view first (images load lazily).
+   */
+  async itemImageCenterColor(name: string): Promise<[number, number, number] | null> {
+    const image = this.item(name).getByRole('img');
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => {
+      if (!img.complete || img.naturalWidth === 0) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const context = canvas.getContext('2d')!;
+      context.drawImage(img, 0, 0);
+      const [red, green, blue] = context.getImageData(Math.floor(img.naturalWidth / 2), Math.floor(img.naturalHeight / 2), 1, 1).data;
+      return [red, green, blue] as [number, number, number];
+    });
+  }
+
   rowHandle(tierName: string): Locator {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
+  }
+
+  /**
+   * Makes the server's answers to page navigations (the React Server Components requests that
+   * every new address of the editor makes) arrive `delayMs` later, like a slow connection.
+   */
+  async simulateSlowServer(delayMs: number) {
+    await this.page.route('**/*', async (route) => {
+      if (route.request().headers()['rsc'] === '1') {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      await route.fallback();
+    });
+  }
+
+  /** The number of entries in the tab's history (window.history.length). */
+  async historyLength(): Promise<number> {
+    return this.page.evaluate(() => window.history.length);
   }
 
   /** The link a visitor would share. The app keeps it in the address bar. */
@@ -221,9 +258,12 @@ export class TierListPage {
   /**
    * Moves an item with the keyboard, as a keyboard or screen-reader user would:
    * focus the item, Space to lift, arrow keys to move, Space to drop.
+   * With `waitForLink: false` it returns once the drop is announced, before the link is in
+   * the address bar (for quick changes one after another).
    */
-  async moveItemWithKeyboard(itemName: string, keys: string[]) {
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys));
+  async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
+    const move = () => this.moveWithKeyboard(this.item(itemName), keys);
+    await (waitForLink ? this.changeAndWaitForLink(move) : move());
   }
 
   /** Moves a whole row with the keyboard, using its row handle. */
@@ -259,13 +299,16 @@ export class TierListPage {
   /**
    * Renames a tier and confirms with Enter. A row with an empty label is named after its
    * position, for example "Tier 2", so pass that as `nameAfter` when clearing a label.
+   * With `waitForLink: false` it returns as soon as the new name shows, before the link is in
+   * the address bar (for quick changes one after another).
    */
-  async renameTier(currentName: string, newName: string, nameAfter = newName) {
-    await this.changeAndWaitForLink(async () => {
+  async renameTier(currentName: string, newName: string, nameAfter = newName, {waitForLink = true} = {}) {
+    const rename = async () => {
       const input = await this.typeTierName(currentName, newName);
       await input.press('Enter');
       await expect(this.tier(nameAfter)).toBeVisible();
-    });
+    };
+    await (waitForLink ? this.changeAndWaitForLink(rename) : rename());
   }
 
   /** Opens the editor of a tier label and types a new name, without confirming it. */
@@ -279,12 +322,18 @@ export class TierListPage {
 
   async setTitle(newTitle: string) {
     await this.changeAndWaitForLink(async () => {
-      await this.title.click();
-      const input = this.main.getByPlaceholder('Enter title');
-      await input.fill(newTitle);
+      const input = await this.typeTitle(newTitle);
       await input.press('Enter');
       await expect(this.title).toHaveText(newTitle);
     });
+  }
+
+  /** Opens the title editor and types a new title, without confirming it. */
+  async typeTitle(newTitle: string): Promise<Locator> {
+    await this.title.click();
+    const input = this.main.getByPlaceholder('Enter title');
+    await input.fill(newTitle);
+    return input;
   }
 
   // ---- Row and label settings ------------------------------------------------------------
@@ -355,6 +404,15 @@ export class TierListPage {
       await this.openItemsMenu();
       await this.page.getByRole('menuitem', {name: 'Reset'}).click();
     });
+  }
+
+  /** Opens Remove All and cancels the confirmation. */
+  async cancelRemoveAllItems() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'Remove All'}).click();
+    const confirm = this.page.getByRole('alertdialog');
+    await confirm.getByRole('button', {name: 'Cancel'}).click();
+    await expect(confirm).toBeHidden();
   }
 
   async removeAllItems() {

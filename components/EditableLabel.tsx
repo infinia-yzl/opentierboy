@@ -11,6 +11,10 @@ interface EditableLabelProps {
   placeholder?: string;
 }
 
+/**
+ * A label that turns into a text box on click. Enter or clicking away saves the new text;
+ * Escape restores the old text and saves nothing.
+ */
 const EditableLabel: React.FC<EditableLabelProps> = ({
   text,
   onSave,
@@ -19,8 +23,12 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
   contentClassName = 'text-xl font-semibold',
   placeholder = ''
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(text);
+  // The text being typed; null while not editing, when the box shows `text`.
+  const [draft, setDraft] = useState<string | null>(null);
+  const isEditing = draft !== null;
+  // Set once the edit ends. The box can still report a blur while it disappears; that blur
+  // comes from the render before the edit ended, so a ref is the only safe way to ignore it.
+  const editEnded = useRef(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -29,28 +37,31 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
     }
   }, [isEditing]);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setInputValue(text);
-    }
-  }, [text, isEditing]);
-
-  const handleClick = () => {
-    setIsEditing(true);
+  const startEditing = (value: string) => {
+    editEnded.current = false;
+    setDraft(value);
   };
 
-  const handleBlur = () => {
-    setIsEditing(false);
-    onSave(inputValue);
+  const endEditing = (save: boolean) => {
+    if (editEnded.current || draft === null) return;
+    editEnded.current = true;
+    setDraft(null);
+    if (save) onSave(draft);
+  };
+
+  const handleClick = () => {
+    if (!isEditing) startEditing(text);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    startEditing(e.target.value);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleBlur();
+      endEditing(true);
+    } else if (e.key === 'Escape') {
+      endEditing(false);
     }
   };
 
@@ -60,9 +71,9 @@ const EditableLabel: React.FC<EditableLabelProps> = ({
         <Input
           ref={inputRef}
           type="text"
-          value={inputValue}
+          value={draft ?? text}
           onChange={handleChange}
-          onBlur={handleBlur}
+          onBlur={() => endEditing(true)}
           onKeyDown={handleKeyDown}
           className={cn(contentClassName, 'py-6 min-w-24 text-center')}
           placeholder={placeholder}

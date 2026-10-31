@@ -13,9 +13,28 @@ import {afterEach, beforeAll, beforeEach, describe, expect, it} from 'vitest';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 let webp: Buffer;
+let placeholder: Buffer;
+
+const image = (width: number, height: number, format: 'webp' | 'png' = 'webp') =>
+  sharp({create: {width, height, channels: 4, background: {r: 200, g: 40, b: 40, alpha: 1}}})[format]().toBuffer();
 
 beforeAll(async () => {
-  webp = await sharp({create: {width: 4, height: 4, channels: 4, background: {r: 200, g: 40, b: 40, alpha: 1}}}).webp().toBuffer();
+  webp = await image(4, 4);
+  placeholder = await image(456, 456, 'png');
+});
+
+describe('previewCopySize: the size of the PNG copies for link previews', () => {
+  it('makes the shorter side 128 px, keeps the aspect ratio and never enlarges', async () => {
+    const {PREVIEW_COPY_SIZE, previewCopySize} = await import('@/scripts/lib/image-sets.mjs');
+    expect(PREVIEW_COPY_SIZE).toBe(128);
+    expect(previewCopySize(2048, 2048)).toEqual({width: 128, height: 128});
+    expect(previewCopySize(600, 300)).toEqual({width: 256, height: 128});
+    expect(previewCopySize(300, 900)).toEqual({width: 128, height: 384});
+    expect(previewCopySize(140, 144)).toEqual({width: 128, height: 132});
+    expect(previewCopySize(128, 128)).toEqual({width: 128, height: 128});
+    expect(previewCopySize(100, 300)).toEqual({width: 100, height: 300});
+    expect(previewCopySize(4, 4)).toEqual({width: 4, height: 4});
+  });
 });
 
 describe('prebuild: scripts/prepareImages.js and check:images --files', () => {
@@ -67,6 +86,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     write('imageset.custom.json', {packages: {'image-one': {displayName: 'One'}, 'image-old': {legacy: true}, 'image-two': {displayName: 'Two', googleFont: 'Saira'}}});
     write('imageset.legacy.json', {'image-old': {displayName: 'Old', images: [{filename: 'x.webp', label: 'X', tags: []}], tags: {}, legacy: true}});
     write('public/images/image-old/x.webp', webp);
+    write('public/placeholder-image.png', placeholder);
     write('imageset.config.json', '{"packages": {}}');
     write('image-aliases.json', {});
 
@@ -94,6 +114,35 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     const files = checkImages('--files');
     expect(files.output).toContain('Image files OK');
     expect(files.status).toBe(0);
+  });
+
+  it('makes the PNG copies at link preview size, for official and legacy sets, and the placeholder copy', async () => {
+    const {previewCopySize} = await import('@/scripts/lib/image-sets.mjs');
+    const sizes: [string, number, number][] = [['wide.webp', 600, 300], ['tall.webp', 300, 900], ['finals.webp', 140, 144], ['small.webp', 100, 300]];
+    for (const [file, width, height] of sizes) {
+      write(`node_modules/image-one/public/images/${file}`, await image(width, height));
+    }
+    write('public/images/image-old/x.webp', await image(2048, 2048));
+
+    const result = prepare();
+    expect(result.status).toBe(0);
+    for (const [file, width, height] of sizes) {
+      const copy = await sharp(path.join(root, `public/images/image-one/${file.replace('.webp', '.png')}`)).metadata();
+      expect({width: copy.width, height: copy.height}, file).toEqual(previewCopySize(width, height));
+      // The WebP image the app shows stays at full size.
+      expect(await sharp(path.join(root, `public/images/image-one/${file}`)).metadata(), file).toMatchObject({width, height});
+    }
+    expect(await sharp(path.join(root, 'public/images/image-old/x.png')).metadata()).toMatchObject({format: 'png', width: 128, height: 128});
+    expect(await sharp(path.join(root, 'public/images/image-old/x.webp')).metadata()).toMatchObject({width: 2048, height: 2048});
+    expect(await sharp(path.join(root, 'public/placeholder-image.preview.png')).metadata()).toMatchObject({format: 'png', width: 128, height: 128});
+  });
+
+  it('fails when the placeholder tile is missing', () => {
+    fs.rmSync(path.join(root, 'public/placeholder-image.png'));
+
+    const result = prepare();
+    expect(result.output).toContain('The placeholder tile for link previews: 1 file(s) missing in public: placeholder-image.preview.png');
+    expect(result.status).toBe(1);
   });
 
   it('fails when a package was moved away, and leaves the config as it was', () => {

@@ -1,5 +1,5 @@
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {rawState, stateFromJson, templateItemCount} from '../support/links';
+import {hugeTierNameState, rawState, stateFromJson, templateItemCount} from '../support/links';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -45,16 +45,23 @@ function escapeRegExp(text: string) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
- * suite stays green while the bug exists. When a fix lands, the test starts to pass,
- * Playwright reports "Expected to fail, but passed", and the marker must be removed.
- */
-test.describe('Known bugs', () => {
-  // Names that every JavaScript object has. A link may hold them as item ids.
+test.describe('Unknown items', () => {
+  test('an item the app does not know shows its label on the placeholder image', {tag: '@mobile'}, async ({tierList}) => {
+    // For example an image from a set that was removed, or an upload from another device.
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [{i: 'tier-s', n: 'S', t: [{i: 'unknown-item-x', c: 'Mystery'}]}, {i: 'uncategorized', n: '', t: []}],
+    }));
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mystery']);
+    await expect.poll(() => tierList.itemImageHasLoaded('Mystery'), {message: 'placeholder image'}).toBe(true);
+  });
+});
+
+// Names that every JavaScript object has. A link may hold them as item ids, and they must work
+// like any other unknown id: a placeholder tile with the stored label, which can be dragged.
+test.describe('Links with item ids named like built-in object members', () => {
   for (const id of ['constructor', 'toString', '__proto__']) {
     test(`an item with the id "${id}" shows its label like any unknown item`, async ({tierList, openAsVisitor}) => {
-      test.fail(true, 'TierCortex looks up item ids in a plain object, so these ids resolve to built-in members: the tile loses its label and its drag id (data-rfd-draggable-id), the next save drops the id, and /api/og aborts the response for the link (og-image.api.spec.ts).');
       await tierList.goto('/rank/overwatch/tank', rawState({
         title: 'Odd item ids',
         tiers: [
@@ -63,19 +70,24 @@ test.describe('Known bugs', () => {
         ],
       }));
 
-      // Short timeout: this assertion is expected to fail until the bug is fixed.
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Mystery', 'my cat'], {timeout: 3_000});
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Mystery', 'my cat']);
+      await expect.poll(() => tierList.itemImageHasLoaded('Mystery'), {message: 'placeholder image'}).toBe(true);
 
-      // The rest of the list works, and the next saved link keeps the item.
+      // The tile can be dragged like any other, and the next saved link keeps the item.
+      await tierList.dragItemToTier('Mystery', 'Unranked');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston', 'Mystery']);
       await tierList.renameTier('S', 'Top');
       const visitor = await openAsVisitor(await tierList.shareLink());
-      await expect(visitor.itemsIn('Top')).toHaveText(['Mauga', 'Mystery', 'my cat'], {timeout: 3_000});
-      await expect(visitor.itemsIn(visitor.unranked)).toHaveText(['Winston'], {timeout: 3_000});
+      await expect(visitor.itemsIn('Top')).toHaveText(['Mauga', 'my cat']);
+      await expect(visitor.itemsIn(visitor.unranked)).toHaveText(['Winston', 'Mystery']);
     });
   }
+});
 
-  // Links that decode but hold data the app never writes. The page should still work: fall
-  // back to the template, or show the list without the bad field.
+// Links that decode but hold data the app never writes, or far more data than any real list.
+// The page still works: it falls back to the template, like a damaged link, or leaves out the
+// part that would break the editor.
+test.describe('Links with bad data', () => {
   const unranked = {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-win.webp'}]};
   const badLinks = [
     {
@@ -90,13 +102,53 @@ test.describe('Known bugs', () => {
   ];
   for (const link of badLinks) {
     test(`a link with ${link.name} still opens a tier list`, async ({tierList}) => {
-      test.fail(true, 'The editor assumes every decoded field has the right type and that there is at least one tier, so the page crashes with "Application error" (a tier name that is an object also aborts /api/og).');
       await tierList.gotoAndSettle('/rank/overwatch/tank', stateFromJson(link.json));
 
-      // Short timeouts: these assertions are expected to fail until the bug is fixed.
-      await expect(tierList.crashMessage).toBeHidden({timeout: 3_000});
-      await expect(tierList.title).toBeVisible({timeout: 3_000});
-      await expect(tierList.tiers.first()).toBeVisible({timeout: 3_000});
+      await expect(tierList.crashMessage).toBeHidden();
+      await expect(tierList.title).toBeVisible();
+      await expect(tierList.tiers.first()).toBeVisible();
     });
   }
+
+  test('an item that appears twice in a link shows once, at its first place', async ({tierList}) => {
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [
+        {i: 'tier-s', n: 'S', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-win.webp'}]},
+        {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-sig.webp'}]},
+      ],
+    }));
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
+    // Each tile has its own drag id again, so dragging works.
+    await tierList.dragItemToTier('Mauga', 'Unranked');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma', 'Mauga']);
+  });
+
+  test('two rows with the same id each take their own drops', async ({tierList, openAsVisitor}) => {
+    await tierList.goto('/rank/overwatch/tank', rawState({
+      tiers: [
+        {i: 'tier-s', n: 'S', t: []},
+        {i: 'tier-s', n: 'A', t: []},
+        {i: 'uncategorized', n: '', t: [{i: 'image-overwatch-mau.webp'}, {i: 'image-overwatch-win.webp'}]},
+      ],
+    }));
+
+    await tierList.dragItemToTier('Mauga', 'S');
+    await tierList.dragItemToTier('Winston', 'A');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+    const visitor = await openAsVisitor(await tierList.shareLink());
+    await expect(visitor.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(visitor.itemsIn('A')).toHaveText(['Winston']);
+  });
+
+  test('a link with a huge tier name falls back to the template', async ({tierList}) => {
+    // A million characters of tier name in a link of about 2,600 characters.
+    await tierList.goto('/rank/overwatch/tank', hugeTierNameState());
+
+    await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
+  });
 });

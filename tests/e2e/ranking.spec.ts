@@ -84,6 +84,15 @@ test.describe('Ranking with the keyboard', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
   });
 
+  test('screen readers hear the tier and item labels, never internal ids', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
+
+    await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
+
+    await expect(tierList.dragAnnouncer)
+      .toHaveText('You have dropped the item Mauga. It has moved from position 1 in Unranked to position 1 in tier F.');
+  });
+
   test('move a row down by its handle, and the labels stay in order', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 

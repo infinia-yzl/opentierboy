@@ -1,32 +1,41 @@
-import React, {useCallback, useEffect, useRef, memo} from 'react';
-import {DragDropContext, Droppable, Draggable, DropResult} from '@hello-pangea/dnd';
+import React, {useCallback, memo} from 'react';
+import {
+  DragDropContext,
+  DraggableLocation,
+  DragStart,
+  DragUpdate,
+  Droppable,
+  Draggable,
+  DropResult,
+  ResponderProvided,
+} from '@hello-pangea/dnd';
 import {toast} from "sonner";
-import {v4 as uuidv4} from 'uuid';
 import {useTierContext} from "@/contexts/TierContext";
-import Item from "@/models/Item";
-import Tier from "@/models/Tier";
+import Tier, {LabelPosition} from "@/models/Tier";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
+import {findItemToDelete} from "@/lib/tierListReducer";
+import {DragSubject, dragEndMessage, dragStartMessage, dragUpdateMessage} from "@/lib/dragAnnouncements";
 
-interface DragDropTierListProps {
-  tiers: Tier[];
-  onTiersUpdate: (updatedTiers: Tier[]) => void;
+// Drag and drop ids for @hello-pangea/dnd. The library keeps its registries in plain objects,
+// so an item id such as "__proto__" would never register as a draggable, and an item id equal
+// to a tier id would clash. A prefix per kind keeps every id unique and harmless.
+const itemDragId = (itemId: string) => `item:${itemId}`;
+const rowDragId = (tierId: string) => `row:${tierId}`;
+const ROW_DROP_PREFIX = 'items:';
+const rowDropId = (tierId: string) => `${ROW_DROP_PREFIX}${tierId}`;
+const tierIdOfRowDrop = (dropId: string) => dropId.slice(ROW_DROP_PREFIX.length);
+
+const spotOf = (location: DraggableLocation) => ({tierId: tierIdOfRowDrop(location.droppableId), index: location.index});
+
+/** A drag of the library, for the announcements (lib/dragAnnouncements.ts). */
+function dragSubject(drag: DragStart | DragUpdate): DragSubject {
+  const destination = 'destination' in drag ? drag.destination : undefined;
+  if (drag.type === 'TIER') return {kind: 'row', from: drag.source.index, to: destination?.index ?? null};
+  return {kind: 'item', from: spotOf(drag.source), to: destination ? spotOf(destination) : null};
 }
-
-interface DeletedItemInfo {
-  item: Item;
-  tierId: string;
-  id: string;
-}
-
-const reorder = <T, >(list: T[], startIndex: number, endIndex: number): T[] => {
-  const result = Array.from(list);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
-  return result;
-};
 
 const TierItems = memo<{
   tier: Tier;
@@ -34,7 +43,7 @@ const TierItems = memo<{
   onDeleteItem: (itemId: string) => void;
 }>(({tier, showLabels, onDeleteItem}) => {
   return (
-    <Droppable droppableId={tier.id} direction="horizontal">
+    <Droppable droppableId={rowDropId(tier.id)} direction="horizontal">
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -42,7 +51,7 @@ const TierItems = memo<{
           className={`w-full min-h-17 md:min-h-21 flex flex-wrap p-0 rounded-md ${snapshot.isDraggingOver ? 'ring-1 ring-accent-foreground' : ''}`}
         >
           {tier.items.map((item, itemIndex) => (
-            <Draggable key={item.id} draggableId={item.id} index={itemIndex}>
+            <Draggable key={item.id} draggableId={itemDragId(item.id)} index={itemIndex}>
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
@@ -77,11 +86,11 @@ const TierRow = memo<{
   tier: Tier;
   index: number;
   tiersLength: number;
+  labelPosition: LabelPosition;
   showLabels: boolean;
   onSaveLabel: (index: number, newText: string) => void;
   onDeleteItem: (itemId: string) => void;
-}>(({tier, index, tiersLength, showLabels, onSaveLabel, onDeleteItem}) => {
-  const labelPosition = tier.labelPosition || 'left';
+}>(({tier, index, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
   const tierGradient = getTierGradient(index, tiersLength);
   // Accessible name for the row. The unnamed last row holds unranked items; any other
   // row whose label was cleared is named after its position.
@@ -89,7 +98,7 @@ const TierRow = memo<{
   const tierLabel = tier.name.trim() || (isLastRow ? 'Unranked' : `Tier ${index + 1}`);
 
   return (
-    <Draggable draggableId={tier.id} index={index}>
+    <Draggable draggableId={rowDragId(tier.id)} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -144,102 +153,58 @@ const TierRow = memo<{
 });
 TierRow.displayName = 'TierRow';
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({tiers, onTiersUpdate}) => {
-  const {showLabels} = useTierContext();
-  const tiersRef = useRef(tiers);
-  const deletedItemsRef = useRef<DeletedItemInfo[]>([]);
+const DragDropTierList: React.FC = () => {
+  const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
 
-  useEffect(() => {
-    tiersRef.current = tiers;
+  // Announcements name rows and items by their labels, never by internal ids.
+  const onDragStart = useCallback((start: DragStart, provided: ResponderProvided) => {
+    provided.announce(dragStartMessage(tiers, dragSubject(start)));
   }, [tiers]);
 
-  const onDragEnd = useCallback((result: DropResult) => {
-    const {source, destination, type} = result;
+  const onDragUpdate = useCallback((update: DragUpdate, provided: ResponderProvided) => {
+    provided.announce(dragUpdateMessage(tiers, dragSubject(update)));
+  }, [tiers]);
 
+  const onDragEnd = useCallback((result: DropResult, provided: ResponderProvided) => {
+    provided.announce(dragEndMessage(tiers, dragSubject(result), result.reason === 'CANCEL'));
+    const {source, destination, type} = result;
     if (!destination) return;
 
-    let newTiers: Tier[];
-
     if (type === 'TIER') {
-      newTiers = reorder(tiers, source.index, destination.index);
-      newTiers = newTiers.map((tier, index) => ({
-        ...tier,
-        name: tiers[index].name
-      }));
+      moveTier(source.index, destination.index);
     } else {
-      newTiers = [...tiers];
-      const sourceTier = newTiers.find(t => t.id === source.droppableId)!;
-      const destTier = newTiers.find(t => t.id === destination.droppableId)!;
-
-      if (sourceTier.id === destTier.id) {
-        sourceTier.items = reorder(sourceTier.items, source.index, destination.index);
-      } else {
-        const [movedItem] = sourceTier.items.splice(source.index, 1);
-        destTier.items.splice(destination.index, 0, movedItem);
-      }
+      moveItem(
+        {tierId: tierIdOfRowDrop(source.droppableId), index: source.index},
+        {tierId: tierIdOfRowDrop(destination.droppableId), index: destination.index},
+      );
     }
-
-    onTiersUpdate(newTiers);
-  }, [tiers, onTiersUpdate]);
-
-  const handleUndoDelete = useCallback((uniqueId: string) => {
-    const deletedItemIndex = deletedItemsRef.current.findIndex((item) => item.id === uniqueId);
-    if (deletedItemIndex === -1) return;
-
-    const [deletedItem] = deletedItemsRef.current.splice(deletedItemIndex, 1);
-
-    const newTiers = tiersRef.current.map((tier) => {
-      if (tier.id === deletedItem.tierId) {
-        return {...tier, items: [...tier.items, deletedItem.item]};
-      }
-      return tier;
-    });
-
-    onTiersUpdate(newTiers);
-
-    toast('Item restored', {
-      description: `${deletedItem.item.content} has been restored.`,
-    });
-  }, [onTiersUpdate]);
+  }, [tiers, moveItem, moveTier]);
 
   const handleDeleteItem = useCallback((itemId: string) => {
-    let deletedItemInfo: DeletedItemInfo | undefined;
+    const deleted = findItemToDelete(tiers, itemId);
+    if (!deleted) return;
+    deleteItem(itemId);
 
-    const newTiers = tiers.map(tier => {
-      const itemIndex = tier.items.findIndex(item => item.id === itemId);
-      if (itemIndex !== -1) {
-        const [deletedItem] = tier.items.splice(itemIndex, 1);
-        deletedItemInfo = {
-          item: deletedItem,
-          tierId: tier.id,
-          id: uuidv4()
-        };
-        return {...tier, items: [...tier.items]};
-      }
-      return tier;
-    });
-
-    if (deletedItemInfo) {
-      deletedItemsRef.current.push(deletedItemInfo);
-      onTiersUpdate(newTiers);
-
-      toast('Item deleted', {
-        description: `${deletedItemInfo.item.content} was removed.`,
-        action: {
-          label: 'Undo',
-          onClick: () => handleUndoDelete(deletedItemInfo!.id),
+    let restored = false;
+    toast('Item deleted', {
+      description: `${deleted.item.content} was removed.`,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          if (restored) return;
+          restored = true;
+          // Undo is a new change to the list, so it adds a history entry (A6).
+          restoreItem(deleted.item, deleted.tierId);
+          toast('Item restored', {
+            description: `${deleted.item.content} has been restored.`,
+          });
         },
-      });
-    }
-  }, [tiers, onTiersUpdate, handleUndoDelete]);
-
-  const handleSaveLabel = useCallback((index: number, newText: string) => {
-    const newTiers = tiers.map((tier, i) => (i === index ? {...tier, name: newText} : tier));
-    onTiersUpdate(newTiers);
-  }, [tiers, onTiersUpdate]);
+      },
+    });
+  }, [tiers, deleteItem, restoreItem]);
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
       <Droppable droppableId="all-tiers" direction="vertical" type="TIER">
         {(provided, snapshot) => (
           <div
@@ -253,8 +218,9 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({tiers, onTiersUpdate
                 tier={tier}
                 index={index}
                 tiersLength={tiers.length}
+                labelPosition={labelPosition}
                 showLabels={showLabels}
-                onSaveLabel={handleSaveLabel}
+                onSaveLabel={renameTier}
                 onDeleteItem={handleDeleteItem}
               />
             ))}

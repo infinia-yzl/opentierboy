@@ -67,6 +67,69 @@ test.describe('Managing items', () => {
     await expect(tierList.itemsIn('S')).toHaveCount(0);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
   });
+
+  test('undo after Reset restores the ranking', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+    await tierList.resetRankings();
+
+    await tierList.undoFromToast('Items Reset');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+  });
+
+  test('undo after adding a set keeps the items that were in the list before', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
+
+    await tierList.undoFromToast('Items Added');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+  });
+
+  test('undo of a delete after Back does not show the item twice', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+    const opened = page.url();
+    await tierList.deleteItem('Mauga');
+    await expect(page).not.toHaveURL(opened);
+
+    await page.goBack();
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    await tierList.undoFromToast('Item deleted');
+
+    await expect(tierList.toast('Item restored')).toBeVisible();
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+  });
+
+  test('undo after Remove All brings the items back', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+    await tierList.removeAllItems();
+
+    await tierList.undoFromToast('All Items Deleted');
+
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+  });
+
+  test('the page responds to clicks again after Remove All', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+
+    await tierList.removeAllItems();
+
+    // A trial click runs every check of a real click, including that nothing covers the button.
+    await tierList.shareButton.click({trial: true, timeout: 3_000});
+  });
+
+  test('closing the Remove All confirmation gives focus back to the Manage items button', async ({tierList}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+
+    await tierList.removeAllItems();
+    await expect(tierList.manageItemsButton).toBeFocused();
+
+    await tierList.cancelRemoveAllItems();
+    await expect(tierList.manageItemsButton).toBeFocused();
+  });
 });
 
 /**
@@ -89,47 +152,15 @@ test.describe('Known bugs', () => {
 
     const image = reopened.item('red-square').getByRole('img');
     await expect(image).toBeVisible();
-    await expect.poll(() => imageHasLoaded(image), {timeout: 3_000}).toBe(true);
+    // The tile must show the uploaded red square. Checking only that an image loaded is not
+    // enough: an item the app cannot find shows the placeholder image, which loads too.
+    await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square')), {timeout: 3_000}).toBe(true);
   });
 
-  test('undo after Reset restores the ranking', async ({tierList}) => {
-    test.fail(true, 'TierListManager.handleTiersUpdate overwrites the saved ranking that Undo needs.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-    await tierList.resetRankings();
-
-    await tierList.undoFromToast('Items Reset');
-
-    // Short timeouts: these assertions are expected to fail until the bug is fixed.
-    await expect(tierList.itemsIn('S')).toHaveText(['Mauga'], {timeout: 3_000});
-    await expect(tierList.itemsIn('A')).toHaveText(['Winston'], {timeout: 3_000});
-  });
-
-  test('undo after Remove All brings the items back', async ({tierList, page}) => {
-    test.fail(true, 'TierListManager.handleTiersUpdate overwrites the saved ranking that Undo needs.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.removeAllItems();
-    // Work around the frozen page (next test), so that this test checks Undo alone:
-    // Escape closes the menu that blocks the page.
-    await expect(page.getByRole('alertdialog')).toBeHidden();
-    await page.keyboard.press('Escape');
-
-    // The toast closes by itself after a few seconds, so a slow click must fail here and
-    // not run into the test timeout, which would not count as the expected failure.
-    await tierList.undoFromToast('All Items Deleted', {timeout: 3_000});
-
-    await expect(tierList.itemsIn('S')).toHaveText(['Mauga'], {timeout: 3_000});
-  });
-
-  test('the page responds to clicks again after Remove All', async ({tierList}) => {
-    test.fail(true, 'The confirm dialog sits inside the open menu, and the menu stays open and blocks the page.');
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-
-    await tierList.removeAllItems();
-
-    // A trial click runs every check of a real click, including that nothing covers the button.
-    await tierList.shareButton.click({trial: true, timeout: 3_000});
-  });
 });
+function isRed(color: [number, number, number] | null) {
+  return color !== null && color[0] > 200 && color[1] < 60 && color[2] < 60;
+}
 
 /** True when the browser decoded the image, so a broken image counts as not loaded. */
 async function imageHasLoaded(image: import('@playwright/test').Locator) {
