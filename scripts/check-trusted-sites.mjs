@@ -41,6 +41,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {getDomain} from 'tldts';
+import {readFileIfExists} from './lib/files.mjs';
 
 const args = process.argv.slice(2);
 const optionValue = (name) => {
@@ -117,8 +118,8 @@ const gitError = (result) =>
  */
 function loadPinnedList(pin) {
   const cached = path.join(cacheDir, `${pin.commit}-${path.basename(pin.path)}`);
-  if (fs.existsSync(cached)) {
-    const bytes = fs.readFileSync(cached);
+  const bytes = readFileIfExists(cached);
+  if (bytes !== undefined) {
     if (sha256(bytes) === pin.sha256) return {text: bytes.toString('utf8'), source: 'cached copy'};
     fs.rmSync(cached, {force: true}); // damaged or stale: download again
   }
