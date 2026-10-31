@@ -1136,6 +1136,46 @@ export class TierListPage {
     }, events.map(({event, file}) => ({event, name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
   }
 
+  // ---- Image addresses: dropped or pasted text (#107) ------------------------------------------
+
+  /**
+   * What a drag from another page carries, as text: `uriList` (a dragged link), `html` (an image
+   * dragged from a page holds an `<img>`), `plain` (text). The test builds the drag events, as
+   * for dropped files.
+   */
+  private async textTransfer(data: {uriList?: string; html?: string; plain?: string}) {
+    return this.page.evaluateHandle(({uriList, html, plain}) => {
+      const transfer = new DataTransfer();
+      if (html !== undefined) transfer.setData('text/html', html);
+      if (uriList !== undefined) transfer.setData('text/uri-list', uriList);
+      if (plain !== undefined) transfer.setData('text/plain', plain);
+      return transfer;
+    }, data);
+  }
+
+  /** Drops links or text from another page onto the editor's first row. */
+  async dropText(data: {uriList?: string; html?: string; plain?: string}) {
+    await this.waitUntilInteractive();
+    const transfer = await this.textTransfer(data);
+    const element = this.tiers.first();
+    await element.dispatchEvent('dragenter', {dataTransfer: transfer});
+    await element.dispatchEvent('dragover', {dataTransfer: transfer});
+    await element.dispatchEvent('drop', {dataTransfer: transfer});
+  }
+
+  /**
+   * Pastes text into the editor, as pasting a copied image address does. The test builds the
+   * paste event; Firefox drops the data of such an event (SCRIPTED_PASTE_SKIP).
+   */
+  async pasteText(text: string) {
+    await this.waitUntilInteractive();
+    await this.main.evaluate((element, pasted) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', pasted);
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, text);
+  }
+
   // ---- Files: snapshot files and pictures ---------------------------------------------------
 
   /**

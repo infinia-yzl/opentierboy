@@ -6,7 +6,7 @@ import {TierListProvider, useTierContext} from '@/contexts/TierContext';
 import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
-import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import {useEditorDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ListTitle} from "@/components/ListTitle";
@@ -36,9 +36,10 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
-  usePasteImages(openFiles);
-  useFileDrop(openFiles);
+  // Image addresses that someone drops or pastes: link images (#107).
+  const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
+  usePasteImages(openFiles, openLinks);
+  useEditorDrop(openFiles, openLinks);
 
   return (
     <div className="w-full flex flex-col items-center">
