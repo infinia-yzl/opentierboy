@@ -13,6 +13,32 @@ import {
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import {Metadata} from "next";
+import rankGif from "@/public/about/rank.gif";
+import imagesGif from "@/public/about/images.gif";
+import freezeFrameGif from "@/public/about/freeze-frame.gif";
+import {ShowTipsAgain} from "@/components/ShowTipsAgain";
+
+/** "How it works": the README's GIFs, one line each. */
+const HOW_IT_WORKS = [
+  {
+    title: 'Rank by dragging',
+    line: 'Drag images into the rows. The list lives in the page\'s address: share the link, and Back undoes a change.',
+    gif: rankGif,
+    alt: 'Naming a list and dragging OVERWATCH tanks into the S, A, B and C rows',
+  },
+  {
+    title: 'Your own images',
+    line: 'Upload, paste or drop pictures. They stay in this browser.',
+    gif: imagesGif,
+    alt: 'Uploading eight framework logos and ranking them',
+  },
+  {
+    title: 'Freeze Frame',
+    line: 'Capture the list as a picture and download it. The file opens again as a list.',
+    gif: freezeFrameGif,
+    alt: 'Share, Image, Capture Preview, then Download',
+  },
+] as const;
 
 const AboutPage = () => {
   return (
@@ -36,6 +62,31 @@ const AboutPage = () => {
           </div>
           Craft, rank and share your passion - the open-source way!
         </h1>
+      </section>
+
+      {/* How it works: three GIFs from the README, then the tips again (onboarding, 2026-10-31). */}
+      <section aria-labelledby="how-it-works" className="pb-20">
+        <h2 id="how-it-works" className="text-4xl md:text-5xl font-bold mb-12 text-center">How it works</h2>
+        <div className="grid gap-8 md:grid-cols-3">
+          {HOW_IT_WORKS.map(({title, line, gif, alt}) => (
+            <figure key={title} className="flex flex-col gap-3">
+              <Image src={gif} alt={alt} unoptimized className="w-full h-auto rounded-lg border"/>
+              <figcaption>
+                <h3 className="text-xl font-semibold">{title}</h3>
+                <p className="text-muted-foreground">{line}</p>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="mt-10 flex flex-col items-center gap-3 text-center">
+          <ShowTipsAgain/>
+          <p className="text-sm text-muted-foreground">
+            Something confusing? Tell us on{' '}
+            <a href="https://github.com/infinia-yzl/opentierboy/issues" className="underline underline-offset-2 hover:text-foreground">GitHub</a>
+            {' '}or{' '}
+            <a href="https://discord.gg/CEtDSHV38b" className="underline underline-offset-2 hover:text-foreground">Discord</a>.
+          </p>
+        </div>
       </section>
 
       {/* Mission Section */}
