@@ -1,4 +1,4 @@
-import React, {useState, useRef, useCallback} from 'react';
+import React, {useState, useRef, useCallback, useEffect} from 'react';
 import {createPortal, flushSync} from 'react-dom';
 import html2canvas from 'html2canvas';
 import html2canvasPro from 'html2canvas-pro';
@@ -23,6 +23,8 @@ import {listCardFont} from "@/components/listCardFont";
 import {useListCardData} from "@/components/useListCardData";
 import type {ListCardData} from "@/lib/listCard/model";
 import {markdownText} from "@/lib/markdownText";
+import {onOpenSharePanel, useTips} from "@/components/useTips";
+import {cn} from "@/lib/utils";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -105,6 +107,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
+  // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
+  // Share button opens this panel (components/EditorTips.tsx).
+  const [panelOpen, setPanelOpen] = useState(false);
+  useEffect(() => onOpenSharePanel(() => setPanelOpen(true)), []);
+  const tipRing = useTips().current === 'link-save';
   const listCard = useListCardData();
   // The list card that Freeze Frame draws: rendered hidden while a capture runs.
   const [card, setCard] = useState<ListCardData | null>(null);
@@ -248,9 +255,9 @@ What do you think? 🤔
       </div>,
       document.body,
     )}
-    <Popover>
+    <Popover open={panelOpen} onOpenChange={setPanelOpen}>
       <PopoverTrigger asChild>
-        <Button className="gap-2" disabled={isCapturing}>
+        <Button className={cn('gap-2', tipRing && 'ring-2 ring-ring ring-offset-2 ring-offset-background')} disabled={isCapturing}>
           <Share1Icon className="h-4 w-4"/>
           Share
         </Button>
