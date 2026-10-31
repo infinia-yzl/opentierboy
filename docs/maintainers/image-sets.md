@@ -68,20 +68,9 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
 ## 3. Adding DEADLOCK
 
 `image-deadlock` is not on npm yet. Once its first version is published (section 2, step 2),
-one pull request adds it:
-
-1. Add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
-   `imageset.custom.json` (this puts it on the official list; the display name becomes its
-   URL slug, so choose it once).
-2. `npm install image-deadlock@<version> --save-exact`.
-3. `npm run prepare-images` and `npm run check:images -- --update`, then commit
-   `imageset.config.json` and `image-registry.lock.json`.
-4. If it should have a landing page card, add it to `FEATURED_SETS` in `app/page.tsx`
-   (ask the owner; tests in `tests/e2e/legacy-sets.spec.ts` list the cards).
-
-The image-deadlock repository's `release.yml` already sends the dispatch, so later versions
-arrive through `image-set-update.yml`. The workflow refuses packages that are not on the
-official list, so the first version cannot come through it.
+one pull request adds it. `CLAUDE.md` ("Image sets", "Adding DEADLOCK") lists the steps.
+The workflow refuses packages that are not on the official list, so the first version cannot
+come through it.
 
 ## 4. A manual update run
 

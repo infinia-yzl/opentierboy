@@ -218,9 +218,16 @@ docs/                 the docs, listed in docs/README.md: maintainers/ (owner se
   Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
   `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
-  (a manual owner step), one pull request adds it: the steps are in
-  `docs/maintainers/image-sets.md` ("Adding DEADLOCK"). Its display name becomes its URL slug,
-  so choose it once. Ask the owner before you give it a landing page card. The image-deadlock repository's `release.yml` already sends the dispatch, so later versions
+  (a manual owner step, `docs/maintainers/image-sets.md`), one pull request adds it:
+  1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
+     `imageset.custom.json` (this puts it on the official list; the display name becomes its
+     URL slug, so choose it once);
+  2. `npm install image-deadlock@<version> --save-exact`;
+  3. `npm run prepare-images` and `npm run check:images -- --update`, then commit
+     `imageset.config.json` and `image-registry.lock.json`;
+  4. if it should have a landing page card, add it to `FEATURED_SETS` in `app/page.tsx`
+     (ask the owner; tests in `tests/e2e/legacy-sets.spec.ts` list the cards).
+  The image-deadlock repository's `release.yml` already sends the dispatch, so later versions
   arrive through `image-set-update.yml`. The workflow refuses packages that are not on the
   official list, so the first version cannot come through it.
 - **Making a set legacy**: copy its entry from `imageset.config.json` into

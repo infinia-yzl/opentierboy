@@ -42,8 +42,8 @@ GitHub: repository **Settings → Rules → Rulesets → New ruleset → New bra
 
    A check name appears in the search list only after it has run once. Open any pull
    request first if the list is empty.
-6. Do not add `e2e (firefox)` or `e2e (webkit)` yet. They run on every pull request, but
-   nobody has seen them pass in CI yet. Add them once they pass reliably.
+6. `e2e (firefox)` and `e2e (webkit)` run on every pull request too, and they pass in CI
+   (first on #216). Add them as required checks when you want them to block a merge.
 7. Click **Create**.
 
 ## 2. GitHub Actions settings
@@ -83,6 +83,7 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
    for public repositories.
 7. OpenSSF Scorecard (`scorecard.yml`) and OSV-Scanner (`osv-scanner.yml`) need no setting.
    Their results appear under **Security → Code scanning** after the first run on `main`.
+   Scorecard also publishes its score on the public OpenSSF site (`publish_results: true`).
    The weekly OSV-Scanner run only reports. The pull request scan fails when a pull
    request adds a new known vulnerability.
 8. Dependabot version updates (`.github/dependabot.yml`) run weekly. The `image-sets`
