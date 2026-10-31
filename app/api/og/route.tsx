@@ -3,6 +3,7 @@ import {createTierCortex} from '@/lib/TierCortex';
 import {getOgTierGradient} from '@/lib/linkPreview';
 import {inlineLocalImages} from './local-images';
 import {inlineTrustedLinkImages} from './link-images';
+import {listPreviewCard} from './list-preview';
 import {MAX_LABEL_LENGTH, MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 import {itemDisplayLabel} from '@/lib/images/listImages';
 import {LIST_CARD, listCardData, type ListCardTile} from '@/lib/listCard/model';
@@ -145,57 +146,13 @@ export async function GET(request: Request) {
     return defaultImageResponse();
   }
 
-  const {title, tiers} = decodedState;
-  const ranked: Tier[] = tiers.slice(0, -1); // Without the Unranked row
-  const logoUrl = tierCortex.getAssetUrl(LOGO);
-
-  // Fit first, so only the tiles that show load their images.
-  const tileFor = (item: Item): ListCardTile => {
-    const safeItem = tierCortex.getOgSafeItem(item);
-    return {key: safeItem.id, label: shorten(itemDisplayLabel(item), MAX_LABEL_LENGTH), src: safeItem.imageUrl};
-  };
-  const draft = listCardData({
-    title: title ? shorten(title, MAX_TITLE_LENGTH) : 'OpenTierBoy',
-    setName: tierCortex.listSetName(ranked),
-    rows: ranked,
-    height: LIST_CARD.previewHeight,
+  const {card, logoSrc} = await listPreviewCard(decodedState, tierCortex, {
+    logoUrl: tierCortex.getAssetUrl(LOGO),
     maxTiles: MAX_TILES,
-    background: getOgTierGradient,
-    rowName: (row) => shorten(row.name, MAX_LABEL_LENGTH),
-    tile: tileFor,
-  });
-  const drawnItems = ranked.flatMap((row, index) => row.items.slice(0, draft.rows[index]?.tiles.length ?? 0));
-
-  // Only image URLs that TierCortex builds for the app's own assets. Link images and device
-  // images have none (getOgSafeItem): link image addresses never reach this (A8, A36).
-  const itemImageUrls = drawnItems
-    .map((item) => tierCortex.getOgSafeItem(item).imageUrl)
-    .filter((url): url is string => url !== undefined);
-  // Link images on trusted sites, loaded with caps (link-images.ts). Any other link image, and
-  // every device image, is a label tile.
-  const linkImageUrls = drawnItems
-    .filter((item) => item.source === 'link' && item.url !== undefined)
-    .map((item) => item.url as string);
-  const [imageSrc, linkImageSrc] = await Promise.all([
-    inlineLocalImages([logoUrl, ...itemImageUrls]),
-    inlineTrustedLinkImages(linkImageUrls),
-  ]);
-
-  const card = {
-    ...draft,
-    rows: draft.rows.map((row, rowIndex) => ({
-      ...row,
-      tiles: row.tiles.map((tile, tileIndex) => {
-        const item = ranked[rowIndex].items[tileIndex];
-        const linkSrc = item.source === 'link' ? linkImageSrc(item.url) : undefined;
-        const src = linkSrc ?? (tile.src ? imageSrc(tile.src) : undefined);
-        return {...tile, src};
-      }),
-    })),
-  };
+  }, {inlineLocal: inlineLocalImages, inlineTrustedLinks: inlineTrustedLinkImages});
 
   return new ImageResponse(
-    <ListCard card={card} logoSrc={imageSrc(logoUrl)} fontFamily={FONT_FAMILY}/>,
+    <ListCard card={card} logoSrc={logoSrc} fontFamily={FONT_FAMILY}/>,
     await imageOptions(),
   );
 }
