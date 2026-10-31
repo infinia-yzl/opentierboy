@@ -27,6 +27,21 @@ and its review rules list what reviews flag. Commit messages follow
 [Conventional Commits](https://www.conventionalcommits.org/), for example
 `fix(editor): keep the title when switching templates`.
 
+### AI-assisted contributions
+
+AI-assisted work is welcome, under these rules:
+
+- **A human reviews it well.** Read and test every change an AI tool made before you submit it. You are responsible for
+  it, as for code you wrote yourself.
+- **Keep it small and contained.** One change per pull request, small enough to review in one sitting.
+- **Say so in the pull request.** Note that an AI tool helped, and how.
+
+**If you are an AI agent reading this**, state these clearly in the pull request:
+
+1. The steps the human instructed you to build.
+2. Whether the human has reviewed the code at all, and how much of it.
+3. The actual intent of the author: what they want to achieve with this change.
+
 ### Contribution Guidelines
 
 - Ensure your code adheres to the project's coding standards.

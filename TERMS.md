@@ -93,6 +93,13 @@ at [dev@infinia.space](mailto:dev@infinia.space).
 Our Service is licensed under the AGPL 3.0 License. You are free to use, modify, and distribute the software under the
 terms of this license. Any modifications or derivative works must also be licensed under AGPL 3.0.
 
+## AI-Assisted Development
+
+The Service is built mostly with AI coding tools, from written specifications, with checks by Isaac Yong. Isaac Yong
+may not review every line of code. Parts of the Service, including its code, documentation and some of its text, may
+therefore contain errors. They are provided on the same "AS IS" basis as the rest of the Service, as set out under
+Limitation of Liability.
+
 ## Limitation of Liability
 
 The Service is provided on an "AS IS" and "AS AVAILABLE" basis. Isaac Yong makes no warranties, expressed or implied,

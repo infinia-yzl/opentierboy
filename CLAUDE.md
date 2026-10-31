@@ -347,6 +347,8 @@ docs/                 owner checklists
   `fix(editor): keep the title when switching templates`.
 - Small, logical commits. Each commit passes `npm run check`.
 - Pull request text: what changed, why, how you verified it, and what you could not verify.
+  An agent also states the steps the owner instructed, whether the owner has reviewed the code
+  (and how much), and the owner's intent (CONTRIBUTING.md, "AI-assisted contributions").
 - The version in `package.json` follows Semantic Versioning (owner decision, 2026-10-31).
 - Until the 2.0.0 cutover, revamp pull requests target `epic/ui-revamp`, and PR #202 brings it
   into `main`. Merge into the epic with merge commits, never squash: a branch may carry the

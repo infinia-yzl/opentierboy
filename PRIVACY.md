@@ -23,6 +23,8 @@ We do not collect any personal data from users directly through the Service. A t
 list, its title and the addresses of any images from other websites are written into the page address. You decide
 whether to share that address.
 
+AI tools help build the Service. The Service itself does not send your lists, titles or images to any AI service.
+
 ### Information Collected Automatically
 
 We do not collect any information directly. Any automatic collection of anonymized data, such as page views and usage

@@ -69,6 +69,15 @@ Found a bug or have a suggestion? Open an issue on GitHub:
 4. Provide a clear title and detailed description.
 5. Add relevant labels if necessary.
 
+## 🤖 Built with AI Agents
+
+OpenTierBoy is built mostly by AI coding agents (Claude, by Anthropic). The work is spec-driven: the owner writes
+what to build, the agents follow the rules in [CLAUDE.md](CLAUDE.md), and automated tests check the result. The owner
+checks the behaviour and reviews the changes, but may not review every line of code.
+
+OpenTierBoy is provided "as is", without warranty of any kind, and its authors are not liable for any damages arising
+from its use. See sections 15 and 16 of the [LICENSE](LICENSE).
+
 ## 📜 License
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
