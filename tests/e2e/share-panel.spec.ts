@@ -1,6 +1,7 @@
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
+import {imageFile, serveImageSite} from '../support/image-sites';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -126,6 +127,59 @@ test.describe('share panel', () => {
       await tierList.closeMenus();
       await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
       await expect(tierList.item('Mauga')).toHaveText('Mauga');
+    });
+  });
+
+  // The share panel says which images the link carries (the board "SharePanel"): link images
+  // travel in the link, device images stay in this browser and go along only in a Freeze Frame file.
+  test.describe('images in the link', () => {
+    test('renders no image note in the share panel when the page opens a list with only image-set items', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+
+      await tierList.openSharePanel();
+
+      await expect(tierList.copyMarkdownButton).toBeVisible();
+      await expect(tierList.linkImageNotes).toHaveCount(0);
+    });
+
+    test('renders the note "2 images from other sites travel in the link." when the page opens a list with 2 link images', {tag: '@mobile'}, async ({tierList, page}) => {
+      await serveImageSite(page, 'i.imgur.com');
+      await tierList.goto(TANKS, v3State({t: 'Link images', tp: 3, r: [
+        ['S', [packageItemId('image-overwatch', 'Mauga'), {u: 'https://i.imgur.com/red.png', c: 'Red'}]],
+        ['A', []], ['B', []], ['', [{u: 'https://i.imgur.com/blue.png', c: 'Blue'}]],
+      ]}));
+
+      await tierList.openSharePanel();
+
+      await expect(tierList.linkImageNotes).toHaveCount(1);
+      await expect(tierList.linkImageNotes).toHaveText(
+        '2 images from other sites travel in the link. People who open it load them from those sites.');
+    });
+
+    test('renders the note "1 image from your device stays on this device." when the user adds an image from the device', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+
+      await tierList.openSharePanel();
+
+      await expect(tierList.linkImageNotes).toHaveCount(1);
+      await expect(tierList.linkImageNotes).toHaveText(
+        '1 image from your device stays on this device. People who open the link see its name. To share it too, download the picture below.');
+    });
+
+    test('renders a note for 3 device images and one for 1 link image when the page opens a list with both', {tag: '@mobile'}, async ({tierList, page}) => {
+      await serveImageSite(page, 'i.imgur.com');
+      await tierList.goto(TANKS, v3State({t: 'Both', tp: 3, r: [
+        ['S', [{u: 'https://i.imgur.com/red.png', c: 'Red'}, {d: 'NeverHere1234567', c: 'Cat'}]],
+        ['A', [{d: 'NeverHere7654321', c: 'Dog'}]], ['B', []], ['', [{d: 'NeverHere0000001', c: 'Bird'}]],
+      ]}));
+
+      await tierList.openSharePanel();
+
+      await expect(tierList.linkImageNotes).toHaveText([
+        '3 images from your device stay on this device. People who open the link see their names. To share them too, download the picture below.',
+        '1 image from another site travels in the link. People who open it load it from that site.',
+      ]);
     });
   });
 
