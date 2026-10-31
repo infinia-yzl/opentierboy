@@ -3,7 +3,7 @@ import type {RowTemplate, RowTemplateId} from './types';
 /**
  * The tier ids of each row template, top to bottom, as models/Tier.ts defines them
  * (`tierTemplates`). lib/state cannot import models/, so it keeps this copy;
- * tests/unit/state/templates.test.ts fails when the two differ.
+ * tests/unit/lib/state/templates.test.ts fails when the two differ.
  *
  * These lists are part of the v3 link format: a v3 row may leave out its tier id when the id
  * equals the template's id at that position. Never change or reorder an existing list.

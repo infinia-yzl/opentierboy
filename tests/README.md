@@ -13,7 +13,7 @@ Against a local production build (Playwright starts `npm run start` itself):
 npx playwright install        # once, to download the browsers
 npm run build
 npm run test:e2e              # all projects
-npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
+npm run test:e2e -- --project=chromium tests/e2e/drag-and-drop.spec.ts
 npm run test:e2e:ui           # interactive UI mode
 ```
 
@@ -30,7 +30,7 @@ API tests send it with every request because they only call that site. Images fr
 sites never receive it.
 
 Set `PORT` to run the local server on another port than 3000. The link preview tests in
-`og-image.api.spec.ts` skip themselves on a local server that is not on port 3000, because
+`link-previews.api.spec.ts` skip themselves on a local server that is not on port 3000, because
 the preview route loads item images from `http://localhost:3000` outside Vercel.
 
 The tests run against the production build, not the dev server. Rebuild after every change
@@ -57,13 +57,52 @@ Projects (see `playwright.config.ts`):
 
 ```
 tests/
-  e2e/            specs, one file per user journey (ranking, editing, sharing, history...)
-  pages/          page objects: TierListPage (the editor at /rank/...), SitePage
-  support/        test.ts (fixtures and assertions), links.ts (build a ranking link)
-  fixtures/       shared-links.json (golden links), state/ (golden link states), images/ (files to upload),
-                  snapshots/ (golden Freeze Frame files, append-only: see its README)
-  unit/           Vitest unit tests (*.test.ts), for example the link format in lib/state
+  e2e/            Playwright specs: one file per UI area or route (see "Where a test goes")
+  pages/          page objects: every selector and every user action (TierListPage, SitePage)
+  support/        Playwright fixtures and helpers: links, image sites, snapshot files
+  fixtures/       golden links and link states, golden snapshot files, images to upload (append-only)
+  unit/           Vitest unit tests, at the same paths as the code they test
+    lib/, app/, scripts/   one test file per source file
+    rules/        project rules: ESLint, imports, plain modules, the dnd-kit fork wiring
+    fixtures/     checks of the golden fixtures in tests/fixtures
+    support/      unit test helpers
 ```
+
+## Where a test goes
+
+- **Unit or end-to-end.** A test of a function's input and output is a unit test. A test of
+  what a visitor does in the browser, or of what the server answers, is an end-to-end test.
+- **Unit tests** sit at the path of the file they test: `lib/state/decode.ts` is tested in
+  `tests/unit/lib/state/decode.test.ts`. A test that checks several files of one folder
+  together is named after what it checks, in that folder (`lib/state/v3-format.test.ts`,
+  `lib/snapshot/round-trip.test.ts`). Each top-level `describe` names the function it tests,
+  as in code.
+- **End-to-end tests** have one file per UI area or route, and each file's top-level
+  `describe` names that area:
+
+  | File | Area |
+  | --- | --- |
+  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen |
+  | `editor-labels` | the title, row names, label position and label visibility |
+  | `editor-rows` | adding and removing rows |
+  | `editor-items` | adding, removing and resetting items; unknown items |
+  | `drag-and-drop` | moving items and rows by mouse, keyboard and touch; announcements |
+  | `history` | Back and Forward, and the history entries each change adds |
+  | `share-panel` | the link and the Markdown text Share hands out |
+  | `snapshot-files` | Freeze Frame: capture, Download, and opening files |
+  | `link-images` | images from web addresses, and consent for other sites |
+  | `device-images` | uploaded and pasted pictures kept in this browser |
+  | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
+  | `zen` | Zen mode |
+  | `home` | the home page and Recently viewed |
+  | `site-pages` | About, Blog and the links between pages |
+  | `shared-links` | golden links people shared, and their page tags |
+  | `legacy-sets` | the legacy image sets (pages, and `.api` for files, sitemap, shortcuts) |
+  | `routes` | template pages (and `.api` for status codes and redirects) |
+  | `link-previews.api` | the link preview image (`/api/og`) |
+  | `security` | the Content Security Policy, user text as plain text, device pictures kept local |
+  | `journeys` | long scenarios over several areas, with Back and Forward |
+  | `tile-shapes` | tiles of other shapes (needs a special build) |
 
 ## Writing tests
 
@@ -157,14 +196,14 @@ npx playwright test tests/e2e/tile-shapes.spec.ts
 git checkout imageset.config.json              # back to the real config, then build again
 ```
 
-While the made-up config is in place, the guard in `tests/unit/shapes.test.ts` fails on
+While the made-up config is in place, the guard in `tests/unit/lib/tile-shapes.test.ts` fails on
 purpose.
 
 ## Golden shared links
 
 `tests/fixtures/shared-links.json` holds real links that people have shared, together with
 what a visitor must see when opening them. `shared-links.spec.ts` checks that every link
-still opens exactly as captured, and `og-image.api.spec.ts` checks their preview images.
+still opens exactly as captured, and `link-previews.api.spec.ts` checks their preview images.
 
 The entries are a contract: links that are already out in the world must keep working. If
 one of these tests fails, the app broke existing links. Fix the app. **Never edit, reorder or
@@ -180,7 +219,7 @@ node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <u
 `generated.json` holds 24 links written by the 2024 code of the three legacy formats (v0, v1,
 v2). A script made them once from git history; it was removed in 2.0.0, and git history keeps
 it (`scripts/generate-legacy-fixtures.mjs`). `v3.json` holds links in the v3 format, and each of its entries must also encode back
-to its `state` (see `docs/link-format-v3.md`). The unit tests in `tests/unit/state/` decode
+to its `state` (see `docs/link-format-v3.md`). The unit tests in `tests/unit/lib/state/` decode
 every entry of these files and of `shared-links.json`.
 The same rule applies: append, never edit. `npm run check:fixtures` fails when an existing
 entry of a fixture file, `image-registry.lock.json` or `image-aliases.json` changed or

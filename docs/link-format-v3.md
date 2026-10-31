@@ -76,7 +76,7 @@ The link value is the JSON above on one line, compressed:
 3.N4IgLiBcILIJ4AIAOBLAxgawM4MDwbg6-ZABpwkoBWEgGzOjAHsySAnKAbTZAGVjOUBbAIYBzAKYBaegDdRzAO6CwaABbjBAO0EA6OaIBGTUAFcoIZWDBIskAPQ2UWgcKPMtaevxuC9aAIwAmAGYtJHVhYhA0UwB1ZlFMFDCEACFBKioQAF8AXWyiTjAUWXE9CIBBXlAAE1MMQIArAE4ADwAGQV9SkijofkQ0RSzc-PAi5jUI5N5hzgBhabzOADEFkd4QAREJaVkFJVUhIx19MlzszKA
 ```
 
-`tests/unit/state/v3.test.ts` checks this example in both directions.
+`tests/unit/lib/state/v3-format.test.ts` checks this example in both directions.
 
 ## Tier ids and the omission rule
 
@@ -105,7 +105,7 @@ So:
 - With custom rows, every row writes its id.
 
 `lib/state/templates.ts` holds a copy of these ids (`ROW_TEMPLATE_TIER_IDS`) and the rule
-(`defaultTierId`). `tests/unit/state/templates.test.ts` fails if the copy and
+(`defaultTierId`). `tests/unit/lib/state/templates.test.ts` fails if the copy and
 `models/Tier.ts` ever differ. These id lists are part of the format: never change or reorder
 them. A new row template needs a new `tp` value.
 
@@ -221,7 +221,7 @@ by the app: v2 between 479 and 1,617 characters, v3 11% to 23% shorter (for exam
 The v3 links also carry the row template and the layout settings, which v2 cannot store. Most
 of the saving comes from writing image-set items as plain strings and leaving out tier ids.
 Long lists save less, because lz-string already compresses the repeated parts of v2 well.
-`tests/unit/state/fixtures.test.ts` checks these numbers (fixtures `v3-all-items-every-package`
+`tests/unit/fixtures/links.test.ts` checks these numbers (fixtures `v3-all-items-every-package`
 and `v3-typical-20-items`).
 
 ## Code
@@ -315,7 +315,7 @@ address and the history as they are, also when the app would write that list dif
 
 Uploads load in an effect, after the page has started, so the server and the browser render
 the same list and an upload shows its image right after a page load (fixed in Phase 5c; the
-former known-bug test in `tests/e2e/items.spec.ts` is a normal test now).
+former known-bug test in `tests/e2e/editor-items.spec.ts` is a normal test now).
 
 `encodeState(list, {format: 2})` and `encodeTierStateForURL` (`lib/listLink.ts`) still write v2.
 

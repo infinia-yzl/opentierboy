@@ -62,7 +62,7 @@ matching such a range, npm quietly installs a second copy from the registry. Two
 - Fork versions are plain release numbers, never prerelease suffixes such as `0.5.1-otb.1`
   (a prerelease does not match `^0.5.1`).
 - `npm ls @dnd-kit/state @preact/signals-core` must show one copy of each.
-- `tests/unit/dnd/workspace.test.ts` checks this on every `npm run check`: the lockfile links
+- `tests/unit/rules/dnd-kit-fork.test.ts` checks this on every `npm run check`: the lockfile links
   each package to its folder and has no other `@dnd-kit` copy, there is one
   `@preact/signals-core`, every internal range matches, and the built entry files exist.
 
@@ -126,7 +126,7 @@ the files those changes touch will differ from npm, and nothing else should.
 4. Redo the local build-file changes listed under "Local changes" (remove `devDependencies`,
    add `"private": true`, fix the `extends` path in each `tsconfig.json`).
 5. If the release needs a new package, add it to the root `workspaces`, to `PACKAGES` in
-   `build.mjs` and to `FORK_PACKAGES` in `tests/unit/dnd/workspace.test.ts`.
+   `build.mjs` and to `FORK_PACKAGES` in `tests/unit/rules/dnd-kit-fork.test.ts`.
 6. Update the tool versions in `packages/dnd-kit/package.json` to the ones in upstream's lockfile
    for that release (tsup, TypeScript, esbuild, rollup, `@types/react`, `bun-types`), and move
    the `before=` date in `.npmrc` to after their release dates.
@@ -158,7 +158,7 @@ licence, notice and the packages.
 4. In OpenTierBoy, remove `packages/dnd-kit` and the `workspaces` entries, depend on the
    published packages, and point the ESLint pattern (`DND_KIT_ONLY_IN_LIB_DND`) and `lib/dnd` at
    the new names. `lib/dnd` is the only code that imports dnd-kit, so nothing else changes.
-5. Keep the check from `tests/unit/dnd/workspace.test.ts` in some form: one copy of each
+5. Keep the check from `tests/unit/rules/dnd-kit-fork.test.ts` in some form: one copy of each
    package and of `@preact/signals-core`.
 
 ## Local changes
@@ -224,12 +224,12 @@ Upstream details worth knowing:
 
 `lib/dnd` is the only module that may import dnd-kit. ESLint enforces this
 (`no-restricted-imports` with the `DND_KIT_ONLY_IN_LIB_DND` pattern); only `lib/dnd/**` and its
-tests in `tests/unit/dnd/` may import `@dnd-kit/*`. Every `no-restricted-imports` setting in
+tests in `tests/unit/lib/dnd/` may import `@dnd-kit/*`. Every `no-restricted-imports` setting in
 `eslint.config.mjs` comes from `restrictImports()`, which always adds the rules that apply
 everywhere (IndexedDB, zod, dnd-kit), so a later config block cannot drop the dnd-kit pattern.
-`tests/unit/lint/dnd-kit-imports.test.ts` checks it. Inside `lib/dnd`, only `dndKit.ts` and
+`tests/unit/rules/dnd-kit-imports.test.ts` checks it. Inside `lib/dnd`, only `dndKit.ts` and
 `react.tsx` import dnd-kit; the other files are pure functions (no React, no DOM), checked by
-`tests/unit/dnd/purity.test.ts`.
+`tests/unit/rules/dnd-imports.test.ts`.
 
 | File | What it does |
 | --- | --- |
@@ -253,7 +253,7 @@ a subclass: sensors call its methods, and the base class keeps its controller in
 class field that only a real subclass has. The gesture itself is the pure reducer
 `holdThenMoveReducer` in `activation.ts`; the class only feeds it pointer events.
 `ALLOWED_CLASS_FILES` in `eslint.config.mjs` lists `lib/dnd/dndKit.ts`, and
-`tests/unit/lint/no-classes.test.ts` checks that it is the only class there and that no other
+`tests/unit/rules/no-classes.test.ts` checks that it is the only class there and that no other
 lib/dnd file may declare one.
 
 Decisions in the adapter:
@@ -309,7 +309,7 @@ Decisions in the adapter:
   label shows and can be clicked to rename it. `removeTier` moves the row's items to the end
   of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
-  exceed the row cap of the link decoder (`tests/unit/dnd/listIds.test.ts` checks it). The
+  exceed the row cap of the link decoder (`tests/unit/lib/dnd/list-ids.test.ts` checks it). The
   "Add row" button under the rows adds one, and the Row options menu (the cogwheel beside it)
   offers "Remove a row" (a submenu of the ranked rows). Each is one history entry.
 - **Mixed tile shapes.** Tiles render at their shape with one height (`lib/tileSize.ts`), and
@@ -372,12 +372,12 @@ server-rendered page has them too.
   Chromium's phone emulation; a real phone is still to be tried.
 - [x] Only the drag methods of `tests/pages/TierListPage.ts` changed, plus new methods for the
   new tests: `tests/e2e/drag-and-drop.spec.ts` (wrapping rows, drops that change nothing,
-  announcements, touch), `tests/e2e/tier-rows.spec.ts` (add and remove rows) and
+  announcements, touch), `tests/e2e/editor-rows.spec.ts` (add and remove rows) and
   `tests/e2e/tile-shapes.spec.ts` (mixed shapes, with a made-up config: see
   `tests/README.md`).
 - [x] Dragging with 200 tiles measured: `npm run bench:drag` (see "Performance").
 - [x] `MAX_TIER_ROWS <= V3_LIMITS.maxRows` and unique tier and item ids where the editor
-  hands its list to `lib/dnd` (`tests/unit/dnd/listIds.test.ts`).
+  hands its list to `lib/dnd` (`tests/unit/lib/dnd/list-ids.test.ts`).
 - [x] `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop) updated.
 
 ## Performance

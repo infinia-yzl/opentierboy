@@ -15,7 +15,7 @@
 
 /**
  * The URL form of a tag (category) in /rank/<set>/<tag>. A copy of createSEOFriendlyTagSlug in
- * lib/utils.ts, because scripts cannot import TypeScript; tests/unit/scripts/image-sets.test.ts
+ * lib/utils.ts, because scripts cannot import TypeScript; tests/unit/scripts/lib/image-sets.test.ts
  * checks that the two agree. The rank page opens the first tag, in key order, whose URL form
  * matches, and "all" always means every item.
  */

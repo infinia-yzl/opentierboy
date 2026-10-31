@@ -1,12 +1,21 @@
 import {expect, test} from '../support/test';
+import type {ThemeMode} from '../pages/SitePage';
 
 // The Appearance menu (owner decisions, 2026-10-28): Mode, Game colours and Font.
 const TANKS = '/rank/overwatch/tank';
+
 // The page background in each mode, and the primary colour of the Share button (app/globals.css).
 const LIGHT_BACKGROUND = 'rgb(255, 255, 255)';
+
 const DARK_BACKGROUND = 'rgb(12, 10, 9)';
+
 const BRAND_BLUE = 'rgb(13, 98, 181)';
+
 const OVERWATCH_ORANGE = 'rgb(194, 65, 12)';
+
+// Toasts take the page's colours in every theme. Sonner, the toast library, ships its own
+// styles; if they win, a toast can turn transparent over the tier list.
+const MODES: ThemeMode[] = ['light', 'dark'];
 
 test.describe('Appearance', () => {
   test('the mode choice changes the page and is remembered', {tag: '@mobile'}, async ({site, page}) => {
@@ -74,4 +83,24 @@ test.describe('Appearance', () => {
     await page.reload();
     await expect.poll(() => site.colorsOf(tierList.shareButton).then((colors) => colors.background)).toBe(BRAND_BLUE);
   });
+});
+
+test.describe('Toasts', () => {
+  for (const mode of MODES) {
+    test(`a toast uses the page colours in ${mode} mode`, {tag: '@mobile'}, async ({site, tierList}) => {
+      await tierList.goto(TANKS);
+      await site.chooseMode(mode);
+
+      await tierList.setZenMode(true);
+
+      const toast = tierList.toast('Entered Zen Mode');
+      await expect(toast).toBeVisible();
+      await expect(async () => {
+        const colors = await site.colorsOf(toast);
+        expect(colors.background, 'toast background').not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+        expect(colors.background, 'toast background').toBe(colors.pageBackground);
+        expect(colors.text, 'toast text colour').toBe(colors.pageText);
+      }).toPass();
+    });
+  }
 });

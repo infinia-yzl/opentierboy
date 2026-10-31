@@ -7,7 +7,7 @@ them must keep opening, like old links (CLAUDE.md, "Snapshot files"). Both the f
 - `snapshots.json` lists each file with its SHA-256, how it was made, and the list it opens:
   the page, the title, the rows with their item labels, the device pictures and the link images.
 - `tests/unit/snapshot/golden.test.ts` checks each file's hash and reads it with the app's
-  reader. `tests/e2e/snapshot-golden.spec.ts` opens each file in the editor, as a visitor would.
+  reader. `tests/e2e/snapshot-files.spec.ts` ("Golden Freeze Frame files") opens each file in the editor, as a visitor would.
 - `npm run check:fixtures` refuses a changed or deleted entry in `snapshots.json`; the hash in the
   entry then refuses a changed file.
 

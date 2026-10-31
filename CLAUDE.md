@@ -59,7 +59,7 @@ npm run check:fixtures    # no fixture entry changed since the base branch (`-- 
 npm run check:trusted-sites   # no trusted image site is on the pinned tracker list (downloads it with git)
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
-npm run test:e2e -- --project=chromium tests/e2e/ranking.spec.ts
+npm run test:e2e -- --project=chromium tests/e2e/drag-and-drop.spec.ts
 npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tiles (needs a running build)
 ```
 
@@ -75,7 +75,7 @@ npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tile
   `check:images -- --files`, so a lost item id
   or image file stops the build. Always build with `npm run build`. A plain `next build` skips the images.
 - Browsers already installed elsewhere: see `tests/README.md` (`PLAYWRIGHT_BROWSERS_PATH`).
-- Link preview tests (`og-image.api.spec.ts`) need the server on port 3000. They skip
+- Link preview tests (`link-previews.api.spec.ts`) need the server on port 3000. They skip
   themselves on other ports.
 
 ## Folder map
@@ -144,11 +144,11 @@ public/images/        official sets: copied at build time (git-ignored); legacy 
                       WebP images (image-set, image-wutheringwaves, image-webdev, image-supervive,
                       image-helldivers2). PNG copies of all sets are made at build time (git-ignored)
 articles/             blog posts (Markdown)
-tests/e2e/            Playwright specs, one file per user journey
+tests/e2e/            Playwright specs, one file per UI area or route (tests/README.md, "Where a test goes")
 tests/pages/          page objects (TierListPage, SitePage)
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
 tests/fixtures/       golden shared links and link states (append-only)
-tests/unit/           Vitest unit tests (*.test.ts)
+tests/unit/           Vitest unit tests (*.test.ts) at the paths of the code they test; rules/ and fixtures/
 docs/                 owner checklists and guides (releasing.md: versions and releases)
 ```
 
@@ -215,7 +215,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles render
   at their shape (`lib/tileSize.ts`), but link previews still draw every image as a square.
   Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
-  `tests/unit/shapes.test.ts` fails if `imageset.config.json` holds one.
+  `tests/unit/lib/tile-shapes.test.ts` fails if `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
   (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
   1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
@@ -263,7 +263,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   `legacy-<id>` when the id is too short (A42). Old links keep their images.
 - **Content Security Policy**: `next.config.ts` sends the header from `lib/security/csp.ts`.
   Inline scripts are allowed; eval is not (only `next dev` allows it). A new external script,
-  font or connection needs a change to the policy and to `tests/e2e/csp.spec.ts`.
+  font or connection needs a change to the policy and to `tests/e2e/security.spec.ts`.
 - **zod**: import `z` from `@/lib/zod`, never from `zod`. Plain zod tries eval when it builds a
   schema, which the policy reports as a violation (A39).
 

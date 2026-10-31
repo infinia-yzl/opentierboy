@@ -27,7 +27,7 @@ const NODE_BUILT_INS = {
   message: 'This code runs in the edge runtime (the OG preview route): no Node built-in modules.',
 };
 
-/** lib/state may import lz-string and its own files only (tests/unit/state/purity.test.ts checks the full rule). */
+/** lib/state may import lz-string and its own files only (tests/unit/rules/state-imports.test.ts checks the full rule). */
 const STATE_FRAMEWORKS = {
   group: ['react', 'react-dom', 'react-dom/*', 'next', 'next/*', '@/*'],
   message: 'lib/state runs in the browser, on the server and in the edge OG route. It imports only lz-string and lib/state files: no React, Next or @/ app imports.',
@@ -54,11 +54,11 @@ const ZOD_IMPORT = {
 };
 
 /** Files that may use IndexedDB: the device image store and its tests. */
-const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/images/deviceStore*.test.ts'];
+const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/lib/images/deviceStore*.test.ts'];
 /** Files that may import zod itself: lib/zod.ts and the test that shows why it exists. */
-const ZOD_FILES = ['lib/zod.ts', 'tests/unit/zod-eval-probe.test.ts'];
+const ZOD_FILES = ['lib/zod.ts', 'tests/unit/rules/zod-eval-probe.test.ts'];
 /** Files that may import dnd-kit: the drag and drop adapter and its unit tests. */
-const DND_KIT_FILES = ['lib/dnd/**', 'tests/unit/dnd/**'];
+const DND_KIT_FILES = ['lib/dnd/**', 'tests/unit/lib/dnd/**'];
 
 /**
  * The no-restricted-imports setting for a block: its own patterns, plus the rules for every
@@ -191,7 +191,7 @@ const CLASSES_ALLOWED_IN = ['tests/**', 'packages/**', ...ROOT_CONFIG_FILES];
  * here; never turn the rule off with a comment.
  *
  * - lib/dnd/dndKit.ts: HoldThenMoveConstraint, because dnd-kit's ActivationConstraint API
- *   requires a subclass (tests/unit/lint/no-classes.test.ts checks it is the only class).
+ *   requires a subclass (tests/unit/rules/no-classes.test.ts checks it is the only class).
  *
  * @type {string[]}
  */

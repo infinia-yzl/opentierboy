@@ -247,7 +247,7 @@ test.describe('Browser history and settings', () => {
 
 /**
  * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
- * suite stays green while the bug exists. See items.spec.ts for the convention.
+ * suite stays green while the bug exists. See editor-items.spec.ts for the convention.
  */
 test.describe('Known bugs', () => {
   test('on a slow connection, a change followed at once by Back is one Back step away', async ({tierList, page}) => {
