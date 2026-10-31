@@ -7,6 +7,7 @@ import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshot-files';
+import {messageNamesHost} from '../support/console';
 import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
@@ -830,7 +831,7 @@ test.describe('snapshot files', () => {
         const image = await tierList.capturedImageDetails();
         expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
         // The browser reports the refused CORS check of the site without CORS; nothing else may fail.
-        expect(consoleErrors.filter((error) => !error.includes('upload.wikimedia.org') && !error.includes('net::ERR_FAILED')), 'errors in the browser console').toEqual([]);
+        expect(consoleErrors.filter((error) => !messageNamesHost(error, 'upload.wikimedia.org') && !error.includes('net::ERR_FAILED')), 'errors in the browser console').toEqual([]);
       });
     }
   });
