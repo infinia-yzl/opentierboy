@@ -5,7 +5,7 @@ description: This document outlines the terms for using OpenTierBoy. By accessin
 
 # OpenTierBoy Terms of Service
 
-**Effective Date: 31 October 2026**
+**Effective Date: 1 November 2026**
 
 Welcome to OpenTierBoy. These Terms of Service ("Terms") govern your access and use of our website located
 at [https://opentierboy.com](https://opentierboy.com) (collectively or individually "Service") operated by Isaac Yong ("
