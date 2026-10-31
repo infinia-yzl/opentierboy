@@ -195,8 +195,8 @@ test.describe('Snapshot files: Freeze Frame Download, then Open file (A10)', () 
     await expect(page).toHaveURL(before);
     expect(await tierList.historyLength()).toBe(length);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
-    // The dialog has no trigger of its own: focus goes back to Open file.
-    await expect(tierList.openFileButton).toBeFocused();
+    // The dialog has no trigger of its own: focus goes back to Add images, whose menu opened the file.
+    await expect(tierList.manageItemsButton).toBeFocused();
   });
 
   test('opening your own file in the browser that made it uses its images as they are', async ({tierList}) => {

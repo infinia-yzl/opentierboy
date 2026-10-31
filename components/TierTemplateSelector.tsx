@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import {Button} from "@/components/ui/button";
-import {LayersIcon, MinusIcon, PlusIcon} from "@radix-ui/react-icons";
+import {GearIcon, MinusIcon, PlusIcon} from "@radix-ui/react-icons";
 import {useTierContext} from '@/contexts/TierContext';
 import {LabelPosition, TierTemplate, tierTemplates} from "@/models/Tier";
 import {canAddTier, canRemoveTier} from "@/lib/dnd/moves";
@@ -28,7 +28,6 @@ const TierTemplateSelector: React.FC = () => {
     setLabelPosition,
     toggleLabels,
     onTemplateChange,
-    addTier,
     removeTier,
   } = useTierContext();
 
@@ -52,9 +51,9 @@ const TierTemplateSelector: React.FC = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          <LayersIcon className="h-[1.2rem] w-[1.2rem]"/>
-          <span className="sr-only">Select rows and label options</span>
+        <Button variant="outline" size="icon" title="Row options">
+          <GearIcon className="h-4 w-4"/>
+          <span className="sr-only">Row options</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56">
@@ -64,13 +63,8 @@ const TierTemplateSelector: React.FC = () => {
           <DropdownMenuRadioItem value="5rows">5 Rows</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="7rows">7 Rows</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
-        {/* Manual rows (#182): add a row above Unranked, or remove a ranked row (its items go to Unranked). */}
-        <DropdownMenuItem onSelect={addTier} disabled={!canAddTier(tiers)} className="pl-8">
-          <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center" aria-hidden="true">
-            <PlusIcon className="h-4 w-4"/>
-          </span>
-          Add a row
-        </DropdownMenuItem>
+        {/* Manual rows (#182): remove a ranked row (its items go to Unranked). "Add row" is the
+            button beside this menu (RowControls). */}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger disabled={!canRemoveTier(tiers, 0)} className="relative pl-8 data-disabled:pointer-events-none data-disabled:opacity-50">
             <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center" aria-hidden="true">
@@ -107,3 +101,21 @@ const TierTemplateSelector: React.FC = () => {
 };
 
 export default TierTemplateSelector;
+
+/**
+ * Under the rows: "Add row" (a new row above Unranked, #182) and the Row options menu beside it
+ * (owner decision, 2026-10-28: rows are changed where they are, and the toolbar keeps three
+ * buttons). Hidden in Zen, which turns off editing.
+ */
+export const RowControls: React.FC = () => {
+  const {tiers, addTier} = useTierContext();
+  return (
+    <div className="w-full flex gap-2 mt-2 hide-in-zen" data-html2canvas-ignore>
+      <Button variant="outline" className="flex-1 gap-2 border-dashed text-muted-foreground" onClick={() => addTier()} disabled={!canAddTier(tiers)}>
+        <PlusIcon className="h-4 w-4"/>
+        Add row
+      </Button>
+      <TierTemplateSelector/>
+    </div>
+  );
+};

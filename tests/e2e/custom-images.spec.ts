@@ -38,7 +38,7 @@ test.describe('Images from a link (#107)', () => {
     await expect(friend.imageSitesNotice).toHaveCount(0);
   });
 
-  test('closing the dialog gives focus back to the Manage items button', async ({tierList, page}) => {
+  test('closing the dialog gives focus back to the Add images button', async ({tierList, page}) => {
     await serveImageSite(page, TRUSTED);
     await tierList.goto('/rank');
     await tierList.addItemFromLink('https://i.imgur.com/red.png', 'Red square');
