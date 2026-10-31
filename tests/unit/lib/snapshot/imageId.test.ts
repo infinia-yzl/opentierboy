@@ -10,19 +10,19 @@ afterEach(() => {
 });
 
 describe('snapshotImageId', () => {
-  it('is snap- plus a SHA-256 prefix in base64url, and a valid device image id', async () => {
+  it('returns snap- plus a 22-character base64url SHA-256 prefix, a valid device image id, when given bytes', async () => {
     const id = await snapshotImageId(bytes('a picture'));
     const expected = createHash('sha256').update('a picture').digest('base64url').slice(0, 22);
     expect(id).toBe(`snap-${expected}`);
     expect(isDeviceImageId(id)).toBe(true);
   });
 
-  it('gives the same picture the same id and another picture another id', async () => {
+  it('returns equal ids when the bytes are equal, and different ids when they differ', async () => {
     expect(await snapshotImageId(bytes('one'))).toBe(await snapshotImageId(bytes('one')));
     expect(await snapshotImageId(bytes('one'))).not.toBe(await snapshotImageId(bytes('two')));
   });
 
-  it('works without Web Crypto (plain http pages), with stable valid ids', async () => {
+  it('returns stable, valid snap- ids when Web Crypto is missing (plain http pages)', async () => {
     vi.stubGlobal('crypto', undefined);
     const id = await snapshotImageId(bytes('one'));
     expect(isDeviceImageId(id)).toBe(true);

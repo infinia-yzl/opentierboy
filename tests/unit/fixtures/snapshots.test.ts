@@ -11,15 +11,15 @@ import golden from '../../fixtures/snapshots/snapshots.json';
 /** Freeze Frame files people saved must keep opening (tests/fixtures/snapshots/README.md). */
 const DIR = path.resolve(__dirname, '../../fixtures/snapshots');
 
-describe('golden Freeze Frame files', () => {
-  it('lists at least one file, and every file in the folder', () => {
+describe('tests/fixtures/snapshots', () => {
+  it('returns at least 1 entry, and 1 entry per PNG file in the folder, when snapshots.json is read', () => {
     expect(golden.length).toBeGreaterThan(0);
     const files = fs.readdirSync(DIR).filter((name) => name.endsWith('.png')).sort();
     expect(files).toEqual(golden.map((entry) => entry.file).sort());
   });
 
   for (const entry of golden) {
-    it(`${entry.file} is unchanged and opens the list it was saved with`, async () => {
+    it(`returns its recorded SHA-256 and saved list when readSnapshotFile opens ${entry.file}`, async () => {
       const bytes = fs.readFileSync(path.join(DIR, entry.file));
       expect(createHash('sha256').update(bytes).digest('hex'), 'the file was changed').toBe(entry.sha256);
 

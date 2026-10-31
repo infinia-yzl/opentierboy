@@ -92,8 +92,8 @@ function writeRaw(factory: IDBFactory, storeName: 'images' | 'meta', record: unk
   });
 }
 
-describe('device store ids', () => {
-  it('creates 16 URL-safe characters from 12 random bytes', () => {
+describe('createDeviceImageId and isDeviceImageId', () => {
+  it('returns 16 URL-safe characters when createDeviceImageId gets 12 random bytes', () => {
     const id = createDeviceImageId(buffer => buffer.fill(0xff));
     expect(id).toBe('________________');
     expect(createDeviceImageId(buffer => buffer.fill(0))).toBe('AAAAAAAAAAAAAAAA');
@@ -103,7 +103,7 @@ describe('device store ids', () => {
     for (const created of ids) expect(isDeviceImageId(created)).toBe(true);
   });
 
-  it('accepts 8 to 64 URL-safe characters as an id', () => {
+  it('returns true only when the value is a string of 8 to 64 URL-safe characters', () => {
     for (const id of ['abcdefgh', 'A-_09zZx', 'a'.repeat(64)]) expect(isDeviceImageId(id), id).toBe(true);
     for (const id of ['', 'abcdefg', 'a'.repeat(65), 'abcd efgh', 'abcd/efgh', 'abcd.efgh', 'blob:https://x', '__proto__', 'constructor', 'hasOwnProperty', 42, null, undefined, ['abcdefgh']]) {
       expect(isDeviceImageId(id), String(id)).toBe(false);
@@ -112,7 +112,7 @@ describe('device store ids', () => {
 });
 
 describe('sniffImageType', () => {
-  it('detects PNG, JPEG, GIF, WebP and AVIF from the first bytes', () => {
+  it('returns the image type when the first bytes are a PNG, JPEG, GIF, WebP or AVIF header', () => {
     expect(sniffImageType(bytes(HEADERS.png))).toBe('image/png');
     expect(sniffImageType(bytes(HEADERS.jpeg))).toBe('image/jpeg');
     expect(sniffImageType(bytes(HEADERS.gif))).toBe('image/gif');
@@ -124,7 +124,7 @@ describe('sniffImageType', () => {
     expect(sniffImageType(bytes(mif1))).toBe('image/avif');
   });
 
-  it('refuses SVG, HTML, HEIC, other files and short input', () => {
+  it('returns null when the bytes are SVG, HTML, HEIC, another format or shorter than a header', () => {
     const text = (value: string) => new TextEncoder().encode(value.padEnd(32, ' '));
     expect(sniffImageType(text('<svg xmlns="http://www.w3.org/2000/svg">'))).toBeNull();
     expect(sniffImageType(text('<?xml version="1.0"?><svg>'))).toBeNull();
@@ -143,11 +143,11 @@ describe('planEviction', () => {
   const limits = {maxImageBytes: 50, maxTotalBytes: 100, maxImages: 3};
   const entry = (id: string, size: number, usedAt: number, storedAt = usedAt) => ({id, size, usedAt, storedAt});
 
-  it('removes nothing when the image fits', () => {
+  it('returns [] when the image fits within the limits', () => {
     expect(planEviction([entry('a', 30, 1), entry('b', 30, 2)], {id: 'c', size: 40}, limits)).toEqual([]);
   });
 
-  it('removes the least recently used images first, until the image fits', () => {
+  it('returns the least recently used ids, until the image fits, when the store is over a limit', () => {
     // 90 bytes in 3 images; the limits are 100 bytes and 3 images.
     const entries = [entry('b', 40, 2), entry('a', 30, 1), entry('c', 20, 3)];
     // One more image needs a free place: removing a (the oldest) is enough.
@@ -156,19 +156,19 @@ describe('planEviction', () => {
     expect(planEviction(entries, {id: 'd', size: 50}, limits)).toEqual(['a', 'b']);
   });
 
-  it('breaks ties by store time, then by id', () => {
+  it('returns ids ordered by storedAt, then by id, when usedAt is equal', () => {
     expect(planEviction([entry('b', 50, 1, 2), entry('a', 50, 1, 2), entry('c', 50, 1, 1)], {id: 'd', size: 50}, limits)).toEqual(['c', 'a']);
   });
 
-  it('respects the image count limit', () => {
+  it('returns the least recently used id when the store has maxImages images', () => {
     expect(planEviction([entry('a', 1, 1), entry('b', 1, 2), entry('c', 1, 3)], {id: 'd', size: 1}, limits)).toEqual(['a']);
   });
 
-  it('does not count an image that is being replaced', () => {
+  it('returns [] when the image replaces a stored image with the same id', () => {
     expect(planEviction([entry('a', 50, 1), entry('b', 50, 2)], {id: 'a', size: 50}, limits)).toEqual([]);
   });
 
-  it('never removes kept images, and gives up when the rest is not enough', () => {
+  it('returns only ids of unkept images, or null when they free too little room, when some images are kept', () => {
     const entries = [entry('a', 50, 1), entry('b', 50, 2)];
     expect(planEviction(entries, {id: 'c', size: 50}, limits, new Set(['a']))).toEqual(['b']);
     expect(planEviction(entries, {id: 'c', size: 50}, limits, new Set(['a', 'b']))).toBeNull();
@@ -177,14 +177,14 @@ describe('planEviction', () => {
 });
 
 describe('openDeviceStore with IndexedDB', () => {
-  it('uses the default limits: 5 MB per image, 100 MB and 2,000 images in total', async () => {
+  it('returns a persistent store with DEFAULT_DEVICE_STORE_LIMITS (5 MB, 100 MB, 2,000 images) when no limits are given', async () => {
     expect(DEFAULT_DEVICE_STORE_LIMITS).toEqual({maxImageBytes: 5 * 1024 * 1024, maxTotalBytes: 100 * 1024 * 1024, maxImages: 2000});
     const store = await open();
     expect(store.persistent).toBe(true);
     expect(store.limits).toEqual(DEFAULT_DEVICE_STORE_LIMITS);
   });
 
-  it('stores an image and gives it back with a stable id', async () => {
+  it('writes the image to IndexedDB under a 16-character id when put gets a PNG Blob', async () => {
     const store = await open({createId: undefined});
     const original = bytes(HEADERS.png, 100, 9);
     const result = await store.put(new Blob([original as BlobPart], {type: 'image/png'}));
@@ -199,7 +199,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(new Uint8Array(await stored!.blob.arrayBuffer())).toEqual(original);
   });
 
-  it('keeps the images after the store is closed and opened again (tab closed)', async () => {
+  it('returns the stored image from get when the store is closed and opened again (tab closed)', async () => {
     const factory = new IDBFactory();
     const first = await open({indexedDB: factory});
     const result = await first.put(image(64, 'webp'));
@@ -209,7 +209,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(result.ok && (await second.get(result.id))).toMatchObject({type: 'image/webp', size: 64});
   });
 
-  it('stores the bytes, never a blob: URL', async () => {
+  it('writes an ArrayBuffer and a meta record with no blob: URL to IndexedDB when put stores an image', async () => {
     const factory = new IDBFactory();
     const store = await open({indexedDB: factory});
     await store.put(image(40, 'jpeg'));
@@ -220,7 +220,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(JSON.stringify([imageRecord, metaRecord])).not.toContain('blob:');
   });
 
-  it('takes the type from the bytes and ignores the type the browser reports', async () => {
+  it('returns the type sniffed from the bytes, or reason \'unsupported-type\', when the Blob reports another type', async () => {
     const store = await open();
     expect(await store.put(image(32, 'png', 'text/html'))).toMatchObject({ok: true, type: 'image/png'});
     expect(await store.put(image(32, 'gif', ''))).toMatchObject({ok: true, type: 'image/gif'});
@@ -230,7 +230,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.put(html)).toEqual({ok: false, reason: 'unsupported-type'});
   });
 
-  it('refuses AVIF and HEIC itself, whatever the caller checked: their declared size can lie', async () => {
+  it('returns reason \'unsupported-type\' when put gets AVIF or HEIC bytes, in IndexedDB and in memory', async () => {
     for (const store of [await open(), createMemoryDeviceStore({createId: sequentialIds()})]) {
       expect(await store.put(image(64, 'avif'))).toEqual({ok: false, reason: 'unsupported-type'});
       expect(await store.put(new Blob([avifWithFalseSize([100, 100], [9000, 9000])], {type: 'image/png'}))).toEqual({ok: false, reason: 'unsupported-type'});
@@ -239,7 +239,7 @@ describe('openDeviceStore with IndexedDB', () => {
     }
   });
 
-  it('never removes an image with evict: false: a full store or browser gives storage-full', async () => {
+  it('returns reason \'storage-full\' and evicts no image when put has evict: false and the store or browser is full', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     await store.put(image(40)); // img-00000001
     await store.put(image(40)); // img-00000002
@@ -261,7 +261,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await memory.usage()).toEqual({count: 2, totalBytes: 80});
   });
 
-  it('refuses values that are not files, empty files and files over the image limit', async () => {
+  it('returns reason not-a-blob, empty or too-large when put gets a non-Blob, an empty Blob or a Blob over the limit', async () => {
     const store = await open({limits: {maxImageBytes: 100, maxTotalBytes: 1000}});
     for (const value of [null, undefined, 'image.png', 42, {size: 10}, new Uint8Array(10)]) {
       expect(await store.put(value as unknown as Blob), String(value)).toEqual({ok: false, reason: 'not-a-blob'});
@@ -271,14 +271,14 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.put(image(100))).toMatchObject({ok: true});
   });
 
-  it('does not read a file that is too large', async () => {
+  it('returns reason \'too-large\' without calling arrayBuffer when the Blob size is over maxImageBytes', async () => {
     const store = await open({limits: {maxImageBytes: 100, maxTotalBytes: 1000}});
     const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
     expect(await store.put({size: 10 * 1024 * 1024 * 1024, arrayBuffer} as unknown as Blob)).toEqual({ok: false, reason: 'too-large'});
     expect(arrayBuffer).not.toHaveBeenCalled();
   });
 
-  it('checks the size of the bytes it read as well as the reported size', async () => {
+  it('returns reason \'too-large\' or \'storage-error\' when the bytes read are over maxImageBytes or reading fails', async () => {
     const store = await open({limits: {maxImageBytes: 100, maxTotalBytes: 1000}});
     const lying = {size: 10, arrayBuffer: async () => bytes(HEADERS.png, 500).buffer};
     expect(await store.put(lying as unknown as Blob)).toEqual({ok: false, reason: 'too-large'});
@@ -288,7 +288,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.put(notBytes as unknown as Blob)).toEqual({ok: false, reason: 'storage-error'});
   });
 
-  it('stores under a given id and replaces an image with the same id', async () => {
+  it('writes the image under options.id, replacing the stored image with that id, when put gets an id', async () => {
     const store = await open();
     expect(await store.put(image(40, 'png'), {id: 'snapshot-id-1'})).toMatchObject({ok: true, id: 'snapshot-id-1'});
     expect(await store.put(image(50, 'gif'), {id: 'snapshot-id-1'})).toMatchObject({ok: true, id: 'snapshot-id-1', type: 'image/gif'});
@@ -298,7 +298,7 @@ describe('openDeviceStore with IndexedDB', () => {
     }
   });
 
-  it('refuses an id from createId that is not valid', async () => {
+  it('returns reason \'storage-error\' when createId returns an invalid id or throws', async () => {
     const store = await open({createId: () => 'bad id'});
     expect(await store.put(image())).toEqual({ok: false, reason: 'storage-error'});
     const throwing = await open({createId: () => {
@@ -307,7 +307,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await throwing.put(image())).toEqual({ok: false, reason: 'storage-error'});
   });
 
-  it('removes the least recently used images when the total is full', async () => {
+  it('returns the least recently used id in evicted, and deletes that image, when the total reaches maxTotalBytes', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     const a = await store.put(image(40));
     const b = await store.put(image(40));
@@ -320,7 +320,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id)).toEqual(['img-00000003', 'img-00000001']);
   });
 
-  it('removes images when the count is full', async () => {
+  it('returns the oldest id in evicted when the store has maxImages images', async () => {
     const store = await open({limits: {maxImages: 2}});
     await store.put(image());
     await store.put(image());
@@ -328,7 +328,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.usage()).toEqual({count: 2, totalBytes: 64});
   });
 
-  it('never removes kept images, and refuses when only kept images are left', async () => {
+  it('returns an unkept id in evicted, or reason \'storage-full\' when only kept images could make room', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     await store.put(image(40));
     await store.put(image(40));
@@ -337,14 +337,14 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.usage()).toEqual({count: 2, totalBytes: 80});
   });
 
-  it('handles several images stored at the same time', async () => {
+  it('returns ok for each call and 5 images in usage when put is called 20 times at once with maxImages 5', async () => {
     const store = await open({limits: {maxImageBytes: 10, maxTotalBytes: 100, maxImages: 5}});
     const results = await Promise.all(Array.from({length: 20}, () => store.put(image(10))));
     expect(results.every(result => result.ok)).toBe(true);
     expect(await store.usage()).toEqual({count: 5, totalBytes: 50});
   });
 
-  it('lists, deletes and clears images', async () => {
+  it('returns the images newest first from list, true once from delete, and zero usage from clear when the store has 2 images', async () => {
     const store = await open();
     await store.put(image(32));
     await store.put(image(33));
@@ -359,14 +359,14 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.usage()).toEqual({count: 0, totalBytes: 0});
   });
 
-  it('returns null for unknown and invalid ids', async () => {
+  it('returns null from get when the id is unknown or invalid', async () => {
     const store = await open();
     expect(await store.get('img-00000009')).toBeNull();
     expect(await store.get('../x')).toBeNull();
     expect(await store.get(undefined as unknown as string)).toBeNull();
   });
 
-  it('ignores and removes damaged records', async () => {
+  it('returns null from get, and deletes the records, when image and meta records do not match', async () => {
     const factory = new IDBFactory();
     const store = await open({indexedDB: factory});
     await store.put(image(32));
@@ -409,7 +409,7 @@ describe('openDeviceStore with IndexedDB', () => {
     });
   }
 
-  it('on a full browser quota, removes least recently used images that are not kept, and tries once more', async () => {
+  it('returns ok with the least recently used unkept id in evicted when the first write hits QuotaExceededError', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
     await store.put(image(40)); // img-00000001, the oldest
     await store.put(image(40)); // img-00000002
@@ -420,7 +420,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id).sort()).toEqual(['img-00000001', 'img-00000003', 'img-00000004']);
   });
 
-  it('makes room in a transaction of its own, so the room stays made when the retry fails too', async () => {
+  it('returns reason \'storage-full\' with the evicted ids, which stay deleted, when the retry also hits QuotaExceededError', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     await store.put(image(40));
     await store.put(image(40));
@@ -430,7 +430,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id)).toEqual(['img-00000002']);
   });
 
-  it('does not retry when nothing can make room', async () => {
+  it('returns reason \'storage-full\' with no retry when the quota is full and every image is kept', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
     await store.put(image(40));
     failNextWrites(2);
@@ -438,7 +438,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id)).toEqual(['img-00000001']);
   });
 
-  it('reads many images in one go, and marks them as used', async () => {
+  it('returns a Map of the found images and updates their usedAt when getMany gets several ids', async () => {
     const store = await open();
     await store.put(image(32));
     await store.put(image(33));
@@ -453,7 +453,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect([...(await memory.getMany(['img-00000001', 'img-00000002'])).keys()]).toEqual(['img-00000001']);
   });
 
-  it('reports errors that the browser throws while writing', async () => {
+  it('returns reason \'storage-full\' or \'storage-error\' when IndexedDB put throws QuotaExceededError or DataCloneError', async () => {
     const store = await open();
     vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(() => {
       throw new DOMException('Quota exceeded', 'QuotaExceededError');
@@ -468,7 +468,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.list()).toEqual([]);
   });
 
-  it('fails softly after it was closed, or after the browser closed the database', async () => {
+  it('returns reason \'storage-error\', null and empty results when the browser closes the database', async () => {
     const factory = new IDBFactory();
     // The connection the store opens, caught at the factory: the store keeps it private.
     let connection: IDBDatabase | undefined;
@@ -491,7 +491,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(() => store.close()).not.toThrow();
   });
 
-  it('works when its functions are called on their own (a factory with closures, A47)', async () => {
+  it('returns results when put, get, getMany, list, usage and delete are called detached from the store (A47)', async () => {
     const store = await open();
     expect(store.persistent).toBe(true);
     const {put, get, getMany, list, usage, delete: remove} = store;
@@ -503,7 +503,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await remove('img-00000001')).toBe(true);
   });
 
-  it('closes itself when another tab upgrades the database', async () => {
+  it('returns [] from list, without blocking the upgrade, when another tab opens a newer database version', async () => {
     const factory = new IDBFactory();
     const store = await open({indexedDB: factory});
     await new Promise<void>((resolve, reject) => {
@@ -518,7 +518,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.list()).toEqual([]);
   });
 
-  it('refuses limits that make no sense', async () => {
+  it('throws RangeError when a limit is zero, fractional or maxImageBytes exceeds maxTotalBytes', async () => {
     await expect(openDeviceStore({indexedDB: null, limits: {maxImageBytes: 0}})).rejects.toThrow(RangeError);
     await expect(openDeviceStore({indexedDB: null, limits: {maxTotalBytes: 1.5}})).rejects.toThrow(RangeError);
     await expect(openDeviceStore({indexedDB: null, limits: {maxImageBytes: 200, maxTotalBytes: 100}})).rejects.toThrow(RangeError);
@@ -526,7 +526,7 @@ describe('openDeviceStore with IndexedDB', () => {
 });
 
 describe('openDeviceStore without IndexedDB', () => {
-  it('falls back to memory when there is no IndexedDB', async () => {
+  it('returns a store with persistent false when indexedDB is null', async () => {
     const store = await open({indexedDB: null});
     expect(store.persistent).toBe(false);
     const result = await store.put(image(48, 'jpeg'));
@@ -534,7 +534,7 @@ describe('openDeviceStore without IndexedDB', () => {
     expect(await store.get('img-00000001')).toMatchObject({type: 'image/jpeg', size: 48});
   });
 
-  it('falls back to memory when opening throws, fails or takes too long', async () => {
+  it('returns a store with persistent false when indexedDB.open throws, fails or passes openTimeoutMs', async () => {
     const throwing = {open: () => {
       throw new DOMException('denied', 'SecurityError');
     }} as unknown as IDBFactory;
@@ -551,7 +551,7 @@ describe('openDeviceStore without IndexedDB', () => {
     expect((await open({indexedDB: silent, openTimeoutMs: 20})).persistent).toBe(false);
   });
 
-  it('closes a database that opens after the timeout', async () => {
+  it('returns a store with persistent false, and closes the database, when it opens after openTimeoutMs', async () => {
     const factory = new IDBFactory();
     const close = vi.fn();
     // Passes the real request through, but answers 50 ms late.
@@ -571,7 +571,7 @@ describe('openDeviceStore without IndexedDB', () => {
     await vi.waitFor(() => expect(close).toHaveBeenCalled());
   });
 
-  it('falls back to memory when reading indexedDB throws, and touches nothing on import', async () => {
+  it('returns a store with persistent false, and the import does not throw, when reading globalThis.indexedDB throws', async () => {
     vi.resetModules();
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'indexedDB');
     Object.defineProperty(globalThis, 'indexedDB', {configurable: true, get: () => {
@@ -587,7 +587,7 @@ describe('openDeviceStore without IndexedDB', () => {
     }
   });
 
-  it('uses the browser indexedDB by default when there is one', async () => {
+  it('returns a persistent store when globalThis.indexedDB exists and no indexedDB option is given', async () => {
     Object.defineProperty(globalThis, 'indexedDB', {configurable: true, value: new IDBFactory()});
     try {
       const store = await openDeviceStore();
@@ -598,7 +598,7 @@ describe('openDeviceStore without IndexedDB', () => {
     }
   });
 
-  it('applies the same limits, eviction and checks in memory', async () => {
+  it('returns the IndexedDB store\'s results for limits, eviction, type checks and close when the store is in memory', async () => {
     const store = createMemoryDeviceStore({limits: {maxImageBytes: 60, maxTotalBytes: 100}, now: tickingClock(), createId: sequentialIds()});
     expect(await store.put(image(61))).toEqual({ok: false, reason: 'too-large'});
     expect(await store.put(new Blob(['<svg/>'.padEnd(40)]))).toEqual({ok: false, reason: 'unsupported-type'});
@@ -635,7 +635,7 @@ describe('createObjectUrlRegistry', () => {
     };
   }
 
-  it('creates one URL per image and reuses it', () => {
+  it('returns the same URL when urlFor is called twice with one id and Blob', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
     const blob = image();
@@ -646,7 +646,7 @@ describe('createObjectUrlRegistry', () => {
     expect(registry.size).toBe(1);
   });
 
-  it('makes every URL from a blob of the given image type, whatever type the file had', async () => {
+  it('returns a URL made from a Blob of the given type when the file has another type', async () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
     // A PNG named evil.html: the browser reports text/html for it.
@@ -664,7 +664,7 @@ describe('createObjectUrlRegistry', () => {
     expect(registry.peek('b')).toBeUndefined();
   });
 
-  it('revokes the old URL when an id gets a new blob', () => {
+  it('returns a new URL and revokes the old one when an id gets a new Blob', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
     registry.urlFor('a', image(), 'image/png');
@@ -672,7 +672,7 @@ describe('createObjectUrlRegistry', () => {
     expect([...api.live]).toEqual(['blob:test/2']);
   });
 
-  it('revokes URLs one by one, all but some, or all', () => {
+  it('returns no URL for an id when revoke, retainOnly or revokeAll has removed it', () => {
     const api = fakeUrlApi();
     const registry = createObjectUrlRegistry(api);
     for (const id of ['a', 'b', 'c', 'd']) registry.urlFor(id, image(), 'image/png');
@@ -686,7 +686,7 @@ describe('createObjectUrlRegistry', () => {
     expect(registry.size).toBe(0);
   });
 
-  it('keeps going when revoking fails', () => {
+  it('throws no error, and empties the registry, when revokeObjectURL throws during revokeAll', () => {
     const api = {createObjectURL: () => 'blob:test/1', revokeObjectURL: () => {
       throw new Error('nope');
     }};
@@ -696,7 +696,7 @@ describe('createObjectUrlRegistry', () => {
     expect(registry.size).toBe(0);
   });
 
-  it('uses the standard URL API by default', () => {
+  it('returns a blob: URL when no URL API is given', () => {
     const registry = createObjectUrlRegistry();
     const url = registry.urlFor('a', image(), 'image/png');
     expect(url).toMatch(/^blob:/);

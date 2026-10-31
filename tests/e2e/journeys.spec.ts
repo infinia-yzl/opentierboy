@@ -74,119 +74,121 @@ async function walkJourney(tierList: TierListPage, start: ExpectedList, steps: S
   await expect.poll(() => tierList.historyLength()).toBe(entries + steps.length);
 }
 
-test.describe('Editing journeys with Back and Forward', () => {
-  test.slow();
+test.describe('journeys', () => {
+  test.describe('Back and Forward', () => {
+    test.slow();
 
-  test('ranking items and rows by mouse and keyboard', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma', 'Orisa']}));
+    test('writes 1 history entry per change when the user ranks items and rows by mouse and keyboard', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma', 'Orisa']}));
 
-    await walkJourney(tierList, rows({Unranked: ['Mauga', 'Winston', 'Sigma', 'Orisa']}), [
-      {act: () => tierList.dragItemToTier('Mauga', 'S'), list: rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma', 'Orisa']})},
-      {act: () => tierList.dragItemToTier('Winston', 'S'), list: rows({S: ['Mauga', 'Winston'], Unranked: ['Sigma', 'Orisa']})},
-      // Reorder inside a row: Winston goes before Mauga.
-      {act: () => tierList.dragItemNextTo('Winston', 'Mauga', 'before'), list: rows({S: ['Winston', 'Mauga'], Unranked: ['Sigma', 'Orisa']})},
-      // Keyboard: Up from Unranked goes to the last ranked row, and Up again to the row above it.
-      {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], F: ['Sigma'], Unranked: ['Orisa']})},
-      {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
-      // Rows: the labels describe positions, so moving row S down moves its items into A.
-      {act: () => tierList.moveTierWithKeyboard('S', ['ArrowDown']), list: rows({A: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
-      {act: () => tierList.dragTierOnto('C', 'S'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], Unranked: ['Orisa']})},
-      {act: () => tierList.dragItemToTier('Orisa', 'F'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], F: ['Orisa']})},
-    ]);
+      await walkJourney(tierList, rows({Unranked: ['Mauga', 'Winston', 'Sigma', 'Orisa']}), [
+        {act: () => tierList.dragItemToTier('Mauga', 'S'), list: rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma', 'Orisa']})},
+        {act: () => tierList.dragItemToTier('Winston', 'S'), list: rows({S: ['Mauga', 'Winston'], Unranked: ['Sigma', 'Orisa']})},
+        // Reorder inside a row: Winston goes before Mauga.
+        {act: () => tierList.dragItemNextTo('Winston', 'Mauga', 'before'), list: rows({S: ['Winston', 'Mauga'], Unranked: ['Sigma', 'Orisa']})},
+        // Keyboard: Up from Unranked goes to the last ranked row, and Up again to the row above it.
+        {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], F: ['Sigma'], Unranked: ['Orisa']})},
+        {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
+        // Rows: the labels describe positions, so moving row S down moves its items into A.
+        {act: () => tierList.moveTierWithKeyboard('S', ['ArrowDown']), list: rows({A: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
+        {act: () => tierList.dragTierOnto('C', 'S'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], Unranked: ['Orisa']})},
+        {act: () => tierList.dragItemToTier('Orisa', 'F'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], F: ['Orisa']})},
+      ]);
+    });
+
+    test('writes 1 history entry per change when the user uploads, ranks, deletes and uploads device images again', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+      const deleteItem = async (label: string) => {
+        const before = tierList.page.url();
+        await tierList.deleteItem(label);
+        await expect(tierList.page).not.toHaveURL(before);
+      };
+
+      await walkJourney(tierList, rows({S: ['Mauga']}), [
+        {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], Unranked: ['red-square']}), pictures: ['red-square']},
+        {act: () => tierList.dragItemToTier('red-square', 'A'), list: rows({S: ['Mauga'], A: ['red-square']}), pictures: ['red-square']},
+        {act: () => tierList.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]), list: rows({S: ['Mauga'], A: ['red-square'], Unranked: ['blue-square']}), pictures: ['red-square', 'blue-square']},
+        {act: () => tierList.dragItemNextTo('blue-square', 'red-square', 'before'), list: rows({S: ['Mauga'], A: ['blue-square', 'red-square']}), pictures: ['red-square', 'blue-square']},
+        {act: () => deleteItem('red-square'), list: rows({S: ['Mauga'], A: ['blue-square']}), pictures: ['blue-square']},
+        // The same picture again, after it was deleted.
+        {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], A: ['blue-square'], Unranked: ['red-square']}), pictures: ['red-square', 'blue-square']},
+        {act: () => deleteItem('Mauga'), list: rows({A: ['blue-square'], Unranked: ['red-square']}), pictures: ['red-square', 'blue-square']},
+      ]);
+    });
+
+    test('writes 1 history entry per change when the user adds, renames, fills and removes a row', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
+
+      const sixRows = (items: Parameters<typeof rows>[0], name: string, sixth: string[]) => rows(items, [{name, items: sixth}]);
+      await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
+        {act: () => tierList.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Tier 6', [])},
+        {act: () => tierList.renameTier('Tier 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
+        {act: () => tierList.dragItemToTier('Winston', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Sigma']}, 'D', ['Winston'])},
+        {act: () => tierList.renameTier('S', 'Best'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...sixRows({Unranked: ['Sigma']}, 'D', ['Winston']).tiers.slice(1)]}},
+        // A removed row's items go to Unranked.
+        {act: () => tierList.removeTierRow('D'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...rows({Unranked: ['Sigma', 'Winston']}).tiers.slice(1)]}},
+      ]);
+    });
+
+    test('writes 1 history entry per change when the user sets the title, chooses Reset and confirms Remove All', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
+      const titled = (title: string, list: ExpectedList): ExpectedList => ({...list, title});
+
+      await walkJourney(tierList, rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}), [
+        {act: () => tierList.setTitle('My tanks'), list: titled('My tanks', rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}))},
+        {act: () => tierList.dragItemToTier('Sigma', 'S'), list: titled('My tanks', rows({S: ['Mauga', 'Sigma'], A: ['Winston']}))},
+        {act: () => tierList.resetRankings(), list: titled('My tanks', rows({Unranked: ['Mauga', 'Sigma', 'Winston']}))},
+        {act: () => tierList.dragItemToTier('Winston', 'S'), list: titled('My tanks', rows({S: ['Winston'], Unranked: ['Mauga', 'Sigma']}))},
+        {act: () => tierList.removeAllItems(), list: titled('My tanks', rows({}))},
+      ]);
+    });
+
+    test('writes 1 history entry per change when the user moves items and rows with the keyboard only', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
+
+      await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
+        // Up four times: Unranked to F, C, B, then A.
+        {act: () => tierList.moveItemWithKeyboard('Winston', ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']})},
+        {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Mauga'], A: ['Winston'], F: ['Sigma']})},
+        // Down keeps the item's place across the row, so Mauga lands before Winston.
+        {act: () => tierList.moveItemWithKeyboard('Mauga', ['ArrowDown']), list: rows({A: ['Mauga', 'Winston'], F: ['Sigma']})},
+        {act: () => tierList.moveTierWithKeyboard('A', ['ArrowUp']), list: rows({S: ['Mauga', 'Winston'], F: ['Sigma']})},
+        {act: () => tierList.moveTierWithKeyboard('F', ['ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga', 'Winston'], B: ['Sigma']})},
+      ]);
+    });
   });
 
-  test('pictures: upload, rank, delete and upload again', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    const deleteItem = async (label: string) => {
-      const before = tierList.page.url();
-      await tierList.deleteItem(label);
-      await expect(tierList.page).not.toHaveURL(before);
-    };
+  test.describe('changes after Back', () => {
+    test.slow();
 
-    await walkJourney(tierList, rows({S: ['Mauga']}), [
-      {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], Unranked: ['red-square']}), pictures: ['red-square']},
-      {act: () => tierList.dragItemToTier('red-square', 'A'), list: rows({S: ['Mauga'], A: ['red-square']}), pictures: ['red-square']},
-      {act: () => tierList.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]), list: rows({S: ['Mauga'], A: ['red-square'], Unranked: ['blue-square']}), pictures: ['red-square', 'blue-square']},
-      {act: () => tierList.dragItemNextTo('blue-square', 'red-square', 'before'), list: rows({S: ['Mauga'], A: ['blue-square', 'red-square']}), pictures: ['red-square', 'blue-square']},
-      {act: () => deleteItem('red-square'), list: rows({S: ['Mauga'], A: ['blue-square']}), pictures: ['blue-square']},
-      // The same picture again, after it was deleted.
-      {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], A: ['blue-square'], Unranked: ['red-square']}), pictures: ['red-square', 'blue-square']},
-      {act: () => deleteItem('Mauga'), list: rows({A: ['blue-square'], Unranked: ['red-square']}), pictures: ['red-square', 'blue-square']},
-    ]);
-  });
+    test('writes the new change in place of the forward entries when the user makes a change after going Back twice', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
+      await tierList.dragItemToTier('Mauga', 'S');
+      const afterMauga = page.url();
+      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.dragItemToTier('Sigma', 'B');
 
-  test('rows: add, rename, fill and remove', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
+      // Back twice: only Mauga is ranked again.
+      await page.goBack();
+      await page.goBack();
+      await expect(page).toHaveURL(afterMauga);
+      await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
 
-    const sixRows = (items: Parameters<typeof rows>[0], name: string, sixth: string[]) => rows(items, [{name, items: sixth}]);
-    await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
-      {act: () => tierList.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Tier 6', [])},
-      {act: () => tierList.renameTier('Tier 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
-      {act: () => tierList.dragItemToTier('Winston', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Sigma']}, 'D', ['Winston'])},
-      {act: () => tierList.renameTier('S', 'Best'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...sixRows({Unranked: ['Sigma']}, 'D', ['Winston']).tiers.slice(1)]}},
-      // A removed row's items go to Unranked.
-      {act: () => tierList.removeTierRow('D'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...rows({Unranked: ['Sigma', 'Winston']}).tiers.slice(1)]}},
-    ]);
-  });
+      // A different change from here. The browser drops the two steps that were ahead.
+      await tierList.dragItemToTier('Sigma', 'F');
+      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
+      const afterSigma = page.url();
 
-  test('title, Reset and Remove All', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
-    const titled = (title: string, list: ExpectedList): ExpectedList => ({...list, title});
-
-    await walkJourney(tierList, rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}), [
-      {act: () => tierList.setTitle('My tanks'), list: titled('My tanks', rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}))},
-      {act: () => tierList.dragItemToTier('Sigma', 'S'), list: titled('My tanks', rows({S: ['Mauga', 'Sigma'], A: ['Winston']}))},
-      {act: () => tierList.resetRankings(), list: titled('My tanks', rows({Unranked: ['Mauga', 'Sigma', 'Winston']}))},
-      {act: () => tierList.dragItemToTier('Winston', 'S'), list: titled('My tanks', rows({S: ['Winston'], Unranked: ['Mauga', 'Sigma']}))},
-      {act: () => tierList.removeAllItems(), list: titled('My tanks', rows({}))},
-    ]);
-  });
-
-  test('keyboard only: items through several rows, and rows up and down', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
-
-    await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
-      // Up four times: Unranked to F, C, B, then A.
-      {act: () => tierList.moveItemWithKeyboard('Winston', ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']})},
-      {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Mauga'], A: ['Winston'], F: ['Sigma']})},
-      // Down keeps the item's place across the row, so Mauga lands before Winston.
-      {act: () => tierList.moveItemWithKeyboard('Mauga', ['ArrowDown']), list: rows({A: ['Mauga', 'Winston'], F: ['Sigma']})},
-      {act: () => tierList.moveTierWithKeyboard('A', ['ArrowUp']), list: rows({S: ['Mauga', 'Winston'], F: ['Sigma']})},
-      {act: () => tierList.moveTierWithKeyboard('F', ['ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga', 'Winston'], B: ['Sigma']})},
-    ]);
-  });
-});
-
-test.describe('A new change after Back', () => {
-  test.slow();
-
-  test('replaces the steps that were ahead, and Back still steps through the rest', async ({tierList, page}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-    await tierList.dragItemToTier('Mauga', 'S');
-    const afterMauga = page.url();
-    await tierList.dragItemToTier('Winston', 'A');
-    await tierList.dragItemToTier('Sigma', 'B');
-
-    // Back twice: only Mauga is ranked again.
-    await page.goBack();
-    await page.goBack();
-    await expect(page).toHaveURL(afterMauga);
-    await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
-
-    // A different change from here. The browser drops the two steps that were ahead.
-    await tierList.dragItemToTier('Sigma', 'F');
-    await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
-    const afterSigma = page.url();
-
-    await page.goBack();
-    await expect(page).toHaveURL(afterMauga);
-    await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
-    await page.goForward();
-    await expect(page).toHaveURL(afterSigma);
-    await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
-    // Nothing is ahead any more: Forward stays on the newest version.
-    await page.goForward();
-    await expect(page).toHaveURL(afterSigma);
-    await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
+      await page.goBack();
+      await expect(page).toHaveURL(afterMauga);
+      await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
+      await page.goForward();
+      await expect(page).toHaveURL(afterSigma);
+      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
+      // Nothing is ahead any more: Forward stays on the newest version.
+      await page.goForward();
+      await expect(page).toHaveURL(afterSigma);
+      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
+    });
   });
 });

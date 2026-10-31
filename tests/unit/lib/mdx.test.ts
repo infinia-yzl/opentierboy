@@ -18,8 +18,8 @@ async function render(source: string): Promise<string> {
   return renderToStaticMarkup(content);
 }
 
-describe('blog articles (MDX)', () => {
-  it('removes JavaScript expressions instead of running them', async () => {
+describe('MDX_OPTIONS', () => {
+  it('renders no expression result when an article has JavaScript expressions', async () => {
     const html = await render([
       'Sum: {1 + 1}',
       '',
@@ -35,7 +35,7 @@ describe('blog articles (MDX)', () => {
     expect(html).not.toContain('xy');
   });
 
-  it('renders the components of every article with their string props', async () => {
+  it('renders each TierListItem with its string props when compiling every article', async () => {
     const articlesDir = path.join(process.cwd(), 'articles');
     for (const file of fs.readdirSync(articlesDir).filter((name) => name.endsWith('.md'))) {
       const {content} = matter(fs.readFileSync(path.join(articlesDir, file), 'utf8'));

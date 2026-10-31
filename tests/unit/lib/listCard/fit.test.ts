@@ -23,7 +23,7 @@ const rowsHeight = (fit: ReturnType<typeof fitListCard>) =>
   fit.rows.reduce((sum, row) => sum + row.lines * fit.tile + 1, 0) + (fit.extraRows > 0 ? 34 : 0);
 
 describe('tilesPerLine', () => {
-  it('counts whole tiles and never returns less than one', () => {
+  it('returns the count of whole tiles, at least 1, when called with a width and a tile size', () => {
     expect(tilesPerLine(1008, 92)).toBe(10);
     expect(tilesPerLine(1008, 48)).toBe(21);
     expect(tilesPerLine(10, 92)).toBe(1);
@@ -31,7 +31,7 @@ describe('tilesPerLine', () => {
 });
 
 describe('fitListCard in a fixed frame', () => {
-  it('keeps the largest tiles when a short list fits', () => {
+  it('returns wrap mode at tileMax when a short list fits', () => {
     const fit = fitListCard(preview([4, 3, 2, 1, 0]));
     expect(fit.mode).toBe('wrap');
     expect(fit.tile).toBe(92);
@@ -40,7 +40,7 @@ describe('fitListCard in a fixed frame', () => {
     expect(fit.height).toBe(630);
   });
 
-  it('shrinks tiles until every row fits, and never draws past the frame', () => {
+  it('returns the largest tile that fits the frame when 6 to 9 rows need smaller tiles', () => {
     for (const rows of [6, 7, 8, 9]) {
       const fit = fitListCard(preview(Array.from({length: rows}, () => 3)));
       expect(fit.mode, `${rows} rows`).toBe('wrap');
@@ -52,7 +52,7 @@ describe('fitListCard in a fixed frame', () => {
     }
   });
 
-  it('wraps long rows onto more lines and counts those lines', () => {
+  it('returns the line count of each wrapped row when a row has 25 items', () => {
     const fit = fitListCard(preview([25, 2]));
     expect(fit.mode).toBe('wrap');
     expect(fit.rows[0].lines).toBe(Math.ceil(25 / fit.perLine));
@@ -61,7 +61,7 @@ describe('fitListCard in a fixed frame', () => {
     expect(rowsHeight(fit)).toBeLessThanOrEqual(ROOM);
   });
 
-  it('keeps one line a row with "+N" tiles when wrapping does not fit', () => {
+  it('returns single-line mode with a +N tile per row when wrapping does not fit', () => {
     const fit = fitListCard(preview([100, 100, 100, 100, 100]));
     expect(fit.mode).toBe('single-line');
     expect(fit.extraRows).toBe(0);
@@ -75,7 +75,7 @@ describe('fitListCard in a fixed frame', () => {
     expect(rowsHeight(fit)).toBeLessThanOrEqual(ROOM);
   });
 
-  it('summarises the rows that do not fit in a "+N more rows" bar', () => {
+  it('returns summary mode with extraRows for the rest when 12 rows do not fit', () => {
     const fit = fitListCard(preview(Array.from({length: 12}, () => 2)));
     expect(fit.mode).toBe('summary');
     // 8 rows fit at 48 px above the bar; the tiles then grow to fill the room.
@@ -88,7 +88,7 @@ describe('fitListCard in a fixed frame', () => {
     expect((fit.rows.length + 1) * 49 + 34).toBeGreaterThan(ROOM);
   });
 
-  it('shows a row\'s "+N" tile in the last place of its line', () => {
+  it('returns perLine minus 1 tiles per row, the last place for the +N tile, when rows overflow in summary mode', () => {
     const fit = fitListCard(preview(Array.from({length: 12}, () => 40)));
     expect(fit.mode).toBe('summary');
     for (const row of fit.rows) {
@@ -97,33 +97,33 @@ describe('fitListCard in a fixed frame', () => {
     }
   });
 
-  it('draws at most 100 short rows as a bar and a few rows', () => {
+  it('returns 8 rows and extraRows 91 when the list has 99 short rows', () => {
     const fit = fitListCard(preview(Array.from({length: 99}, () => 11)));
     expect(fit.rows.length).toBe(8);
     expect(fit.extraRows).toBe(91);
   });
 
-  it('keeps the drawn tiles under maxTiles', () => {
+  it('returns at most maxTiles drawn tiles when 9 rows of 40 items pass maxTiles', () => {
     const counts = Array.from({length: 9}, () => 40);
     const fit = fitListCard(preview(counts, {maxTiles: 120}));
     expect(fittedTileCount(fit)).toBeLessThanOrEqual(120);
     for (const [index, row] of fit.rows.entries()) expect(row.shown + row.more).toBe(counts[index]);
   });
 
-  it('draws every item when the list is within maxTiles', () => {
+  it('returns every item drawn when the list has fewer items than maxTiles', () => {
     const fit = fitListCard(preview([10, 10, 10], {maxTiles: 120}));
     expect(fit.mode).toBe('wrap');
     expect(fittedTileCount(fit)).toBe(30);
   });
 
-  it('handles a list without rows', () => {
+  it('returns no rows, extraRows 0 and tileMax when the list has no rows', () => {
     const fit = fitListCard(preview([]));
     expect(fit.rows).toEqual([]);
     expect(fit.extraRows).toBe(0);
     expect(fit.tile).toBe(92);
   });
 
-  it('treats odd counts as whole, non-negative numbers', () => {
+  it('returns whole, non-negative counts when an item count is negative or fractional', () => {
     const fit = fitListCard(preview([-3, 2.7]));
     expect(fit.rows.map((row) => row.shown)).toEqual([0, 2]);
   });
@@ -133,7 +133,7 @@ describe('fitListCard in an auto frame', () => {
   const auto = (counts: number[], extra: Partial<FitListCardInput> = {}) =>
     preview(counts, {frame: {width: 1200, height: 'auto'}, maxCanvasHeight: 8000, ...extra});
 
-  it('grows with the list and shows every item at the largest tiles', () => {
+  it('returns every item at tileMax and a height that grows with the list when it fits maxCanvasHeight', () => {
     const counts = Array.from({length: 20}, () => 30);
     const fit = fitListCard(auto(counts));
     expect(fit.mode).toBe('wrap');
@@ -144,12 +144,12 @@ describe('fitListCard in an auto frame', () => {
     expect(fit.height).toBe(132 + 32 + 20 * (lines * 92 + 1));
   });
 
-  it('a short list makes a short picture', () => {
+  it('returns the header, padding and 2 rows as the height when the list has 2 short rows', () => {
     const fit = fitListCard(auto([1, 0]));
     expect(fit.height).toBe(132 + 32 + 2 * 93);
   });
 
-  it('shrinks tiles only when the picture would pass the height cap', () => {
+  it('returns tiles below tileMax and every item drawn when the list would pass maxCanvasHeight', () => {
     const counts = Array.from({length: 20}, () => 100);
     const fit = fitListCard(auto(counts));
     expect(fit.tile).toBeLessThan(92);
@@ -158,7 +158,7 @@ describe('fitListCard in an auto frame', () => {
     expect(fit.rows.every((row) => row.more === 0)).toBe(true);
   });
 
-  it('summarises only as a last resort, below the tile floor', () => {
+  it('returns extraRows for the rest when 400 rows pass maxCanvasHeight at tileFloor', () => {
     const counts = Array.from({length: 400}, () => 2);
     const fit = fitListCard(auto(counts, {tileFloor: 24}));
     expect(fit.height).toBeLessThanOrEqual(8000);

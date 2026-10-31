@@ -78,13 +78,13 @@ function open(snapshot: SnapshotPayload) {
 }
 
 describe('snapshotOpenOutcome', () => {
-  it('offers ordinary and slightly broken pictures as images', () => {
+  it('returns {action: \'add-as-image\'} when the reason is no-snapshot, not-png, bad-structure or bad-crc', () => {
     for (const reason of ['no-snapshot', 'not-png', 'bad-structure', 'bad-crc'] as const) {
       expect(snapshotOpenOutcome(reason)).toEqual({action: 'add-as-image'});
     }
   });
 
-  it('shows a plain message for everything else', () => {
+  it('returns {action: \'message\'} with a SNAPSHOT_MESSAGES text when the reason is any other code', () => {
     expect(snapshotOpenOutcome('file-too-large')).toEqual({action: 'message', message: SNAPSHOT_MESSAGES.tooLarge});
     expect(snapshotOpenOutcome('payload-too-large')).toEqual({action: 'message', message: SNAPSHOT_MESSAGES.tooLarge});
     expect(snapshotOpenOutcome('text-too-large')).toEqual({action: 'message', message: SNAPSHOT_MESSAGES.tooLarge});
@@ -97,7 +97,7 @@ describe('snapshotOpenOutcome', () => {
 });
 
 describe('snapshotToOpen', () => {
-  it('decodes the list, keeps only the images its device items use, and defaults the path to /rank', () => {
+  it('returns the decoded list, only the images its device items use, and path /rank when the payload has no path', () => {
     const images = [{id: CAT, label: 'Cat', dataUrl: png}, {id: 'unusedImage1', label: 'Unused', dataUrl: png}];
     const opened = open(payload({images}));
     expect(opened.path).toBe('/rank');
@@ -107,12 +107,12 @@ describe('snapshotToOpen', () => {
     expect(open(payload({path: '/rank/overwatch/tank'})).path).toBe('/rank/overwatch/tank');
   });
 
-  it('refuses a link value that does not decode, or a legacy list, as damaged', () => {
+  it('returns SNAPSHOT_MESSAGES.damaged when the state does not decode as a v3 link', () => {
     expect(snapshotToOpen(payload({state: '3.notAList'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
     expect(snapshotToOpen(payload({state: '9.abc'}))).toEqual({ok: false, message: SNAPSHOT_MESSAGES.damaged});
   });
 
-  it('refuses a link value too long to open as an address, as too large', () => {
+  it('returns SNAPSHOT_MESSAGES.tooLarge when the state is over MAX_SNAPSHOT_LINK_CHARS (13,000)', () => {
     expect(MAX_SNAPSHOT_LINK_CHARS).toBe(13_000);
     // 13,000 characters of state, a 512-character path, "?state=" and a long site address stay under 14,000.
     expect(MAX_SNAPSHOT_LINK_CHARS + 512 + '?state='.length + 'https://www.opentierboy.com'.length).toBeLessThan(14_000);
@@ -123,8 +123,8 @@ describe('snapshotToOpen', () => {
   });
 });
 
-describe('the link a file can get once it opens in another browser', () => {
-  it('replaces only the given images\' ids, each with its own placeholder, the same way every time', () => {
+describe('snapshotLinkWorstCase and snapshotOpenedLinkLength', () => {
+  it('returns a link with one placeholder id per given image, the same on every call, when given a set of ids', () => {
     const decoded = decodeState(STATE)!;
     const worst = snapshotLinkWorstCase(decoded, new Set([CAT]));
     expect(worst).toBe(snapshotLinkWorstCase(decoded, new Set([CAT])));
@@ -139,7 +139,7 @@ describe('the link a file can get once it opens in another browser', () => {
     expect(snapshotOpenedLinkLength(decoded, new Set())).toBe(encodeState(decoded, {format: 3}).length);
   });
 
-  it('is never shorter than the link after the images get their ids here', async () => {
+  it('returns a length no shorter than the link after import when given 40 random lists', async () => {
     // Over 2,100 random lists, a real link came out at most 15 characters longer than its
     // placeholder link: snapshotOpenedLinkLength adds room for that.
     const text = randomText(99);
@@ -156,7 +156,7 @@ describe('the link a file can get once it opens in another browser', () => {
     }
   });
 
-  it('refuses a file whose link fits but would not fit once its images get their ids here, before anything is stored', () => {
+  it('returns SNAPSHOT_MESSAGES.tooLarge from snapshotToOpen when the link passes the cap once its images get new ids', () => {
     // Fill until the link itself is just under the cap: with 50 images, it would grow past it.
     let filler = 0;
     let found = bigList(50, filler);
@@ -173,20 +173,20 @@ describe('the link a file can get once it opens in another browser', () => {
   });
 });
 
-describe('device image ids', () => {
-  it('lists each device image of a list once, in list order', () => {
+describe('deviceItemIds, deviceImagesOfLink and snapshotLinkAfterImport', () => {
+  it('returns each device image once, in list order, when the list repeats a device item', () => {
     expect(deviceItemIds(list)).toEqual([CAT, DOG]);
     expect(deviceImagesOfLink(STATE)).toEqual([{id: CAT, label: 'Cat'}, {id: DOG, label: 'Dog'}]);
     expect(deviceImagesOfLink('not a link')).toEqual([]);
   });
 
-  it('keeps the file\'s link value when no id changed', () => {
+  it('returns the file\'s state unchanged when no id changed', () => {
     const opened = open(payload());
     expect(snapshotLinkAfterImport(opened, new Map([[CAT, CAT], [DOG, DOG]]))).toBe(STATE);
     expect(snapshotLinkAfterImport(opened, new Map())).toBe(STATE);
   });
 
-  it('writes the list again with the new ids, and changes nothing else', () => {
+  it('returns a link with the new ids and everything else unchanged when an id changed', () => {
     const opened = open(payload());
     const link = snapshotLinkAfterImport(opened, new Map([[CAT, 'newCatId0001'], [DOG, DOG]]));
     const decoded = decodeState(link)!;
@@ -198,22 +198,22 @@ describe('device image ids', () => {
 });
 
 describe('snapshotFileName', () => {
-  it('keeps letters and digits of any script, joined by dashes', () => {
+  it('returns the letters and digits of any script, joined by dashes, when the title has other characters', () => {
     expect(snapshotFileName('Tanks with a cat')).toBe('tanks-with-a-cat.png');
     expect(snapshotFileName('  Ünïcödé — 名前 / Ελληνικά!! ')).toBe('ünïcödé-名前-ελληνικά.png');
     expect(snapshotFileName('Ｆｕｌｌ　Ｗｉｄｔｈ')).toBe('full-width.png');
     expect(snapshotFileName('../../etc/passwd')).toBe('etc-passwd.png');
   });
 
-  it('falls back to tier-list.png and stays short', () => {
+  it('returns tier-list.png when the title has no letters or digits, and at most 80 characters for a long title', () => {
     for (const title of ['', '   ', '!!!', '🧪🧪']) expect(snapshotFileName(title), title).toBe('tier-list.png');
     const long = snapshotFileName('名'.repeat(200));
     expect(Array.from(long.replace(/\.png$/, ''))).toHaveLength(80);
   });
 });
 
-describe('snapshot image data URLs', () => {
-  it('types images by their first bytes and round-trips them', () => {
+describe('snapshotImageTypeOf, dataUrlFromImageBytes and imageBytesFromDataUrl', () => {
+  it('returns the type from the first bytes, and the same bytes after a data URL round trip, when given PNG bytes', () => {
     const bytes = makePng(3, 3);
     expect(snapshotImageTypeOf(bytes)).toBe('image/png');
     const url = dataUrlFromImageBytes(bytes)!;
@@ -224,7 +224,7 @@ describe('snapshot image data URLs', () => {
     expect(snapshotImageTypeOf(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 '))).toBe('image/webp');
   });
 
-  it('hands AVIF and HEIC images back as they are, with their declared type, for the store to refuse', () => {
+  it('returns AVIF bytes with their declared type from imageBytesFromDataUrl, and null when encoding them', () => {
     const avif = new Uint8Array(Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypavif\0\0\0\0mif1avif', 'latin1'), Buffer.alloc(40)]));
     const base64 = Buffer.from(avif).toString('base64');
     expect(imageBytesFromDataUrl(`data:image/avif;base64,${base64}`)).toEqual({type: 'image/avif', bytes: avif});
@@ -234,14 +234,14 @@ describe('snapshot image data URLs', () => {
     expect(dataUrlFromImageBytes(avif)).toBeNull();
   });
 
-  it('refuses other bytes and bad data URLs', () => {
+  it('returns null when the bytes or the data URL are not a raster image', () => {
     expect(dataUrlFromImageBytes(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>'))).toBeNull();
     expect(dataUrlFromImageBytes(new Uint8Array())).toBeNull();
     expect(imageBytesFromDataUrl('data:image/svg+xml;base64,PHN2Zz4=')).toBeNull();
     expect(imageBytesFromDataUrl('https://example.com/a.png')).toBeNull();
   });
 
-  it('encodes large images in pieces', () => {
+  it('returns a data URL of every byte when the image is 300,000 bytes', () => {
     const bytes = new Uint8Array(300_000);
     bytes.set(makePng(1, 1).subarray(0, 8));
     const url = dataUrlFromImageBytes(bytes)!;

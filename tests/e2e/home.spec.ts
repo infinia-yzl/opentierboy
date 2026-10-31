@@ -4,14 +4,14 @@ import {rankingState} from '../support/links';
 const TANKS = '/rank/overwatch/tank';
 const SUPPORT = '/rank/overwatch/sup';
 
-test.describe('Recently viewed', () => {
-  test('the landing page shows no section before any list was opened', {tag: '@mobile'}, async ({site}) => {
+test.describe('home', () => {
+  test('renders no section "Recently viewed" when the landing page opens before any list was opened', {tag: '@mobile'}, async ({site}) => {
     await site.gotoHome();
     await expect(site.heading('Create a New Tier List')).toBeVisible();
     await expect(site.recentlyViewed).toHaveCount(0);
   });
 
-  test('records opened lists; pin, unpin and remove; keeps them after a reload', {tag: '@mobile'}, async ({tierList, site, page}) => {
+  test('renders opened lists in Recently viewed, pinned first, also after a reload, when the user pins and removes', {tag: '@mobile'}, async ({tierList, site, page}) => {
     // The editor records a list once it has started in the browser.
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks list'));
     await tierList.waitUntilInteractive();
@@ -47,7 +47,7 @@ test.describe('Recently viewed', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
 
-  test('records a list when it opens, not on every edit', async ({tierList, site}) => {
+  test('renders the list once in Recently viewed, with its opened title, when the user edits it after opening', async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Edited list'));
     await tierList.renameTier('A', 'Great');
     await tierList.dragItemToTier('Winston', 'S');
@@ -56,7 +56,7 @@ test.describe('Recently viewed', () => {
     await expect(site.recentLinks).toHaveText(['Edited list']);
   });
 
-  test('a list without its own title shows the page name', {tag: '@mobile'}, async ({tierList, site}) => {
+  test('renders the page name OVERWATCH - Tank in Recently viewed when the opened link has no title', {tag: '@mobile'}, async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.waitUntilInteractive();
     await site.gotoHome();

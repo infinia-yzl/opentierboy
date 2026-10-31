@@ -32,12 +32,12 @@ for (const folder of [...folders, 'lib/rankPath.ts']) {
   const dir = path.join(root, folder);
   const files = isFile ? [dir] : sourceFiles(dir);
 
-  describe(`${folder} stays plain`, () => {
-    it('has source files', () => {
+  describe(`${folder} imports`, () => {
+    it('returns at least 1 source file when the folder is listed', () => {
       expect(files.length).toBeGreaterThan(0);
     });
 
-    it('never imports zod directly (A39)', () => {
+    it('returns no import from zod when each source file is read', () => {
       for (const file of files) expect(fs.readFileSync(file, 'utf8'), path.relative(root, file)).not.toMatch(/from\s*['"]zod['"]/);
     });
 
@@ -45,7 +45,7 @@ for (const folder of [...folders, 'lib/rankPath.ts']) {
       const name = path.relative(root, file);
       const code = withoutComments(fs.readFileSync(file, 'utf8'));
 
-      it(`${name} imports only files of its folder and the allowed plain modules`, () => {
+      it(`returns only same-folder and allowed plain module imports when ${name} is parsed`, () => {
         const specifiers = Array.from(code.matchAll(/(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]/g)).map(
           match => match[1] ?? match[2] ?? match[3],
         );
@@ -56,7 +56,7 @@ for (const folder of [...folders, 'lib/rankPath.ts']) {
         }
       });
 
-      it(`${name} uses no window, document, IndexedDB or Node globals`, () => {
+      it(`returns no window, document, indexedDB or Node global when ${name} is parsed`, () => {
         expect(code).not.toMatch(/\b(window|document|indexedDB|navigator|process|Buffer|__dirname|require)\b/);
       });
     }

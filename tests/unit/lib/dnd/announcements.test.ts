@@ -17,8 +17,8 @@ const tiers = [
 
 const PHASES: DragPhase[] = ['start', 'over', 'drop', 'cancel'];
 
-describe('item announcements', () => {
-  it('names the item, the tier label and the position', () => {
+describe('itemAnnouncement', () => {
+  it('returns the item label, tier label and position when the phase is start, over, drop or cancel', () => {
     const from = {tierId: 'uncategorized', index: 1};
     const to = {tierId: 'tier-s', index: 2};
     expect(itemAnnouncement('start', tiers, 'd', from)).toBe('Picked up D.Va, in Unranked, position 2 of 3.');
@@ -27,20 +27,20 @@ describe('item announcements', () => {
     expect(itemAnnouncement('cancel', tiers, 'd', from, to)).toBe('Move cancelled. D.Va is back in Unranked, position 2 of 3.');
   });
 
-  it('counts the row without the item when it moves inside one row', () => {
+  it('returns positions counted without the item when it moves inside its own row', () => {
     const from = {tierId: 'tier-s', index: 1};
     expect(itemAnnouncement('over', tiers, 'w', from, {tierId: 'tier-s', index: 0})).toBe('Winston moves to tier S, position 1 of 2.');
     expect(itemAnnouncement('drop', tiers, 'w', from, {tierId: 'tier-s', index: 1})).toBe('Dropped Winston. It stays in tier S, position 2 of 2.');
     expect(itemAnnouncement('over', tiers, 'w', from, from)).toBe('Winston is back in tier S, position 2 of 2.');
   });
 
-  it('names an empty tier and an unnamed item without ids', () => {
+  it('returns Tier <n> and Unnamed item when the row has no label and the item no content', () => {
     expect(itemAnnouncement('drop', tiers, 's', {tierId: 'uncategorized', index: 0}, {tierId: 'tier-1', index: 0}))
       .toBe('Dropped Sigma in Tier 3, position 1 of 2.');
     expect(itemAnnouncement('start', tiers, 'x', {tierId: 'tier-1', index: 0})).toBe('Picked up Unnamed item, in Tier 3, position 1 of 1.');
   });
 
-  it('says nothing for input that does not fit the list', () => {
+  it('returns undefined when the item, row or index does not fit the list', () => {
     expect(itemAnnouncement('start', tiers, 'nope', {tierId: 'tier-s', index: 0})).toBeUndefined();
     expect(itemAnnouncement('start', tiers, 'w', {tierId: 'nope', index: 0})).toBeUndefined();
     expect(itemAnnouncement('over', tiers, 'w', {tierId: 'tier-s', index: 1}, {tierId: 'nope', index: 0})).toBeUndefined();
@@ -48,7 +48,7 @@ describe('item announcements', () => {
     expect(itemAnnouncement('drop', tiers, 'w', {tierId: 'tier-s', index: 1}, null)).toBeUndefined();
   });
 
-  it('never contains an internal id', () => {
+  it('returns text with no internal id when any item moves to any row in any phase', () => {
     const ids = [...tiers.map(t => t.id), ...tiers.flatMap(t => t.items.map(i => i.id))].filter(id => id.length > 1);
     for (const phase of PHASES) {
       for (const [fromTier, row] of tiers.entries()) {
@@ -64,8 +64,8 @@ describe('item announcements', () => {
   });
 });
 
-describe('row announcements', () => {
-  it('says that the items move and the labels stay', () => {
+describe('rowAnnouncement', () => {
+  it('returns text that the items move and the tier labels stay in place when a row is dragged', () => {
     expect(rowAnnouncement('start', tiers, 0)).toBe('Picked up the items of tier S, row 1 of 4. The tier labels stay in place.');
     expect(rowAnnouncement('over', tiers, 0, 1)).toBe('The items of tier S move to tier A, row 2 of 4.');
     expect(rowAnnouncement('over', tiers, 0, 0)).toBe('The items of tier S stay in place.');
@@ -74,7 +74,7 @@ describe('row announcements', () => {
     expect(rowAnnouncement('cancel', tiers, 3, 0)).toBe('Move cancelled. The items stay in Unranked.');
   });
 
-  it('says nothing for rows that do not exist', () => {
+  it('returns undefined when a row index does not exist', () => {
     expect(rowAnnouncement('start', tiers, 4)).toBeUndefined();
     expect(rowAnnouncement('over', tiers, 0, 4)).toBeUndefined();
     expect(rowAnnouncement('drop', tiers, 0)).toBeUndefined();
@@ -82,8 +82,8 @@ describe('row announcements', () => {
   });
 });
 
-describe('preview announcements', () => {
-  it('name the position in the preview, as the screen shows it during the drag', () => {
+describe('previewAnnouncement', () => {
+  it('returns the position in the preview list when an item is dragged', () => {
     const preview = previewItemOver(tiers, 'o', {kind: 'tier', tierId: 'tier-a'});
     expect(previewAnnouncement('start', tiers, tiers, 'item:image-overwatch-mauga.webp')).toBe('Picked up Mauga, in tier S, position 1 of 2.');
     expect(previewAnnouncement('over', tiers, preview, 'item:o')).toBe('Orisa moves to tier A, position 1 of 1.');
@@ -94,14 +94,14 @@ describe('preview announcements', () => {
     expect(previewAnnouncement('over', tiers, tiers, 'item:o')).toBe('Orisa is back in Unranked, position 3 of 3.');
   });
 
-  it('name rows by the labels of the positions, which stay in place', () => {
+  it('returns the labels of the target positions when a row is dragged in the preview', () => {
     const preview = moveRowInPreview(tiers, 1, 0);
     expect(previewAnnouncement('start', tiers, tiers, 'row:tier-a')).toBe('Picked up the items of tier A, row 2 of 4. The tier labels stay in place.');
     expect(previewAnnouncement('over', tiers, preview, 'row:tier-a')).toBe('The items of tier A move to tier S, row 1 of 4.');
     expect(previewAnnouncement('drop', tiers, preview, 'row:tier-a')).toBe('Dropped. The items of tier A are now in tier S.');
   });
 
-  it('say nothing for ids that are not in the list', () => {
+  it('returns undefined when the id is no item: or row: id in the list', () => {
     expect(previewAnnouncement('start', tiers, tiers, 'item:nope')).toBeUndefined();
     expect(previewAnnouncement('start', tiers, tiers, 'row:nope')).toBeUndefined();
     expect(previewAnnouncement('start', tiers, tiers, 'tier:tier-s')).toBeUndefined();
@@ -110,7 +110,7 @@ describe('preview announcements', () => {
     expect(previewAnnouncement('over', tiers, [], 'row:tier-a')).toBeUndefined();
   });
 
-  it('has instructions for keyboard users', () => {
+  it('returns text naming Space or Enter, arrow keys and Escape when SCREEN_READER_INSTRUCTIONS is read', () => {
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/Space or Enter/);
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/arrow keys/);
     expect(SCREEN_READER_INSTRUCTIONS).toMatch(/Escape/);

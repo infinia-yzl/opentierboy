@@ -24,8 +24,8 @@ function importsOf(code: string): string[] {
 
 const files = fs.readdirSync(dndDir).filter(name => /\.(ts|tsx)$/.test(name));
 
-describe('lib/dnd stays pure outside its dnd-kit binding', () => {
-  it('has the binding and pure files', () => {
+describe('lib/dnd imports', () => {
+  it('returns dndKit.ts and more files than the binding files when lib/dnd is listed', () => {
     expect(files).toContain('dndKit.ts');
     expect(files.length).toBeGreaterThan(BINDING_FILES.size);
   });
@@ -33,18 +33,18 @@ describe('lib/dnd stays pure outside its dnd-kit binding', () => {
   for (const name of files.filter(file => !BINDING_FILES.has(file))) {
     const code = withoutComments(fs.readFileSync(path.join(dndDir, name), 'utf8'));
 
-    it(`${name} imports only lib/dnd files and models`, () => {
+    it(`returns only ./ and @/models imports when ${name} is parsed`, () => {
       for (const specifier of importsOf(code)) {
         expect(specifier, `${name} imports ${specifier}`).toMatch(/^(\.\/[\w-]+|@\/models\/[\w-]+)$/);
       }
     });
 
-    it(`${name} uses no browser or Node globals`, () => {
+    it(`returns no browser or Node global when ${name} is parsed`, () => {
       expect(code).not.toMatch(/\b(window|document|navigator|localStorage|sessionStorage|indexedDB|performance|process|Buffer|__dirname|setTimeout|requestAnimationFrame)\b/);
     });
   }
 
-  it('imports dnd-kit only in dndKit.ts and react.tsx', () => {
+  it('returns @dnd-kit imports from dndKit.ts and react.tsx only when the lib/dnd files are parsed', () => {
     for (const name of files) {
       const dndKit = importsOf(withoutComments(fs.readFileSync(path.join(dndDir, name), 'utf8'))).filter(specifier => specifier.startsWith('@dnd-kit/'));
       if (DND_KIT_FILES.has(name)) expect(dndKit.length, name).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe('lib/dnd stays pure outside its dnd-kit binding', () => {
     }
   });
 
-  it('marks the React file as a client module', () => {
+  it('returns the use client directive as the first line when react.tsx is read', () => {
     expect(fs.readFileSync(path.join(dndDir, 'react.tsx'), 'utf8')).toMatch(/^'use client';\n/);
   });
 });

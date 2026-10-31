@@ -3,8 +3,8 @@ import {rankingState, v3State} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
 
-test.describe('Adding and removing rows (#182)', () => {
-  test('add a row above Unranked; Back takes it away again', async ({tierList}) => {
+test.describe('editor rows', () => {
+  test('renders row Tier 6 above Unranked and writes 1 history entry when the user clicks Add row', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
     const entries = await tierList.historyLength();
 
@@ -21,7 +21,7 @@ test.describe('Adding and removing rows (#182)', () => {
     await expect(tierList.tier('Tier 6')).toHaveCount(0);
   });
 
-  test('a new row can be named and filled, and the link carries it', async ({tierList, openAsVisitor}) => {
+  test('renders the added row with its name and item for a visitor of the share link when the user fills it', async ({tierList, openAsVisitor}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 
     await tierList.addTierRow();
@@ -42,7 +42,7 @@ test.describe('Adding and removing rows (#182)', () => {
     });
   });
 
-  test('remove a row: its items go to Unranked, and Back brings the row back', async ({tierList}) => {
+  test('renders the row items in Unranked and writes 1 history entry when the user removes row B', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], B: ['Winston', 'Sigma'], '': ['D.Va']}));
     const entries = await tierList.historyLength();
 
@@ -58,7 +58,7 @@ test.describe('Adding and removing rows (#182)', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va']);
   });
 
-  test('Unranked cannot be removed, and one ranked row always stays', async ({tierList}) => {
+  test('renders no Unranked in the Remove a row menu, and the menu item disabled, when the user removes rows down to 1', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.chooseRowCount(3);
 
@@ -77,7 +77,7 @@ test.describe('Adding and removing rows (#182)', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
 
-  test('a list holds at most 20 rows, Unranked included', async ({tierList}) => {
+  test('renders button "Add row" disabled when the list has 20 rows, Unranked included', async ({tierList}) => {
     const rows = Array.from({length: 19}, (_, index) => [`row-${index + 1}`, `R${index + 1}`, []]);
     await tierList.goto(TANKS, v3State({r: [...rows, ['uncategorized', '', []]]}));
     await expect(tierList.tiers).toHaveCount(20);

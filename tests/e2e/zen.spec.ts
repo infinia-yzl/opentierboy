@@ -2,8 +2,8 @@ import {expect, test} from '../support/test';
 
 const TANKS = '/rank/overwatch/tank';
 
-test.describe('Zen mode', () => {
-  test('zen mode hides the editing toolbar, and turning it off brings it back', {tag: '@mobile'}, async ({
+test.describe('zen', () => {
+  test('renders no button "Row options", "Add images" or "Share" when the user turns on Zen', {tag: '@mobile'}, async ({
     tierList,
   }) => {
     await tierList.goto(TANKS);
@@ -24,7 +24,7 @@ test.describe('Zen mode', () => {
     }
   });
 
-  test('items cannot be deleted in zen mode', async ({tierList, page}) => {
+  test('renders no menu item "Delete" in the item menu when the user turns on Zen', async ({tierList, page}) => {
     await tierList.goto(TANKS);
     await tierList.setZenMode(true);
 

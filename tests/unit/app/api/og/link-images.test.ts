@@ -7,8 +7,8 @@ const WEBP = new Uint8Array([...'RIFF\0\0\0\0WEBPVP8 '].map((c) => c.charCodeAt(
 const image = (bytes: Uint8Array, type = 'image/png', status = 200) => new Response(bytes as BodyInit, {status, headers: {'content-type': type}});
 const dataUrl = (type: string, bytes: Uint8Array) => `data:${type};base64,${Buffer.from(bytes).toString('base64')}`;
 
-describe('link images in link previews (A8, A36)', () => {
-  it('loads images from trusted sites, and gives them as data URLs', async () => {
+describe('inlineTrustedLinkImages', () => {
+  it('returns a data URL per address, fetched with redirect manual and credentials omit, when the site is trusted', async () => {
     const fetchImpl = vi.fn(async () => image(PNG));
     const src = await inlineTrustedLinkImages(['https://i.imgur.com/a.png', 'https://upload.wikimedia.org/b.png'], {fetchImpl});
     expect(src('https://i.imgur.com/a.png')).toBe(dataUrl('image/png', PNG));
@@ -20,7 +20,7 @@ describe('link images in link previews (A8, A36)', () => {
     expect((init.headers as Record<string, string>)['User-Agent']).toContain('OpenTierBoy');
   });
 
-  it('never requests an untrusted, local or broken address', async () => {
+  it('writes no fetch request and returns undefined when trustedPreviewUrl rejects the address', async () => {
     const fetchImpl = vi.fn(async () => image(PNG));
     const urls = [
       'https://images.example.org/a.png',
@@ -41,7 +41,7 @@ describe('link images in link previews (A8, A36)', () => {
     expect(trustedPreviewUrl('HTTPS://I.IMGUR.COM./a.png')).toBe('https://i.imgur.com/a.png');
   });
 
-  it('draws a label tile for a redirect, an error, a wrong type or bytes that are not PNG, JPEG or GIF', async () => {
+  it('returns undefined when the response is a redirect, a 404, a wrong type or bytes other than PNG, JPEG or GIF', async () => {
     const replies: Record<string, () => Response> = {
       'https://i.imgur.com/redirect.png': () => new Response(null, {status: 302, headers: {location: 'http://127.0.0.1/'}}),
       'https://i.imgur.com/missing.png': () => image(PNG, 'image/png', 404),
@@ -58,7 +58,7 @@ describe('link images in link previews (A8, A36)', () => {
     }
   });
 
-  it('caps the size, the time and the number of images', async () => {
+  it('returns undefined when the image exceeds maxBytes or timeoutMs or comes after maxImages addresses', async () => {
     expect(DEFAULT_LINK_IMAGE_LIMITS).toEqual({maxBytes: 1024 * 1024, timeoutMs: 4_000, maxImages: 24});
     const big = new Uint8Array(2048);
     big.set(PNG);
@@ -83,14 +83,14 @@ describe('link images in link previews (A8, A36)', () => {
     expect(capped(many[5])).toBeUndefined();
   });
 
-  it('loads an address once, also when the list writes it in two ways', async () => {
+  it('writes 1 fetch request when the list repeats an address in another letter case', async () => {
     const fetchImpl = vi.fn(async () => image(PNG));
     const src = await inlineTrustedLinkImages(['https://i.imgur.com/a.png', 'HTTPS://I.IMGUR.COM/a.png', 'https://i.imgur.com/a.png'], {fetchImpl});
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(src('HTTPS://I.IMGUR.COM/a.png')).toBe(dataUrl('image/png', PNG));
   });
 
-  it('never throws, whatever fetch does', async () => {
+  it('returns undefined when fetch throws a TypeError', async () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('network down');
     });

@@ -32,7 +32,7 @@ const PROBE = [
   '});',
 ].join('\n');
 
-describe('no-floating-promises', {timeout: 90_000}, () => {
+describe('ESLint @typescript-eslint/no-floating-promises', {timeout: 90_000}, () => {
   it('returns an error for each Playwright call without await when the file is an end-to-end test', async () => {
     expect(await floatingLines('tests/e2e/history.spec.ts', PROBE)).toEqual([3, 4]);
   });

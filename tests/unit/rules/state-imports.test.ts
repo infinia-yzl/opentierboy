@@ -23,8 +23,8 @@ function withoutComments(source: string): string {
 
 const files = sourceFiles(stateDir);
 
-describe('lib/state stays pure', () => {
-  it('has source files', () => {
+describe('lib/state imports', () => {
+  it('returns at least 1 source file when lib/state is listed', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
@@ -32,7 +32,7 @@ describe('lib/state stays pure', () => {
     const name = path.relative(stateDir, file);
     const code = withoutComments(fs.readFileSync(file, 'utf8'));
 
-    it(`${name} imports only lz-string and lib/state files`, () => {
+    it(`returns only lz-string and lib/state imports when ${name} is parsed`, () => {
       const specifiers = Array.from(code.matchAll(/(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]|require\s*\(\s*['"]([^'"]+)['"]/g))
         .map(match => match[1] ?? match[2] ?? match[3]);
       for (const specifier of specifiers) {
@@ -42,7 +42,7 @@ describe('lib/state stays pure', () => {
       }
     });
 
-    it(`${name} uses no browser or Node globals`, () => {
+    it(`returns no browser or Node global when ${name} is parsed`, () => {
       expect(code).not.toMatch(/\b(window|document|localStorage|sessionStorage|indexedDB|navigator|process|Buffer|__dirname)\b/);
     });
   }

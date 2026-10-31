@@ -44,7 +44,7 @@ function forbiddenDirectives(source: string): string[] {
 }
 
 describe('ESLint directive comments outside tests', () => {
-  it('flags a bare eslint-disable and any comment that turns off a no-restricted-* rule', () => {
+  it('returns the comment from forbiddenDirectives when it is a bare eslint-disable or turns off a no-restricted-* rule', () => {
     const flagged = [
       '// eslint-disable-next-line',
       '/* eslint-disable */',
@@ -63,7 +63,7 @@ describe('ESLint directive comments outside tests', () => {
     for (const comment of flagged) expect(forbiddenDirectives(`const a = 1; ${comment}\n`), comment).toEqual([comment]);
   });
 
-  it('allows a disable comment that names other rules, and comments that only mention eslint', () => {
+  it('returns no comment when the directive names other rules or the text only mentions eslint', () => {
     const allowed = [
       '// eslint-disable-next-line @next/next/no-img-element -- link images never go through the image optimizer (A8)',
       '/* eslint-disable react-hooks/exhaustive-deps */',
@@ -76,7 +76,7 @@ describe('ESLint directive comments outside tests', () => {
     for (const comment of allowed) expect(forbiddenDirectives(`${comment}\n`), comment).toEqual([]);
   });
 
-  it('finds none in the code of the repository', () => {
+  it('returns no forbidden directive when every code file outside tests and packages is read', () => {
     const files = codeFiles(root);
     const names = files.map(file => path.relative(root, file));
     // The scan reaches app code, scripts and the root config files.

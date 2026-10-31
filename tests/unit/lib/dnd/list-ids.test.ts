@@ -59,20 +59,20 @@ const LINKS: [string, string][] = [
   ['a v3 link where an item id equals a tier id', `3.${lz({r: [['a', 'S', [{i: 'a', c: 'A'}]], ['uncategorized', '', []]]})}`],
 ];
 
-describe('the list the editor hands to lib/dnd', () => {
+describe('initialTierListState and createTierListReducer', () => {
   for (const [name, link] of LINKS) {
-    it(`has unique tier and item ids: ${name}`, () => {
+    it(`returns unique tier and item ids when the link is ${name}`, () => {
       const tiers = editorTiers(link);
       expect(tiers.length).toBeGreaterThan(1);
       expectUniqueIds(tiers);
     });
   }
 
-  it('has unique ids for a template without a link', () => {
+  it('returns unique tier and item ids when a template opens without a link', () => {
     expectUniqueIds(editorTiers(null));
   });
 
-  it('keeps ids unique after the changes the editor makes, added rows included', () => {
+  it('returns unique tier and item ids after each action when rows and items are added, moved and removed', () => {
     const encode = (title: string, tiers: Tier[]) => cortex.encodeListForURL(title, tiers);
     const reducer = createTierListReducer(encode);
     let state = initialTierListState(loadList(cortex, LINKS[0][1], TANKS, 'Tanks'), LINKS[0][1], encode);
@@ -92,8 +92,8 @@ describe('the list the editor hands to lib/dnd', () => {
   });
 });
 
-describe('rows added by hand (#182)', () => {
-  it('stay within the row cap of the v3 link decoder, so a list with added rows always fits in a link', () => {
+describe('MAX_TIER_ROWS (#182)', () => {
+  it('returns at most V3_LIMITS.maxRows when MAX_TIER_ROWS is compared with the v3 decoder cap', () => {
     expect(MAX_TIER_ROWS).toBeLessThanOrEqual(V3_LIMITS.maxRows);
   });
 });

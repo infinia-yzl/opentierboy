@@ -24,8 +24,8 @@ const CAT = pngDataUrl(makePng(8, 8, 3));
 const DOG = pngDataUrl(makePng(6, 9, 7));
 const UNUSED = pngDataUrl(makePng(5, 5, 11));
 
-describe('a snapshot file, written and opened again', () => {
-  it('opens the same list, with each device image once and no image the list does not use', async () => {
+describe('writeSnapshotFile, readSnapshotFile and snapshotToOpen', () => {
+  it('returns the same list, the path and each used device image once when a written snapshot file is read and opened', async () => {
     const state = encodeState(LIST);
     const written = await writeSnapshotFile(makePng(40, 30, 1), {
       state,
@@ -58,7 +58,7 @@ describe('a snapshot file, written and opened again', () => {
     ]);
   });
 
-  it('gives the link with this browser\'s image ids, and keeps the rest of the list', async () => {
+  it('returns a link with the new device image ids, and the rest unchanged, when snapshotLinkAfterImport gets new ids', async () => {
     const state = encodeState(LIST);
     const written = await writeSnapshotFile(makePng(40, 30, 1), {state, images: [
       {id: 'h3Kx9_Tq2LmZ-a8B', label: 'My cat', dataUrl: CAT},

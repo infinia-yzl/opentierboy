@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 describe('checkImage', () => {
-  it('loads a link image without a referrer and reports its size', async () => {
+  it('returns ok with the natural size, and sets referrerPolicy no-referrer before src, when the image loads', async () => {
     const {images, createImage} = setup();
     const result = checkImage('https://i.imgur.com/abc.png', {createImage});
     expect(images).toHaveLength(1);
@@ -66,14 +66,14 @@ describe('checkImage', () => {
     expect(images[0].decoding).toBe('async');
   });
 
-  it('loads the normalised address', async () => {
+  it('returns the normalised address as src when the address has upper case, a trailing dot or port 443', async () => {
     const {images, createImage} = setup();
     const result = checkImage(' HTTPS://I.IMGUR.COM.:443/abc.png ', {createImage});
     images[0].load(10, 10);
     expect(await result).toMatchObject({ok: true, src: 'https://i.imgur.com/abc.png'});
   });
 
-  it('asks for CORS only when told to', async () => {
+  it('writes a CORS request (crossOrigin anonymous) when options.crossOrigin is anonymous', async () => {
     const {images, createImage} = setup();
     const result = checkImage('https://upload.wikimedia.org/a.png', {createImage, crossOrigin: 'anonymous'});
     images[0].load(10, 10);
@@ -81,7 +81,7 @@ describe('checkImage', () => {
     expect(images[0].sources[0].crossOrigin).toBe('anonymous');
   });
 
-  it('accepts blob: URLs of device images', async () => {
+  it('returns ok when the address is a blob: URL of a device image', async () => {
     const {images, createImage} = setup();
     const url = 'blob:https://opentierboy.com/0f8e7c1a-2b3d-4e5f-8a9b-0c1d2e3f4a5b';
     const result = checkImage(url, {createImage, label: 'My cat'});
@@ -89,7 +89,7 @@ describe('checkImage', () => {
     expect(await result).toEqual({ok: true, src: url, width: 64, height: 64});
   });
 
-  it('refuses addresses that break the link image rules, without loading anything', async () => {
+  it('returns reason \'invalid-url\' with no image request when the address breaks the link image rules', async () => {
     const {createImage} = setup();
     for (const src of [
       'http://i.imgur.com/a.png',
@@ -111,7 +111,7 @@ describe('checkImage', () => {
     expect(createImage).not.toHaveBeenCalled();
   });
 
-  it('reports a load error with label-fallback data, and stops the download', async () => {
+  it('returns reason \'error\' with fallback data, and clears src, when the image fails to load', async () => {
     const {images, createImage} = setup();
     const result = checkImage('https://cdn.deadlock.wiki/thumb/Abrams_vertical.png/74px-Abrams_vertical.png', {createImage});
     images[0].fail();
@@ -121,7 +121,7 @@ describe('checkImage', () => {
     expect(images[0].onerror).toBeNull();
   });
 
-  it('gives up after the timeout, and ignores a late load', async () => {
+  it('returns reason \'timeout\', ignoring a later load, when the image has not loaded within timeoutMs', async () => {
     vi.useFakeTimers();
     const {images, createImage} = setup();
     const result = checkImage('https://i.imgur.com/slow.png', {createImage, label: 'Slow', limits: {timeoutMs: 1_000}});
@@ -141,7 +141,7 @@ describe('checkImage', () => {
     expect(await slow).toMatchObject({reason: 'timeout'});
   });
 
-  it('waits 10 seconds by default', async () => {
+  it('returns reason \'timeout\' after 10,000 ms when no timeoutMs is given', async () => {
     vi.useFakeTimers();
     const {createImage} = setup();
     const result = checkImage('https://i.imgur.com/slow.png', {createImage});
@@ -154,7 +154,7 @@ describe('checkImage', () => {
     expect(await result).toMatchObject({ok: false, reason: 'timeout'});
   });
 
-  it('refuses images over the size limits', async () => {
+  it('returns reason \'too-large\' or \'no-size\' when the natural size is over the limits or 0', async () => {
     const limits = {maxWidth: 100, maxHeight: 50, maxPixels: 3_000};
     const cases: [number, number, string][] = [
       [101, 10, 'too-large'],
@@ -174,11 +174,11 @@ describe('checkImage', () => {
     }
   });
 
-  it('uses generous default limits', () => {
+  it('returns 8192 × 8192 px, 32 Mi pixels and 10,000 ms when DEFAULT_IMAGE_CHECK_LIMITS is read', () => {
     expect(DEFAULT_IMAGE_CHECK_LIMITS).toEqual({maxWidth: 8192, maxHeight: 8192, maxPixels: 32 * 1024 * 1024, timeoutMs: 10_000});
   });
 
-  it('stops when the signal aborts, before or during loading', async () => {
+  it('returns reason \'aborted\' when the signal aborts before or during loading', async () => {
     const {images, createImage} = setup();
     const before = new AbortController();
     before.abort();
@@ -192,7 +192,7 @@ describe('checkImage', () => {
     expect(images[0].src).toBe('');
   });
 
-  it('reports "unsupported" where there is no Image element', async () => {
+  it('returns reason \'unsupported\' when there is no global Image or createImage throws', async () => {
     vi.stubGlobal('Image', undefined);
     expect(await checkImage('https://i.imgur.com/a.png')).toMatchObject({ok: false, reason: 'unsupported'});
     const throwing = () => {
@@ -201,7 +201,7 @@ describe('checkImage', () => {
     expect(await checkImage('https://i.imgur.com/a.png', {createImage: throwing})).toMatchObject({ok: false, reason: 'unsupported'});
   });
 
-  it('uses the global Image by default', async () => {
+  it('returns the size from the global Image when no createImage is given', async () => {
     const {images} = setup();
     vi.stubGlobal('Image', class extends FakeImage {
       constructor() {
@@ -214,7 +214,7 @@ describe('checkImage', () => {
     expect(await result).toMatchObject({ok: true, width: 20});
   });
 
-  it('reports an error when setting src throws', async () => {
+  it('returns reason \'error\' when setting src throws', async () => {
     const createImage = () => {
       const image = new FakeImage();
       Object.defineProperty(image, 'src', {set: () => {
@@ -225,18 +225,18 @@ describe('checkImage', () => {
     expect(await checkImage('https://i.imgur.com/a.png', {createImage})).toMatchObject({ok: false, reason: 'error'});
   });
 
-  it('refuses limits that make no sense', () => {
+  it('throws RangeError when timeoutMs is 0 or maxPixels is NaN', () => {
     expect(() => checkImage('https://i.imgur.com/a.png', {limits: {timeoutMs: 0}})).toThrow(RangeError);
     expect(() => checkImage('https://i.imgur.com/a.png', {limits: {maxPixels: Number.NaN}})).toThrow(RangeError);
   });
 });
 
 describe('labelFallback', () => {
-  it('uses the label first, with spaces tidied', () => {
+  it('returns the label with whitespace collapsed when a label is given', () => {
     expect(labelFallback('https://i.imgur.com/abc.png', '  Mauga  the\n tank ')).toEqual({text: 'Mauga the tank', domain: 'i.imgur.com'});
   });
 
-  it('makes a name from the file name when there is no label', () => {
+  it('returns a name made from the file name when there is no label', () => {
     const cases: [string, string][] = [
       ['https://www.thefinals.wiki/w/images/f/f7/Arenas_S2-Icon.png', 'Arenas S2 Icon'],
       ['https://cdn.deadlock.wiki/thumb/Abrams_vertical.png/74px-Abrams_vertical.png', 'Abrams vertical'],
@@ -248,19 +248,19 @@ describe('labelFallback', () => {
     for (const [url, text] of cases) expect(labelFallback(url).text, url).toBe(text);
   });
 
-  it('falls back to the domain, and to empty text for device images', () => {
+  it('returns the domain as text when there is no label or file name, and \'\' for a blob: URL', () => {
     expect(labelFallback('https://www.thefinals.wiki/')).toEqual({text: 'thefinals.wiki', domain: 'thefinals.wiki'});
     expect(labelFallback('https://i.imgur.com/.png')).toEqual({text: 'i.imgur.com', domain: 'i.imgur.com'});
     expect(labelFallback('blob:https://opentierboy.com/0f8e7c1a')).toEqual({text: '', domain: ''});
     expect(labelFallback('blob:https://opentierboy.com/0f8e7c1a', 'Cat')).toEqual({text: 'Cat', domain: ''});
   });
 
-  it('never shows a domain for an address that breaks the rules', () => {
+  it('returns an empty domain when the address breaks the link image rules', () => {
     expect(labelFallback('http://192.168.1.1/admin.png', 'x')).toEqual({text: 'x', domain: ''});
     expect(labelFallback('javascript:alert(1)')).toEqual({text: '', domain: ''});
   });
 
-  it('strips bidirectional controls, which could disguise a file name', () => {
+  it('returns text without bidirectional control characters when the label or file name has them', () => {
     // U+202E (right-to-left override) would show "gnp.exe" as "exe.png".
     expect(labelFallback('https://i.imgur.com/%E2%80%AEgnp.exe')).toEqual({text: 'gnp', domain: 'i.imgur.com'});
     expect(labelFallback('https://i.imgur.com/a.png', 'Cat\u202egnp.exe\u202c and \u2066dog\u2069')).toEqual({text: 'Catgnp.exe and dog', domain: 'i.imgur.com'});
@@ -271,7 +271,7 @@ describe('labelFallback', () => {
     expect(labelFallback('https://i.imgur.com/cat.png', '\u202e\u2066').text).toBe('cat');
   });
 
-  it('caps the text length without splitting characters', () => {
+  it('returns MAX_FALLBACK_TEXT_LENGTH whole characters when the text is longer', () => {
     const long = '😀'.repeat(MAX_FALLBACK_TEXT_LENGTH + 10);
     const {text} = labelFallback('https://i.imgur.com/a.png', long);
     expect(Array.from(text)).toHaveLength(MAX_FALLBACK_TEXT_LENGTH);
@@ -279,7 +279,7 @@ describe('labelFallback', () => {
     expect(Array.from(labelFallback(`https://i.imgur.com/${'a'.repeat(500)}.png`).text)).toHaveLength(MAX_FALLBACK_TEXT_LENGTH);
   });
 
-  it('never throws, whatever the input', () => {
+  it('throws no error when src or label is not a string', () => {
     for (const [src, label] of [[undefined, undefined], [null, 42], [{}, {}], ['%', ['x']], ['https://i.imgur.com/%', null]] as [unknown, unknown][]) {
       expect(() => labelFallback(src, label)).not.toThrow();
     }

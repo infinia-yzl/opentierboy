@@ -6,13 +6,13 @@ const trap = installFunctionTrap();
 afterAll(() => trap.restore());
 
 describe('lib/zod (amendment A39)', () => {
-  it('the trap refuses new Function, like a page under the CSP', () => {
+  it('throws EvalError when new Function runs under the trap', () => {
     expect(() => new Function('return 1')).toThrow(EvalError);
     expect(trap.attempts).toEqual(['return 1']);
     trap.attempts.length = 0;
   });
 
-  it('builds and parses schemas without ever calling new Function', async () => {
+  it('returns parse results without calling new Function when lib/zod builds and parses schemas', async () => {
     const {z} = await import('@/lib/zod');
 
     // The schema of components/ItemCreator.tsx, built at module level there.

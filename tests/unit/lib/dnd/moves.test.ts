@@ -95,14 +95,14 @@ function randomTiers(random: () => number): Tier[] {
 }
 
 describe('moveItem', () => {
-  it('moves an item from Unranked to the end of a tier', () => {
+  it('returns row B with the item and Unranked without it when an item moves from Unranked to row B', () => {
     const tiers = deepFreeze(sampleTiers());
     const next = moveItem(tiers, {tierId: 'uncategorized', index: 1}, {tierId: 'tier-b', index: 0});
     expect(names(next)[2]).toEqual(['tier-b', 'B', ['rein']]);
     expect(names(next)[5]).toEqual(['uncategorized', '', ['zarya', 'ram', 'hog']]);
   });
 
-  it('reorders inside a row; the target index counts the row without the moved item', () => {
+  it('returns the reordered row, counting the target index without the item, when an item moves inside its row', () => {
     const tiers = deepFreeze(sampleTiers());
     expect(moveItem(tiers, {tierId: 'tier-s', index: 2}, {tierId: 'tier-s', index: 0})[0].items.map(i => i.id))
       .toEqual(['sigma', 'mauga', 'winston']);
@@ -110,7 +110,7 @@ describe('moveItem', () => {
       .toEqual(['winston', 'sigma', 'mauga']);
   });
 
-  it('inserts at any place in another row, end included', () => {
+  it('returns the item at the target index when it moves to the middle or the end of another row', () => {
     const tiers = deepFreeze(sampleTiers());
     expect(moveItem(tiers, {tierId: 'tier-a', index: 0}, {tierId: 'tier-s', index: 1})[0].items.map(i => i.id))
       .toEqual(['mauga', 'ana', 'winston', 'sigma']);
@@ -118,12 +118,12 @@ describe('moveItem', () => {
       .toEqual(['mauga', 'winston', 'sigma', 'ana']);
   });
 
-  it('returns the same array for a drop where the drag started', () => {
+  it('returns the same array when the target is the source', () => {
     const tiers = sampleTiers();
     expect(moveItem(tiers, {tierId: 'tier-s', index: 1}, {tierId: 'tier-s', index: 1})).toBe(tiers);
   });
 
-  it('returns the same array for positions that do not fit the list', () => {
+  it('returns the same array when a position does not fit the list', () => {
     const tiers = sampleTiers();
     const cases: [string, number, string, number][] = [
       ['nope', 0, 'tier-a', 0],
@@ -141,7 +141,7 @@ describe('moveItem', () => {
     }
   });
 
-  it('keeps unchanged rows as the same objects', () => {
+  it('returns the untouched rows and items as the same objects when an item moves between two rows', () => {
     const tiers = sampleTiers();
     const next = moveItem(tiers, {tierId: 'tier-s', index: 0}, {tierId: 'tier-a', index: 0});
     expect(next[0]).not.toBe(tiers[0]);
@@ -150,7 +150,7 @@ describe('moveItem', () => {
     expect(next[1].items[0]).toBe(tiers[0].items[0]);
   });
 
-  it('gives the same list as the editor today, for 2,000 random moves (seeded)', () => {
+  it('returns the list of the pre-2.0.0 onDragEnd when run on 2,000 seeded random moves', () => {
     const random = seededRandom(5_142);
     for (let run = 0; run < 2_000; run++) {
       const tiers = randomTiers(random);
@@ -175,7 +175,7 @@ describe('moveItem', () => {
 });
 
 describe('reorderRows', () => {
-  it('moves the contents and keeps every label at its position (product rule 6)', () => {
+  it('returns contents moved and labels in place when row S moves to the place of row A (product rule 6)', () => {
     const tiers = deepFreeze(sampleTiers());
     const next = reorderRows(tiers, 0, 1);
     expect(names(next).slice(0, 3)).toEqual([
@@ -185,13 +185,13 @@ describe('reorderRows', () => {
     ]);
   });
 
-  it('keeps Unranked, the last row, in place: it is a fixed tray (owner decision, 2026-10-31)', () => {
+  it('returns the same array when the Unranked row moves or a row moves onto it (owner decision, 2026-10-31)', () => {
     const tiers = deepFreeze(sampleTiers());
     expect(reorderRows(tiers, 5, 0)).toBe(tiers);
     expect(reorderRows(tiers, 0, 5)).toBe(tiers);
   });
 
-  it('returns the same array when nothing moves or the indexes do not fit', () => {
+  it('returns the same array when from equals to or an index does not fit', () => {
     const tiers = sampleTiers();
     expect(reorderRows(tiers, 2, 2)).toBe(tiers);
     expect(reorderRows(tiers, -1, 2)).toBe(tiers);
@@ -199,7 +199,7 @@ describe('reorderRows', () => {
     expect(reorderRows(tiers, 1.5, 2)).toBe(tiers);
   });
 
-  it('keeps rows whose contents and label do not change as the same objects', () => {
+  it('returns rows with unchanged contents and label as the same objects when rows move', () => {
     const tiers = sampleTiers();
     const next = reorderRows(tiers, 1, 3);
     expect(next[0]).toBe(tiers[0]);
@@ -207,7 +207,7 @@ describe('reorderRows', () => {
     expect(next[5]).toBe(tiers[5]);
   });
 
-  it('gives the same list as the editor before 2.0.0 for moves between ranked rows, and leaves Unranked in place', () => {
+  it('returns the pre-2.0.0 onDragEnd list when ranked rows move, and the input when Unranked moves', () => {
     const lists: Tier[][] = [
       ...Object.values(tierTemplates).map(template => template.map(row => ({...row, items: [item(`${row.id}-x`)]}))),
       sampleTiers(),
@@ -231,7 +231,7 @@ describe('reorderRows', () => {
 });
 
 describe('findItem', () => {
-  it('finds an item, the first one for duplicate ids', () => {
+  it('returns the first position, or null, when the id appears once, twice or nowhere', () => {
     const tiers = sampleTiers();
     expect(findItem(tiers, 'orisa')).toEqual({tierId: 'tier-c', index: 1});
     expect(findItem(tiers, 'nope')).toBeNull();
@@ -241,7 +241,7 @@ describe('findItem', () => {
 });
 
 describe('addTier (#182)', () => {
-  it('adds an empty row just above Unranked, with a new id and the label position', () => {
+  it('returns an empty row tier-1 above Unranked with the label position when called without options', () => {
     const tiers = deepFreeze(sampleTiers().map(t => ({...t, labelPosition: 'top' as const})));
     const result = addTier(tiers);
     expect(result).not.toBeNull();
@@ -251,7 +251,7 @@ describe('addTier (#182)', () => {
     expect(result!.tiers[6]).toBe(tiers[5]);
   });
 
-  it('takes a name and a position, and keeps Unranked last', () => {
+  it('returns the row at options.index, clamped above Unranked, when called with a name and an index', () => {
     const tiers = sampleTiers();
     expect(addTier(tiers, {name: 'Tier 0', index: 0})!.tiers.map(t => t.name)).toEqual(['Tier 0', 'S', 'A', 'B', 'C', 'F', '']);
     expect(addTier(tiers, {index: 99})!.tiers.at(-1)!.id).toBe('uncategorized');
@@ -259,7 +259,7 @@ describe('addTier (#182)', () => {
     expect(addTier(tiers, {index: Number.NaN})!.tiers[5].id).toBe('tier-1');
   });
 
-  it('never reuses an id in the list', () => {
+  it('returns a new id that no row has when the list has tier-1 and tier-3', () => {
     const tiers = [tier('tier-1', 'X'), tier('tier-3', 'Y'), tier('uncategorized', '')];
     expect(newTierId(tiers)).toBe('tier-2');
     const once = addTier(tiers)!;
@@ -268,7 +268,7 @@ describe('addTier (#182)', () => {
     expect(new Set(twice.tiers.map(t => t.id)).size).toBe(5);
   });
 
-  it('stops at the row limit', () => {
+  it('returns null when the list has MAX_TIER_ROWS rows, options.maxRows rows or no rows', () => {
     let tiers = sampleTiers();
     while (canAddTier(tiers)) tiers = addTier(tiers)!.tiers;
     expect(tiers).toHaveLength(MAX_TIER_ROWS);
@@ -279,7 +279,7 @@ describe('addTier (#182)', () => {
 });
 
 describe('removeTier (#182)', () => {
-  it('removes a row and moves its items to the end of Unranked', () => {
+  it('returns the list without the row and its items at the end of Unranked when row S is removed', () => {
     const tiers = deepFreeze(sampleTiers());
     const next = removeTier(tiers, 0);
     expect(names(next)).toEqual([
@@ -292,7 +292,7 @@ describe('removeTier (#182)', () => {
     expect(next[0]).toBe(tiers[1]);
   });
 
-  it('never removes Unranked or the last ranked row', () => {
+  it('returns the same array when the row is Unranked, the last ranked row or out of range', () => {
     const tiers = sampleTiers();
     expect(canRemoveTier(tiers, 5)).toBe(false);
     expect(removeTier(tiers, 5)).toBe(tiers);
@@ -302,7 +302,7 @@ describe('removeTier (#182)', () => {
     expect(removeTier(two, 0)).toBe(two);
   });
 
-  it('keeps every item when rows are added and removed at random (seeded)', () => {
+  it('returns every item, Unranked last and unique row ids when 500 seeded adds and removes run', () => {
     const random = seededRandom(86);
     let tiers = sampleTiers();
     const all = tiers.flatMap(t => t.items.map(i => i.id)).sort();

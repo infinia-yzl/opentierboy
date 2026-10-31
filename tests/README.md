@@ -76,9 +76,13 @@ tests/
   `tests/unit/lib/state/decode.test.ts`. A test that checks several files of one folder
   together is named after what it checks, in that folder (`lib/state/v3-format.test.ts`,
   `lib/snapshot/round-trip.test.ts`). Each top-level `describe` names the function it tests,
-  as in code.
-- **End-to-end tests** have one file per UI area or route, and each file's top-level
-  `describe` names that area:
+  as in code (`checkLinkImageUrl`, `tierListReducer`). When one function has several groups
+  of inputs, each group's `describe` names the function and the group: `decodeState with v0
+  links`.
+- **End-to-end tests** have one file per UI area or route. Each file has one top-level
+  `describe`, named after its area in lower case (`drag and drop`, `share panel`). A nested
+  `describe` names a part of that area as a noun phrase (`keyboard`, `touch`, `Known bugs`).
+  The areas:
 
   | File | Area |
   | --- | --- |
@@ -110,8 +114,7 @@ tests/
   `site` and `openAsVisitor` fixtures (the last one opens a link in a fresh browser, like a
   friend who receives it), and `consoleErrors`: the errors the page logged to the browser
   console during the test.
-- **Describe what the user does and sees.** Test names read as behaviour ("drag an item from
-  Unranked into a tier"), not as implementation.
+- **Name each test `<verb> <result> when <condition>`** (see "Test names" below).
 - **Put page knowledge in the page objects.** Specs call `tierList.dragItemToTier('Mauga', 'S')`
   and never touch selectors directly. Add a method to the page object when a spec needs a
   new action.
@@ -198,6 +201,30 @@ git checkout imageset.config.json              # back to the real config, then b
 
 While the made-up config is in place, the guard in `tests/unit/lib/tile-shapes.test.ts` fails on
 purpose.
+
+## Test names
+
+Every test name has the form `<verb> <result> when <condition>`. The first word is one of
+four verbs:
+
+| Verb | The test asserts | Example |
+| --- | --- | --- |
+| `returns` | a return value, a resolved Promise or result object; an HTTP response in `.api` specs; a script's exit code | `returns {ok: false, reason: 'ip-address'} when the host is an IPv4 address` |
+| `throws` | a thrown error or a rejected Promise | `throws TypeError when the input is empty` |
+| `writes` | stored or sent data: IndexedDB, localStorage, files, a script's output, the `state` parameter, history entries, network requests, the clipboard | `writes 1 history entry when the user drops an item in row S` |
+| `renders` | what the page has in the DOM: elements, text, order, visibility, focus, images, colours | `renders the item in row S when the user drags it to row S` |
+
+- Pick the verb of the assertion the test exists for. Join a second result with "and" only
+  when the same condition produces it.
+- A negative result uses the same verbs: `writes no history entry when …`, `returns null when …`.
+- The condition states the input or the action. Unit tests: `when the host is …`, `when the
+  list has 21 rows`. End-to-end tests: `when the user <action>`, `when the page opens <link>`,
+  `when the request has <path>`.
+- Use code names and UI labels exactly: row S, Unranked row, item, link image, device image,
+  snapshot file, `state` parameter, history entry, toast, dialog, button "Share".
+- Banned words: carry, keep, hold, give, bring, show, works, handles, correctly, properly,
+  should, always.
+- Decision ids such as (A10) and issue numbers such as (#107) stay at the end of the name.
 
 ## Golden shared links
 

@@ -80,14 +80,14 @@ function setup(address: string | null, cortex = createTierCortex(), layoutWrite:
   return store;
 }
 
-describe('opening a link writes nothing (A1)', () => {
+describe('initialTierListState with opened links (A1)', () => {
   const v0 = sharedLinks.find(link => link.format === 'v0')!;
   const v1 = sharedLinks.find(link => link.format === 'v1')!;
   const v2Titled = sharedLinks.find(link => link.id === 'link-002')!;
 
   for (const [name, link] of [['a v0 link', v0.state], ['a titled v1 link', v1.state], ['a titled v2 link', v2Titled.state],
     ['an untitled v2 link', fiveRowLink({S: [MAU]})], ['a plain template address', null], ['a damaged link', 'not-a-link']] as const) {
-    it(name, () => {
+    it(`writes no link when it opens ${name}`, () => {
       const store = setup(link);
       expect(store.state.writes).toEqual([]);
       expect(store.state.address).toBe(link);
@@ -96,7 +96,7 @@ describe('opening a link writes nothing (A1)', () => {
     });
   }
 
-  it('a titled link with an aliased id, whose next save writes the new id (A30)', () => {
+  it('writes no link when it opens a titled link with an aliased id, and the new id on the next edit (A30)', () => {
     const cortex = createTierCortex({aliases: {'image-overwatch-old-mauga.webp': MAU}});
     const link = fiveRowLink({S: ['image-overwatch-old-mauga.webp']}, 'Renamed');
     const store = setup(link, cortex);
@@ -112,14 +112,14 @@ describe('opening a link writes nothing (A1)', () => {
 
   for (const [name, link] of [['a v3 link', fiveRowV3Link({S: [MAU]}, 'Titled', {labelPosition: 'top', showLabels: false})],
     ['an untitled v3 link', fiveRowV3Link({S: [MAU]})]] as const) {
-    it(name, () => {
+    it(`writes no link when it opens ${name}`, () => {
       const store = setup(link);
       expect(store.state.writes).toEqual([]);
       expect(addressNeedsLoading(store.state, link)).toBe(false);
     });
   }
 
-  it('decoding and encoding a v3 link written by the app gives the same link', () => {
+  it('returns the same link from a second encode when a shared link is opened, encoded and reopened', () => {
     const cortex = createTierCortex();
     for (const link of sharedLinks) {
       const opened = cortex.decodeTierStateFromURL(link.state)!;
@@ -130,8 +130,8 @@ describe('opening a link writes nothing (A1)', () => {
   });
 });
 
-describe('every change to the list writes one new link', () => {
-  it('in order, never merged', () => {
+describe('createTierListReducer writes', () => {
+  it('writes one push per change, in order, when three changes are dispatched', () => {
     const store = setup(fiveRowLink({'': [MAU, WIN, SIG]}));
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-a', index: 0}});
@@ -146,19 +146,19 @@ describe('every change to the list writes one new link', () => {
     expect(store.state.link).toBe(store.links()[2]);
   });
 
-  it('writes the page title into the link of a list without one, as before', () => {
+  it('writes the page title into the link when a list without a title changes', () => {
     const store = setup(null);
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     expect(decoded(store.links()[0]).title).toBe(PAGE_TITLE);
   });
 
-  it('writes a title set back to the page title', () => {
+  it('writes the page title into the link when the title changes back to the page title', () => {
     const store = setup(fiveRowLink({S: [MAU]}, 'Custom'));
     store.dispatch({type: 'titleChanged', title: PAGE_TITLE});
     expect(decoded(store.links()[0]).title).toBe(PAGE_TITLE);
   });
 
-  it('writes nothing for a change that leaves the link as it was', () => {
+  it('writes no link and returns the same state when a change leaves the link as it was', () => {
     const store = setup(fiveRowLink({S: [MAU, WIN]}));
     const before = store.state;
     store.dispatch({type: 'tierRenamed', index: 0, name: 'S'});
@@ -169,8 +169,8 @@ describe('every change to the list writes one new link', () => {
 
 });
 
-describe('uploads with short legacy ids (A42)', () => {
-  it('keep one id on screen across legacy and v3 versions, so toast Undo never adds one twice', () => {
+describe('createTierListReducer with short legacy upload ids (A42)', () => {
+  it('returns one id legacy-ab3c9 when the address moves between v2 and v3 versions, so Undo adds nothing', () => {
     const names = ['S', 'A', 'B', 'C', 'F', ''];
     const ids = ['tier-s', 'tier-a', 'tier-b', 'tier-c', 'tier-f', 'uncategorized'];
     const v2 = lz({tiers: names.map((name, index) => ({i: ids[index], n: name,
@@ -198,12 +198,12 @@ describe('uploads with short legacy ids (A42)', () => {
   });
 });
 
-describe('layout settings in links (A3)', () => {
-  it('the owner chose to replace the current history entry (2026-10-25)', () => {
+describe('createTierListReducer layout settings (A3)', () => {
+  it('returns replace from LAYOUT_LINK_WRITE when read (owner decision, 2026-10-25)', () => {
     expect(LAYOUT_LINK_WRITE).toBe('replace');
   });
 
-  it('a layout change replaces the current entry with a link that carries the layout', () => {
+  it('writes a replace link with the layout when the label position or label visibility changes', () => {
     for (const address of [null, fiveRowLink({S: [MAU]}), fiveRowV3Link({S: [MAU]}, 'Titled')]) {
       const store = setup(address);
       store.dispatch({type: 'labelPositionChanged', labelPosition: 'top'});
@@ -218,7 +218,7 @@ describe('layout settings in links (A3)', () => {
     }
   });
 
-  it('list changes keep pushing, and carry the layout on screen', () => {
+  it('writes push links with the layout on screen when the list changes after a layout change', () => {
     const store = setup(fiveRowLink({'': [MAU, WIN]}));
     store.dispatch({type: 'labelPositionChanged', labelPosition: 'right'});
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
@@ -227,14 +227,14 @@ describe('layout settings in links (A3)', () => {
     expect(decoded(store.links()[2])).toMatchObject({rowTemplate: '7rows', labelPosition: 'right'});
   });
 
-  it('option "push": a layout change is a new history entry', () => {
+  it('writes a push link when the layout changes and layoutWrite is push', () => {
     const store = setup(fiveRowLink({S: [MAU]}), createTierCortex(), 'push');
     store.dispatch({type: 'labelsToggled'});
     expect(store.modes()).toEqual(['push']);
     expect(decoded(store.links()[0]).showLabels).toBe(false);
   });
 
-  it('option "next-edit": a layout change writes nothing until the next change to the list', () => {
+  it('writes no link until the next list change when the layout changes and layoutWrite is next-edit', () => {
     const store = setup(fiveRowLink({'': [MAU]}), createTierCortex(), 'next-edit');
     store.dispatch({type: 'labelPositionChanged', labelPosition: 'top'});
     expect(store.state.writes).toEqual([]);
@@ -244,7 +244,7 @@ describe('layout settings in links (A3)', () => {
     expect(decoded(store.links()[0]).labelPosition).toBe('top');
   });
 
-  it('a link opened fresh shows its layout; a legacy link or a template page shows the defaults', () => {
+  it('returns the v3 link layout when it opens, and left with labels when a legacy link or a template opens', () => {
     const v3 = setup(fiveRowV3Link({S: [MAU]}, '', {labelPosition: 'top', showLabels: false}));
     expect([v3.state.labelPosition, v3.state.showLabels]).toEqual(['top', false]);
     for (const address of [null, fiveRowLink({S: [MAU]}), 'not-a-link']) {
@@ -253,7 +253,7 @@ describe('layout settings in links (A3)', () => {
     }
   });
 
-  it('Back and Forward inside the editor keep the layout on screen (owner, 2026-10-25)', () => {
+  it('returns the layout on screen, writing no link, when the address goes Back and Forward (owner, 2026-10-25)', () => {
     // The owner's example: Mauga to S, Winston to A, labels on Top, then Back.
     const start = fiveRowV3Link({'': [MAU, WIN]});
     const store = setup(start);
@@ -280,8 +280,8 @@ describe('layout settings in links (A3)', () => {
   });
 });
 
-describe('the address', () => {
-  it('an own write arriving in the address loads nothing', () => {
+describe('createTierListReducer address changes', () => {
+  it('returns the same tiers and writes no link when an own write arrives in the address', () => {
     const store = setup(fiveRowLink({'': [MAU, WIN]}));
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-a', index: 0}});
@@ -298,7 +298,7 @@ describe('the address', () => {
     expect(store.state.addressHoldsList).toBe(true);
   });
 
-  it('recognises an own write that the address reports with spaces for "+"', () => {
+  it('returns the link with + from stateParam, and no reload, when the address reads + as spaces', () => {
     // URLSearchParams reads '+' as a space; the provider puts it back with stateParam().
     const store = setup(fiveRowLink({'': [MAU, WIN, SIG]}));
     let index = 0;
@@ -313,7 +313,7 @@ describe('the address', () => {
     expect(addressNeedsLoading(store.state, stateParam(asRead))).toBe(false);
   });
 
-  it('writes nothing when a change gives back the link the address holds, with no write waiting', () => {
+  it('writes no link when a change results in the address link and no write waits', () => {
     // A link without a title shows the page title; clearing the title gives back that link.
     const untitled = fiveRowV3Link({S: [MAU]});
     const store = setup(untitled);
@@ -329,7 +329,7 @@ describe('the address', () => {
     expect(store.links()[1]).toBe(untitled);
   });
 
-  it('Back and Forward show the list of the address and write nothing', () => {
+  it('returns the list of the address and writes no link when the address goes Back and Forward', () => {
     const start = fiveRowLink({'': [MAU, WIN]});
     const store = setup(start);
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
@@ -344,7 +344,7 @@ describe('the address', () => {
     expect(store.state.nextWriteId).toBe(1);
   });
 
-  it('Back to the plain template address shows the template\'s starting list and title', () => {
+  it('returns the template list and the page title when the address goes Back to the plain template', () => {
     const store = setup(null);
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     store.dispatch({type: 'titleChanged', title: 'Mine'});
@@ -360,7 +360,7 @@ describe('the address', () => {
     expect(store.state.labelPosition).toBe('right');
   });
 
-  it('a link without a title shows the page title after a titled one', () => {
+  it('returns the page title when the address goes Back to an untitled link after a titled one', () => {
     const untitled = fiveRowLink({S: [MAU]});
     const store = setup(untitled);
     store.dispatch({type: 'titleChanged', title: 'My picks'});
@@ -370,15 +370,15 @@ describe('the address', () => {
     expect(store.state.writes).toEqual([]);
   });
 
-  it('knows whether the address holds the list on screen (the long-link warning)', () => {
+  it('returns addressHoldsList true only when the address has a decodable link (the long-link warning)', () => {
     expect(setup(fiveRowLink({S: [MAU]})).state.addressHoldsList).toBe(true);
     expect(setup('not-a-link').state.addressHoldsList).toBe(false);
     expect(setup(null).state.addressHoldsList).toBe(false);
   });
 });
 
-describe('list changes', () => {
-  it('moving a row moves its items and keeps the names in place', () => {
+describe('createTierListReducer list actions', () => {
+  it('returns the row contents moved and the names in place when tierMoved runs', () => {
     const store = setup(fiveRowLink({S: [MAU], A: [WIN]}));
     store.dispatch({type: 'tierMoved', from: 0, to: 1});
     expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', '']);
@@ -386,7 +386,7 @@ describe('list changes', () => {
     expect(store.state.tiers.map(tier => tier.id).slice(0, 2)).toEqual(['tier-a', 'tier-s']);
   });
 
-  it('adding a row puts an empty row labelled after its position above Unranked: one new link', () => {
+  it('writes one link with an empty Tier 6 row above Unranked when tierAdded runs', () => {
     const store = setup(fiveRowLink({S: [MAU], '': [WIN]}));
     store.dispatch({type: 'tierAdded'});
     expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
@@ -397,7 +397,7 @@ describe('list changes', () => {
     expect(decoded(store.links()[0]).tiers.map(tier => tier.name)).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
   });
 
-  it('adding stops at MAX_TIER_ROWS rows, and then writes nothing', () => {
+  it('writes no link when tierAdded runs at MAX_TIER_ROWS rows', () => {
     const store = setup(fiveRowLink({}));
     while (store.state.tiers.length < MAX_TIER_ROWS) store.dispatch({type: 'tierAdded'});
     const writes = store.state.writes.length;
@@ -406,7 +406,7 @@ describe('list changes', () => {
     expect(full.writes).toHaveLength(writes);
   });
 
-  it('removing a row moves its items to the end of Unranked: one new link', () => {
+  it('writes one link with the items at the end of Unranked when tierRemoved runs', () => {
     const store = setup(fiveRowLink({S: [MAU], B: [WIN, SIG]}));
     store.dispatch({type: 'tierRemoved', tierId: 'tier-b'});
     expect(store.names()).toEqual(['S', 'A', 'C', 'F', '']);
@@ -414,7 +414,7 @@ describe('list changes', () => {
     expect(store.state.writes).toHaveLength(1);
   });
 
-  it('Unranked, unknown rows and the last ranked row stay, and write nothing', () => {
+  it('writes no link when tierRemoved targets Unranked, an unknown row or the last ranked row', () => {
     const store = setup(fiveRowLink({S: [MAU]}));
     store.dispatch({type: 'tierRemoved', tierId: 'uncategorized'});
     store.dispatch({type: 'tierRemoved', tierId: 'nope'});
@@ -425,7 +425,7 @@ describe('list changes', () => {
     expect(store.state.writes).toHaveLength(4);
   });
 
-  it('Reset, then Undo from the toast, restores the ranking as a new change', () => {
+  it('writes a new link with the ranking back when tiersRestored runs after rankingsReset (toast Undo)', () => {
     const store = setup(fiveRowLink({S: [MAU], A: [WIN], '': [SIG]}));
     const before = store.state.tiers;
     store.dispatch({type: 'rankingsReset'});
@@ -436,7 +436,7 @@ describe('list changes', () => {
     expect(store.state.writes).toHaveLength(2);
   });
 
-  it('Remove All, then Undo from the toast, brings the items back', () => {
+  it('writes a new link with the items back when tiersRestored runs after allItemsRemoved (toast Undo)', () => {
     const store = setup(fiveRowLink({S: [MAU]}));
     const before = store.state.tiers;
     store.dispatch({type: 'allItemsRemoved'});
@@ -446,7 +446,7 @@ describe('list changes', () => {
     expect(store.state.writes).toHaveLength(2);
   });
 
-  it('Reset adds an Unranked row to a list without one', () => {
+  it('returns an Unranked row with every item when rankingsReset runs on a list without one', () => {
     const store = setup(lz({tiers: [{i: 'tier-s', n: 'S', t: [{i: WIN}, {i: MAU}]}]}));
     store.dispatch({type: 'rankingsReset'});
     expect(store.state.tiers).toEqual([
@@ -455,7 +455,7 @@ describe('list changes', () => {
     ]);
   });
 
-  it('deleting an item and restoring it puts it at the end of its tier', () => {
+  it('returns the item at the end of its tier when itemRestored runs after itemDeleted', () => {
     const store = setup(fiveRowLink({S: [MAU, WIN]}));
     const deleted = findItemToDelete(store.state.tiers, MAU)!;
     expect(deleted.tierId).toBe('tier-s');
@@ -466,7 +466,7 @@ describe('list changes', () => {
     expect(findItemToDelete(store.state.tiers, 'missing')).toBeNull();
   });
 
-  it('adding items leaves out items the list holds (same id or label), and Undo removes only the added ones', () => {
+  it('returns only items with a new id and label when itemsAdded runs, and itemsRemoved removes only those', () => {
     const cortex = createTierCortex();
     const store = setup(fiveRowLink({S: [MAU]}), cortex);
     const newItems = [...cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp', 'win.webp']), {id: 'k3j9x0a1b', content: 'Mauga'}];
@@ -480,7 +480,7 @@ describe('list changes', () => {
     expect(store.contents()).toEqual([['Mauga'], [], [], [], [], []]);
   });
 
-  it('adding only items the list holds changes nothing', () => {
+  it('returns the same state when itemsAdded gets only items already in the list', () => {
     const cortex = createTierCortex();
     const store = setup(fiveRowLink({S: [MAU]}), cortex);
     const before = store.state;
@@ -489,7 +489,7 @@ describe('list changes', () => {
     expect(itemsToAdd(store.state.tiers, cortex.resolveItemsFromPackage('image-overwatch', ['mau.webp']))).toEqual([]);
   });
 
-  it('Undo of a delete does nothing when the list holds the item again', () => {
+  it('returns the same state when itemRestored runs and the item is in the list again', () => {
     const start = fiveRowLink({S: [MAU, WIN]});
     const store = setup(start);
     const deleted = findItemToDelete(store.state.tiers, MAU)!;
@@ -503,7 +503,7 @@ describe('list changes', () => {
     expect(store.contents()[0]).toEqual(['Mauga', 'Winston']);
   });
 
-  it('switching row templates keeps items in tiers with the same id and moves the rest to Unranked', () => {
+  it('returns items in rows with the same id and the rest in Unranked when rowTemplateChanged runs', () => {
     const store = setup(fiveRowLink({S: [MAU], C: [WIN], F: [SIG]}));
     store.dispatch({type: 'rowTemplateChanged', template: tierTemplates['3rows']});
     expect(store.names()).toEqual(['S', 'A', 'B', '']);
@@ -514,7 +514,7 @@ describe('list changes', () => {
     expect(tierTemplates['3rows'].every(tier => tier.items.length === 0)).toBe(true);
   });
 
-  it('never changes a list it was given', () => {
+  it('returns new state and leaves the input tiers unchanged when each action runs', () => {
     const store = setup(fiveRowLink({S: [MAU, WIN], '': [SIG]}));
     const snapshot = JSON.stringify(store.state.tiers);
     const tiers = store.state.tiers;

@@ -21,7 +21,7 @@ function randomText(random: () => number, length: number): string {
 }
 
 describe('measureDecompressedLength', () => {
-  it('measures exactly what lz-string decompresses, for random texts', () => {
+  it('returns the length lz-string decompresses to when given 1,500 random compressed texts', () => {
     const random = seededRandom(1);
     for (let index = 0; index < 1500; index++) {
       const text = randomText(random, Math.floor(random() * (random() < 0.1 ? 3000 : 200)) + 1);
@@ -31,7 +31,7 @@ describe('measureDecompressedLength', () => {
     }
   });
 
-  it('measures every golden link the way lz-string decompresses it', () => {
+  it('returns the length lz-string decompresses to when given every golden link', () => {
     const states = [...generated.map(entry => entry.state), ...sharedLinks.map(link => link.state)];
     for (const state of states) {
       const text = LZString.decompressFromEncodedURIComponent(state);
@@ -40,7 +40,7 @@ describe('measureDecompressedLength', () => {
     }
   });
 
-  it('reads spaces as "+" and ignores characters after the end of the data, as lz-string does', () => {
+  it('returns the same length when spaces replace + or characters follow the end of the data', () => {
     const compressed = LZString.compressToEncodedURIComponent('{"r":[["S",["a+b"]]]} '.repeat(20));
     expect(compressed).toContain('+');
     const length = measureDecompressedLength(compressed, Infinity);
@@ -51,7 +51,7 @@ describe('measureDecompressedLength', () => {
     }
   });
 
-  it('agrees with lz-string on random input whenever it accepts it', () => {
+  it('returns the length of the lz-string output when it accepts a random input', () => {
     const random = seededRandom(2);
     const alphabet = `${URI_SAFE} .)%é`;
     let accepted = 0;
@@ -69,7 +69,7 @@ describe('measureDecompressedLength', () => {
     expect(accepted).toBeGreaterThan(100);
   });
 
-  it('refuses streams that lz-string turns into garbage, null or an empty text', () => {
+  it('returns null when lz-string would return garbage, null or \'\' for the stream', () => {
     expect(measureDecompressedLength('', Infinity)).toBeNull();
     // First code 2: an empty stream. lz-string returns "".
     const empty = new LzBitWriter();
@@ -96,14 +96,14 @@ describe('measureDecompressedLength', () => {
     expect(measureDecompressedLength(cut.slice(0, 10), Infinity)).toBeNull();
   });
 
-  it('stops at the cap', () => {
+  it('returns null when the decompressed length is over the cap', () => {
     const compressed = LZString.compressToEncodedURIComponent('a'.repeat(1000));
     expect(measureDecompressedLength(compressed, 1000)).toBe(1000);
     expect(measureDecompressedLength(compressed, 999)).toBeNull();
     expect(measureDecompressedLength(LZString.compressToEncodedURIComponent('a'), 0)).toBeNull();
   });
 
-  it('reads hand-written streams as lz-string does (the test helper agrees with lz-string)', () => {
+  it('returns the lz-string length for a hand-written stream, and null when the stream has no end code', () => {
     const run = lzWithRun('{"pad":"{run}","wide":"日本"}', 'a', 5000);
     const text = '{"pad":"' + 'a'.repeat(5000) + '","wide":"日本"}';
     expect(run.outputLength).toBe(text.length);
@@ -116,7 +116,7 @@ describe('measureDecompressedLength', () => {
     expect(measureDecompressedLength(cut, Infinity)).toBeNull();
   });
 
-  it('measures a decompression bomb without building it', () => {
+  it('returns the bomb\'s length, or null over the cap, within 5 s when the input expands to 5 billion characters', () => {
     const small = lzBomb(400);
     expect(LZString.decompressFromEncodedURIComponent(small.input)).toBe('a'.repeat(small.outputLength));
     expect(measureDecompressedLength(small.input, Infinity)).toBe(small.outputLength);
@@ -133,14 +133,14 @@ describe('measureDecompressedLength', () => {
 });
 
 describe('decompressFromEncodedURIComponentCapped', () => {
-  it('returns what lz-string returns when it fits the cap', () => {
+  it('returns the lz-string text when it fits the cap, also with spaces for + and a trailing dot', () => {
     const text = '{"t":"Ünïcödé 😀","r":[["S",[]]]}';
     const compressed = LZString.compressToEncodedURIComponent(text);
     expect(decompressFromEncodedURIComponentCapped(compressed, text.length)).toBe(text);
     expect(decompressFromEncodedURIComponentCapped(compressed.replace(/\+/g, ' ') + '.', text.length)).toBe(text);
   });
 
-  it('returns null when the text is longer than the cap, or is not lz-string', () => {
+  it('returns null when the text is longer than the cap or the input is not lz-string', () => {
     const text = 'x'.repeat(50);
     expect(decompressFromEncodedURIComponentCapped(LZString.compressToEncodedURIComponent(text), 49)).toBeNull();
     expect(decompressFromEncodedURIComponentCapped('', 100)).toBeNull();

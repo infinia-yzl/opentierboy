@@ -14,12 +14,12 @@ const site = (host: string, subdomains = false): TrustedImageSite => ({host, sub
 /** The same public suffix check as scripts/check-trusted-sites.mjs. */
 const isPublicSuffix = (host: string) => getDomain(host, {allowPrivateDomains: true}) === null;
 
-describe('trusted-image-sites.json', () => {
-  it('is valid', () => {
+describe('TRUSTED_IMAGE_SITES', () => {
+  it('returns no errors when parseTrustedSites reads trusted-image-sites.json', () => {
     expect(parseTrustedSites(trustedSitesFile, {isPublicSuffix}).errors).toEqual([]);
   });
 
-  it('lists exactly the agreed sites, with subdomains only for thefinals.wiki', () => {
+  it('returns exactly the agreed hosts, with subdomains only for thefinals.wiki, when TRUSTED_IMAGE_SITES is read', () => {
     expect(TRUSTED_IMAGE_SITES.map(({host, subdomains}) => ({host, subdomains}))).toEqual([
       {host: 'thefinals.wiki', subdomains: true},
       {host: 'cdn.deadlock.wiki', subdomains: false},
@@ -29,14 +29,14 @@ describe('trusted-image-sites.json', () => {
     ]);
   });
 
-  it('cannot be changed at run time', () => {
+  it('returns a frozen array of frozen entries when TRUSTED_IMAGE_SITES is read', () => {
     expect(Object.isFrozen(TRUSTED_IMAGE_SITES)).toBe(true);
     expect(Object.isFrozen(TRUSTED_IMAGE_SITES[0])).toBe(true);
   });
 });
 
-describe('isTrustedHost / isTrustedImageUrl', () => {
-  it('matches the listed hosts exactly', () => {
+describe('isTrustedHost and isTrustedImageUrl', () => {
+  it('returns true when the host is a listed host', () => {
     for (const host of ['cdn.deadlock.wiki', 'static.wikia.nocookie.net', 'upload.wikimedia.org', 'i.imgur.com']) {
       expect(isTrustedHost(host), host).toBe(true);
     }
@@ -45,7 +45,7 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
     expect(isTrustedImageUrl('https://cdn.deadlock.wiki/thumb/Abrams_vertical.png/74px-Abrams_vertical.png')).toBe(true);
   });
 
-  it('matches names under an entry only when the entry allows subdomains', () => {
+  it('returns true for a subdomain only when the entry has subdomains: true', () => {
     expect(isTrustedHost('thefinals.wiki')).toBe(true);
     expect(isTrustedImageUrl('https://www.thefinals.wiki/w/images/f/f7/Arenas_S2-Icon.png')).toBe(true);
     expect(isTrustedHost('imgur.com')).toBe(false);
@@ -56,7 +56,7 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
     expect(isTrustedHost('vignette.wikia.nocookie.net')).toBe(false);
   });
 
-  it('does not match look-alike hosts', () => {
+  it('returns false when the host only resembles a listed host', () => {
     for (const url of [
       'https://i.imgur.com.evil.example/a.png',
       'https://xi.imgur.com/a.png',
@@ -72,7 +72,7 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
     }
   });
 
-  it('refuses trusted hosts in addresses that break the link image rules', () => {
+  it('returns false when an address with a trusted host breaks the link image rules', () => {
     for (const url of [
       'http://i.imgur.com/a.png',
       'https://i.imgur.com:8443/a.png',
@@ -87,14 +87,14 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
     }
   });
 
-  it('tolerates uppercase letters and one trailing dot in a host', () => {
+  it('returns true when the host has upper case or one trailing dot', () => {
     expect(isTrustedHost('I.IMGUR.COM')).toBe(true);
     expect(isTrustedHost('i.imgur.com.')).toBe(true);
     expect(isTrustedImageUrl('https://I.IMGUR.COM./a.png')).toBe(true);
     expect(isTrustedHost('')).toBe(false);
   });
 
-  it('works with another list, for example sites a visitor allowed', () => {
+  it('returns matches against the given sites when a list other than TRUSTED_IMAGE_SITES is passed', () => {
     const sites = [site('images.example.org'), site('example.net', true)];
     expect(findTrustedSite('images.example.org', sites)).toEqual(sites[0]);
     expect(isTrustedHost('cdn.images.example.org', sites)).toBe(false);
@@ -105,7 +105,7 @@ describe('isTrustedHost / isTrustedImageUrl', () => {
 });
 
 describe('parseTrustedSites', () => {
-  it('refuses "subdomains": true on a public suffix, when given a public suffix check', () => {
+  it('returns an error for subdomains: true on a public suffix when an isPublicSuffix check is given', () => {
     const data = {
       sites: [
         {host: 'github.io', subdomains: true, reason: 'r'},
@@ -127,21 +127,21 @@ describe('parseTrustedSites', () => {
     expect(parseTrustedSites(data).errors).toEqual([]);
   });
 
-  it('reads a valid file', () => {
+  it('returns the sites, with subdomains false by default, when the file is valid', () => {
     expect(parseTrustedSites({$comment: 'x', sites: [{host: 'a.example.org', reason: 'r'}, {host: 'b.example.org', subdomains: true, reason: 'r'}]})).toEqual({
       sites: [{host: 'a.example.org', subdomains: false, reason: 'r'}, {host: 'b.example.org', subdomains: true, reason: 'r'}],
       errors: [],
     });
   });
 
-  it('refuses a file of the wrong shape', () => {
+  it('returns a shape error when the file is not an object with a sites array or has unknown keys', () => {
     for (const data of [null, [], 'sites', {}, {sites: {}}]) {
       expect(parseTrustedSites(data)).toEqual({sites: [], errors: ['The file must be an object with a "sites" array.']});
     }
     expect(parseTrustedSites({sites: [], extra: 1}).errors).toEqual(['Unknown top-level key "extra".']);
   });
 
-  it('leaves out and reports entries with problems', () => {
+  it('returns only the valid entries, and one error per invalid entry, when entries have problems', () => {
     const result = parseTrustedSites({
       sites: [
         {host: 'ok.example.org', reason: 'r'},

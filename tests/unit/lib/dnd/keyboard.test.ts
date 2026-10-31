@@ -53,7 +53,7 @@ const squares = (prefix: string, count: number): [string, Shape][] =>
   Array.from({length: count}, (_, i) => [`${prefix}${i}`, 'square']);
 
 describe('groupIntoLines', () => {
-  it('finds the lines of a wrapped row', () => {
+  it('returns the items grouped by line when a row wraps onto 3 lines', () => {
     // 400 px wide, 88 px per square tile: 4 per line.
     const [row] = layout([['s', squares('a', 10)]]);
     expect(groupIntoLines(row.items).map(line => line.map(item => item.id))).toEqual([
@@ -63,12 +63,12 @@ describe('groupIntoLines', () => {
     ]);
   });
 
-  it('keeps tiles of different heights in one line', () => {
+  it('returns one line for tiles of different heights when they sit side by side', () => {
     const [row] = layout([['s', [['p', 'portrait'], ['l', 'landscape'], ['q', 'square'], ['l2', 'landscape'], ['p2', 'portrait']]]]);
     expect(groupIntoLines(row.items).map(line => line.map(item => item.id))).toEqual([['p', 'l', 'q'], ['l2', 'p2']]);
   });
 
-  it('handles empty rows and single tiles', () => {
+  it('returns no lines when the row is empty, and one line when it has one tile', () => {
     expect(groupIntoLines([])).toEqual([]);
     const [row] = layout([['s', squares('a', 1)]]);
     expect(groupIntoLines(row.items)).toHaveLength(1);
@@ -76,7 +76,7 @@ describe('groupIntoLines', () => {
 });
 
 describe('wrapIntoLines', () => {
-  it('wraps greedily, and a tile wider than the line gets a line of its own', () => {
+  it('returns greedy line indexes and a separate line for an oversized tile when called with tile widths', () => {
     expect(wrapIntoLines([88, 88, 88, 88, 88], 352)).toEqual([0, 0, 0, 0, 1]);
     expect(wrapIntoLines([128, 68, 128, 88], 400)).toEqual([0, 0, 0, 1]);
     expect(wrapIntoLines([500, 88, 88], 400)).toEqual([0, 1, 1]);
@@ -88,28 +88,28 @@ describe('keyboardItemTarget', () => {
   // S: 6 squares (lines a0-a3, a4-a5); A: empty; Unranked: 3 squares.
   const rows = layout([['S', squares('a', 6)], ['A', []], ['U', squares('u', 3)]]);
 
-  it('steps left and right in reading order, across wrapped lines', () => {
+  it('returns the next index in reading order across lines when the key is left or right, or null at the ends', () => {
     expect(keyboardItemTarget(rows, 'a3', 'right')).toEqual({tierId: 'S', index: 4});
     expect(keyboardItemTarget(rows, 'a4', 'left')).toEqual({tierId: 'S', index: 3});
     expect(keyboardItemTarget(rows, 'a0', 'left')).toBeNull();
     expect(keyboardItemTarget(rows, 'a5', 'right')).toBeNull();
   });
 
-  it('moves up and down between the lines of one row, keeping its column', () => {
+  it('returns the same column on the other line when the key is up or down inside a wrapped row', () => {
     // a1 (line 1, column 2) down: lands under its old place, in line 2 column 2.
     expect(keyboardItemTarget(rows, 'a1', 'down')).toEqual({tierId: 'S', index: 5});
     // a5 (line 2, column 2) up: lands in line 1 column 2.
     expect(keyboardItemTarget(rows, 'a5', 'up')).toEqual({tierId: 'S', index: 1});
   });
 
-  it('moves from the last line of a row into the row below, and back', () => {
+  it('returns a place in the next row when the key is down on the last line or up on the first line', () => {
     expect(keyboardItemTarget(rows, 'a4', 'down')).toEqual({tierId: 'A', index: 0});
     expect(keyboardItemTarget(rows, 'u1', 'up')).toEqual({tierId: 'A', index: 0});
     expect(keyboardItemTarget(rows, 'u2', 'down')).toBeNull();
     expect(keyboardItemTarget(rows, 'a2', 'up')).toBeNull();
   });
 
-  it('keeps the column when moving into a row with items', () => {
+  it('returns the same column in the row above or below when that row has items', () => {
     const two = layout([['S', squares('a', 3)], ['U', squares('u', 4)]]);
     expect(keyboardItemTarget(two, 'u2', 'up')).toEqual({tierId: 'S', index: 2});
     expect(keyboardItemTarget(two, 'u3', 'up')).toEqual({tierId: 'S', index: 3});
@@ -117,7 +117,7 @@ describe('keyboardItemTarget', () => {
     expect(keyboardItemTarget(two, 'a2', 'down')).toEqual({tierId: 'U', index: 2});
   });
 
-  it('enters the last line of a wrapped row above and the first line of a wrapped row below', () => {
+  it('returns the last line of the row above or the first line of the row below when those rows wrap', () => {
     const wrapped = layout([['S', squares('a', 6)], ['U', squares('u', 6)]]);
     // u1 up: into S's second line (a4, a5), column 2 → before a5.
     expect(keyboardItemTarget(wrapped, 'u1', 'up')).toEqual({tierId: 'S', index: 5});
@@ -125,7 +125,7 @@ describe('keyboardItemTarget', () => {
     expect(keyboardItemTarget(wrapped, 'a5', 'down')).toEqual({tierId: 'U', index: 1});
   });
 
-  it('matches the keyboard journeys that the editor supports today', () => {
+  it('returns the targets of the e2e keyboard journeys when the layout matches drag-and-drop.spec.ts', () => {
     // tests/e2e/drag-and-drop.spec.ts: the first Unranked item, ArrowUp → into F (empty).
     const tanks = layout([['S', []], ['A', []], ['B', []], ['C', []], ['F', []], ['U', squares('t', 13)]], 1200);
     expect(keyboardItemTarget(tanks, 't0', 'up')).toEqual({tierId: 'F', index: 0});
@@ -134,7 +134,7 @@ describe('keyboardItemTarget', () => {
     expect(keyboardItemTarget(s, 'sigma', 'left')).toEqual({tierId: 'S', index: 1});
   });
 
-  it('works with tiles of mixed shapes', () => {
+  it('returns targets by tile centre when the row mixes landscape, portrait and square tiles', () => {
     const mixed = layout([
       ['S', [['l0', 'landscape'], ['p0', 'portrait'], ['l1', 'landscape'], ['q0', 'square'], ['p1', 'portrait']]],
       ['U', [['q1', 'square'], ['l2', 'landscape'], ['p2', 'portrait']]],
@@ -148,7 +148,7 @@ describe('keyboardItemTarget', () => {
     expect(keyboardItemTarget(mixed, 'q0', 'down')).toEqual({tierId: 'U', index: 0});
   });
 
-  it('replays the wrapping when tiles of mixed widths shift a whole line', () => {
+  it('returns a target one line down after rewrapping when mixed widths shift a whole line', () => {
     // 415 px: [l s s] [L p s s] [p s s]. Taking the landscape L out of line 2 lets p move up
     // into line 1, so "before the tile under it" would put L back on line 2.
     const tiles: [string, Shape][] = [['a', 'landscape'], ['b', 'square'], ['c', 'square'], ['L', 'landscape'], ['d', 'portrait'],
@@ -162,7 +162,7 @@ describe('keyboardItemTarget', () => {
     expect(lines.findIndex(line => line.includes('L'))).toBe(2);
   });
 
-  it('estimates the row width from the tiles when it is not measured', () => {
+  it('returns the targets of the measured layout when the row width is missing', () => {
     const measured = layout([['S', squares('a', 10)], ['U', squares('u', 7)]]);
     const estimated = measured.map(({tierId, items}) => ({tierId, items}));
     for (const row of measured) {
@@ -174,12 +174,12 @@ describe('keyboardItemTarget', () => {
     }
   });
 
-  it('returns null for an item that is not in the layout', () => {
+  it('returns null when the item is not in the layout', () => {
     expect(keyboardItemTarget(rows, 'nope', 'down')).toBeNull();
     expect(keyboardItemTarget([], 'a0', 'up')).toBeNull();
   });
 
-  it('always returns a valid move that changes the line or the place (seeded random layouts)', () => {
+  it('returns a target that changes the line or the place when run on 300 seeded random layouts', () => {
     const random = seededRandom(142);
     const shapes: Shape[] = ['square', 'landscape', 'portrait'];
     for (let run = 0; run < 300; run++) {
@@ -216,7 +216,7 @@ describe('keyboardItemTarget', () => {
 });
 
 describe('keyboardRowTarget', () => {
-  it('moves rows up and down one place, never past the ends', () => {
+  it('returns the next index up or down when the key is up or down, and null at the ends or for left and right', () => {
     expect(keyboardRowTarget(0, 'down', 6)).toBe(1);
     expect(keyboardRowTarget(3, 'up', 6)).toBe(2);
     expect(keyboardRowTarget(0, 'up', 6)).toBeNull();

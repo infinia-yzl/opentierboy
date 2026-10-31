@@ -6,7 +6,7 @@ import {makePng} from '../../support/pngHelpers';
 
 /** The snapshot's cases for the shared header reader (lib/images/imageType.ts has its own too). */
 describe('readImageSize with snapshot image headers', () => {
-  it('reads the size from the header of every snapshot image type', () => {
+  it('returns the width and height when the bytes are a snapshot PNG, GIF, JPEG or WebP header', () => {
     expect(readImageSize(makePng(17, 9))).toEqual({width: 17, height: 9});
     expect(readImageSize(pngHeader(300, 200))).toEqual({width: 300, height: 200});
     expect(readImageSize(gifHeader(64, 32))).toEqual({width: 64, height: 32});
@@ -18,7 +18,7 @@ describe('readImageSize with snapshot image headers', () => {
     expect(readImageSize(webpHeader(16_384, 16_384, 'VP8X'))).toEqual({width: 16_384, height: 16_384});
   });
 
-  it('returns null when the size is unreadable', () => {
+  it('returns null when the header is cut off, has no size or is not a raster type', () => {
     expect(readImageSize(new Uint8Array())).toBeNull();
     expect(readImageSize(pngHeader(10, 10).subarray(0, 20))).toBeNull();
     // A JPEG cut off before its size, or with image data before any size.
@@ -31,10 +31,10 @@ describe('readImageSize with snapshot image headers', () => {
   });
 });
 
-describe('snapshot images are refused when they declare a huge picture (image bombs)', () => {
+describe('rasterDataUrlInfo and parseSnapshotPayload with image bombs', () => {
   const {maxImageSide, maxImagePixels} = SNAPSHOT_PAYLOAD_LIMITS;
 
-  it('accepts sizes up to 4096 x 4096 pixels', () => {
+  it('returns the type and size when a raster data URL declares at most 4096 × 4096 pixels', () => {
     expect(maxImagePixels).toBe(maxImageSide * maxImageSide);
     expect(rasterDataUrlInfo(dataUrlOf('image/png', pngHeader(4096, 4096)))).toEqual({type: 'image/png', width: 4096, height: 4096});
     expect(rasterDataUrlInfo(dataUrlOf('image/webp', webpHeader(512, 512)))).toMatchObject({width: 512});
@@ -44,7 +44,7 @@ describe('snapshot images are refused when they declare a huge picture (image bo
     expect(rasterDataUrlInfo(dataUrlOf('image/gif', gifWithLongComment(64, 32, 20_000)))).toMatchObject({width: 64, height: 32});
   });
 
-  it('refuses larger sizes in every image type, and images whose size cannot be read', () => {
+  it('returns null when the declared size is over 4096 per side or unreadable', () => {
     const refused = [
       dataUrlOf('image/png', pngHeader(0, 10)),
       dataUrlOf('image/gif', gifHeader(10, 0)),
@@ -66,7 +66,7 @@ describe('snapshot images are refused when they declare a huge picture (image bo
     for (const dataUrl of refused) expect(rasterDataUrlInfo(dataUrl), dataUrl.slice(0, 40)).toBeNull();
   });
 
-  it('refuses a payload holding a 12000 x 12000 picture in well under a second', () => {
+  it('returns reason \'invalid-payload\' within 250 ms when the payload has a 12,000 × 12,000 PNG', () => {
     const text = JSON.stringify({version: 1, state: '3.abc', images: [{id: 'bombImage001', label: 'Bomb', dataUrl: dataUrlOf('image/png', pngHeader(12_000, 12_000))}]});
     const started = performance.now();
     expect(parseSnapshotPayload(text)).toMatchObject({ok: false, reason: 'invalid-payload'});

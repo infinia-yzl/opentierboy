@@ -30,7 +30,7 @@ async function blockedLines(filePath: string, imports: string[]): Promise<number
 
 // Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
 describe('ESLint import rules', {timeout: 90_000}, () => {
-  it('keep lib/state free of outside code, at every folder depth', async () => {
+  it('returns an error for each import other than lz-string and lib/state files when the file is in lib/state', async () => {
     expect(await blockedLines('lib/state/probe.ts', [
       './decode', './decoders/legacy', 'lz-string', // allowed
       '../utils', '../../models/Tier', './decoders/../decode', './../TierCortex',
@@ -43,7 +43,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('lib/state/a/b/probe.ts', ['../../encode', '../../../utils'])).toEqual([2]);
   });
 
-  it('allow IndexedDB libraries only in the device image store and its tests', async () => {
+  it('returns an error for each IndexedDB library import when the file is outside deviceStore.ts and its test', async () => {
     const libraries = ['dexie', 'idb', 'idb/with-async-ittr', 'idb-keyval', 'localforage', 'fake-indexeddb', 'fake-indexeddb/auto'];
     expect(await blockedLines('components/Probe.tsx', [...libraries, 'idbx', '@/lib/images/deviceStore'])).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(await blockedLines('lib/images/linkImage.ts', libraries)).toEqual([1, 2, 3, 4, 5, 6, 7]);
@@ -52,7 +52,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('tests/unit/lib/images/deviceStore.test.ts', libraries)).toEqual([]);
   });
 
-  it('allow the indexedDB global only in the device image store and its tests', async () => {
+  it('returns an error for each indexedDB global when the file is outside deviceStore.ts and its test', async () => {
     const code = 'export const a = indexedDB;\nexport const b = globalThis.indexedDB;\nexport const c = window.indexedDB;\nexport const d = self.indexedDB;\n';
     const rules = ['no-restricted-globals', 'no-restricted-properties'];
     expect(await reportedLines('components/Probe.tsx', code, rules)).toEqual([1, 2, 3, 4]);
@@ -63,7 +63,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await reportedLines('tests/unit/lib/images/deviceStore.test.ts', code, rules)).toEqual([]);
   });
 
-  it('allow importing zod only in lib/zod.ts and the eval-probe test', async () => {
+  it('returns an error for zod and zod/v4 imports when the file is outside lib/zod.ts and zod-eval-probe.test.ts', async () => {
     const imports = ['zod', '@/lib/zod', '@hookform/resolvers/zod', 'zod/v4'];
     expect(await blockedLines('components/ItemCreator.tsx', imports)).toEqual([1, 4]);
     expect(await blockedLines('lib/snapshot/payload.ts', imports)).toEqual([1, 4]);
@@ -73,7 +73,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('tests/unit/rules/zod-eval-probe.test.ts', imports)).toEqual([]);
   });
 
-  it('refuse zod loaded with import(), require() and the like outside lib/zod.ts and the eval-probe test', async () => {
+  it('returns an error for each dynamic zod load when the file is outside lib/zod.ts and zod-eval-probe.test.ts', async () => {
     const code = [
       "export const a = await import('zod');",
       "export const b = await import('zod/v4');",
@@ -101,7 +101,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await reportedLines('tests/unit/rules/zod-eval-probe.test.ts', code, rules)).toEqual([]);
   });
 
-  it('refuse ways around the external-request guard in tests, except in tests/support', async () => {
+  it('returns an error for each external-request guard bypass when the file is a test outside tests/support', async () => {
     // In a function, so that every kind of script file parses it (CommonJS has no top-level await).
     const code = [
       'export async function probe(route, r, handler, browser, playwright, chromium, ctx, request, url) {',
@@ -146,7 +146,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await reportedLines('tests/support/probe.cjs', commonJs, rules)).toEqual([]);
   });
 
-  it('keep zod out of lib/recent, lib/state and tests, and keep the other shared rule for each exception', async () => {
+  it('returns a zod error when the file is in lib/recent, lib/state, tests or deviceStore.ts, and an idb error in lib/zod.ts', async () => {
     const imports = ['zod', 'zod/mini', '@/lib/zod', 'zodiac'];
     expect(await blockedLines('lib/recent/recentLinks.ts', imports)).toEqual([1, 2]);
     expect(await blockedLines('lib/state/probe.ts', ['zod'])).toEqual([1]);
@@ -155,7 +155,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('lib/images/deviceStore.ts', ['zod', 'idb'])).toEqual([1]);
   });
 
-  it('keep Node built-ins and IndexedDB out of the OG route and TierCortex', async () => {
+  it('returns an error for each Node built-in and IndexedDB import when the file is in app/api/og or a module it imports', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];
     expect(await blockedLines('app/api/og/probe.ts', imports)).toEqual(blocked);

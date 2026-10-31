@@ -57,8 +57,8 @@ const OWN_FILES = [
 ];
 
 // Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
-describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () => {
-  it('reports class declarations and class expressions in every code file outside tests, packages and the root configs', async () => {
+describe('ESLint no-restricted-syntax for classes', {timeout: 90_000}, () => {
+  it('returns an error on each class line when the file is code outside tests, packages and ROOT_CONFIG_FILES', async () => {
     for (const file of OWN_FILES) {
       const {lines, messages} = await reported(file, codeFor(file));
       expect(lines, file).toEqual(CLASS_LINES);
@@ -66,7 +66,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     }
   });
 
-  it('allows classes in tests, in the vendored dnd-kit fork and in the named config files at the root', async () => {
+  it('returns no class error when the file is in tests, packages/dnd-kit or ROOT_CONFIG_FILES at the root', async () => {
     const quiet = ['tests/unit/probe.test.ts', 'tests/e2e/history.spec.ts', 'tests/pages/SitePage.ts', 'tests/support/links.ts', 'packages/dnd-kit/src/probe.ts', ...ROOT_CONFIG_FILES];
     for (const file of quiet) {
       expect((await reported(file, CLASSES)).lines, file).toEqual([]);
@@ -77,7 +77,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     expect((await reported('lib/next.config.ts', CLASSES)).lines).toEqual(CLASS_LINES);
   });
 
-  it('keeps the zod rule next to it, and lib/zod.ts keeps its zod exemption', async () => {
+  it('returns the zod error when the file is exempt from the class rule, and the class error in lib/zod.ts', async () => {
     const code = "class Named {}\nexport const z = await import('zod');\n";
     expect((await reported('lib/probe.ts', code)).lines).toEqual([1, 2]);
     expect((await reported('scripts/probe.mjs', code)).lines).toEqual([1, 2]);
@@ -85,7 +85,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     expect((await reported('tests/unit/probe.test.ts', code)).lines).toEqual([2]);
   });
 
-  it('allows a class in lib/dnd only in dndKit.ts, for the dnd-kit activation constraint', async () => {
+  it('returns no class error when the file is lib/dnd/dndKit.ts, and an error for every other lib/dnd path', async () => {
     expect(ALLOWED_CLASS_FILES).toEqual(['lib/dnd/dndKit.ts']);
     const others = ['lib/dnd/activation.ts', 'lib/dnd/moves.ts', 'lib/dnd/index.ts', 'lib/dnd/react.tsx', 'lib/dnd/dndKit.tsx', 'lib/dnd/sub/dndKit.ts', 'lib/dndKit.ts'];
     for (const file of [...others, ...fs.readdirSync(path.join(repoRoot, 'lib/dnd')).map(name => `lib/dnd/${name}`).filter(file => file !== 'lib/dnd/dndKit.ts')]) {
@@ -94,7 +94,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     expect((await reported('lib/dnd/dndKit.ts', CLASSES)).lines).toEqual([]);
   });
 
-  it('finds exactly one class in lib/dnd/dndKit.ts: HoldThenMoveConstraint, a dnd-kit ActivationConstraint', () => {
+  it('returns only HoldThenMoveConstraint extends ActivationConstraint when lib/dnd/dndKit.ts is parsed', () => {
     const file = path.join(repoRoot, 'lib/dnd/dndKit.ts');
     const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
     const classes: string[] = [];
@@ -109,7 +109,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
     expect(classes).toEqual(['HoldThenMoveConstraint extends ActivationConstraint']);
   });
 
-  it('allows a class only in the files listed in ALLOWED_CLASS_FILES, which keep the other rules', async () => {
+  it('returns only the zod error when a file in ALLOWED_CLASS_FILES has a class and a zod import', async () => {
     const code = "class Required {}\nexport const z = await import('zod');\n";
     for (const file of ALLOWED_CLASS_FILES) {
       expect(file, file).not.toMatch(/^(tests|packages)\//);

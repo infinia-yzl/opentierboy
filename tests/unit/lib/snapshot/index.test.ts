@@ -5,7 +5,7 @@ import {decodePng, makePng} from '../../support/pngHelpers';
 const STATE = '3.N4IgLgFgpgTg4mAdgVw';
 
 describe('readSnapshotFile and writeSnapshotFile', () => {
-  it('stores a list with device images in a screenshot and reads it back', async () => {
+  it('returns the list and device images from readSnapshotFile when the PNG came from writeSnapshotFile', async () => {
     const screenshot = makePng(32, 20, 3);
     const deviceImage = `data:image/png;base64,${Buffer.from(makePng(8, 8, 9)).toString('base64')}`;
     const images = [{id: 'h3Kx9_Tq2LmZ-a8B', label: 'My cat 🐈', dataUrl: deviceImage}];
@@ -18,11 +18,11 @@ describe('readSnapshotFile and writeSnapshotFile', () => {
     expect(await readSnapshotFile(written.png)).toEqual({ok: true, payload: {version: 1, state: STATE, images}});
   });
 
-  it('reports no-snapshot for an ordinary picture, so the caller can add it as an item', async () => {
+  it('returns reason \'no-snapshot\' when the PNG has no opentierboy chunk', async () => {
     expect(await readSnapshotFile(makePng())).toEqual({ok: false, reason: 'no-snapshot'});
   });
 
-  it('passes on the reason when the file or the payload is bad', async () => {
+  it('returns reason \'not-png\', \'bad-json\', \'unsupported-version\' or \'invalid-payload\' when the file or payload is bad', async () => {
     expect(await readSnapshotFile(new TextEncoder().encode('not a png'))).toEqual({ok: false, reason: 'not-png'});
 
     const notJson = await embedSnapshotText(makePng(), 'not json');
@@ -35,7 +35,7 @@ describe('readSnapshotFile and writeSnapshotFile', () => {
     expect(legacy.ok && (await readSnapshotFile(legacy.png))).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('refuses to write an invalid payload or into a broken PNG', async () => {
+  it('returns reason \'invalid-payload\' or \'not-png\' when writeSnapshotFile gets an invalid payload or a broken PNG', async () => {
     expect(await writeSnapshotFile(makePng(), {state: 'N4Ig'})).toMatchObject({ok: false, reason: 'invalid-payload'});
     expect(await writeSnapshotFile(new Uint8Array(10), {state: STATE})).toEqual({ok: false, reason: 'not-png'});
   });

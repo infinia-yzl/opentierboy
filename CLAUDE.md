@@ -306,6 +306,8 @@ docs/                 owner checklists and guides (releasing.md: versions and re
 ## Tests
 
 - Read `tests/README.md` before writing e2e tests.
+- Name each test `<verb> <result> when <condition>`, with the verb `returns`, `throws`,
+  `writes` or `renders` (`tests/README.md`, "Test names").
 - Import `test` and `expect` from `tests/support/test.ts`. Put selectors in page objects
   (`tests/pages/`), never in specs.
 - Locate by role and accessible name. If an element has none, add an `aria-label` to the

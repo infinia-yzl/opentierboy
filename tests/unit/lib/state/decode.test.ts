@@ -7,7 +7,7 @@ import {randomAppStates, seededRandom, toCanonical} from '../../support/randomSt
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
 
 describe('decodeState', () => {
-  it('reads the three legacy formats', () => {
+  it('returns the canonical list when the value is a v0, v1 or v2 link', () => {
     const v0 = lz('[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp","c":"Mauga"}]}]');
     const v1 = lz('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp","c":"Mauga"}]}],"title":"T"}');
     const v2 = lz('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"image-overwatch-mau.webp"},{"i":"k3j9x0a1b","c":"cat"}]}],"title":"T"}');
@@ -28,18 +28,18 @@ describe('decodeState', () => {
     });
   });
 
-  it('reports a list without package items as v1, because v1 and v2 wrote the same bytes for it', () => {
+  it('returns version 1 when a v1 or v2 list has no image-set item (both formats wrote the same bytes)', () => {
     expect(decodeState(lz('{"tiers":[{"i":"uncategorized","n":"","t":[]}]}'))?.version).toBe(1);
     expect(decodeState(lz('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"k3j9x0a1b","c":"cat"}]}]}'))?.version).toBe(1);
   });
 
-  it('keeps an empty label and leaves out a missing one', () => {
+  it('returns content \'\' when the label is empty, and no content property when it is missing', () => {
     const decoded = decodeState(lz('{"tiers":[{"i":"tier-s","n":"S","t":[{"i":"a","c":""},{"i":"b"}]}]}'));
     expect(decoded?.tiers[0].items).toEqual([{id: 'a', content: ''}, {id: 'b'}]);
     expect(decoded?.tiers[0].items[1]).not.toHaveProperty('content');
   });
 
-  it('accepts spaces where the link had "+", as URLSearchParams delivers them', () => {
+  it('returns the same list when the value has spaces where the link had + (as URLSearchParams delivers them)', () => {
     // The captured shared links hold spaces, exactly as the app read them from the address bar.
     const withSpaces = sharedLinks.map(link => link.state).filter(state => state.includes(' '));
     expect(withSpaces.length).toBeGreaterThan(0);
@@ -50,15 +50,15 @@ describe('decodeState', () => {
     }
   });
 
-  describe('version prefix', () => {
+  describe('decodeState with a version prefix', () => {
     const payloads = sharedLinks.map(link => link.state);
 
-    it('legacy values never start with a digit, so a prefix cannot be mistaken for one', () => {
+    it('returns a value that starts with N, never a digit, when encodeV2 encodes a list or a shared legacy link is read', () => {
       const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeV2(toCanonical(state)))];
       for (const value of encoded) expect(value[0]).toBe('N');
     });
 
-    it('rejects a value whose version has no decoder', () => {
+    it('returns null when the version prefix has no decoder (0., 1., 2., 4., 10., 03.)', () => {
       for (const prefix of ['0.', '1.', '2.', '4.', '10.', '03.']) {
         for (const payload of payloads) {
           expect(decodeState(prefix + payload), `${prefix}${payload.slice(0, 12)}…`).toBeNull();
@@ -67,7 +67,7 @@ describe('decodeState', () => {
       }
     });
 
-    it('sends "3." values to the v3 decoder, which rejects legacy payloads', () => {
+    it('returns null, and passes a v3 error to onError, when a 3. prefix comes before a legacy payload', () => {
       const onError = vi.fn();
       for (const payload of payloads) {
         expect(decodeState(`3.${payload}`, {onError}), `3.${payload.slice(0, 12)}…`).toBeNull();
@@ -79,7 +79,7 @@ describe('decodeState', () => {
       expect(decodeState(v3)?.version).toBe(3);
     });
 
-    it('sends values with a dot further on to the legacy decoder', () => {
+    it('returns the legacy list when the value has a dot after the legacy payload', () => {
       const legacy = payloads[1];
       expect(decodeState(legacy)).not.toBeNull();
       expect(decodeState(`${legacy}.`)).toEqual(decodeState(legacy));
@@ -87,8 +87,8 @@ describe('decodeState', () => {
     });
   });
 
-  describe('values that are not links', () => {
-    it('returns null and reports why, without throwing', () => {
+  describe('decodeState with values that are not links', () => {
+    it('returns null, and passes the error to onError, when the value is not a link', () => {
       const onError = vi.fn();
       expect(decodeState('', {onError})).toBeNull();
       expect(onError).toHaveBeenLastCalledWith(new Error('Failed to decompress state'));
@@ -108,7 +108,7 @@ describe('decodeState', () => {
       }
     });
 
-    it('passes odd but readable values through unchanged, as the app always did', () => {
+    it('returns non-string ids, names, labels and titles unchanged when a legacy value has them', () => {
       expect(decodeState(lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7,"extra":true}'))).toEqual({
         version: 2,
         title: 7,
@@ -120,7 +120,7 @@ describe('decodeState', () => {
       expect(decodeState(lz('{"tiers":[]}'))).toEqual({version: 1, tiers: []});
     });
 
-    it('never throws on random input', () => {
+    it('throws no error when the value is any of 3,000 random strings', () => {
       const random = seededRandom(42);
       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$ .)%';
       for (let index = 0; index < 3000; index++) {

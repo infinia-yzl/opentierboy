@@ -15,8 +15,8 @@ function expectRefused(inputs: unknown[], reason: LinkImageRefusal) {
   for (const input of inputs) expect(refusal(input), JSON.stringify(input)).toBe(reason);
 }
 
-describe('checkLinkImageUrl: accepted addresses', () => {
-  it('accepts an https image address and reports its host and display domain', () => {
+describe('checkLinkImageUrl with accepted addresses', () => {
+  it('returns ok with url, host and displayDomain when the address is https', () => {
     expect(checkLinkImageUrl('https://i.imgur.com/abc123.png')).toEqual({
       ok: true,
       url: 'https://i.imgur.com/abc123.png',
@@ -25,12 +25,12 @@ describe('checkLinkImageUrl: accepted addresses', () => {
     });
   });
 
-  it('keeps the path, query and fragment', () => {
+  it('returns the path, query and fragment unchanged when the address has them', () => {
     const url = 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Example.jpg?width=200#top';
     expect(checkLinkImageUrl(url)).toMatchObject({ok: true, url});
   });
 
-  it('drops a leading www. from the display domain only', () => {
+  it('returns displayDomain without a leading www. when the host starts with www. and has two more labels', () => {
     expect(checkLinkImageUrl('https://www.thefinals.wiki/w/images/a.png')).toMatchObject({
       ok: true,
       host: 'www.thefinals.wiki',
@@ -40,14 +40,14 @@ describe('checkLinkImageUrl: accepted addresses', () => {
     expect(checkLinkImageUrl('https://www.com/a.png')).toMatchObject({ok: true, displayDomain: 'www.com'});
   });
 
-  it('trims spaces around a pasted address', () => {
+  it('returns the trimmed address when the input has surrounding spaces', () => {
     expect(checkLinkImageUrl('  https://i.imgur.com/a.png \n'.replace(/\n/g, ' '))).toMatchObject({
       ok: true,
       url: 'https://i.imgur.com/a.png',
     });
   });
 
-  it('normalises case, the default port and a trailing dot', () => {
+  it('returns a lower-case host without port 443 or a trailing dot when the address has them', () => {
     expect(checkLinkImageUrl('HTTPS://I.IMGUR.COM:443/A.png')).toMatchObject({ok: true, url: 'https://i.imgur.com/A.png'});
     expect(checkLinkImageUrl('https://example.com:0443/a.png')).toMatchObject({ok: true, url: 'https://example.com/a.png'});
     expect(checkLinkImageUrl('https://i.imgur.com./a.png')).toMatchObject({
@@ -57,7 +57,7 @@ describe('checkLinkImageUrl: accepted addresses', () => {
     });
   });
 
-  it('converts internationalised names to punycode, also in the display domain', () => {
+  it('returns punycode in host and displayDomain when the host has non-ASCII characters', () => {
     expect(checkLinkImageUrl('https://bücher.de/x.png')).toMatchObject({
       ok: true,
       url: 'https://xn--bcher-kva.de/x.png',
@@ -70,7 +70,7 @@ describe('checkLinkImageUrl: accepted addresses', () => {
     expect(checkLinkImageUrl('https://ＥＸＡＭＰＬＥ。com/a.png')).toMatchObject({ok: true, host: 'example.com'});
   });
 
-  it('accepts names that only look like local names', () => {
+  it('returns ok when the host only resembles a local name', () => {
     for (const url of [
       'https://localhost.example.com/a.png',
       'https://local.example.com/a.png',
@@ -83,14 +83,14 @@ describe('checkLinkImageUrl: accepted addresses', () => {
     }
   });
 
-  it('accepts exactly 2,000 characters', () => {
+  it('returns ok when the address has exactly MAX_LINK_IMAGE_URL_LENGTH (2,000) characters', () => {
     const base = 'https://example.com/';
     const url = base + 'a'.repeat(MAX_LINK_IMAGE_URL_LENGTH - base.length);
     expect(url).toHaveLength(MAX_LINK_IMAGE_URL_LENGTH);
     expect(checkLinkImageUrl(url)).toMatchObject({ok: true, url});
   });
 
-  it('gives the same result for its own output (normalising twice changes nothing)', () => {
+  it('returns an equal result when the input is its own normalised url', () => {
     for (const input of ['HTTPS://Bücher.DE.:443/a b.png', 'https:\\\\example.com\\a.png', 'https://i.imgur.com/a.png']) {
       const first = checkLinkImageUrl(input);
       expect(first.ok, input).toBe(true);
@@ -99,16 +99,16 @@ describe('checkLinkImageUrl: accepted addresses', () => {
   });
 });
 
-describe('checkLinkImageUrl: refused addresses', () => {
-  it('refuses values that are not strings', () => {
+describe('checkLinkImageUrl with refused addresses', () => {
+  it('returns reason \'not-a-string\' when the input is not a string', () => {
     expectRefused([undefined, null, 42, true, {}, ['https://i.imgur.com/a.png'], {toString: () => 'https://i.imgur.com/a.png'}], 'not-a-string');
   });
 
-  it('refuses empty values', () => {
+  it('returns reason \'empty\' when the input is empty or only spaces', () => {
     expectRefused(['', '   ', ' '], 'empty');
   });
 
-  it('refuses addresses over 2,000 characters, before and after normalising', () => {
+  it('returns reason \'too-long\' when the address is over 2,000 characters before or after normalising', () => {
     const base = 'https://example.com/';
     expect(refusal(base + 'a'.repeat(MAX_LINK_IMAGE_URL_LENGTH - base.length + 1))).toBe('too-long');
     expect(refusal('https://example.com/' + 'a'.repeat(5_000_000))).toBe('too-long');
@@ -118,11 +118,11 @@ describe('checkLinkImageUrl: refused addresses', () => {
     expect(refusal(spaces)).toBe('too-long');
   });
 
-  it('refuses http', () => {
+  it('returns reason \'not-https\' when the scheme is http', () => {
     expectRefused(['http://i.imgur.com/a.png', 'HTTP://i.imgur.com/a.png', 'http:i.imgur.com/a.png'], 'not-https');
   });
 
-  it('refuses data, javascript and every other scheme', () => {
+  it('returns reason \'unsupported-scheme\' when the scheme is data, javascript or another non-https scheme', () => {
     expectRefused([
       'data:image/png;base64,iVBORw0KGgo=',
       'DATA:image/svg+xml,<svg onload=alert(1)>',
@@ -143,7 +143,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'unsupported-scheme');
   });
 
-  it('refuses relative addresses, broken addresses and control characters', () => {
+  it('returns reason \'invalid-url\' when the address is relative, malformed or has control characters', () => {
     expectRefused([
       '//example.com/a.png',
       '/images/a.png',
@@ -164,7 +164,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'invalid-url');
   });
 
-  it('refuses user names and passwords, also when they hide another host', () => {
+  it('returns reason \'credentials\' when the address has a user name or password', () => {
     expectRefused([
       'https://user:pass@example.com/a.png',
       'https://user@example.com/a.png',
@@ -175,11 +175,11 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'credentials');
   });
 
-  it('refuses ports other than 443', () => {
+  it('returns reason \'port\' when the port is not 443', () => {
     expectRefused(['https://example.com:8443/a.png', 'https://example.com:80/a.png', 'https://example.com:1/a.png', 'https://i.imgur.com:444/a.png'], 'port');
   });
 
-  it('refuses IPv4 addresses in every notation', () => {
+  it('returns reason \'ip-address\' when the host is an IPv4 address in any notation', () => {
     expectRefused([
       'https://127.0.0.1/a.png',
       'https://8.8.8.8/a.png',
@@ -210,7 +210,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'ip-address');
   });
 
-  it('refuses IPv6 addresses in every notation', () => {
+  it('returns reason \'ip-address\' when the host is an IPv6 address in any notation', () => {
     expectRefused([
       'https://[::1]/a.png',
       'https://[::]/a.png',
@@ -229,7 +229,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'ip-address');
   });
 
-  it('refuses localhost and names under it', () => {
+  it('returns reason \'localhost\' when the host is localhost or a name under it', () => {
     expectRefused([
       'https://localhost/a.png',
       'https://LOCALHOST/a.png',
@@ -242,7 +242,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'localhost');
   });
 
-  it('refuses single-label names, reserved top-level names and IP echo services', () => {
+  it('returns reason \'private-name\' when the host is a single label, a reserved top-level name or an IP echo service', () => {
     expectRefused([
       'https://router/a.png',
       'https://intranet/a.png',
@@ -277,7 +277,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'private-name');
   });
 
-  it('refuses host names that DNS does not allow', () => {
+  it('returns reason \'invalid-host\' when the host breaks DNS name rules', () => {
     expectRefused([
       'https://example.com../a.png',
       'https://a..b.com/a.png',
@@ -288,7 +288,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     ], 'invalid-host');
   });
 
-  it('never throws, whatever the input', () => {
+  it('returns ok: false, without throwing, when the input is a Symbol, BigInt, function, URL or lone surrogate', () => {
     const inputs: unknown[] = [Symbol('x'), BigInt(1), () => 'https://i.imgur.com/a.png', new URL('https://i.imgur.com/a.png'), Object.create(null), '\ud800', 'https://\ud800.com/', '%', 'https://%/'];
     for (const input of inputs) {
       expect(() => checkLinkImageUrl(input)).not.toThrow();
@@ -296,7 +296,7 @@ describe('checkLinkImageUrl: refused addresses', () => {
     }
   });
 
-  it('lists every reason code, and each one is a refusal the check really gives', () => {
+  it('returns each LINK_IMAGE_REFUSALS reason, listed once, when given one sample address per reason', () => {
     // One address for each reason. The Record type makes the compiler ask for a new reason here.
     const samples: Record<LinkImageRefusal, unknown> = {
       'not-a-string': 42,

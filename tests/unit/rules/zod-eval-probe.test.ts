@@ -9,8 +9,8 @@ import {installFunctionTrap} from '../support/functionTrap';
 const trap = installFunctionTrap();
 afterAll(() => trap.restore());
 
-describe('zod without lib/zod', () => {
-  it('calls new Function when it builds an object schema (a CSP violation in the browser)', async () => {
+describe('zod', () => {
+  it('writes at least 1 new Function attempt to the trap when z.object builds a schema (a CSP violation)', async () => {
     const z = await import('zod');
     const schema = z.object({name: z.string()});
     expect(trap.attempts.length).toBeGreaterThan(0);

@@ -6,7 +6,7 @@ const bytes = (...parts: (number[] | string)[]) =>
   Uint8Array.from(parts.flatMap((part) => (typeof part === 'string' ? [...part].map((c) => c.charCodeAt(0)) : part)));
 
 describe('readImageSize', () => {
-  it('reads PNG, GIF, WebP and JPEG headers', () => {
+  it('returns the width and height when the bytes are a PNG, GIF, WebP (VP8, VP8L, VP8X) or JPEG header', () => {
     const png = bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13], 'IHDR', [0, 0, 0x01, 0x2c, 0, 0, 0, 0xc8, 8, 6, 0, 0, 0]);
     expect(readImageSize(png)).toEqual({width: 300, height: 200});
     // GIF: the logical screen, then (without a colour table) the first frame's image descriptor.
@@ -30,7 +30,7 @@ describe('readImageSize', () => {
     expect(readImageSize(bomb)).toEqual({width: 12_000, height: 12_000});
   });
 
-  it('enlarges a GIF to its first frame, past a colour table and extensions', () => {
+  it('returns the screen enlarged to the first frame when a GIF frame lies past it, after a colour table and extensions', () => {
     const frame = (left: number, top: number, width: number, height: number) =>
       [0x2c, left & 255, left >> 8, top & 255, top >> 8, width & 255, width >> 8, height & 255, height >> 8, 0];
     // A 1 x 1 screen with a 10,000 x 10,000 first frame: Chrome decodes it at the frame's size.
@@ -50,7 +50,7 @@ describe('readImageSize', () => {
     expect(readImageSize(bytes('GIF89a', [1, 0, 1, 0, 0, 0, 0], [0x2c, 0, 0, 0, 0]))).toBeNull();
   });
 
-  it('gives no size for AVIF, whose "ispe" size can lie, and tells ISO media files apart', () => {
+  it('returns null when the bytes are AVIF, and isIsoMediaFile returns true for AVIF and HEIC', () => {
     const liar = avifWithFalseSize([100, 100], [9000, 9000]);
     expect(sniffImageType(liar)).toBe('image/avif');
     expect(readImageSize(liar)).toBeNull();
@@ -60,7 +60,7 @@ describe('readImageSize', () => {
     expect(isIsoMediaFile(bytes('GIF89a'))).toBe(false);
   });
 
-  it('gives null when the header does not tell', () => {
+  it('returns null when the header has no size (PNG without IHDR, JPEG without SOF, SVG, empty bytes)', () => {
     expect(readImageSize(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBeNull();
     expect(readImageSize(bytes([0xff, 0xd8, 0xff, 0xe0, 0, 16]))).toBeNull();
     expect(readImageSize(bytes([0xff, 0xd8, 0xff, 0xda, 0, 8], new Array(20).fill(0)))).toBeNull();

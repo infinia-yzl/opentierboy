@@ -16,21 +16,21 @@ function run(root: string | undefined, ...args: string[]) {
   return {status: result.status, output: `${result.stdout}${result.stderr}`};
 }
 
-describe('image registry in this repository', () => {
-  it('passes the check', () => {
+describe('image-registry.lock.json', () => {
+  it('returns exit code 0 when check-image-registry.mjs runs on this repository', () => {
     const result = run(undefined);
     expect(result.output).toContain('Image registry OK');
     expect(result.status).toBe(0);
   });
 
-  it('registers every shipped item id', () => {
+  it('returns a lock entry for each shipped item id when imageset.config.json is read', () => {
     const packages = (imagesetConfig as {packages: Record<string, {images: {filename: string}[]}>}).packages;
     const shipped = Object.entries(packages).flatMap(([name, data]) => data.images.map(image => `${name}-${image.filename}`));
     expect(shipped.length).toBeGreaterThanOrEqual(430);
     for (const id of shipped) expect(lock, id).toHaveProperty([id]);
   });
 
-  it('registers every package item id used by the golden links', () => {
+  it('returns a lock entry for each image-set item id when the golden links are decoded', () => {
     const stateDir = path.resolve(__dirname, '../../fixtures/state');
     const states = [
       ...sharedLinks.map(link => link.state),
@@ -75,7 +75,7 @@ describe('scripts/check-image-registry.mjs', () => {
     fs.rmSync(root, {recursive: true, force: true});
   });
 
-  it('asks for --update when the lock file is missing, and --update creates it', () => {
+  it('returns exit code 1 when the lock file is missing, and writes every id to it when run with --update', () => {
     expect(run(root).status).toBe(1);
     expect(run(root).output).toContain('npm run check:images -- --update');
 
@@ -88,7 +88,7 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(run(root).status).toBe(0);
   });
 
-  it('fails on a new image until --update appends it, keeping existing entries as they were', () => {
+  it('returns exit code 1 when an item id is unregistered, and appends only that id when run with --update', () => {
     run(root, '--update');
     const before = read('image-registry.lock.json');
     write('imageset.config.json', config({'image-a': ['one.webp', 'sub/two.webp', 'four.webp'], 'image-b': ['three.webp']}));
@@ -103,7 +103,7 @@ describe('scripts/check-image-registry.mjs', () => {
     for (const id of Object.keys(before)) expect(after[id]).toEqual(before[id]);
   });
 
-  it('fails when a shipped id disappears, even with --update, and passes once an alias renames it', () => {
+  it('returns exit code 1 when a shipped id is gone, also with --update, and 0 once an alias renames it', () => {
     run(root, '--update');
     write('imageset.config.json', config({'image-a': ['one.webp', 'sub/two-renamed.webp'], 'image-b': ['three.webp']}));
 
@@ -117,7 +117,7 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(run(root).status).toBe(0);
   });
 
-  it('follows alias chains to a shipped id', () => {
+  it('returns exit code 0 when an alias chain ends at a shipped id', () => {
     run(root, '--update');
     write('imageset.config.json', config({'image-a': ['one.webp', 'sub/two-v3.webp'], 'image-b': ['three.webp']}));
     write('image-registry.lock.json', {
@@ -133,7 +133,7 @@ describe('scripts/check-image-registry.mjs', () => {
     ['ends at an id that is not shipped', {'image-a-one.webp': 'image-a-nowhere.webp'}, 'which is not shipped'],
     ['renames an id that never shipped', {'image-z-never.webp': 'image-b-three.webp'}, 'is not a registered id'],
     ['renames an id that is still shipped', {'image-b-three.webp': 'image-a-sub/two.webp'}, 'is still shipped'],
-  ])('rejects an alias that %s', (_name, aliases, message) => {
+  ])('returns exit code 1 when an alias %s', (_name, aliases, message) => {
     run(root, '--update');
     write('imageset.config.json', config({'image-a': ['sub/two.webp'], 'image-b': ['three.webp']}));
     write('image-aliases.json', aliases);
@@ -142,7 +142,7 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(check.output).toContain(message);
   });
 
-  it('rejects two old ids that lead to the same new id, but allows a chain of renames', () => {
+  it('returns exit code 1 when two old ids lead to the same new id, and 0 for a single chain of renames', () => {
     run(root, '--update');
     write('imageset.config.json', config({'image-a': ['merged.webp'], 'image-b': ['three.webp']}));
     write('image-registry.lock.json', {
@@ -178,7 +178,7 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(run(root).status).toBe(0);
   });
 
-  it('rejects a lock entry that does not describe its own id', () => {
+  it('returns exit code 1 when the package and filename of a lock entry do not match its id', () => {
     run(root, '--update');
     write('image-registry.lock.json', {
       ...read('image-registry.lock.json'),
@@ -189,7 +189,7 @@ describe('scripts/check-image-registry.mjs', () => {
     expect(check.output).toContain('does not match its package and filename');
   });
 
-  it('allows label changes and lists them', () => {
+  it('returns exit code 0 and writes each label change when an image label changed', () => {
     run(root, '--update');
     const changed = config({'image-a': ['one.webp', 'sub/two.webp'], 'image-b': ['three.webp']});
     changed.packages['image-b'].images[0].label = 'Three (new name)';

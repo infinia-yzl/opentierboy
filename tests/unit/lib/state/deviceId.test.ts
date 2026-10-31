@@ -7,14 +7,14 @@ import {deviceImageIdForUpload, isDeviceImageId, LEGACY_UPLOAD_ID_PREFIX} from '
  * URL-safe characters as an id"), plus every Object.prototype member name.
  */
 describe('isDeviceImageId', () => {
-  it('accepts 8 to 64 URL-safe characters as an id', () => {
+  it('returns true only when the value is a string of 8 to 64 URL-safe characters', () => {
     for (const id of ['abcdefgh', 'A-_09zZx', 'a'.repeat(64)]) expect(isDeviceImageId(id), id).toBe(true);
     for (const id of ['', 'abcdefg', 'a'.repeat(65), 'abcd efgh', 'abcd/efgh', 'abcd.efgh', 'blob:https://x', '__proto__', 'constructor', 'hasOwnProperty', 42, null, undefined, ['abcdefgh']]) {
       expect(isDeviceImageId(id), String(id)).toBe(false);
     }
   });
 
-  it('accepts the ids the device store creates and the ids of legacy uploads', () => {
+  it('returns true when the id is a 16-character store id or a 9-character legacy upload id', () => {
     // deviceStore.createDeviceImageId: 16 URL-safe base64 characters.
     for (const id of ['AAAAAAAAAAAAAAAA', '________________', 'Zm9vYmFyYmF6cXV4']) expect(isDeviceImageId(id), id).toBe(true);
     // ItemCreator before Phase 5c: Math.random().toString(36).slice(2, 11), usually 9 characters.
@@ -22,7 +22,7 @@ describe('isDeviceImageId', () => {
     expect(isDeviceImageId('k3j9x0a')).toBe(false);
   });
 
-  it('refuses the name of every Object.prototype member, also those the pattern allows', () => {
+  it('returns false when the id is the name of any Object.prototype member', () => {
     const names = Object.getOwnPropertyNames(Object.prototype);
     expect(names).toContain('__proto__');
     for (const name of names) expect(isDeviceImageId(name), name).toBe(false);
@@ -31,7 +31,7 @@ describe('isDeviceImageId', () => {
     expect(isDeviceImageId('toStringX')).toBe(true);
   });
 
-  it('refuses other characters, including look-alikes and line breaks', () => {
+  it('returns false when the id has line breaks, spaces, look-alike letters or other characters', () => {
     for (const id of ['abcdefg\n', 'abcdefgh\n', '\nabcdefgh', 'abcdéfgh', 'abcdefgh ', 'abcd+efgh', 'abcd%2Fef', 'abcdеfgh' /* Cyrillic е */]) {
       expect(isDeviceImageId(id), JSON.stringify(id)).toBe(false);
     }
@@ -39,11 +39,11 @@ describe('isDeviceImageId', () => {
 });
 
 describe('deviceImageIdForUpload (A42)', () => {
-  it('keeps an id that follows the rule', () => {
+  it('returns the id unchanged when it follows the device image id rule', () => {
     for (const id of ['k3j9x0a1b', 'abcdefgh', 'Zm9vYmFyYmF6cXV4', 'a'.repeat(64)]) expect(deviceImageIdForUpload(id)).toBe(id);
   });
 
-  it('gives every legacy upload id a valid device image id, the same one every time', () => {
+  it('returns legacy-<id>, the same valid device image id every time, when a legacy upload id is too short', () => {
     // ItemCreator before Phase 5c: Math.random().toString(36).slice(2, 11), 1 to 9 characters.
     for (const id of ['a', '5', 'ab3c9', 'abcdefg', '0000000']) {
       expect(deviceImageIdForUpload(id)).toBe(`legacy-${id}`);
@@ -58,7 +58,7 @@ describe('deviceImageIdForUpload (A42)', () => {
     expect(LEGACY_UPLOAD_ID_PREFIX).toBe('legacy-');
   });
 
-  it('returns null for an id that no prefix makes valid', () => {
+  it('returns null when no prefix makes the id valid', () => {
     for (const id of ['', 'image-overwatch-ana.webp', 'has space', 'a'.repeat(65), 'blob:https://x']) {
       expect(deviceImageIdForUpload(id), id).toBeNull();
     }

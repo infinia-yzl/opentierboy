@@ -14,13 +14,13 @@ function pixels(className: string): {small: {width: number; height: number}; md:
   return {small: {width: size('', 'w'), height: size('', 'h')}, md: {width: size('md:', 'w'), height: size('md:', 'h')}};
 }
 
-describe('tile sizes', () => {
-  it('has a size for every shape, and square keeps the size tiles always had', () => {
+describe('TILE_SIZES and tileSize', () => {
+  it('returns one size per ITEM_SHAPES entry, and the original square classes, when TILE_SIZES is read', () => {
     expect(Object.keys(TILE_SIZES).sort()).toEqual([...ITEM_SHAPES].sort());
     expect(TILE_SIZES.square).toEqual({className: 'w-16 h-16 md:w-20 md:h-20', sizes: '(max-width: 640px) 64px, (max-width: 768px) 80px, 96px'});
   });
 
-  it('gives every shape the same height, and the width of its canvas (16:9, 3:4)', () => {
+  it('returns heights of 64 and 80 px and the canvas ratio (16:9, 3:4) when each shape class is measured', () => {
     const ratios = {square: 1, landscape: 384 / 216, portrait: 216 / 288};
     for (const shape of ITEM_SHAPES) {
       const {small, md} = pixels(TILE_SIZES[shape].className);
@@ -31,7 +31,7 @@ describe('tile sizes', () => {
     }
   });
 
-  it('reads the shape of an item, square when it has none or an unknown one', () => {
+  it('returns the size of the item shape when known, and square when the shape is missing or unknown', () => {
     expect(tileSize({shape: 'landscape'})).toBe(TILE_SIZES.landscape);
     expect(tileSize({shape: 'portrait'})).toBe(TILE_SIZES.portrait);
     expect(tileSize({})).toBe(TILE_SIZES.square);

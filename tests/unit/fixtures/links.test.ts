@@ -29,24 +29,24 @@ const STRAY_SUFFIXES = ['.', ')', '..', '...', '),', ').', ',', '!', '?', ']', '
 const withPlus = (state: string) => state.replace(/ /g, '+');
 const withSpaces = (state: string) => state.replace(/\+/g, ' ');
 
-describe('golden state fixtures (tests/fixtures/state)', () => {
-  it('cover every legacy format', () => {
+describe('tests/fixtures/state', () => {
+  it('returns entries in formats v0, v1 and v2 when the state fixture files are read', () => {
     const formats = new Set(stateFixtures.map(({entry}) => entry.format));
     for (const format of ['v0', 'v1', 'v2']) expect(formats).toContain(format);
   });
 
-  it('have unique ids', () => {
+  it('returns a unique id for each entry when the state fixture files are read', () => {
     const ids = stateFixtures.map(({entry}) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   for (const {file, entry} of stateFixtures) {
     describe(`${file} ${entry.id}`, () => {
-      it('decodes to its expected state', () => {
+      it('returns entry.expected from decodeState when given entry.state', () => {
         expect(decodeState(entry.state)).toEqual(entry.expected);
       });
 
-      it('decodes the same with spaces for "+" and with stray characters at the end', () => {
+      it('returns entry.expected from decodeState when "+" is a space or the state ends in stray characters', () => {
         expect(decodeState(withSpaces(entry.state))).toEqual(entry.expected);
         for (const suffix of STRAY_SUFFIXES) {
           expect(decodeState(entry.state + suffix), `suffix ${JSON.stringify(suffix)}`).toEqual(entry.expected);
@@ -54,13 +54,13 @@ describe('golden state fixtures (tests/fixtures/state)', () => {
       });
 
       if (entry.format === 'v1' || entry.format === 'v2') {
-        it('encodes back to the same bytes', () => {
+        it('returns entry.state from encodeV2 when the decoded v1 or v2 state is encoded', () => {
           expect(encodeV2(decodeState(entry.state)!)).toBe(withPlus(entry.state));
         });
       }
 
       if (entry.format === 'v3') {
-        it('encodes back to the same text, from the expected state and from the decoded one', () => {
+        it('returns entry.state from encodeV3 when it encodes entry.expected or the decoded state', () => {
           expect(encodeV3(entry.expected)).toBe(entry.state);
           expect(encodeV3(decodeState(entry.state)!)).toBe(entry.state);
         });
@@ -68,17 +68,17 @@ describe('golden state fixtures (tests/fixtures/state)', () => {
     });
   }
 
-  it('keep v3 entries in v3.json and legacy entries out of it (A25)', () => {
+  it('returns v3 entries from v3.json only when the state fixture files are read', () => {
     for (const {file, entry} of stateFixtures) {
       expect(entry.format === 'v3', `${file} ${entry.id}`).toBe(file === 'v3.json');
     }
   });
 });
 
-describe('v3 link length (docs/link-format-v3.md)', () => {
+describe('encodeV3 output length', () => {
   const entry = (id: string) => stateFixtures.find(fixture => fixture.entry.id === id)!.entry;
 
-  it('is shorter than v2 for the 7-row list of all 430 items', () => {
+  it('returns a 6381-character v3 state and a 6744-character v2 state when the list has 7 rows and 430 items', () => {
     const v2 = entry('v2-all-items-every-package');
     const v3 = entry('v3-all-items-every-package');
     expect(encodeV2(v3.expected)).toBe(v2.state);
@@ -86,7 +86,7 @@ describe('v3 link length (docs/link-format-v3.md)', () => {
     expect(v2.state.length).toBe(6744);
   });
 
-  it('is shorter than v2 for a typical 20-item list', () => {
+  it('returns a 392-character v3 state and a 507-character v2 state when the list has 20 items', () => {
     const v3 = entry('v3-typical-20-items');
     expect(v3.expected.tiers.flatMap(tier => tier.items)).toHaveLength(20);
     expect(v3.state.length).toBe(392);
@@ -94,8 +94,8 @@ describe('v3 link length (docs/link-format-v3.md)', () => {
   });
 });
 
-describe('golden shared links (tests/fixtures/shared-links.json)', () => {
-  it('cover every legacy format, and hold only known formats', () => {
+describe('tests/fixtures/shared-links.json', () => {
+  it('returns v0, v1 and v2 links and no unknown format when shared-links.json is read', () => {
     // v3 links (written since Phase 5b) may join the captured links later (A25).
     const formats = new Set(sharedLinks.map(link => link.format));
     for (const format of ['v0', 'v1', 'v2']) expect(formats).toContain(format);
@@ -104,14 +104,14 @@ describe('golden shared links (tests/fixtures/shared-links.json)', () => {
 
   for (const link of sharedLinks) {
     describe(`${link.id} (${link.format})`, () => {
-      it('decodes in its own format', () => {
+      it('returns link.format as the version, and the title, from decodeState when given link.state', () => {
         const decoded = decodeState(link.state);
         expect(decoded).not.toBeNull();
         expect(`v${decoded!.version}`).toBe(link.format);
         if (decoded!.title !== undefined) expect(decoded!.title).toBe(link.expected.title);
       });
 
-      it('shows the captured tiers and labels', () => {
+      it('returns the expected row names and item labels from decodeTierStateFromURL when given link.state', () => {
         const decoded = createTierCortex().decodeTierStateFromURL(link.state);
         expect(decoded).not.toBeNull();
         expect(decoded!.tiers.map(tier => ({
@@ -120,7 +120,7 @@ describe('golden shared links (tests/fixtures/shared-links.json)', () => {
         }))).toEqual(link.expected.tiers);
       });
 
-      it('decodes the same with "+" for spaces and with stray characters at the end', () => {
+      it('returns the same state from decodeState when spaces are "+" or the state ends in stray characters', () => {
         const expected = decodeState(link.state);
         expect(decodeState(withPlus(link.state))).toEqual(expected);
         for (const suffix of STRAY_SUFFIXES) {
@@ -129,13 +129,13 @@ describe('golden shared links (tests/fixtures/shared-links.json)', () => {
       });
 
       if (link.format === 'v1' || link.format === 'v2') {
-        it('encodes back to the same bytes', () => {
+        it('returns link.state from encodeV2 when the decoded v1 or v2 state is encoded', () => {
           expect(encodeV2(decodeState(link.state)!)).toBe(withPlus(link.state));
         });
       }
 
       if (link.format === 'v3') {
-        it('encodes back to the same text', () => {
+        it('returns link.state from encodeV3 when the decoded v3 state is encoded', () => {
           expect(encodeV3(decodeState(link.state)!)).toBe(withPlus(link.state));
         });
       }

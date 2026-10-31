@@ -54,12 +54,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('recording links', () => {
-  it('starts empty', () => {
+describe('createRecentLinks record', () => {
+  it('returns an empty list when nothing was recorded', () => {
     expect(setup().recent.list()).toEqual([]);
   });
 
-  it('adds opened links at the top with path, state, title and time', () => {
+  it('returns links newest first with path, state, title and openedAt when two links are recorded', () => {
     const {recent} = setup();
     recent.record(link(1));
     const result = recent.record(link(2));
@@ -71,7 +71,7 @@ describe('recording links', () => {
     expect(recent.list()).toEqual(result.links);
   });
 
-  it('keeps one entry per link and moves it to the top when opened again', () => {
+  it('returns one entry, at the top with the new title, when a recorded link is recorded again', () => {
     const {recent} = setup();
     recent.record(link(1));
     recent.record(link(2));
@@ -82,7 +82,7 @@ describe('recording links', () => {
     ]);
   });
 
-  it('treats a trailing slash and spaces for "+" as the same link', () => {
+  it('returns one entry with + in the state when the path has a trailing slash or the state has spaces', () => {
     const {recent} = setup();
     recent.record({path: '/rank/overwatch/tank/', state: 'N4Ig a+b'});
     recent.record({path: '/rank/overwatch/tank', state: 'N4Ig+a b'});
@@ -92,7 +92,7 @@ describe('recording links', () => {
     expect(recentLinkKey({path: '/rank/x', state: 'a'})).not.toBe(recentLinkKey({path: '/rank/y', state: 'a'}));
   });
 
-  it('records a link without state or title', () => {
+  it('returns ok true with an empty state and title when the link has no state or title', () => {
     const {recent} = setup();
     expect(recent.record({path: '/rank'}).ok).toBe(true);
     expect(recent.record({path: '/rank/overwatch', state: null, title: null}).ok).toBe(true);
@@ -102,7 +102,7 @@ describe('recording links', () => {
     ]);
   });
 
-  it('records every golden link state, including the 430-item list', () => {
+  it('returns ok true when recording each golden link state, the 430-item list included', () => {
     const fixtures = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../fixtures/state/generated.json'), 'utf8')) as {state: string}[];
     const longest = Math.max(...fixtures.map(f => f.state.length));
     expect(longest).toBeLessThan(RECENT_LINK_LIMITS.maxStateChars);
@@ -112,7 +112,7 @@ describe('recording links', () => {
     }
   });
 
-  it('refuses links that are not app paths or have bad state values', () => {
+  it('returns reason invalid-link and writes nothing when the path is no /rank path or the state value is bad', () => {
     const {recent, storage} = setup();
     const bad = [
       {path: 'javascript:alert(1)'},
@@ -155,7 +155,7 @@ describe('recording links', () => {
     expect(recent.record({path: '/rank/a%2eb/v1.2'}).ok).toBe(true);
   });
 
-  it('shortens long titles without cutting an emoji in half', () => {
+  it('returns titles cut to maxTitleChars without half an emoji when the title is longer', () => {
     const {recent} = setup();
     const max = RECENT_LINK_LIMITS.maxTitleChars;
     recent.record({path: '/rank/a', title: 'x'.repeat(max + 50)});
@@ -167,7 +167,7 @@ describe('recording links', () => {
     expect(createRecentLinks(setupStorageFrom(recent)).list()).toHaveLength(2);
   });
 
-  it(`keeps the ${RECENT_UNPINNED_LIMIT} most recently opened unpinned links`, () => {
+  it(`returns the ${RECENT_UNPINNED_LIMIT} newest unpinned links when more are recorded`, () => {
     const {recent} = setup();
     for (let n = 1; n <= RECENT_UNPINNED_LIMIT + 5; n++) recent.record(link(n));
     const states = recent.list().map(l => l.state);
@@ -177,8 +177,8 @@ describe('recording links', () => {
   });
 });
 
-describe('pinning', () => {
-  it('keeps pinned links when many others are opened', () => {
+describe('createRecentLinks pin and unpin', () => {
+  it('returns the pinned link first when more than RECENT_UNPINNED_LIMIT others are recorded', () => {
     const {recent} = setup();
     recent.record(link(1));
     expect(recent.pin(link(1)).ok).toBe(true);
@@ -188,7 +188,7 @@ describe('pinning', () => {
     expect(list.filter(l => !l.pinned)).toHaveLength(RECENT_UNPINNED_LIMIT);
   });
 
-  it(`allows at most ${RECENT_PIN_LIMIT} pinned links`, () => {
+  it(`returns reason pin-limit when ${RECENT_PIN_LIMIT} links are pinned already`, () => {
     const {recent} = setup();
     for (let n = 1; n <= RECENT_PIN_LIMIT + 1; n++) recent.record(link(n));
     for (let n = 1; n <= RECENT_PIN_LIMIT; n++) expect(recent.pin(link(n)).ok).toBe(true);
@@ -200,7 +200,7 @@ describe('pinning', () => {
     expect(recent.pin(link(RECENT_PIN_LIMIT + 1)).ok).toBe(true);
   });
 
-  it('lists pinned links first, most recently pinned first, then the others by time opened', () => {
+  it('returns pinned links by pin time first, then the others by openedAt, when some links are pinned', () => {
     const {recent} = setup();
     for (let n = 1; n <= 4; n++) recent.record(link(n));
     recent.pin(link(1));
@@ -213,7 +213,7 @@ describe('pinning', () => {
     ]);
   });
 
-  it('keeps a pinned link pinned when it is opened again', () => {
+  it('returns the link pinned with its pinnedAt and the new title when a pinned link is recorded again', () => {
     const {recent} = setup();
     recent.record(link(1));
     recent.pin(link(1));
@@ -222,7 +222,7 @@ describe('pinning', () => {
     expect(recent.list()[0]).toMatchObject({pinned: true, pinnedAt, title: 'New title', openedAt: 1_003});
   });
 
-  it('does nothing when pinning a pinned link or unpinning an unpinned one', () => {
+  it('returns ok and the same list when pinning a pinned link or unpinning an unpinned one', () => {
     const {recent} = setup();
     recent.record(link(1));
     recent.pin(link(1));
@@ -233,7 +233,7 @@ describe('pinning', () => {
     expect(recent.unpin(link(2))).toEqual({ok: true, links: after});
   });
 
-  it('keeps an unpinned link in the list, even when it is older than all the others', () => {
+  it('returns the unpinned link last, without pinnedAt, when it is older than all the others', () => {
     const {recent} = setup();
     recent.record(link(0));
     recent.pin(link(0));
@@ -246,7 +246,7 @@ describe('pinning', () => {
     expect(result.links.some(l => l.state === 'N4Ig1')).toBe(false);
   });
 
-  it('reports links that are not in the list', () => {
+  it('returns reason not-found when pin, unpin or remove gets a link that is not in the list', () => {
     const {recent} = setup();
     recent.record(link(1));
     expect(recent.pin(link(2))).toMatchObject({ok: false, reason: 'not-found'});
@@ -256,8 +256,8 @@ describe('pinning', () => {
   });
 });
 
-describe('removing links', () => {
-  it('removes one link, pinned or not', () => {
+describe('createRecentLinks remove and clear', () => {
+  it('returns the list without the link when remove gets a pinned link', () => {
     const {recent} = setup();
     for (let n = 1; n <= 3; n++) recent.record(link(n));
     recent.pin(link(2));
@@ -265,7 +265,7 @@ describe('removing links', () => {
     expect(recent.list().map(l => l.state)).toEqual(['N4Ig3', 'N4Ig1']);
   });
 
-  it('clears the whole list', () => {
+  it('writes no key to storage and returns an empty list when clear runs', () => {
     const {recent, storage} = setup();
     recent.record(link(1));
     recent.pin(link(1));
@@ -274,8 +274,8 @@ describe('removing links', () => {
   });
 });
 
-describe('storage', () => {
-  it('stores a small versioned JSON object under one key', () => {
+describe('createRecentLinks storage', () => {
+  it('writes {version: 1, links} under RECENT_LINKS_STORAGE_KEY when a link is recorded and pinned', () => {
     const {recent, stored} = setup();
     recent.record(link(1));
     recent.pin(link(1));
@@ -285,7 +285,7 @@ describe('storage', () => {
     });
   });
 
-  it('returns the same list object until the stored data changes', () => {
+  it('returns the same frozen list object when list runs again without a stored change', () => {
     const {recent} = setup();
     recent.record(link(1));
     const first = recent.list();
@@ -296,7 +296,7 @@ describe('storage', () => {
     expect(recent.list()).not.toBe(first);
   });
 
-  it('sees changes made through another list on the same storage (another tab)', () => {
+  it('returns the links of another createRecentLinks when both use the same storage (another tab)', () => {
     const {recent, storage} = setup();
     const otherTab = createRecentLinks(storage, {now: () => 5_000});
     recent.record(link(1));
@@ -304,7 +304,7 @@ describe('storage', () => {
     expect(recent.list().map(l => l.state)).toEqual(['N4Ig2', 'N4Ig1']);
   });
 
-  it('works without storage: the list is empty and changes report storage-unavailable', () => {
+  it('returns an empty list and reason storage-unavailable when storage is null or undefined', () => {
     for (const storage of [null, undefined]) {
       const recent = createRecentLinks(storage);
       expect(recent.list()).toEqual([]);
@@ -313,7 +313,7 @@ describe('storage', () => {
     }
   });
 
-  it('never throws when storage is blocked or full', () => {
+  it('returns reason storage-unavailable and throws no error when storage is blocked or full', () => {
     const {recent, storage} = setup();
     recent.record(link(1));
     const before = recent.list();
@@ -332,7 +332,7 @@ describe('storage', () => {
     expect(() => recent.record(link(3))).not.toThrow();
   });
 
-  it('uses the injected clock, and the real one when the injected clock is broken', () => {
+  it('returns openedAt from Date.now when the injected clock returns NaN', () => {
     const storage = memoryStorage();
     const recent = createRecentLinks(storage, {now: () => Number.NaN});
     const before = Date.now();
@@ -340,14 +340,14 @@ describe('storage', () => {
     expect(recent.list()[0].openedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it('uses another key when asked', () => {
+  it('writes under options.key when called with another key', () => {
     const storage = memoryStorage();
     createRecentLinks(storage, {key: 'other'}).record(link(1));
     expect(Array.from(storage.values.keys())).toEqual(['other']);
   });
 });
 
-describe('untrusted stored data', () => {
+describe('createRecentLinks with untrusted stored data', () => {
   const valid = {path: '/rank/a', state: 'N4Ig', title: 'A', openedAt: 10, pinned: false};
 
   function load(value: unknown) {
@@ -356,13 +356,13 @@ describe('untrusted stored data', () => {
     return createRecentLinks(storage).list();
   }
 
-  it('treats anything that is not the stored format as an empty list', () => {
+  it('returns an empty list when the stored value is not version 1 with a links array', () => {
     for (const value of ['not json', '', 'null', '[]', '"x"', '{}', {version: 2, links: [valid]}, {version: 1}, {version: 1, links: {}}, {links: [valid]}]) {
       expect(load(value), JSON.stringify(value)).toEqual([]);
     }
   });
 
-  it('drops bad entries and keeps the good ones', () => {
+  it('returns only the valid entries when stored entries have bad paths, states, titles or times', () => {
     const bad = [
       null,
       'x',
@@ -387,7 +387,7 @@ describe('untrusted stored data', () => {
     expect(load({version: 1, links: [...bad, good]})).toEqual([good]);
   });
 
-  it('checks only the first stored entries, so a huge stored array stays cheap', () => {
+  it('returns the valid first entry within 3 times the JSON.parse time when 100,000 entries are stored', () => {
     const raw = JSON.stringify({version: 1, links: [valid, ...Array(100_000).fill({})]});
     let started = performance.now();
     JSON.parse(raw);
@@ -398,7 +398,7 @@ describe('untrusted stored data', () => {
     expect(performance.now() - started).toBeLessThan(parseTime * 3 + 300);
   });
 
-  it('ignores unknown fields and prototype keys', () => {
+  it('returns plain entries without extra fields when stored JSON has unknown fields and __proto__ keys', () => {
     const text = `{"version":1,"__proto__":{"polluted":true},"links":[{"path":"/rank/a","state":"N4Ig","title":"A","openedAt":10,"pinned":false,"extra":1,"__proto__":{"polluted":true}}]}`;
     const [entry] = load(text);
     expect(entry).toEqual(valid);
@@ -406,7 +406,7 @@ describe('untrusted stored data', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  it('merges duplicate entries, keeping the newer one and its pin', () => {
+  it('returns one entry with the newer openedAt and the pin when stored entries repeat a link', () => {
     const list = load({
       version: 1,
       links: [
@@ -418,11 +418,11 @@ describe('untrusted stored data', () => {
     expect(list).toEqual([{...valid, title: 'New', openedAt: 20, pinned: true, pinnedAt: 6}]);
   });
 
-  it('gives a pinned entry without pin time its open time', () => {
+  it('returns pinnedAt equal to openedAt when a pinned entry has no pinnedAt', () => {
     expect(load({version: 1, links: [{...valid, pinned: true}]})).toEqual([{...valid, pinned: true, pinnedAt: 10}]);
   });
 
-  it('applies both caps to stored data; pins beyond the limit become ordinary links', () => {
+  it('returns RECENT_PIN_LIMIT pins and RECENT_UNPINNED_LIMIT others when stored data passes both caps', () => {
     const pins = Array.from({length: RECENT_PIN_LIMIT + 3}, (_, i) => ({...valid, path: `/rank/pin${i}`, openedAt: 100 + i, pinned: true, pinnedAt: 200 + i}));
     const others = Array.from({length: RECENT_UNPINNED_LIMIT + 5}, (_, i) => ({...valid, path: `/rank/other${i}`, openedAt: 1_000 + i}));
     const list = load({version: 1, links: [...pins, ...others]});
@@ -433,15 +433,15 @@ describe('untrusted stored data', () => {
   });
 });
 
-describe('helpers', () => {
-  it('builds an href with the state value URL-encoded', () => {
+describe('recentLinkHref and browserLocalStorage', () => {
+  it('returns path?state= with the state URL-encoded when the state is set, and the path alone when empty', () => {
     expect(recentLinkHref({path: '/rank/overwatch/tank', state: 'N4Ig+a$b-c'})).toBe('/rank/overwatch/tank?state=N4Ig%2Ba%24b-c');
     expect(recentLinkHref({path: '/rank/overwatch/tank', state: '3.abc)'})).toBe('/rank/overwatch/tank?state=3.abc)');
     expect(recentLinkHref({path: '/rank/overwatch', state: ''})).toBe('/rank/overwatch');
     expect(new URL(recentLinkHref({path: '/rank/x', state: 'a+b&c=#d'}), 'https://opentierboy.com').searchParams.get('state')).toBe('a+b&c=#d');
   });
 
-  it('returns the browser storage, or null when it is missing or blocked', () => {
+  it('returns localStorage when it exists, and null when it is missing or throws on access', () => {
     expect(browserLocalStorage()).toBeNull();
     const storage = memoryStorage();
     vi.stubGlobal('localStorage', storage);

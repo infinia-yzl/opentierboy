@@ -34,18 +34,18 @@ afterEach(() => {
 });
 
 describe('embedSnapshotText and extractSnapshotText', () => {
-  it('round-trips the text, including any Unicode', async () => {
+  it('returns the embedded text when extractSnapshotText reads a PNG with Unicode text', async () => {
     const png = await embed(makePng(), TEXT);
     expect(await extractSnapshotText(png)).toEqual({ok: true, text: TEXT});
   });
 
-  it('round-trips an empty text and accepts an ArrayBuffer', async () => {
+  it('returns \'\' when the embedded text is empty and the input is an ArrayBuffer', async () => {
     const png = await embed(makePng(), '');
     const buffer = new Uint8Array(png).buffer;
     expect(await extractSnapshotText(buffer)).toEqual({ok: true, text: ''});
   });
 
-  it('writes a file that still decodes as the same picture', async () => {
+  it('returns a PNG that decodes to the same pixels when text is embedded', async () => {
     const original = makePng(17, 9, 7);
     const withSnapshot = await embed(original);
     const before = decodePng(original);
@@ -55,7 +55,7 @@ describe('embedSnapshotText and extractSnapshotText', () => {
     expect(Buffer.compare(after.data, before.data)).toBe(0);
   });
 
-  it('writes one compressed iTXt chunk just before IEND that other zlib code can read', async () => {
+  it('returns a PNG with one compressed iTXt chunk just before IEND when text is embedded', async () => {
     const original = makePng();
     const chunks = splitChunks(await embed(original));
     const types = chunks.map(c => c.type);
@@ -71,14 +71,14 @@ describe('embedSnapshotText and extractSnapshotText', () => {
     expect(text).toBe(TEXT);
   });
 
-  it('replaces an existing snapshot chunk instead of adding a second one', async () => {
+  it('returns a PNG with one snapshot chunk holding the new text when the PNG already has one', async () => {
     const once = await embed(makePng(), 'first');
     const twice = await embed(once, 'second');
     expect(splitChunks(twice).filter(c => c.type === 'iTXt')).toHaveLength(1);
     expect(await extractSnapshotText(twice)).toEqual({ok: true, text: 'second'});
   });
 
-  it('keeps other text chunks, including other iTXt chunks', async () => {
+  it('returns a PNG with the other tEXt and iTXt chunks when the PNG has them', async () => {
     const png = insertBeforeIend(makePng(), [chunk('tEXt', 'Software\0test'), chunk('iTXt', itxtData('Comment', new TextEncoder().encode('hi')))]);
     const out = await embed(png);
     expect(splitChunks(out).map(c => c.type)).toEqual(expect.arrayContaining(['tEXt', 'iTXt']));
@@ -86,7 +86,7 @@ describe('embedSnapshotText and extractSnapshotText', () => {
     expect(await extractSnapshotText(out)).toEqual({ok: true, text: TEXT});
   });
 
-  it('accepts text exactly at the decompressed cap and refuses one byte more', async () => {
+  it('returns ok at maxTextBytes, and reason \'text-too-large\' one byte over, when embedding or extracting', async () => {
     const atCap = 'a'.repeat(SNAPSHOT_PNG_LIMITS.maxTextBytes);
     const png = await embed(makePng(), atCap);
     const read = await extractSnapshotText(png);
@@ -98,24 +98,24 @@ describe('embedSnapshotText and extractSnapshotText', () => {
     expect(await extractSnapshotText(tooLong)).toEqual({ok: false, reason: 'text-too-large'});
   });
 
-  it('counts the cap in UTF-8 bytes', async () => {
+  it('returns reason \'text-too-large\' when the UTF-8 bytes of the text are over maxTextBytes', async () => {
     const emoji = '🧪'.repeat(SNAPSHOT_PNG_LIMITS.maxTextBytes / 4);
     expect((await embedSnapshotText(makePng(), emoji)).ok).toBe(true);
     expect(await embedSnapshotText(makePng(), `${emoji}a`)).toEqual({ok: false, reason: 'text-too-large'});
   });
 
-  it('reads an uncompressed snapshot chunk written by another tool', async () => {
+  it('returns the text when the snapshot chunk is uncompressed', async () => {
     const png = insertBeforeIend(makePng(), [snapshotChunk(TEXT, {compressed: false, language: 'en', translated: 'OpenTierBoy'})]);
     expect(await extractSnapshotText(png)).toEqual({ok: true, text: TEXT});
   });
 });
 
-describe('extractSnapshotText refuses bad files', () => {
-  it('reports no-snapshot for a valid PNG without the chunk', async () => {
+describe('extractSnapshotText with bad files', () => {
+  it('returns reason \'no-snapshot\' when a valid PNG has no snapshot chunk', async () => {
     expect(await extractSnapshotText(makePng())).toEqual({ok: false, reason: 'no-snapshot'});
   });
 
-  it('ignores text chunks with another keyword or another chunk type', async () => {
+  it('returns reason \'no-snapshot\' when text chunks have another keyword or chunk type', async () => {
     const png = insertBeforeIend(makePng(), [
       chunk('iTXt', itxtData('opentierboy2', new TextEncoder().encode(TEXT))),
       chunk('iTXt', itxtData('opentierbo', new TextEncoder().encode(TEXT))),
@@ -126,7 +126,7 @@ describe('extractSnapshotText refuses bad files', () => {
     expect(await extractSnapshotText(png)).toEqual({ok: false, reason: 'no-snapshot'});
   });
 
-  it('refuses bytes that are not a PNG', async () => {
+  it('returns reason \'not-png\' when the bytes are not a PNG', async () => {
     const samples = [
       new Uint8Array(),
       Uint8Array.from([0x89, 0x50, 0x4e]),
@@ -141,7 +141,7 @@ describe('extractSnapshotText refuses bad files', () => {
     }
   });
 
-  it('refuses a bad CRC in any chunk', async () => {
+  it('returns reason \'bad-crc\' when the data or CRC of any chunk is changed', async () => {
     const png = await embed(makePng());
     for (const {type, dataStart, crcStart} of chunkOffsets(png)) {
       const badData = png.slice();
@@ -155,7 +155,7 @@ describe('extractSnapshotText refuses bad files', () => {
     }
   });
 
-  it('refuses a truncated file at every length', async () => {
+  it('returns reason \'truncated\' when the file is cut at any length after the signature', async () => {
     const png = await embed(makePng());
     for (let length = 8; length < png.length; length++) {
       const result = await extractSnapshotText(png.subarray(0, length));
@@ -164,7 +164,7 @@ describe('extractSnapshotText refuses bad files', () => {
     expect(await extractSnapshotText(png.subarray(0, 5))).toEqual({ok: false, reason: 'not-png'});
   });
 
-  it('refuses a chunk with a huge declared length without reading it', async () => {
+  it('returns reason \'chunk-too-large\' when a chunk declares a length over maxChunkBytes', async () => {
     const png = await embed(makePng());
     const ihdr = chunkOffsets(png)[1];
     for (const length of [0xffffffff, 0x80000000, 0x7fffffff, SNAPSHOT_PNG_LIMITS.maxChunkBytes + 1]) {
@@ -177,7 +177,7 @@ describe('extractSnapshotText refuses bad files', () => {
     expect(await extractSnapshotText(bad)).toEqual({ok: false, reason: 'truncated'});
   });
 
-  it('stops a decompression bomb at the cap', async () => {
+  it('returns reason \'text-too-large\', inflating in small slices, when the chunk is a decompression bomb', async () => {
     // 64 MiB of zeros compress to about 64 KB.
     const bomb = new Uint8Array(zlib.deflateSync(Buffer.alloc(64 * MiB)));
     expect(bomb.length).toBeLessThan(100_000);
@@ -221,7 +221,7 @@ describe('extractSnapshotText refuses bad files', () => {
     expect(produced).toBeLessThan(SNAPSHOT_PNG_LIMITS.maxTextBytes + 8 * MiB);
   });
 
-  it('accepts many small chunks up to the chunk limit and refuses more', async () => {
+  it('returns reason \'too-many-chunks\' when the PNG has more than maxChunks chunks', async () => {
     const base = makePng(2, 2);
     const baseCount = splitChunks(base).length;
     const filler = (n: number) => Array.from({length: n}, (_, i) => chunk('teSt', [i & 0xff]));
@@ -238,13 +238,13 @@ describe('extractSnapshotText refuses bad files', () => {
     });
   });
 
-  it('refuses a file over the size limit', async () => {
+  it('returns reason \'file-too-large\' when the file is over maxFileBytes', async () => {
     const big = new Uint8Array(SNAPSHOT_PNG_LIMITS.maxFileBytes + 1);
     big.set(SIGNATURE);
     expect(await extractSnapshotText(big)).toEqual({ok: false, reason: 'file-too-large'});
   });
 
-  it('refuses a broken chunk layout', async () => {
+  it('returns reason \'bad-structure\' when the chunk layout is broken', async () => {
     const png = makePng();
     const chunks = splitChunks(png);
     const ihdr = chunks[0];
@@ -264,12 +264,12 @@ describe('extractSnapshotText refuses bad files', () => {
     expect(await extractSnapshotText(assemble([ihdr, ...idat])), 'no IEND').toEqual({ok: false, reason: 'truncated'});
   });
 
-  it('refuses two snapshot chunks', async () => {
+  it('returns reason \'duplicate-snapshot\' when the PNG has two snapshot chunks', async () => {
     const png = insertBeforeIend(makePng(), [snapshotChunk('one'), snapshotChunk('two')]);
     expect(await extractSnapshotText(png)).toEqual({ok: false, reason: 'duplicate-snapshot'});
   });
 
-  it('refuses a malformed snapshot chunk', async () => {
+  it('returns reason \'bad-snapshot-chunk\' when the flags or terminators of the snapshot chunk are malformed', async () => {
     const keyword = new TextEncoder().encode(`${SNAPSHOT_KEYWORD}\0`);
     const text = new TextEncoder().encode(TEXT);
     const bad: Record<string, Uint8Array> = {
@@ -288,7 +288,7 @@ describe('extractSnapshotText refuses bad files', () => {
     }
   });
 
-  it('refuses damaged compressed text', async () => {
+  it('returns reason \'bad-compression\' when the compressed text is damaged', async () => {
     const keywordAndFlags = concat([new TextEncoder().encode(`${SNAPSHOT_KEYWORD}\0`), Uint8Array.from([1, 0, 0, 0])]);
     const good = new Uint8Array(zlib.deflateSync(TEXT));
     const badChecksum = good.slice();
@@ -308,7 +308,7 @@ describe('extractSnapshotText refuses bad files', () => {
     }
   });
 
-  it('refuses text that is not UTF-8', async () => {
+  it('returns reason \'bad-utf8\' when the text is not valid UTF-8', async () => {
     for (const bytes of [Uint8Array.from([0x7b, 0xff, 0x7d]), Uint8Array.from([0xc3]), Uint8Array.from([0xed, 0xa0, 0x80])]) {
       for (const compressed of [true, false]) {
         const png = insertBeforeIend(makePng(), [snapshotChunk(bytes, {compressed})]);
@@ -317,26 +317,26 @@ describe('extractSnapshotText refuses bad files', () => {
     }
   });
 
-  it('refuses an uncompressed text over the cap', async () => {
+  it('returns reason \'text-too-large\' when uncompressed text is over maxTextBytes', async () => {
     const png = insertBeforeIend(makePng(), [snapshotChunk(new Uint8Array(SNAPSHOT_PNG_LIMITS.maxTextBytes + 1).fill(0x61), {compressed: false})]);
     expect(await extractSnapshotText(png)).toEqual({ok: false, reason: 'text-too-large'});
   });
 
-  it('refuses a snapshot chunk over its own size cap', async () => {
+  it('returns reason \'bad-snapshot-chunk\' when the snapshot chunk is over maxTextChunkBytes', async () => {
     const size = SNAPSHOT_PNG_LIMITS.maxTextChunkBytes;
     const png = insertBeforeIend(makePng(), [snapshotChunk(new Uint8Array(size).fill(0x61), {compressed: false})]);
     expect(await extractSnapshotText(png)).toEqual({ok: false, reason: 'bad-snapshot-chunk'});
   });
 
-  it('reports unsupported when the browser cannot decompress', async () => {
+  it('returns reason \'unsupported\' when DecompressionStream is missing', async () => {
     const png = await embed(makePng());
     vi.stubGlobal('DecompressionStream', undefined);
     expect(await extractSnapshotText(png)).toEqual({ok: false, reason: 'unsupported'});
   });
 });
 
-describe('embedSnapshotText refuses bad input', () => {
-  it('refuses input that is not a valid PNG', async () => {
+describe('embedSnapshotText with bad input', () => {
+  it('returns reason \'not-png\', \'truncated\' or \'bad-crc\' when the input is not a valid PNG', async () => {
     expect(await embedSnapshotText(new TextEncoder().encode('nope'), TEXT)).toEqual({ok: false, reason: 'not-png'});
     const png = makePng();
     expect(await embedSnapshotText(png.subarray(0, png.length - 3), TEXT)).toEqual({ok: false, reason: 'truncated'});
@@ -345,7 +345,7 @@ describe('embedSnapshotText refuses bad input', () => {
     expect(await embedSnapshotText(bad, TEXT)).toEqual({ok: false, reason: 'bad-crc'});
   });
 
-  it('refuses to write a file over the size limit', async () => {
+  it('returns reason \'file-too-large\' when the output would be over maxFileBytes', async () => {
     const chunks = splitChunks(makePng());
     // Fills the file to 50 bytes under the limit with a private chunk.
     const used = SIGNATURE.length + chunks.reduce((sum, c) => sum + 12 + c.data.length, 0) + 12;
@@ -356,7 +356,7 @@ describe('embedSnapshotText refuses bad input', () => {
     expect(await embedSnapshotText(nearlyFull, TEXT)).toEqual({ok: false, reason: 'file-too-large'});
   });
 
-  it('reports unsupported when the browser cannot compress', async () => {
+  it('returns reason \'unsupported\' when CompressionStream is missing', async () => {
     vi.stubGlobal('CompressionStream', undefined);
     expect(await embedSnapshotText(makePng(), TEXT)).toEqual({ok: false, reason: 'unsupported'});
   });

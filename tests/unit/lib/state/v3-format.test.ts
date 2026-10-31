@@ -72,18 +72,18 @@ function list(overrides: Partial<EncodableState> = {}): EncodableState {
   return {tiers: [{id: 'uncategorized', name: '', items: []}], ...overrides};
 }
 
-describe('v3 link format', () => {
-  it('decodes the documented example, and writes it back byte for byte', () => {
+describe('encodeV3 and decodeState', () => {
+  it('returns EXAMPLE_STATE from decodeState, and the same bytes from encodeV3, when given the docs/link-format-v3.md example', () => {
     expect(decodeState(v3(EXAMPLE_JSON))).toEqual(EXAMPLE_STATE);
     expect(encodeV3(EXAMPLE_STATE)).toBe(v3(EXAMPLE_JSON));
   });
 
-  it('writes the keys in the order t, tp, lp, sl, r', () => {
+  it('returns JSON with keys in the order t, tp, lp, sl, r when every field is set', () => {
     const encoded = encodeV3({...EXAMPLE_STATE, labelPosition: 'right', showLabels: false});
     expect(jsonOf(encoded)).toMatch(/^\{"t":"My picks 🎮","tp":5,"lp":"right","sl":false,"r":\[/);
   });
 
-  it('leaves out every field that holds its default', () => {
+  it('returns only the r key when every other field has its default value', () => {
     const minimal = {tiers: [{id: 'uncategorized', name: '', items: []}]};
     expect(jsonOf(encodeV3(minimal))).toBe('{"r":[["uncategorized","",[]]]}');
     expect(jsonOf(encodeV3({...minimal, title: '', rowTemplate: 'custom', labelPosition: 'left', showLabels: true})))
@@ -97,13 +97,13 @@ describe('v3 link format', () => {
     });
   });
 
-  it('keeps a title made of spaces and drops an empty one', () => {
+  it('returns the title when it is only spaces, and no t key when it is empty', () => {
     expect(jsonOf(encodeV3(list({title: '  '})))).toBe('{"t":"  ","r":[["uncategorized","",[]]]}');
     expect(decodeState(encodeV3(list({title: '  '})))?.title).toBe('  ');
     expect(decodeState(v3('{"t":"","r":[["x","",[]]]}'))).not.toHaveProperty('title');
   });
 
-  it('stores the label position and label visibility', () => {
+  it('returns the labelPosition and showLabels when a list round-trips, and no lp or sl key when they are default', () => {
     for (const labelPosition of ['left', 'right', 'top'] as const) {
       for (const showLabels of [true, false]) {
         const decoded = decodeState(encodeV3(list({labelPosition, showLabels})));
@@ -115,8 +115,8 @@ describe('v3 link format', () => {
     expect(jsonOf(encodeV3(list({labelPosition: 'top'})))).toBe('{"lp":"top","r":[["uncategorized","",[]]]}');
   });
 
-  describe('items', () => {
-    it('writes image-set items as their id, and link and device images as objects', () => {
+  describe('encodeV3 and decodeState with items', () => {
+    it('returns image-set items as ids, and link and device images as {u, c} and {d, c}, when encoding a list', () => {
       const encoded = encodeV3(list({
         tiers: [{
           id: 'uncategorized',
@@ -142,7 +142,7 @@ describe('v3 link format', () => {
       ]);
     });
 
-    it('writes an id with a label as {i, c}, and an id without one as a plain id (A45)', () => {
+    it('returns {i, c} when an id has a label, and the plain id when it has none (A45)', () => {
       const encoded = encodeV3(list({
         tiers: [{id: 'uncategorized', name: '', items: [
           {id: 'image-overwatch-gone.webp', content: 'Gone hero'},
@@ -156,7 +156,7 @@ describe('v3 link format', () => {
       ]);
     });
 
-    it('reads {i, c} with any non-empty id: the device id rule does not apply (A45)', () => {
+    it('returns {i, c} items with any non-empty id, and reason \'bad-item\' when i is empty or not a string (A45)', () => {
       const items = (json: string) => decodeState(v3(`{"r":[["x","",[${json}]]]}`))?.tiers[0].items;
       expect(items('{"i":"a.b c","c":"Label"}')).toStrictEqual([{id: 'a.b c', content: 'Label'}]);
       expect(items('{"i":"__proto__","c":"x"}')).toStrictEqual([{id: '__proto__', content: 'x'}]);
@@ -169,24 +169,24 @@ describe('v3 link format', () => {
       }
     });
 
-    it('keeps duplicate items: removing them is the app\'s job', () => {
+    it('returns every duplicate item when a row repeats items', () => {
       const json = '{"r":[["x","",["a","a",{"u":"https://x.test/1.png"},{"u":"https://x.test/1.png","c":"other"}]]]}';
       expect(decodeState(v3(json))?.tiers[0].items).toHaveLength(4);
     });
   });
 
-  describe('tier ids (A2)', () => {
+  describe('encodeV3 and decodeState with tier ids (A2)', () => {
     const fiveRows = (ids: string[]): EncodableState => ({
       rowTemplate: '5rows',
       tiers: ids.map((id, index) => ({id, name: ['S', 'A', 'B', 'C', 'F', ''][index] ?? 'Extra', items: []})),
     });
 
-    it('leaves out ids that sit at their template position', () => {
+    it('returns rows without ids when every id sits at its template position', () => {
       const encoded = encodeV3(fiveRows(['tier-s', 'tier-a', 'tier-b', 'tier-c', 'tier-f', 'uncategorized']));
       expect(jsonOf(encoded)).toBe('{"tp":5,"r":[["S",[]],["A",[]],["B",[]],["C",[]],["F",[]],["",[]]]}');
     });
 
-    it('writes the ids of rows that moved, and only those', () => {
+    it('returns ids only for the rows that moved when rows S and B swap places', () => {
       // Rows S and B swapped places: the labels stay, the ids move with the items.
       const encoded = encodeV3(fiveRows(['tier-b', 'tier-a', 'tier-s', 'tier-c', 'tier-f', 'uncategorized']));
       expect(jsonOf(encoded)).toBe('{"tp":5,"r":[["tier-b","S",[]],["A",[]],["tier-s","B",[]],["C",[]],["F",[]],["",[]]]}');
@@ -194,29 +194,29 @@ describe('v3 link format', () => {
         .toEqual(['tier-b', 'tier-a', 'tier-s', 'tier-c', 'tier-f', 'uncategorized']);
     });
 
-    it('writes the ids of rows below the template\'s last row', () => {
+    it('returns ids for the rows past the template\'s last row when the list has extra rows', () => {
       const encoded = encodeV3(fiveRows(['tier-s', 'tier-a', 'tier-b', 'tier-c', 'tier-f', 'tier-x', 'uncategorized']));
       expect(jsonOf(encoded)).toBe(
         '{"tp":5,"r":[["S",[]],["A",[]],["B",[]],["C",[]],["F",[]],["tier-x","",[]],["uncategorized","Extra",[]]]}');
     });
 
-    it('writes every id under the custom template', () => {
+    it('returns every row id when the template is custom', () => {
       const encoded = encodeV3({...fiveRows(['tier-s', 'uncategorized']), rowTemplate: 'custom'});
       expect(jsonOf(encoded)).toBe('{"r":[["tier-s","S",[]],["uncategorized","A",[]]]}');
     });
 
-    it('reads the same template id at different positions per template', () => {
+    it('returns the tier id of the position in the tp template when a row has no id', () => {
       expect(decodeState(v3('{"tp":7,"r":[["SS",[]],["S",[]]]}'))?.tiers.map(tier => tier.id)).toEqual(['tier-ss', 'tier-s']);
       expect(decodeState(v3('{"tp":3,"r":[["S",[]],["A",[]],["B",[]],["",[]]]}'))?.tiers.map(tier => tier.id))
         .toEqual(['tier-s', 'tier-a', 'tier-b', 'uncategorized']);
     });
 
-    it('refuses a row without id where the template has none', () => {
+    it('returns reason \'missing-tier-id\' when a row without id is at no template position', () => {
       expect(reasonOf('{"r":[["S",[]]]}')).toBe('missing-tier-id');
       expect(reasonOf('{"tp":3,"r":[["S",[]],["A",[]],["B",[]],["",[]],["more",[]]]}')).toBe('missing-tier-id');
     });
 
-    it('keeps the template switch working after a round trip (A2)', () => {
+    it('returns the reordered tier ids after a round trip when rows of a 5-row list are reordered (A2)', () => {
       // Reorder rows in a 5-row list, then share and reopen it: the ids must survive, because
       // switching to 7 rows matches items to the new rows by tier id.
       const reordered = fiveRows(['tier-c', 'tier-s', 'tier-a', 'tier-b', 'tier-f', 'uncategorized']);
@@ -224,8 +224,8 @@ describe('v3 link format', () => {
     });
   });
 
-  describe('decodeState', () => {
-    it('sends "3." values to the v3 decoder and says why one is invalid', () => {
+  describe('decodeState with v3 links', () => {
+    it('returns null, and passes the v3 reason to onError, when a 3. value is invalid', () => {
       const onError = vi.fn();
       expect(decodeState(v3('{"r":[]}'), {onError})).toBeNull();
       expect(onError).toHaveBeenLastCalledWith(new Error('Invalid v3 state: bad-row-count'));
@@ -233,7 +233,7 @@ describe('v3 link format', () => {
       expect(onError).toHaveBeenLastCalledWith(new Error('Invalid v3 state: not-lz-string-or-too-long'));
     });
 
-    it('does not read a v3 payload without its prefix, or with another version', () => {
+    it('returns null when a v3 payload has no 3. prefix or another version prefix', () => {
       const payload = lz(EXAMPLE_JSON);
       expect(decodeState(payload)).toBeNull();
       for (const prefix of ['03.', '4.', '30.', '3', '3-', ' 3.', 'v3.']) {
@@ -241,14 +241,14 @@ describe('v3 link format', () => {
       }
     });
 
-    it('does not read a legacy link behind the v3 prefix', () => {
+    it('returns null when a legacy link follows the 3. prefix', () => {
       for (const link of sharedLinks) {
         expect(decodeState(link.state)).not.toBeNull();
         expect(decodeState(`3.${link.state}`)).toBeNull();
       }
     });
 
-    it('accepts spaces for "+" and ignores stray characters after the data (A4)', () => {
+    it('returns the same list when spaces replace + or stray characters follow the data (A4)', () => {
       const random = seededRandom(5);
       let withPlus = 0;
       for (const state of randomV3States(300, 11)) {
@@ -261,7 +261,7 @@ describe('v3 link format', () => {
       expect(withPlus).toBeGreaterThan(50);
     });
 
-    it('ignores keys it does not know, and accepts defaults written out (forward compatible)', () => {
+    it('returns the list, ignoring unknown keys and default values, when the JSON has them (forward compatible)', () => {
       const json = '{"t":"T","x":1,"tp":5,"lp":"left","sl":true,"future":{"a":[1,2]},' +
         '"r":[["tier-s","S",["image-overwatch-ana.webp",{"u":"https://x.test/a.png","c":"","z":true}]],' +
         '["A",[{"d":"abcdefgh","c":"cat","w":2}]]]}';
@@ -284,15 +284,15 @@ describe('v3 link format', () => {
     });
   });
 
-  describe('properties (seeded random lists)', () => {
-    it('decodes what it encodes to the same list', () => {
+  describe('encodeV3 and decodeState with seeded random lists', () => {
+    it('returns the same list when decodeState reads the encodeV3 output of 1,000 random lists', () => {
       const states = randomV3States(1000, 20261025);
       for (let index = 0; index < states.length; index++) {
         expectSameState(decodeState(encodeV3(states[index])), states[index], `random state #${index}`);
       }
     });
 
-    it('encodes a decoded value back to the same text (fixed point, A1c)', () => {
+    it('returns the same text when encodeV3 encodes a decoded value (fixed point, A1c)', () => {
       const states = randomV3States(1000, 7);
       for (let index = 0; index < states.length; index++) {
         const encoded = encodeV3(states[index]);
@@ -300,13 +300,13 @@ describe('v3 link format', () => {
       }
     });
 
-    it('is deterministic: the same list always gives the same text', () => {
+    it('returns the same text when encodeV3 encodes equal lists', () => {
       const first = randomV3States(300, 3).map(encodeV3);
       const second = randomV3States(300, 3).map(state => encodeV3(structuredClone(state)));
       expect(second).toEqual(first);
     });
 
-    it('settles any list in one step, also lists in legacy form', () => {
+    it('returns the same text and tier ids after one round trip when the list is in legacy form', () => {
       // Legacy-shaped input: labels on image-set items, empty titles, no layout fields. v3 has
       // no place for a list without rows or with an empty tier id (see the test below).
       const states = randomAppStates(500, 77).map(toCanonical)
@@ -321,12 +321,12 @@ describe('v3 link format', () => {
       }
     });
 
-    it('cannot hold a legacy list with an empty tier id: the app must give it an id first', () => {
+    it('returns null when a legacy list with an empty tier id is encoded and decoded', () => {
       const legacy = {tiers: [{id: '', name: 'S', items: []}, {id: 'uncategorized', name: '', items: []}]};
       expect(decodeState(encodeV3(legacy))).toBeNull();
     });
 
-    it('never throws on random text after "3."', () => {
+    it('throws no error when random text follows 3.', () => {
       const random = seededRandom(42);
       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$ .)%';
       for (let index = 0; index < 3000; index++) {
@@ -337,7 +337,7 @@ describe('v3 link format', () => {
       }
     });
 
-    it('never throws on random JSON values in every field', () => {
+    it('throws no error when every field gets random JSON values', () => {
       const random = seededRandom(9);
       const values: unknown[] = [null, true, false, 0, -1, 3, 5, 7, 1e308, -0, '', 'x', 'left', [], [[]], {}, {u: 'x'}, {d: 1},
         ['x', []], ['x', 'y', []], [1, 'y', []], {__proto__: null}, 'tier-s', [{u: 'x'}], ['', [{}]]];
@@ -355,12 +355,12 @@ describe('v3 link format', () => {
   });
 });
 
-describe('v3 limits (A29, A43)', () => {
+describe('V3_LIMITS (A29, A43)', () => {
   const L = V3_LIMITS;
   const row = (items: unknown[], name = '', id = 'x') => [id, name, items];
   const linkWith = (json: object) => v3(JSON.stringify(json));
 
-  it('accept strings of any length within the JSON cap (A43)', () => {
+  it('returns the list unchanged when a string is 50,000 characters long within the JSON cap (A43)', () => {
     // The editor lets people type text of any length: a cap would refuse links it wrote.
     const long = 50_000;
     const cases: [string, object][] = [
@@ -380,7 +380,7 @@ describe('v3 limits (A29, A43)', () => {
     expect(Object.keys(L).sort()).toEqual(['maxItems', 'maxJsonLength', 'maxPayloadLength', 'maxRows']);
   });
 
-  it('accept device image ids of 8 to 64 URL-safe characters (deviceId.ts, A40)', () => {
+  it('returns ok when a device image id has 8 to 64 URL-safe characters, and reason \'bad-device-id\' otherwise (A40)', () => {
     const withDevice = (d: unknown) => reasonOf(JSON.stringify({r: [row([{d, c: 'label'}])]}));
     expect(withDevice('a'.repeat(8))).toBe('ok');
     expect(withDevice('A-_09zZx'.repeat(8))).toBe('ok');
@@ -391,7 +391,7 @@ describe('v3 limits (A29, A43)', () => {
     }
   });
 
-  it('refuse empty tier ids, item ids and image addresses', () => {
+  it('returns reason \'bad-tier-id\', \'bad-item\' or \'bad-device-id\' when a tier id, item id or image address is empty', () => {
     expect(reasonOf('{"r":[["","",[""]]]}')).toBe('bad-tier-id');
     expect(reasonOf('{"r":[["","",[]]]}')).toBe('bad-tier-id');
     expect(reasonOf('{"r":[["x","",[""]]]}')).toBe('bad-item');
@@ -402,7 +402,7 @@ describe('v3 limits (A29, A43)', () => {
     expect(reasonOf('{"t":"","r":[["x","",["a",{"u":"https://x.test/a.png","c":""}]]]}')).toBe('ok');
   });
 
-  it('accept 1 to 100 rows', () => {
+  it('returns ok when the list has 1 to maxRows (100) rows, and reason \'bad-row-count\' otherwise', () => {
     const rows = (count: number) => Array.from({length: count}, (_, index) => row([], '', `r${index}`));
     expect(reasonOf(JSON.stringify({r: rows(0)}))).toBe('bad-row-count');
     expect(reasonOf(JSON.stringify({r: rows(1)}))).toBe('ok');
@@ -410,13 +410,13 @@ describe('v3 limits (A29, A43)', () => {
     expect(reasonOf(JSON.stringify({r: rows(L.maxRows + 1)}))).toBe('bad-row-count');
   });
 
-  it('accept up to 5,000 items over all rows', () => {
+  it('returns reason \'too-many-items\' when the rows have more than maxItems (5,000) items', () => {
     const rows = (count: number) => [row(Array(count - 1000).fill('a')), row(Array(600).fill({d: 'device-b'})), row(Array(400).fill('c'))];
     expect(reasonOf(JSON.stringify({r: rows(L.maxItems)}))).toBe('ok');
     expect(reasonOf(JSON.stringify({r: rows(L.maxItems + 1)}))).toBe('too-many-items');
   });
 
-  it('cap the JSON at 1,000,000 characters, before decompressing it', () => {
+  it('returns reason \'not-lz-string-or-too-long\' when the JSON is over maxJsonLength (1,000,000) characters', () => {
     // JSON of an exact length, padded with an unknown key: '{"r":[["x","",[]]],"pad":"aaa…"}'.
     const padded = (length: number) => {
       const frame = '{"r":[["x","",[]]],"pad":"{run}"}';
@@ -428,14 +428,14 @@ describe('v3 limits (A29, A43)', () => {
     expect(readV3Payload(padded(L.maxJsonLength + 1))).toEqual({ok: false, reason: 'not-lz-string-or-too-long'});
   });
 
-  it('cap the payload at 1,000,000 characters', () => {
+  it('returns reason \'payload-too-long\' when the payload is over maxPayloadLength (1,000,000) characters', () => {
     const encoded = encodeV3(list()).slice(2);
     const atCap = encoded + '.'.repeat(L.maxPayloadLength - encoded.length);
     expect(decodeV3Payload(atCap)).not.toBeNull();
     expect(readV3Payload(`${atCap}.`)).toEqual({ok: false, reason: 'payload-too-long'});
   });
 
-  it('hold the largest shipped list with room to spare', () => {
+  it('returns a link far under every limit when the list has every shipped image-set item', () => {
     // Every item of every image set in one 7-row list.
     const ids = Object.entries(imagesetConfig.packages)
       .flatMap(([packageName, data]) => data.images.map(image => `${packageName}-${image.filename}`));
@@ -452,8 +452,8 @@ describe('v3 limits (A29, A43)', () => {
   });
 });
 
-describe('hostile v3 input', () => {
-  it('refuses a decompression bomb quickly, without expanding it', () => {
+describe('decodeState and readV3Payload with hostile v3 input', () => {
+  it('returns null within 2 s, without expanding it, when the payload is a decompression bomb', () => {
     // Under 16,000 characters (about the longest URL a server accepts) that lz-string alone
     // would expand to 32 million characters.
     const bomb = lzBomb(8_000);
@@ -470,7 +470,7 @@ describe('hostile v3 input', () => {
     expect(decodeV3Payload(fits.input)).not.toBeNull();
   });
 
-  it('refuses deep nesting without throwing', () => {
+  it('returns null, without throwing, when the JSON is nested 200,000 levels deep', () => {
     const depth = 200_000;
     const deepRows = `{"r":${'['.repeat(depth)}${']'.repeat(depth)}}`;
     expect(() => decodeState(v3(deepRows))).not.toThrow();
@@ -482,7 +482,7 @@ describe('hostile v3 input', () => {
     expect(() => decodeState(v3(deepUnknown))).not.toThrow();
   });
 
-  it('refuses wrong types', () => {
+  it('returns the matching bad-* reason, or not-json, when a field has the wrong type', () => {
     const invalid: [string, string][] = [
       ['null', 'not-an-object'], ['[]', 'not-an-object'], ['"text"', 'not-an-object'], ['42', 'not-an-object'],
       ['{"r":[["x","",[]]],"t":1}', 'bad-title'], ['{"t":null,"r":[["x","",[]]]}', 'bad-title'],
@@ -513,7 +513,7 @@ describe('hostile v3 input', () => {
     expect(reasonOf('{"r":[["x","",[]]]}garbage')).toBe('not-json');
   });
 
-  it('never reads keys from Object.prototype, and never changes it', () => {
+  it('returns no value from Object.prototype, and changes no prototype, when keys are __proto__, constructor or toString', () => {
     // JSON.parse makes "__proto__" an ordinary own key; it must not count as "r", "u" or "d".
     expect(reasonOf('{"__proto__":{"r":[["x","",[]]]}}')).toBe('bad-rows');
     expect(reasonOf('{"r":[["x","",[{"__proto__":{"u":"https://x.test/a.png"}}]]]}')).toBe('bad-item');
@@ -541,7 +541,7 @@ describe('hostile v3 input', () => {
     expect(encodeV3(decodeState(encodeV3(decoded!))!)).toBe(encodeV3(decoded!));
   });
 
-  it('refuses huge and odd numbers where a type is expected', () => {
+  it('returns the field\'s bad-* reason when a number is huge, negative or -0 where another type is expected', () => {
     expect(reasonOf('{"tp":1e999,"r":[["x","",[]]]}')).toBe('bad-row-template');
     expect(reasonOf('{"tp":-5,"r":[["x","",[]]]}')).toBe('bad-row-template');
     expect(reasonOf('{"tp":500000000000000000000005,"r":[["x","",[]]]}')).toBe('bad-row-template');

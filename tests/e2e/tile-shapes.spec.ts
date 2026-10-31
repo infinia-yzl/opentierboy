@@ -23,8 +23,8 @@ const ALL = '/rank/overwatch/all';
 /** A row of mixed shapes, long enough to wrap at the default window size. */
 const MIXED = () => [LANDSCAPE[0], SQUARE[0], PORTRAIT[0], SQUARE[1], LANDSCAPE[1], SQUARE[2], PORTRAIT[1], SQUARE[3], SQUARE[4], SQUARE[5], SQUARE[6], SQUARE[7]];
 
-test.describe('Tile shapes', () => {
-  test('tiles render at their shape, all with the same height', async ({tierList}) => {
+test.describe('tile shapes', () => {
+  test('renders landscape, portrait and square tiles at their aspect ratio and the same height when a row has all three', async ({tierList}) => {
     await tierList.goto(ALL, rankingState('image-overwatch', {S: [LANDSCAPE[0], PORTRAIT[0], SQUARE[0]]}));
 
     await expect(async () => {
@@ -39,7 +39,7 @@ test.describe('Tile shapes', () => {
     }).toPass();
   });
 
-  test('drag an item into a wrapping row of mixed shapes', async ({tierList}) => {
+  test('renders the item before the target on the second line when the user drags it into a wrapping row of mixed shapes', async ({tierList}) => {
     const mixed = MIXED();
     await tierList.goto(ALL, rankingState('image-overwatch', {S: mixed, '': [SQUARE[8]]}));
     await expect.poll(async () => (await tierList.itemLines('S')).length, {message: 'row S should wrap'}).toBeGreaterThan(1);
@@ -52,7 +52,7 @@ test.describe('Tile shapes', () => {
     await expect(tierList.itemsIn('S')).toHaveText(expected);
   });
 
-  test('move a wide tile between the lines of a wrapping row with the keyboard', async ({tierList}) => {
+  test('renders a landscape tile on the next line, then back, when the user presses the Down and Up arrow keys', async ({tierList}) => {
     const mixed = MIXED();
     await tierList.goto(ALL, rankingState('image-overwatch', {S: mixed}));
     const before = (await tierList.item(LANDSCAPE[0]).boundingBox())!;

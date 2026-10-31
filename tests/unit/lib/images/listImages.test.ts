@@ -8,13 +8,13 @@ const isPackageItem = (id: string) => id.startsWith('image-overwatch-');
 const tier = (id: string, items: Item[]): Tier => ({id, name: id, items});
 const link = (url: string, content = 'label'): Item => ({id: url, content, source: 'link', url});
 
-describe('deviceImageKey', () => {
-  it('uses the id of a v3 device image', () => {
+describe('deviceImageKey and deviceImageKeys', () => {
+  it('returns the item id when the item is a v3 device image', () => {
     expect(deviceImageKey({id: 'Abcdefgh12345678', source: 'device'}, isPackageItem)).toBe('Abcdefgh12345678');
     expect(deviceImageKey({id: 'legacy-ab3c9', source: 'device'}, isPackageItem)).toBe('legacy-ab3c9');
   });
 
-  it('maps legacy upload ids to their device id (A42), and leaves image-set ids alone', () => {
+  it('returns the device id (legacy-<id> when short) when the item is a legacy upload, and null for image-set ids (A42)', () => {
     expect(deviceImageKey({id: 'k3j9x0a1b'}, isPackageItem)).toBe('k3j9x0a1b');
     expect(deviceImageKey({id: 'ab3c9'}, isPackageItem)).toBe('legacy-ab3c9');
     expect(deviceImageKey({id: 'image-overwatch-mau.webp'}, isPackageItem)).toBeNull();
@@ -22,12 +22,12 @@ describe('deviceImageKey', () => {
     expect(deviceImageKey({id: '__proto__'}, isPackageItem)).toBe('legacy-__proto__');
   });
 
-  it('is null for link images and unknown image-set ids from v3 links', () => {
+  it('returns null when the item is a link image or a v3 image-set item', () => {
     expect(deviceImageKey({id: 'https://i.imgur.com/a.png', source: 'link'}, isPackageItem)).toBeNull();
     expect(deviceImageKey({id: 'abcdefghij', source: 'package'}, isPackageItem)).toBeNull();
   });
 
-  it('lists the keys of a list once each', () => {
+  it('returns each device id once when deviceImageKeys gets a list', () => {
     const tiers = [
       tier('s', [{id: 'k3j9x0a1b', content: 'a'}, {id: 'image-overwatch-mau.webp', content: 'Mauga'}, link('https://i.imgur.com/a.png')]),
       tier('u', [{id: 'legacy-ab3c9', content: 'b', source: 'device'}, {id: 'ab3c9', content: 'b again'}]),
@@ -36,14 +36,14 @@ describe('deviceImageKey', () => {
   });
 });
 
-describe('link images of a list', () => {
-  it('normalises valid addresses and refuses the rest', () => {
+describe('linkImageOf and hostsAwaitingConsent', () => {
+  it('returns the normalised url, host and domain when linkImageOf gets a valid link image, and null otherwise', () => {
     expect(linkImageOf(link('HTTPS://WWW.Example.org./a.png'))).toEqual({url: 'https://www.example.org/a.png', host: 'www.example.org', domain: 'example.org'});
     expect(linkImageOf(link('http://localhost:3000/a.png'))).toBeNull();
     expect(linkImageOf({source: 'device', url: 'https://i.imgur.com/a.png'})).toBeNull();
   });
 
-  it('lists the hosts that wait for consent: valid, not trusted, not allowed, each once', () => {
+  it('returns each valid, untrusted and not allowed host once when hostsAwaitingConsent gets a list', () => {
     const tiers = [
       tier('s', [link('https://images.example.org/1.png'), link('https://i.imgur.com/a.png'), link('https://images.example.org/2.png')]),
       tier('u', [link('https://cdn.example.net/x.png'), link('http://127.0.0.1/x.png'), link('https://www.thefinals.wiki/w/images/a.png')]),
@@ -56,7 +56,7 @@ describe('link images of a list', () => {
 });
 
 describe('itemDisplayLabel', () => {
-  it('uses the label, and for a link image without one, the site name', () => {
+  it('returns the label, or the site name when a link image has no label', () => {
     expect(itemDisplayLabel(link('https://www.example.org/cat.png', 'My cat'))).toBe('My cat');
     expect(itemDisplayLabel(link('https://www.example.org/cat.png', ''))).toBe('example.org');
     expect(itemDisplayLabel(link('https://i.imgur.com/cat.png', '   '))).toBe('i.imgur.com');
@@ -68,7 +68,7 @@ describe('itemDisplayLabel', () => {
     expect(itemDisplayLabel({content: 'Mauga'})).toBe('Mauga');
   });
 
-  it('names link images without a label by their site in drag announcements', () => {
+  it('returns the site name as the itemLabel drag announcement label when a link image has no label', () => {
     // The editor hands lib/dnd the display label of each item (components/DragDropTierList.tsx).
     expect(itemLabel({content: itemDisplayLabel(link('https://images.example.org/a.png', ''))})).toBe('images.example.org');
     expect(itemLabel({content: ''})).toBe('Unnamed item');
@@ -76,7 +76,7 @@ describe('itemDisplayLabel', () => {
 });
 
 describe('pastedImageLabel', () => {
-  it('uses the file name, unless the browser made it up or the list has it', () => {
+  it('returns the file name, or Pasted image <n> when the name is image.png or already in the list', () => {
     expect(pastedImageLabel('My cat.png', new Set())).toBe('My cat');
     expect(pastedImageLabel('image.png', new Set())).toBe('Pasted image');
     expect(pastedImageLabel('', new Set(['Pasted image']))).toBe('Pasted image 2');

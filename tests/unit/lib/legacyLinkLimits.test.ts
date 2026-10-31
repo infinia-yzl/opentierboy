@@ -40,8 +40,8 @@ afterEach(() => {
 
 const decode = (state: string) => createTierCortex().decodeTierStateFromURL(state);
 
-describe('legacy link limits', () => {
-  it('leave every golden link far below each limit', () => {
+describe('LEGACY_LINK_LIMITS', () => {
+  it('returns ok when checking each golden link, each under a tenth of every limit', () => {
     const largest = {json: 0, tiers: 0, items: 0};
     for (const {id, state} of GOLDEN) {
       const json = LZString.decompressFromEncodedURIComponent(state)!;
@@ -60,7 +60,7 @@ describe('legacy link limits', () => {
     expect(largest.items * 10).toBeLessThan(L.maxItems);
   });
 
-  it('accept a list exactly at the row and item limits, with text of any length (A43)', () => {
+  it('returns the list when it has exactly maxTiers rows and maxItems items with long text (A43)', () => {
     const items = Array.from({length: L.maxItems}, (_, index) => ({i: `custom-${index}`, c: index === 0 ? 'l'.repeat(10_000) : 'x'}));
     const tiers = Array.from({length: L.maxTiers}, (_, index) => tier(index === 0 ? 'n'.repeat(10_000) : 'T', [], `tier-${index}`));
     tiers[0].t = items.slice(0, L.maxItems - 1);
@@ -72,7 +72,7 @@ describe('legacy link limits', () => {
     expect(decoded!.title).toHaveLength(100_000);
   });
 
-  it('reject a list one past the row or item limit', () => {
+  it('returns null when the list has one row or one item past the limit', () => {
     const over = [
       v2(Array.from({length: L.maxTiers + 1}, (_, index) => tier('T', [], `tier-${index}`))),
       v2([tier('S', Array.from({length: L.maxItems}, (_, index) => ({i: `c${index}`}))), UNRANKED]),
@@ -80,7 +80,7 @@ describe('legacy link limits', () => {
     for (const state of over) expect(decode(state)).toBeNull();
   });
 
-  it('reject a link whose JSON is longer than the cap, before decompressing it', () => {
+  it('returns null before decompressing, within 1 second, when the JSON passes maxJsonLength', () => {
     const lastError = () => String((errorSpy.mock.calls.at(-1) as unknown[] | undefined)?.[1]);
     const template = '{"tiers":[{"i":"tier-s","n":"{run}","t":[]}]}';
     const outline = template.length - '{run}'.length;
@@ -111,8 +111,8 @@ describe('legacy link limits', () => {
   });
 });
 
-describe('legacy link type checks', () => {
-  it('reject values that are not text where text belongs', () => {
+describe('checkLegacyState with bad types', () => {
+  it('returns null when a title, name, id or label is no string', () => {
     const bad = {
       'an object tier name': v2([tier({text: 'S'}), UNRANKED], 'Bad tier name'),
       'a number tier name': v2([tier(2), UNRANKED]),
@@ -133,14 +133,14 @@ describe('legacy link type checks', () => {
     }
   });
 
-  it('reject a list without tiers', () => {
+  it('returns null when the list has no tiers', () => {
     for (const state of [lz({tiers: []}), lz({tiers: [], title: 'Empty'}), lz([])]) {
       expect(decodeState(state)).not.toBeNull();
       expect(decode(state)).toBeNull();
     }
   });
 
-  it('read a title or label of null as absent, as the app always did', () => {
+  it('returns no title and empty labels when the title or a label is null', () => {
     const decoded = decode(v2([tier('S', [{i: 'abc', c: null}, {i: 'image-overwatch-mau.webp', c: null}]), UNRANKED], null));
     expect(decoded).not.toBeNull();
     expect(decoded!.title).toBeUndefined();
@@ -149,7 +149,7 @@ describe('legacy link type checks', () => {
       .toEqual({ok: true, state: {version: 1, tiers: [{id: 'tier-s', name: 'S', items: [{id: 'abc'}]}]}});
   });
 
-  it('keep an empty title, empty names and empty labels', () => {
+  it('returns the empty title, names and labels when they are empty strings', () => {
     const decoded = decode(v2([tier('', [{i: 'abc', c: ''}]), UNRANKED], ''));
     // The unknown id shows as the device image id its v3 link writes (A42).
     expect(decoded).toEqual({title: '', tiers: [
@@ -158,7 +158,7 @@ describe('legacy link type checks', () => {
     ]});
   });
 
-  it('apply to legacy values only', () => {
+  it('returns false from isVersionedValue when the value is a legacy link, and true when it starts with 3.', () => {
     // Golden legacy links go to the legacy decoder; "3." values go to the v3 decoder, which
     // has its own limits (lib/state/limits.ts).
     for (const {state} of GOLDEN) expect(isVersionedValue(state)).toBe(false);

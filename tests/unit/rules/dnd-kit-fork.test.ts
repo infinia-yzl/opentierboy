@@ -56,8 +56,8 @@ function satisfies(version: string, range: string): boolean {
   return vMajor === 0 && vMinor === 0 && vPatch === patch;
 }
 
-describe('satisfies (test helper)', () => {
-  it('follows npm caret ranges', () => {
+describe('satisfies', () => {
+  it('returns true inside and false outside the caret or exact range, and throws when the version is a prerelease', () => {
     expect(satisfies('0.5.1', '^0.5.1')).toBe(true);
     expect(satisfies('0.5.9', '^0.5.1')).toBe(true);
     expect(satisfies('0.5.0', '^0.5.1')).toBe(false);
@@ -71,19 +71,19 @@ describe('satisfies (test helper)', () => {
   });
 });
 
-describe('dnd-kit fork wiring', () => {
-  it('lists every fork package as an npm workspace', () => {
+describe('packages/dnd-kit', () => {
+  it('returns each fork package in workspaces, named @dnd-kit/<name>, when package.json is read', () => {
     expect(rootManifest.workspaces).toEqual(FORK_PACKAGES.map(name => `packages/dnd-kit/${name}`));
     for (const [name, manifest] of forkManifests) expect(manifest.name).toBe(`@dnd-kit/${name}`);
   });
 
-  it('gives every fork package a plain release version, never a prerelease', () => {
+  it('returns an x.y.z version with no prerelease suffix when each fork package.json is read', () => {
     for (const manifest of forkManifests.values()) {
       expect(manifest.version, manifest.name).toMatch(/^\d+\.\d+\.\d+$/);
     }
   });
 
-  it('keeps every dnd-kit range inside the fork satisfied by the fork versions', () => {
+  it('returns fork versions that satisfy every @dnd-kit range when each fork package.json is read', () => {
     for (const manifest of forkManifests.values()) {
       for (const [dependency, range] of Object.entries(manifest.dependencies ?? {})) {
         const match = /^@dnd-kit\/(.+)$/.exec(dependency);
@@ -95,7 +95,7 @@ describe('dnd-kit fork wiring', () => {
     }
   });
 
-  it('depends on the fork packages at their exact fork versions', () => {
+  it('returns the exact fork version for each @dnd-kit dependency when the root package.json is read', () => {
     const direct = Object.entries(rootManifest.dependencies ?? {}).filter(([name]) => name.startsWith('@dnd-kit/'));
     expect(direct.length).toBeGreaterThan(0);
     for (const [name, range] of direct) {
@@ -103,14 +103,14 @@ describe('dnd-kit fork wiring', () => {
     }
   });
 
-  it('marks the fork packages private and leaves out their upstream dev dependencies', () => {
+  it('returns private: true and no devDependencies when each fork package.json is read', () => {
     for (const manifest of forkManifests.values()) {
       expect(manifest.private, manifest.name).toBe(true);
       expect(manifest.devDependencies, manifest.name).toBeUndefined();
     }
   });
 
-  it('links each fork package from package-lock.json, with no registry copy anywhere', () => {
+  it('returns only link entries to packages/dnd-kit for @dnd-kit when package-lock.json is read', () => {
     const entries = Object.entries(lockfile.packages).filter(([key]) => /(^|\/)node_modules\/@dnd-kit\//.test(key));
     expect(entries.map(([key]) => key).sort()).toEqual(FORK_PACKAGES.map(name => `node_modules/@dnd-kit/${name}`));
     for (const [key, entry] of entries) {
@@ -118,14 +118,14 @@ describe('dnd-kit fork wiring', () => {
     }
   });
 
-  it('installs one copy of @preact/signals-core, and it satisfies @dnd-kit/state', () => {
+  it('returns 1 @preact/signals-core entry that satisfies @dnd-kit/state when package-lock.json is read', () => {
     const copies = Object.entries(lockfile.packages).filter(([key]) => /(^|\/)node_modules\/@preact\/signals-core$/.test(key));
     expect(copies.map(([key]) => key)).toEqual(['node_modules/@preact/signals-core']);
     const range = forkManifests.get('state')!.dependencies!['@preact/signals-core'];
     expect(satisfies(copies[0][1].version!, range)).toBe(true);
   });
 
-  it('has the built files that each package.json points at (run packages/dnd-kit/build.mjs)', () => {
+  it('returns an existing file for every main, module, types and exports path when packages/dnd-kit is built', () => {
     for (const [name, manifest] of forkManifests) {
       const targets: string[] = [manifest.main, manifest.module, manifest.types].filter((value): value is string => Boolean(value));
       const collect = (value: unknown) => {
@@ -139,7 +139,7 @@ describe('dnd-kit fork wiring', () => {
     }
   });
 
-  it('keeps the licence with the fork, and a notice that names the vendored release', () => {
+  it('returns an MIT LICENSE per package and a NOTICE with the release and commit when packages/dnd-kit is read', () => {
     const notice = fs.readFileSync(path.join(forkDir, 'NOTICE'), 'utf8');
     expect(notice).toContain(`@dnd-kit/react@${forkManifests.get('react')!.version}`);
     expect(notice).toMatch(/Commit:\s+[0-9a-f]{40}/);

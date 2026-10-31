@@ -4,7 +4,7 @@ import {createImageStatusStore} from '@/lib/images/imageStatusStore';
 type State = {status: string; url?: string};
 
 describe('createImageStatusStore', () => {
-  it('tells only the listeners of keys whose state changed, once per batch', () => {
+  it('writes one call to each listener whose key changed when setMany sets several keys', () => {
     const store = createImageStatusStore<State>();
     const a = vi.fn();
     const b = vi.fn();
@@ -18,7 +18,7 @@ describe('createImageStatusStore', () => {
     expect(store.keys().sort()).toEqual(['a', 'c']);
   });
 
-  it('keeps the same object for an equal state, so nothing re-renders', () => {
+  it('returns the same state object, and calls no listener, when setMany sets an equal state', () => {
     const store = createImageStatusStore<State>();
     const listener = vi.fn();
     store.setMany([['a', {status: 'ready', url: 'blob:1'}]]);
@@ -31,7 +31,7 @@ describe('createImageStatusStore', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it('removes states, and stops calling a listener after unsubscribing', () => {
+  it('returns undefined when setMany sets a key to undefined, and calls no listener after unsubscribe', () => {
     const store = createImageStatusStore<State>();
     const listener = vi.fn();
     const unsubscribe = store.subscribe('a', listener);

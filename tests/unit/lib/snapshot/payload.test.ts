@@ -49,7 +49,7 @@ function parseJson(value: unknown) {
 }
 
 describe('buildSnapshotPayload and parseSnapshotPayload', () => {
-  it('round-trips a payload with every image type', () => {
+  it('returns the same payload from parseSnapshotPayload when given the text buildSnapshotPayload wrote with every image type', () => {
     const images = [
       image('a-real-png', {dataUrl: `data:image/png;base64,${Buffer.from(makePng()).toString('base64')}`}),
       image('jpeg_1', {dataUrl: dataUrl('jpeg'), label: 'Ünïcödé ✨ 🧪'}),
@@ -63,7 +63,7 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
     expect(parseSnapshotPayload(built.text)).toEqual({ok: true, payload: built.payload});
   });
 
-  it('writes the same text for the same input, with keys in a fixed order', () => {
+  it('returns identical text, with keys in a fixed order, when buildSnapshotPayload gets equal input twice', () => {
     const shuffled = {dataUrl: dataUrl('gif'), label: 'x', id: 'image-one'} as SnapshotImage;
     const built = buildSnapshotPayload({images: [shuffled], state: STATE});
     expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","images":[{"id":"image-one","label":"x","dataUrl":"${dataUrl('gif')}"}]}`);
@@ -71,7 +71,7 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
     expect(again.ok && again.text).toBe(built.ok && built.text);
   });
 
-  it('keeps the editor path of the list, normalised, and refuses anything else', () => {
+  it('returns the normalised /rank path when the path is an editor path, and reason \'invalid-payload\' otherwise', () => {
     const built = buildSnapshotPayload({state: STATE, path: '/rank/overwatch/tank/'});
     expect(built.ok && built.text).toBe(`{"version":1,"state":"${STATE}","path":"/rank/overwatch/tank","images":[]}`);
     expect(parseJson({version: 1, state: STATE, path: '/rank'})).toEqual({ok: true, payload: {version: 1, state: STATE, path: '/rank', images: []}});
@@ -81,13 +81,13 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
     }
   });
 
-  it('defaults to no images', () => {
+  it('returns images: [] when the input has no images', () => {
     const built = buildSnapshotPayload({state: STATE});
     expect(built.ok && built.payload.images).toEqual([]);
     expect(parseJson({version: 1, state: STATE})).toEqual({ok: true, payload: {version: 1, state: STATE, images: []}});
   });
 
-  it('ignores unknown fields, including prototype keys', () => {
+  it('returns only the known fields, with no prototype pollution, when the JSON has unknown or prototype keys', () => {
     const text = `{"version":1,"state":"${STATE}","future":{"a":1},"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}},"images":[{"id":"abcdefgh","label":"b","dataUrl":"${dataUrl('png')}","extra":1,"__proto__":{"polluted":true}}]}`;
     const result = parseSnapshotPayload(text);
     expect(result).toEqual({ok: true, payload: {version: 1, state: STATE, images: [{id: 'abcdefgh', label: 'b', dataUrl: dataUrl('png')}]}});
@@ -96,33 +96,33 @@ describe('buildSnapshotPayload and parseSnapshotPayload', () => {
   });
 });
 
-describe('parseSnapshotPayload refuses bad payloads', () => {
-  it('refuses text that is not JSON', () => {
+describe('parseSnapshotPayload with bad payloads', () => {
+  it('returns reason \'bad-json\' when the text is not JSON', () => {
     for (const text of ['', 'not json', '{"version":1,', '\u0000', "{'version':1}"]) {
       expect(parseSnapshotPayload(text), text).toEqual({ok: false, reason: 'bad-json'});
     }
   });
 
-  it('refuses JSON that is not a payload object', () => {
+  it('returns reason \'invalid-payload\' when the JSON is not a payload object', () => {
     for (const value of [null, 1, 'text', true, [], [{version: 1, state: STATE}]]) {
       expect(parseJson(value).ok, JSON.stringify(value)).toBe(false);
       expect(parseJson(value)).toMatchObject({reason: 'invalid-payload'});
     }
   });
 
-  it('refuses a newer version with its own reason', () => {
+  it('returns reason \'unsupported-version\' when the version is above 1', () => {
     for (const version of [2, 3, 999, 2e9]) {
       expect(parseJson({version, state: STATE})).toEqual({ok: false, reason: 'unsupported-version'});
     }
   });
 
-  it('refuses a missing or malformed version', () => {
+  it('returns reason \'invalid-payload\' when the version is missing or not a positive integer', () => {
     for (const version of [undefined, 0, -1, 1.5, '1', null, true, [1], {}]) {
       expect(parseJson({version, state: STATE}), String(version)).toMatchObject({ok: false, reason: 'invalid-payload'});
     }
   });
 
-  it('accepts only a versioned link value as the state', () => {
+  it('returns ok only when the state is a versioned link value (<n>.<lz-string>)', () => {
     const bad = [undefined, null, 3, {}, [], '', 'N4IgLgFgpgTg', '3.', '.abc', '03.abc', '3.ab cd', '3.ab<cd', '3.ab"cd', '3.abc\n', '3.ab/cd', '3.ab.cd', '12345.abc'];
     for (const state of bad) {
       expect(parseJson({version: 1, state}), JSON.stringify(state)).toMatchObject({ok: false, reason: 'invalid-payload'});
@@ -132,19 +132,19 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     }
   });
 
-  it('caps the state length', () => {
+  it('returns reason \'invalid-payload\' when the state is over maxStateChars', () => {
     const atCap = `3.${'A'.repeat(limits.maxStateChars - 2)}`;
     expect(parseJson({version: 1, state: atCap}).ok).toBe(true);
     expect(parseJson({version: 1, state: `${atCap}A`})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('refuses images that are not a list of image objects', () => {
+  it('returns reason \'invalid-payload\' when images is not a list of image objects', () => {
     for (const images of [null, 'x', {}, [null], ['data:image/png;base64,AAAA'], [[]], [1]]) {
       expect(parseJson({version: 1, state: STATE, images}), JSON.stringify(images)).toMatchObject({ok: false, reason: 'invalid-payload'});
     }
   });
 
-  it("uses the device store's id rule: 8 to 64 URL-safe characters, never a prototype name", () => {
+  it("returns reason 'invalid-payload' when an id fails isDeviceImageId (8 to 64 URL-safe characters, no prototype name)", () => {
     const badIds: unknown[] = [
       '',
       'k3J9x',
@@ -176,7 +176,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     }
   });
 
-  it('refuses bad image labels and missing fields', () => {
+  it('returns reason \'invalid-payload\' when an image lacks id or label, or the label is over maxLabelChars', () => {
     const bad: unknown[] = [
       {label: 'x'},
       {id: 'abcdefgh', label: 7},
@@ -191,7 +191,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseJson({version: 1, state: STATE, images: [atCap]}).ok).toBe(true);
   });
 
-  it('refuses duplicate image ids', () => {
+  it('returns reason \'invalid-payload\' when two images have the same id', () => {
     expect(parseJson({version: 1, state: STATE, images: [image('a'), image('b'), image('a')]})).toMatchObject({
       ok: false,
       reason: 'invalid-payload',
@@ -199,7 +199,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     });
   });
 
-  it('accepts only base64 raster data URLs whose bytes match their type', () => {
+  it('returns reason \'invalid-payload\' when a data URL is not base64 raster data whose bytes match its type', () => {
     const png = dataUrl('png');
     const base64 = png.slice('data:image/png;base64,'.length);
     const bad = [
@@ -242,7 +242,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(rasterDataUrlType(`data:image/gif;base64,${gif87a.toString('base64')}`)).toBe('image/gif');
   });
 
-  it('keeps AVIF and HEIC images, by declared type or by their bytes, for opening to refuse', () => {
+  it('returns the image unchanged when its data URL is AVIF or HEIC by declared type or by bytes', () => {
     const kept = [
       `data:image/avif;base64,${isoMedia('avif', 64).toString('base64')}`,
       `data:image/heic;base64,${isoMedia('heic', 64).toString('base64')}`,
@@ -263,7 +263,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     for (const value of [dataUrl('png'), dataUrl('jpeg'), dataUrl('gif'), dataUrl('webp')]) expect(isAvifOrHeicDataUrl(value)).toBe(false);
   });
 
-  it('applies the data URL rules and caps to AVIF and HEIC images too', () => {
+  it('returns reason \'invalid-payload\' when an AVIF or HEIC data URL breaks the data URL rules or caps', () => {
     const avif = isoMedia('avif', 64).toString('base64');
     const bad = [
       `data:image/avif;base64,${avif.slice(0, 12)}`,
@@ -284,7 +284,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseJson({version: 1, state: STATE, images: over})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('caps the size of one image', () => {
+  it('returns reason \'invalid-payload\' when one data URL is over maxImageDataUrlChars', () => {
     const prefix = 'data:image/png;base64,'.length;
     // Largest base64 length (a multiple of 4) that fits the cap together with the prefix.
     const fits = Math.floor((limits.maxImageDataUrlChars - prefix) / 4) * 3;
@@ -296,13 +296,13 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseJson({version: 1, state: STATE, images: [image('a', {dataUrl: over})]})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('caps the number of images', () => {
+  it('returns reason \'invalid-payload\' when there are more than maxImages images', () => {
     const many = (n: number) => Array.from({length: n}, (_, i) => image(`img${i}`));
     expect(parseJson({version: 1, state: STATE, images: many(limits.maxImages)}).ok).toBe(true);
     expect(parseJson({version: 1, state: STATE, images: many(limits.maxImages + 1)})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('caps the size of all images together', () => {
+  it('returns reason \'invalid-payload\' when all data URLs together are over maxTotalImageDataUrlChars', () => {
     const each = Math.floor(limits.maxImageDataUrlChars * 0.9);
     const count = Math.ceil(limits.maxTotalImageDataUrlChars / each);
     const big = (i: number) => image(`img${i}`, {dataUrl: dataUrl('png', Math.floor(each / 4) * 3)});
@@ -312,7 +312,7 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseJson({version: 1, state: STATE, images: over})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('refuses a flood of tiny JSON values in a few milliseconds, before JSON.parse', () => {
+  it('returns reason \'invalid-payload\' within 250 ms when the text has millions of tiny JSON values', () => {
     const flood = (key: string, item: string, n = 3_000_000) => `{"version":1,"state":"${STATE}","${key}":[${`${item},`.repeat(n - 1)}${item}]}`;
     for (const text of [flood('images', '{}'), flood('future', '[]'), flood('future', '1'), flood('images', '{"id":"abcdefgh"}', 400_000)]) {
       expect(text.length).toBeLessThanOrEqual(limits.maxPayloadBytes);
@@ -323,23 +323,23 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     }
   });
 
-  it('counts JSON values outside strings only', () => {
+  it('returns ok when brackets and commas are inside a JSON string', () => {
     // 600 commas and brackets inside a string do not count.
     const label = '{[,'.repeat(200);
     expect(parseJson({version: 1, state: STATE, images: [image('a', {label})]}).ok).toBe(true);
   });
 
-  it('checks the number of images before checking each image', () => {
+  it('returns the image count error before any image error when there are more than maxImages images', () => {
     const tooMany = `{"version":1,"state":"${STATE}","images":[${Array(limits.maxImages + 1).fill('{}').join(',')}]}`;
     expect(parseSnapshotPayload(tooMany)).toEqual({ok: false, reason: 'invalid-payload', detail: `images: must be a list of at most ${limits.maxImages} images`});
   });
 
-  it('refuses text longer than the payload cap before parsing it', () => {
+  it('returns reason \'payload-too-large\' when the text is over maxPayloadBytes', () => {
     const text = ' '.repeat(limits.maxPayloadBytes + 1);
     expect(parseSnapshotPayload(text)).toEqual({ok: false, reason: 'payload-too-large'});
   });
 
-  it('survives deeply nested JSON and huge numbers', () => {
+  it('returns a result without throwing when the JSON is 100,000 levels deep or has huge numbers', () => {
     const deep = (depth: number) => `${'['.repeat(depth)}${']'.repeat(depth)}`;
     for (const text of [
       `{"version":1,"state":"${STATE}","extra":${deep(100_000)}}`,
@@ -354,15 +354,15 @@ describe('parseSnapshotPayload refuses bad payloads', () => {
     expect(parseSnapshotPayload(`{"version":1,"state":"${STATE}","images":${deep(100_000)}}`).ok).toBe(false);
   });
 
-  it('never throws on any input type', () => {
+  it('returns ok: false when the input is not a string', () => {
     for (const value of [undefined, null, 1, {}, [], Symbol('x')]) {
       expect(parseSnapshotPayload(value as unknown as string).ok).toBe(false);
     }
   });
 });
 
-describe('buildSnapshotPayload refuses bad input', () => {
-  it('never writes an AVIF or HEIC image, which reading keeps only to refuse it', () => {
+describe('buildSnapshotPayload with bad input', () => {
+  it('returns reason \'invalid-payload\' when an image is AVIF or HEIC', () => {
     for (const value of [`data:image/avif;base64,${isoMedia('avif', 64).toString('base64')}`, `data:image/png;base64,${isoMedia('heic', 64).toString('base64')}`]) {
       expect(buildSnapshotPayload({state: STATE, images: [image('a', {dataUrl: value})]}), value.slice(0, 40)).toEqual({
         ok: false,
@@ -372,7 +372,7 @@ describe('buildSnapshotPayload refuses bad input', () => {
     }
   });
 
-  it('refuses input that the parser would refuse', () => {
+  it('returns reason \'invalid-payload\' when parseSnapshotPayload would refuse the input', () => {
     expect(buildSnapshotPayload({state: 'N4IgLgFgpgTg'})).toMatchObject({ok: false, reason: 'invalid-payload'});
     expect(buildSnapshotPayload({state: STATE, images: [image('a'), image('a')]})).toMatchObject({ok: false, reason: 'invalid-payload'});
     expect(buildSnapshotPayload({state: STATE, images: [image('a', {dataUrl: 'data:image/svg+xml;base64,PHN2Zz4='})]})).toMatchObject({
@@ -383,7 +383,7 @@ describe('buildSnapshotPayload refuses bad input', () => {
     expect(buildSnapshotPayload(undefined as unknown as {state: string})).toMatchObject({ok: false, reason: 'invalid-payload'});
   });
 
-  it('refuses a payload whose JSON text would be over the cap', () => {
+  it('returns reason \'payload-too-large\' when the JSON text would be over maxPayloadBytes', () => {
     // Every field within its own cap, but control characters in labels take 6 bytes each in JSON.
     const perImage = Math.floor(limits.maxTotalImageDataUrlChars / limits.maxImages);
     const images = Array.from({length: limits.maxImages}, (_, i) =>
@@ -393,7 +393,7 @@ describe('buildSnapshotPayload refuses bad input', () => {
     expect(buildSnapshotPayload({state, images})).toEqual({ok: false, reason: 'payload-too-large'});
   });
 
-  it('keeps the payload cap within the PNG text cap', () => {
+  it('returns a maxPayloadBytes of at most SNAPSHOT_PNG_LIMITS.maxTextBytes when the limits are read', () => {
     expect(limits.maxPayloadBytes).toBeLessThanOrEqual(SNAPSHOT_PNG_LIMITS.maxTextBytes);
   });
 });

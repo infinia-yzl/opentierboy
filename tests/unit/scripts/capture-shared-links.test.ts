@@ -43,14 +43,14 @@ describe('scripts/capture-shared-links.mjs', () => {
     items: tier.items.map(item => item.content),
   }));
 
-  it('records the golden legacy links as they were captured', () => {
+  it('writes the captured format, path and expected list to shared-links.json when given golden legacy links', () => {
     const links = sharedLinks.slice(0, 3);
     const captured = capture(...links.map(link => `https://opentierboy.com${link.path}?state=${link.state.replace(/ /g, '+')}`));
     expect(captured.map(({format, path: linkPath, expected}) => ({format, path: linkPath, expected})))
       .toEqual(links.map(({format, path: linkPath, expected}) => ({format, path: linkPath, expected})));
   });
 
-  it('reads v3 links, and records what the app shows for them', () => {
+  it('writes format v3, the title and the tiers of decodeTierStateFromURL when given v3 links', () => {
     const cortex = createTierCortex();
     const legacy = sharedLinks.find(link => link.id === 'link-002')!;
     const tiers = cortex.decodeTierStateFromURL(legacy.state)!.tiers;

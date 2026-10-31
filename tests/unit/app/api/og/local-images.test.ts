@@ -7,15 +7,15 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('preview route: images on local addresses', () => {
-  it('knows which URLs are local', () => {
+describe('app/api/og/local-images', () => {
+  it('returns true from isLocalUrl when the host is localhost or 127.0.0.1', () => {
     expect(isLocalUrl('http://localhost:3000/images/image-overwatch/ana.png')).toBe(true);
     expect(isLocalUrl('http://127.0.0.1:3000/placeholder-image.png')).toBe(true);
     expect(isLocalUrl('https://opentierboy.com/images/image-overwatch/ana.png')).toBe(false);
     expect(isLocalUrl('')).toBe(false);
   });
 
-  it('loads local images itself and passes them on as data URLs', async () => {
+  it('returns a data URL from 1 fetch request when the same local URL is passed twice', async () => {
     const fetchMock = vi.fn(async () => new Response(PNG_BYTES, {headers: {'content-type': 'image/png'}}));
     vi.stubGlobal('fetch', fetchMock);
     const local = 'http://localhost:3000/images/image-overwatch/ana.png';
@@ -26,7 +26,7 @@ describe('preview route: images on local addresses', () => {
     expect(imageSrc(local)).toBe(`data:image/png;base64,${Buffer.from(PNG_BYTES).toString('base64')}`);
   });
 
-  it('leaves public URLs to next/og', async () => {
+  it('returns the URL unchanged and writes no fetch request when the URL is public', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const remote = 'https://opentierboy.com/images/image-overwatch/ana.png';
@@ -37,7 +37,7 @@ describe('preview route: images on local addresses', () => {
     expect(imageSrc(remote)).toBe(remote);
   });
 
-  it('draws nothing for a local image that cannot be loaded', async () => {
+  it('returns BLANK_IMAGE when the local image answers 404 or fetch throws', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url.endsWith('missing.png')) return new Response('Not found', {status: 404});
       throw new TypeError('fetch failed');
@@ -49,11 +49,11 @@ describe('preview route: images on local addresses', () => {
     expect(imageSrc('http://localhost:3000/down.png')).toBe(BLANK_IMAGE);
   });
 
-  it('caps each image at 2 MB and 5 seconds by default', () => {
+  it('returns maxBytes 2 MB and timeoutMs 5000 when DEFAULT_LIMITS is read', () => {
     expect(DEFAULT_LIMITS).toEqual({maxBytes: 2 * 1024 * 1024, timeoutMs: 5_000});
   });
 
-  it('draws nothing for a response that is not an image', async () => {
+  it('returns BLANK_IMAGE when the content-type is text/html, missing or application/octet-stream', async () => {
     const urls = {
       html: 'http://localhost:3000/',
       untyped: 'http://localhost:3000/untyped.png',
@@ -70,7 +70,7 @@ describe('preview route: images on local addresses', () => {
     for (const url of Object.values(urls)) expect(imageSrc(url), url).toBe(BLANK_IMAGE);
   });
 
-  it('draws nothing for an image larger than the cap', async () => {
+  it('returns BLANK_IMAGE when the content-length or the streamed body exceeds maxBytes', async () => {
     const declared = 'http://localhost:3000/declared.png';
     const streamed = 'http://localhost:3000/streamed.png';
     const small = 'http://localhost:3000/small.png';
@@ -98,7 +98,7 @@ describe('preview route: images on local addresses', () => {
     expect(imageSrc(small)).toMatch(/^data:image\/png;base64,/);
   });
 
-  it('gives up on an image that does not arrive in time', async () => {
+  it('returns BLANK_IMAGE when the response takes longer than timeoutMs', async () => {
     const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
     }));

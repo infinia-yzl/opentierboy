@@ -42,14 +42,14 @@ async function patternsFor(filePath: string): Promise<{group?: string[]; message
 const DND_KIT_IMPORTS = ['@dnd-kit/react', '@dnd-kit/react/sortable', '@dnd-kit/dom', '@dnd-kit/state', '@dnd-kit/helpers', 'react', '@/lib/dnd'];
 
 // Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
-describe('ESLint: dnd-kit only in lib/dnd', {timeout: 90_000}, () => {
-  it('blocks dnd-kit in components, other lib code, scripts, configs and other tests', async () => {
+describe('ESLint no-restricted-imports for @dnd-kit/*', {timeout: 90_000}, () => {
+  it('returns an error for each @dnd-kit import when the file is outside lib/dnd and its unit tests', async () => {
     for (const file of ['components/Probe.tsx', 'lib/Probe.ts', 'app/rank/probe.tsx', 'scripts/probe.mjs', 'next.config.mjs', 'tests/e2e/history.spec.ts', 'tests/unit/probe.test.ts']) {
       expect(await dndKitBlocked(file, DND_KIT_IMPORTS), file).toEqual([1, 2, 3, 4, 5]);
     }
   });
 
-  it('allows dnd-kit in lib/dnd and its unit tests, which keep the other shared rules', async () => {
+  it('returns no dnd-kit error, and errors for idb and zod, when the file is in lib/dnd or its unit tests', async () => {
     for (const file of ['lib/dnd/x.ts', 'lib/dnd/sub/x.ts', 'lib/dnd/react.tsx', 'tests/unit/lib/dnd/x.test.ts']) {
       expect(await restrictedImports(file, DND_KIT_IMPORTS), file).toEqual([]);
       const lines = (await restrictedImports(file, ['@dnd-kit/react', 'idb', 'zod', '@/lib/zod'])).map(([line]) => line);
@@ -57,14 +57,14 @@ describe('ESLint: dnd-kit only in lib/dnd', {timeout: 90_000}, () => {
     }
   });
 
-  it('keeps the dnd-kit rule in lib/state, next to its own rules', async () => {
+  it('returns errors for dnd-kit and the lib/state import rules when the file is in lib/state', async () => {
     expect(await dndKitBlocked('lib/state/probe.ts', DND_KIT_IMPORTS)).toEqual([1, 2, 3, 4, 5]);
     const lines = (await restrictedImports('lib/state/decoders/probe.ts', ['@dnd-kit/state', 'react', 'fs', '@/lib/utils', 'lz-string']))
       .map(([line]) => line);
     expect([...new Set(lines)]).toEqual([1, 2, 3, 4]);
   });
 
-  it('keeps the dnd-kit rule in the OG route, next to its own rules', async () => {
+  it('returns errors for dnd-kit and Node built-ins when the file is in app/api/og', async () => {
     for (const file of ['app/api/og/route.tsx', 'app/api/og/probe.ts']) {
       expect(await dndKitBlocked(file, DND_KIT_IMPORTS), file).toEqual([1, 2, 3, 4, 5]);
       const lines = (await restrictedImports(file, ['@dnd-kit/helpers', 'fs', 'node:path', 'lz-string'])).map(([line]) => line);
@@ -72,7 +72,7 @@ describe('ESLint: dnd-kit only in lib/dnd', {timeout: 90_000}, () => {
     }
   });
 
-  it('carries the dnd-kit pattern in the setting of every file outside lib/dnd', async () => {
+  it('returns the @dnd-kit/* pattern from calculateConfigForFile when the file is outside lib/dnd', async () => {
     const files = ['components/ItemTile.tsx', 'lib/TierCortex.ts', 'lib/packageItems.ts', 'lib/state/types.ts', 'lib/state/decoders/legacy.ts',
       'app/api/og/route.tsx', 'app/page.tsx', 'scripts/check-image-registry.mjs', 'tests/unit/lib/state/decode.test.ts',
       'lib/zod.ts', 'tests/unit/rules/zod-eval-probe.test.ts', 'lib/images/deviceStore.ts', 'tests/unit/lib/images/deviceStore.test.ts'];

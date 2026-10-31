@@ -1,7 +1,7 @@
 import {expect, test} from '../support/test';
 
-test.describe('Site pages', () => {
-  test('the About page explains what OpenTierBoy offers', async ({site}) => {
+test.describe('site pages', () => {
+  test('renders the 4 feature headings when the user opens About from the navigation', async ({site}) => {
     await site.gotoHome();
     await site.openFromNavigation('About');
 
@@ -10,7 +10,7 @@ test.describe('Site pages', () => {
     }
   });
 
-  test('a blog article links to a working tier list', async ({site, tierList}) => {
+  test('renders the list title and 6 items in row S when the user opens the tier list link of a blog article', async ({site, tierList}) => {
     await site.gotoHome();
     await site.openFromNavigation('Blog');
     await site.mainLink(/THE FINALS Season 3 World/).click();

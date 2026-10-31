@@ -42,8 +42,8 @@ const MIXED_LIST = v3({
   ],
 });
 
-describe('link preview images (A8, A36)', () => {
-  it('only the app\'s own assets go to inlineLocal, and only link addresses go to inlineTrustedLinks', async () => {
+describe('listPreviewCard', () => {
+  it('writes app assets to inlineLocal and link image URLs to inlineTrustedLinks when the list mixes item kinds', async () => {
     const tierCortex = createTierCortex({baseUrl: BASE_URL});
     const list = tierCortex.decodeTierStateFromURL(MIXED_LIST);
     expect(list?.tiers.flatMap((tier) => tier.items.map((item) => item.content)))
@@ -72,7 +72,7 @@ describe('link preview images (A8, A36)', () => {
     expect(tiles.filter((tile) => tile.src !== undefined).map((tile) => tile.label)).toEqual(['Mauga', 'Trusted', 'Unknown id']);
   });
 
-  it('draws only the tiles that fit, and loads images for those tiles only', async () => {
+  it('returns at most maxTiles tiles, with 1 inlineLocal URL per tile, when the list has more items than maxTiles', async () => {
     const tierCortex = createTierCortex({baseUrl: BASE_URL});
     const files = ['ana.webp', 'ash.webp', 'bap.webp', 'bri.webp', 'dva.webp', 'gen.webp'];
     const list = tierCortex.decodeTierStateFromURL(v3({r: [['tier-s', 'S', files.map((file) => `image-overwatch-${file}`)], ['uncategorized', '', []]]}));

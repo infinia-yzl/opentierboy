@@ -10,8 +10,8 @@ const tiers = [
   {id: 'uncategorized', name: '', items: []},
 ];
 
-describe('dnd ids', () => {
-  it('prefixes item, row and tier ids, and reads them back', () => {
+describe('lib/dnd/ids', () => {
+  it('returns item:, row: and tier: ids that parseDndId reads back when called with app ids', () => {
     expect(itemDndId('image-overwatch-ana.webp')).toBe('item:image-overwatch-ana.webp');
     expect(rowDndId('tier-s')).toBe('row:tier-s');
     expect(tierItemsDndId('tier-s')).toBe('tier:tier-s');
@@ -20,12 +20,12 @@ describe('dnd ids', () => {
     expect(parseDndId(tierItemsDndId('uncategorized'))).toEqual({kind: 'tier', id: 'uncategorized'});
   });
 
-  it('keeps colons inside app ids, and keeps an item and a tier with the same id apart', () => {
+  it('returns a:b:c from parseDndId when the app id has colons, and distinct item and tier ids for one id', () => {
     expect(parseDndId(itemDndId('a:b:c'))).toEqual({kind: 'item', id: 'a:b:c'});
     expect(itemDndId('tier-s')).not.toBe(tierItemsDndId('tier-s'));
   });
 
-  it('rejects anything it did not make', () => {
+  it('returns null from parseDndId when the value has no item:, row: or tier: prefix', () => {
     for (const value of ['tier-s', 'other:x', ':x', '', 42, null, undefined, {id: 'item:x'}]) {
       expect(parseDndId(value), String(value)).toBeNull();
     }
@@ -33,23 +33,23 @@ describe('dnd ids', () => {
   });
 });
 
-describe('labels', () => {
-  it('names rows like the editor: label, "Unranked" for the unnamed last row, "Tier <n>" otherwise', () => {
+describe('lib/dnd/labels', () => {
+  it('returns the label, Unranked for the unnamed last row, or Tier <n> when tierLabel gets a row', () => {
     expect(tiers.map((_, index) => tierLabel(tiers, index))).toEqual(['S', 'Tier 2', 'Tier 10', 'tiermaker', 'Unranked']);
   });
 
-  it('reads rows inside sentences', () => {
+  it('returns tier <label>, Tier <n> or Unranked when tierPhrase gets a row', () => {
     expect(tiers.map((_, index) => tierPhrase(tiers, index))).toEqual(['tier S', 'Tier 2', 'Tier 10', 'tier tiermaker', 'Unranked']);
   });
 
-  it('treats a label that is not a string as empty', () => {
+  it('returns Tier <n> and Unnamed item when the row label or item content is not a string', () => {
     const odd = [{id: 'x', name: {} as unknown as string, items: []}, {id: 'y', name: '', items: []}];
     expect(tierLabel(odd, 0)).toBe('Tier 1');
     expect(tierLabel(odd, 5)).toBe('Tier 6');
     expect(itemLabel({content: 7 as unknown as string})).toBe('Unnamed item');
   });
 
-  it('names items by their label', () => {
+  it('returns the trimmed content or Unnamed item when itemLabel gets an item with or without content', () => {
     expect(itemLabel({content: ' Mauga '})).toBe('Mauga');
     expect(itemLabel({content: ''})).toBe('Unnamed item');
     expect(itemLabel(undefined)).toBe('Unnamed item');

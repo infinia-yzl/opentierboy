@@ -40,10 +40,10 @@ const LINK = lz({title: 'Shapes', tiers: [
   {i: 'uncategorized', n: '', t: [{i: 'image-mixed-icon.webp'}, {i: 'image-mixed-old-map.webp'}, {i: 'k3j9x0a1b', c: 'my cat'}]},
 ]});
 
-describe('TierCortex with tile shapes', () => {
+describe('createTierCortex with tile shapes', () => {
   const cortex = createTierCortex({imageSetConfig: CONFIG, aliases: {'image-mixed-old-map.webp': 'image-mixed-map.webp'}});
 
-  it('gives package items the shape of their image, and square by default', () => {
+  it('returns the image shape, and square for uploads and unknown ids, when a link has image-set items', () => {
     const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
     const shapes = tiers.map((tier) => tier.items.map((item) => [item.content, itemShape(item)]));
     expect(shapes).toEqual([
@@ -54,18 +54,18 @@ describe('TierCortex with tile shapes', () => {
     ]);
   });
 
-  it('gives a renamed item the shape of the image it now points to', () => {
+  it('returns the shape of the alias target when a link names a renamed id', () => {
     const renamed = cortex.decodeTierStateFromURL(lz({tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-mixed-old-map.webp'}]}]}))!;
     expect(renamed.tiers[0].items.map((item) => [item.content, itemShape(item)])).toEqual([['Map', 'landscape']]);
   });
 
-  it('stores only shapes other than square on items, and ignores unknown shapes', () => {
+  it('returns shape only for landscape and portrait images when resolveItemsFromPackage runs', () => {
     const items = cortex.resolveItemsFromPackage('image-mixed', ['map.webp', 'icon.webp', 'boxed.webp', 'odd.webp']);
     expect(items.map((item) => item.shape)).toEqual(['landscape', undefined, undefined, undefined]);
     expect(items.map(itemShape)).toEqual(['landscape', 'square', 'square', 'square']);
   });
 
-  it('keeps shapes when a template opens', () => {
+  it('returns the image shapes on items when getInitialTiers opens a template', () => {
     const tiers = cortex.getInitialTiers(undefined, {
       packageName: 'image-mixed', packageDisplayName: 'Mixed', tagName: 'all', tagTitle: 'All Items',
       images: ['hero.webp', 'icon.webp'],
@@ -73,7 +73,7 @@ describe('TierCortex with tile shapes', () => {
     expect(tiers.at(-1)!.items.map(itemShape)).toEqual(['portrait', 'square']);
   });
 
-  it('keeps shapes out of links: a link holds item ids only', () => {
+  it('returns a link with ids only and no shape when a list with shaped items is encoded', () => {
     const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
     const encoded = encodeTierStateForURL('Shapes', tiers.map((tier) => ({
       ...tier,
@@ -83,12 +83,12 @@ describe('TierCortex with tile shapes', () => {
     expect(LZString.decompressFromEncodedURIComponent(encoded)).not.toContain('landscape');
   });
 
-  it('keeps the shape on the item that link previews draw', () => {
+  it('returns the shape and the PNG URL when getOgSafeItem gets a landscape item', () => {
     const [map] = cortex.resolveItemsFromPackage('image-mixed', ['map.webp']);
     expect(cortex.getOgSafeItem(map)).toMatchObject({shape: 'landscape', imageUrl: expect.stringMatching(/\/images\/image-mixed\/map\.png$/)});
   });
 
-  it('reports the shape a category declares, and square otherwise', () => {
+  it('returns the declared category shape when getCategoryShape runs, and square for none or unknown names', () => {
     expect(cortex.getCategoryShape('image-mixed', 'maps')).toBe('landscape');
     expect(cortex.getCategoryShape('image-mixed', 'heroes')).toBe('portrait');
     expect(cortex.getCategoryShape('image-mixed', 'icons')).toBe('square');
@@ -99,7 +99,7 @@ describe('TierCortex with tile shapes', () => {
 });
 
 describe('itemShape', () => {
-  it('treats a missing or unknown shape as square', () => {
+  it('returns square when the shape is missing or unknown', () => {
     expect(DEFAULT_ITEM_SHAPE).toBe('square');
     expect(itemShape({})).toBe('square');
     expect(itemShape({shape: 'hexagon' as never})).toBe('square');
@@ -107,12 +107,12 @@ describe('itemShape', () => {
     expect(isItemShape('Portrait')).toBe(false);
   });
 
-  it('knows the same shapes as scripts/prepareImages.js', () => {
+  it('returns true from isItemShape when called with each shape in SHAPES of scripts/lib/image-sets.mjs', () => {
     expect(SHAPES.filter(isItemShape)).toEqual(SHAPES);
   });
 });
 
-describe('scripts/prepareImages.js shapes (scripts/lib/image-sets.mjs)', () => {
+describe('buildPackageEntry, imageShape and tagShape (scripts/lib/image-sets.mjs)', () => {
   const tags = {
     maps: {name: 'maps', title: 'Maps', description: 'Maps', shape: 'landscape'},
     heroes: {name: 'heroes', title: 'Heroes', description: 'Heroes', shape: 'portrait'},
@@ -120,7 +120,7 @@ describe('scripts/prepareImages.js shapes (scripts/lib/image-sets.mjs)', () => {
     plain: {name: 'plain', title: 'Plain', description: 'Plain'},
   };
 
-  it('writes the shape of each image (image-set 2.2.0 resolves it per image), omitting square', () => {
+  it('returns image shapes, omitting square, when buildPackageEntry gets per-image shapes (image-set 2.2.0)', () => {
     const entry = buildPackageEntry({
       packageName: 'image-mixed',
       displayName: 'Mixed',
@@ -146,14 +146,14 @@ describe('scripts/prepareImages.js shapes (scripts/lib/image-sets.mjs)', () => {
     });
   });
 
-  it('falls back to the first tag with a shape when the package has no per-image shapes', () => {
+  it('returns the shape of the first tag that has one, omitting square, when an image has no shape', () => {
     expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.plain, tags.heroes, tags.maps]})).toBe('portrait');
     expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.icons, tags.maps]})).toBeUndefined();
     expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.plain]})).toBeUndefined();
     expect(imageShape('image-mixed', undefined)).toBeUndefined();
   });
 
-  it('stops on an unknown shape', () => {
+  it('throws has the unknown shape when imageShape or tagShape gets an unknown shape', () => {
     expect(() => imageShape('image-mixed', {filename: 'a.webp', shape: 'round', tags: []})).toThrow('image "a.webp" has the unknown shape "round"');
     expect(() => tagShape('image-mixed', {name: 'maps', shape: 'wide'})).toThrow('tag "maps" has the unknown shape "wide"');
   });
@@ -164,7 +164,7 @@ describe('scripts/prepareImages.js shapes (scripts/lib/image-sets.mjs)', () => {
 // the owner lets image sets publish other shapes (docs/setup-checklist.md).
 describe('imageset.config.json while link previews draw squares', () => {
   // Image sets must not publish other shapes until then (docs/setup-checklist.md).
-  it('has only square images and categories', () => {
+  it('returns no shaped image or category when imageset.config.json is read', () => {
     const packages = (imagesetConfig as ImageSetConfig).packages;
     const shaped = Object.entries(packages).flatMap(([name, set]) => [
       ...set.images.filter((image) => image.shape !== undefined).map((image) => `${name}-${image.filename}: ${image.shape}`),

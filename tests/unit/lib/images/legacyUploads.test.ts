@@ -15,12 +15,12 @@ function memoryStorage(initial: Record<string, string> = {}): StringStorage & {d
 const keepAsIs = async (blob: Blob) => ({ok: true as const, blob});
 
 describe('dataUrlToBytes', () => {
-  it('decodes base64 image data URLs', () => {
+  it('returns the type and bytes when the value is a base64 image data URL', () => {
     expect(dataUrlToBytes(pngDataUrl(), 100)).toEqual({type: 'image/png', bytes: new Uint8Array(PNG)});
     expect(dataUrlToBytes('data:image/svg+xml;charset=utf-8;base64,PHN2Zz4=', 100)).toEqual({type: 'image/svg+xml', bytes: new TextEncoder().encode('<svg>')});
   });
 
-  it('refuses other data, damaged data and data over the cap', () => {
+  it('returns null when the value is not a base64 image data URL, is damaged or is over the byte cap', () => {
     for (const value of ['data:text/html;base64,PGh0bWw+', 'data:image/png,%89PNG', 'blob:https://opentierboy.com/x', 'data:image/png;base64,!!!', 'data:image/png;base64,', '']) {
       expect(dataUrlToBytes(value, 100), value).toBeNull();
     }
@@ -30,7 +30,7 @@ describe('dataUrlToBytes', () => {
 });
 
 describe('parseLegacyUploads', () => {
-  it('reads uploads with data: images, under their device ids (A42)', () => {
+  it('returns data: image uploads under device ids (legacy-<id> for short ids) and drops the rest when entries are mixed (A42)', () => {
     const raw = JSON.stringify([
       {i: 'k3j9x0a1b', c: 'Cat', d: pngDataUrl()},
       {i: 'ab3c9', c: 'Short', d: pngDataUrl()},
@@ -49,7 +49,7 @@ describe('parseLegacyUploads', () => {
     expect(dropped).toBe(6);
   });
 
-  it('treats a damaged value as one dropped entry', () => {
+  it('returns {uploads: [], dropped: 1} when the value is not a JSON array', () => {
     expect(parseLegacyUploads(null)).toEqual({uploads: [], dropped: 0});
     expect(parseLegacyUploads('not json')).toEqual({uploads: [], dropped: 1});
     expect(parseLegacyUploads('{"i":"x"}')).toEqual({uploads: [], dropped: 1});
@@ -59,7 +59,7 @@ describe('parseLegacyUploads', () => {
 describe('migrateLegacyUploads', () => {
   const persistentStore = (limits?: {maxImageBytes: number; maxTotalBytes: number}): DeviceStore => ({...createMemoryDeviceStore({limits}), persistent: true});
 
-  it('moves uploads into the store and removes the old value', async () => {
+  it('writes the uploads to the store and removes customItems from localStorage when every upload fits', async () => {
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
       {i: 'k3j9x0a1b', c: 'Cat', d: pngDataUrl()},
       {i: 'ab3c9', c: 'Short', d: pngDataUrl(4)},
@@ -72,7 +72,7 @@ describe('migrateLegacyUploads', () => {
     expect(await migrateLegacyUploads(storage, store, keepAsIs)).toEqual({moved: [], kept: 0, dropped: 0});
   });
 
-  it('keeps uploads for another try when the store is full, and drops what cannot be prepared', async () => {
+  it('writes the uploads that did not fit back to localStorage, and drops unprepared ones, when the store is full', async () => {
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
       {i: 'k3j9x0a1b', c: 'Fits', d: pngDataUrl()},
       {i: 'm0n9b8v7c', c: 'Too big for the room left', d: pngDataUrl(10)},
@@ -86,7 +86,7 @@ describe('migrateLegacyUploads', () => {
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!).map((entry: {i: string}) => entry.i)).toEqual(['k3j9x0a1b', 'm0n9b8v7c']);
   });
 
-  it('never makes room: when the store is full, the rest stays in localStorage and nothing is removed', async () => {
+  it('writes the uploads past the free room back to localStorage, and evicts no image, when the store fills up', async () => {
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
       {i: 'first1234', c: 'One', d: pngDataUrl(4)},
       {i: 'second123', c: 'Two', d: pngDataUrl(4)},
@@ -99,7 +99,7 @@ describe('migrateLegacyUploads', () => {
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!).map((entry: {i: string}) => entry.i)).toEqual(['third1234']);
   });
 
-  it('keeps AVIF and HEIC uploads in localStorage, since the editor cannot check them yet', async () => {
+  it('writes an AVIF upload back to localStorage when prepare returns reason avif-heic', async () => {
     const avif = `data:image/avif;base64,${Buffer.from(avifWithFalseSize([100, 100], [9000, 9000])).toString('base64')}`;
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: JSON.stringify([
       {i: 'k3j9x0a1b', c: 'Cat', d: pngDataUrl()},
@@ -110,7 +110,7 @@ describe('migrateLegacyUploads', () => {
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!)).toEqual([{i: 'a1v1f2x3y', c: 'Photo', d: avif}]);
   });
 
-  it('leaves localStorage alone when the store keeps images only in memory', async () => {
+  it('writes nothing to localStorage when the store is not persistent', async () => {
     const value = JSON.stringify([{i: 'k3j9x0a1b', c: 'Cat', d: pngDataUrl()}]);
     const storage = memoryStorage({[LEGACY_UPLOADS_KEY]: value});
     const store = createMemoryDeviceStore();
@@ -119,7 +119,7 @@ describe('migrateLegacyUploads', () => {
     expect(await store.get('k3j9x0a1b')).not.toBeNull();
   });
 
-  it('never throws when storage is missing or blocked', async () => {
+  it('returns {moved: [], kept: 0, dropped: 0} when storage is null or getItem throws', async () => {
     const store = persistentStore();
     expect(await migrateLegacyUploads(null, store, keepAsIs)).toEqual({moved: [], kept: 0, dropped: 0});
     const blocked: StringStorage = {

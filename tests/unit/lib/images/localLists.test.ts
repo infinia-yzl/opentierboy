@@ -38,8 +38,8 @@ const throwing: StringStorage = {
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe('always-allowed image sites', () => {
-  it('remembers sites, each once, newest last', () => {
+describe('rememberAllowedImageSites and readAllowedImageSites', () => {
+  it('writes each host once, newest last, to localStorage when rememberAllowedImageSites is called', () => {
     const storage = memoryStorage();
     expect(rememberAllowedImageSites(['images.example.org', 'cdn.example.net'], storage)).toEqual(['images.example.org', 'cdn.example.net']);
     expect(rememberAllowedImageSites(['images.example.org'], storage)).toEqual(['cdn.example.net', 'images.example.org']);
@@ -47,13 +47,13 @@ describe('always-allowed image sites', () => {
     expect(JSON.parse(storage.data.get(ALLOWED_IMAGE_SITES_KEY)!)).toEqual(['cdn.example.net', 'images.example.org']);
   });
 
-  it('keeps only hosts in their normal form that pass the link image rules', () => {
+  it('returns only normalised hosts that pass the link image rules when the stored list has others', () => {
     const storage = memoryStorage({[ALLOWED_IMAGE_SITES_KEY]: JSON.stringify(['ok.example.org', 'localhost', '127.0.0.1', 'UPPER.example.org', 'x', 42, null, 'printer.local', 'ok.example.org'])});
     expect(readAllowedImageSites(storage)).toEqual(['ok.example.org']);
     expect(rememberAllowedImageSites(['10.0.0.1', 'a.example.org'], storage)).toEqual(['ok.example.org', 'a.example.org']);
   });
 
-  it('caps the list, dropping the oldest', () => {
+  it('returns the newest MAX_ALLOWED_IMAGE_SITES hosts when more hosts are remembered', () => {
     const storage = memoryStorage();
     const hosts = Array.from({length: MAX_ALLOWED_IMAGE_SITES + 5}, (_, index) => `s${index}.example.org`);
     const stored = rememberAllowedImageSites(hosts, storage);
@@ -61,13 +61,13 @@ describe('always-allowed image sites', () => {
     expect(stored[0]).toBe('s5.example.org');
   });
 
-  it('reads damaged or foreign values as an empty list', () => {
+  it('returns [] when the stored value is damaged, a non-array or over the size cap', () => {
     for (const value of ['not json', '{"a":1}', '"x"', '[', 'x'.repeat(300_000)]) {
       expect(readAllowedImageSites(memoryStorage({[ALLOWED_IMAGE_SITES_KEY]: value})), value.slice(0, 20)).toEqual([]);
     }
   });
 
-  it('never throws when storage is missing or blocked', () => {
+  it('returns [] or null, and throws no error, when localStorage is missing or throws', () => {
     expect(readAllowedImageSites(null)).toEqual([]);
     expect(readAllowedImageSites(throwing)).toEqual([]);
     expect(rememberAllowedImageSites(['a.example.org'], throwing)).toEqual(['a.example.org']);
@@ -84,15 +84,15 @@ describe('always-allowed image sites', () => {
     }
   });
 
-  it('turns allowed sites into exact-host trusted site entries', () => {
+  it('returns exact-host trusted site entries when allowedSitesAsTrusted gets hosts', () => {
     const sites = allowedSitesAsTrusted(['images.example.org']);
     expect(isTrustedHost('images.example.org', sites)).toBe(true);
     expect(isTrustedHost('cdn.images.example.org', sites)).toBe(false);
   });
 });
 
-describe('device images removed to make room', () => {
-  it('adds removed ids and drops ids that were stored again', () => {
+describe('updateEvictedDeviceImages and readEvictedDeviceImages', () => {
+  it('writes evicted ids, and removes ids stored again, when updateEvictedDeviceImages is called', () => {
     const storage = memoryStorage();
     expect(updateEvictedDeviceImages({evicted: ['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb']}, storage)).toEqual(['aaaaaaaaaaaaaaaa', 'bbbbbbbbbbbbbbbb']);
     expect(updateEvictedDeviceImages({stored: ['aaaaaaaaaaaaaaaa']}, storage)).toEqual(['bbbbbbbbbbbbbbbb']);
@@ -101,14 +101,14 @@ describe('device images removed to make room', () => {
     expect(storage.data.has(EVICTED_DEVICE_IMAGES_KEY)).toBe(false);
   });
 
-  it('keeps only valid device ids, and caps the list', () => {
+  it('returns only valid device ids, at most MAX_EVICTED_DEVICE_IMAGES, when the stored list has others', () => {
     const storage = memoryStorage({[EVICTED_DEVICE_IMAGES_KEY]: JSON.stringify(['short', '__proto__', 'legacy-ab3c9', 'has space here'])});
     expect(readEvictedDeviceImages(storage)).toEqual(['legacy-ab3c9']);
     const many = Array.from({length: MAX_EVICTED_DEVICE_IMAGES + 3}, (_, index) => `image-${String(index).padStart(6, '0')}`);
     expect(updateEvictedDeviceImages({evicted: many}, storage)).toHaveLength(MAX_EVICTED_DEVICE_IMAGES);
   });
 
-  it('writes nothing when nothing changes, and never throws', () => {
+  it('writes nothing when no id changes, and throws no error when localStorage throws', () => {
     const storage = memoryStorage();
     const setItem = vi.spyOn(storage, 'setItem');
     updateEvictedDeviceImages({stored: ['aaaaaaaaaaaaaaaa']}, storage);

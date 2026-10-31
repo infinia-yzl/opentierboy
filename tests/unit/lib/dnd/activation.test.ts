@@ -14,13 +14,13 @@ import {
 } from '@/lib/dnd/activation';
 
 describe('activationRule', () => {
-  it('starts mouse drags after a short move, as the editor does today', () => {
+  it('returns a distance rule of MOUSE_DRAG_DISTANCE when the pointer is a mouse or unknown', () => {
     expect(activationRule('mouse', 'item')).toEqual({kind: 'distance', distance: MOUSE_DRAG_DISTANCE});
     expect(activationRule('mouse', 'row')).toEqual({kind: 'distance', distance: MOUSE_DRAG_DISTANCE});
     expect(activationRule('', 'item')).toEqual({kind: 'distance', distance: MOUSE_DRAG_DISTANCE});
   });
 
-  it('uses hold, then move for touch and pen on items, giving up when the item menu opens', () => {
+  it('returns a holdThenMove rule ending at CONTEXT_MENU_LONG_PRESS_MS when touch or pen presses an item', () => {
     for (const pointer of ['touch', 'pen']) {
       expect(activationRule(pointer, 'item')).toEqual({
         kind: 'holdThenMove',
@@ -32,12 +32,12 @@ describe('activationRule', () => {
     }
   });
 
-  it('uses a plain hold for touch and pen on row handles', () => {
+  it('returns {kind: \'hold\', holdMs: TOUCH_HOLD_MS} when the pointer is touch or pen on a row handle', () => {
     expect(activationRule('touch', 'row')).toEqual({kind: 'hold', holdMs: TOUCH_HOLD_MS, tolerance: TOUCH_HOLD_TOLERANCE});
     expect(activationRule('pen', 'row')).toEqual({kind: 'hold', holdMs: TOUCH_HOLD_MS, tolerance: TOUCH_HOLD_TOLERANCE});
   });
 
-  it('lets the drag start before the long-press menu opens', () => {
+  it('returns a TOUCH_HOLD_MS below CONTEXT_MENU_LONG_PRESS_MS when the constants are compared', () => {
     expect(TOUCH_HOLD_MS).toBeLessThan(CONTEXT_MENU_LONG_PRESS_MS);
   });
 });
@@ -61,7 +61,7 @@ describe('holdThenMoveReducer', () => {
   const end: GestureEvent = {type: 'end'};
   const states = (gestures: HoldThenMoveGesture[]) => gestures.map(gesture => gesture.state);
 
-  it('starts when the finger moves after holding still', () => {
+  it('returns state active when the pointer moves past distance after holdMs', () => {
     const gestures = run([down(100, 100, 1_000), move(102, 101, 1_100), move(103, 100, 1_300), move(106, 100, 1_310), move(200, 200, 1_400)]);
     expect(states(gestures)).toEqual(['pending', 'pending', 'pending', 'active', 'active']);
     expect(gestureArmed(gestures[1], 1_200)).toBe(false);
@@ -69,43 +69,43 @@ describe('holdThenMoveReducer', () => {
     expect(gestureArmed(gestures[3], 1_320)).toBe(false);
   });
 
-  it('gives way to scrolling when the finger moves during the hold', () => {
+  it('returns state aborted when the pointer moves past tolerance before holdMs ends', () => {
     const gestures = run([down(100, 100, 1_000), move(100, 108, 1_050), move(100, 120, 1_400)]);
     expect(states(gestures)).toEqual(['pending', 'aborted', 'aborted']);
     expect(gestureArmed(gestures[2], 1_400)).toBe(false);
   });
 
-  it('gives way to the item menu when the finger holds still for the long press', () => {
+  it('returns state aborted when the pointer rests still for giveUpMs and then moves', () => {
     const [pressed, moved] = run([down(100, 100, 1_000), move(130, 100, 1_750)]);
     expect(gestureArmed(pressed, 1_699)).toBe(true);
     expect(gestureArmed(pressed, 1_700)).toBe(false);
     expect(moved.state).toBe('aborted');
   });
 
-  it('ends without a drag when the finger lifts', () => {
+  it('returns state aborted with no start when the pointer lifts before holdMs ends', () => {
     const gestures = run([down(100, 100, 1_000), end, move(130, 100, 1_300)]);
     expect(states(gestures)).toEqual(['pending', 'aborted', 'aborted']);
     expect(gestures[1].start).toBeUndefined();
   });
 
-  it('keeps an active gesture active when the finger lifts', () => {
+  it('returns state active when the pointer lifts after the gesture became active', () => {
     const gestures = run([down(100, 100, 1_000), move(110, 100, 1_300), end]);
     expect(states(gestures)).toEqual(['pending', 'active', 'active']);
   });
 
-  it('starts over on the next press', () => {
+  it('returns state pending with the new start when the next press comes', () => {
     const gestures = run([down(100, 100, 1_000), end, down(10, 10, 5_000), move(20, 10, 5_300)]);
     expect(states(gestures)).toEqual(['pending', 'aborted', 'pending', 'active']);
     expect(gestures[2].start).toEqual({x: 10, y: 10, time: 5_000});
   });
 
-  it('does nothing before a press', () => {
+  it('returns the initial gesture, unarmed, when a move comes before any press', () => {
     const [gesture] = run([move(1, 1, 1)]);
     expect(gesture).toEqual({rule, state: 'pending'});
     expect(gestureArmed(gesture, 1_000)).toBe(false);
   });
 
-  it('is pure: plain data in and out, the input never changes, and no change returns the same object', () => {
+  it('returns the same object when an event changes nothing, and plain new objects without mutating input', () => {
     const pressed = holdThenMoveReducer(holdThenMoveGesture(rule), down(100, 100, 1_000));
     const copy = structuredClone(pressed);
     const still = holdThenMoveReducer(pressed, move(101, 100, 1_100));
