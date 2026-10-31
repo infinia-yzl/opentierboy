@@ -1470,9 +1470,108 @@ export class TierListPage {
 
   // ---- Zen mode --------------------------------------------------------------------------
 
+  /** The Zen bar at the top centre: Back, the step count, Forward, Ranking order, Exit Zen. */
+  get zenBar(): Locator {
+    return this.page.getByRole('toolbar', {name: 'Zen'});
+  }
+
+  zenBarButton(name: 'Back' | 'Forward' | 'Exit Zen'): Locator {
+    return this.zenBar.getByRole('button', {name, exact: true});
+  }
+
+  /** The Zen bar's step count, such as "7 / 13". */
+  get zenStepCount(): Locator {
+    return this.zenBar.getByRole('status');
+  }
+
+  /** The Zen bar's button that opens the Ranking order menu; its name says the order. */
+  get rankingOrderButton(): Locator {
+    return this.zenBar.getByRole('button', {name: /^Ranking order: /});
+  }
+
+  /** The OpenTierBoy wordmark that Zen shows in place of the editor tools. */
+  get zenWordmark(): Locator {
+    return this.main.getByRole('img', {name: 'OpenTierBoy'});
+  }
+
+  /** In Zen with In order or Shuffle: the item up next, the one item of the Unranked tray to drag. */
+  get upNextItem(): Locator {
+    return this.unranked.getByRole('button');
+  }
+
+  /** In Zen with In order or Shuffle: the queue after the item up next ("Queue" or "Queue (hidden)"). */
+  queue(name: 'Queue' | 'Queue (hidden)' = 'Queue'): Locator {
+    return this.unranked.getByRole('list', {name, exact: true});
+  }
+
+  /** The items in the queue, in order, each named after its item. */
+  get queueItems(): Locator {
+    return this.queue().getByRole('listitem');
+  }
+
+  /**
+   * Turns Zen on with the Zen toggle in the title row, or off with the Zen bar's "Exit Zen"
+   * (the toggle hides in Zen, with the other tools).
+   */
   async setZenMode(on: boolean) {
-    await this.zenModeToggle.click();
-    await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', String(on));
+    if (on) {
+      await this.zenModeToggle.click();
+      await expect(this.zenBar).toBeVisible();
+    } else {
+      await this.clickInZenBar(this.zenBarButton('Exit Zen'));
+      await expect(this.zenBar).toHaveCount(0);
+      await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
+    }
+  }
+
+  /**
+   * Clicks a button of the Zen bar. The bar hides while the mouse is still, so the mouse first
+   * moves over the bar, which shows it again.
+   */
+  private async clickInZenBar(button: Locator) {
+    await this.wakeZenBar();
+    await button.click();
+  }
+
+  /** Moves the mouse over the Zen bar, and waits until the bar shows. */
+  async wakeZenBar() {
+    const box = await this.zenBar.boundingBox();
+    if (!box) throw new Error('The Zen bar is not on the page');
+    await this.page.mouse.move(box.x + 2, box.y + box.height / 2);
+    await this.page.mouse.move(box.x + 4, box.y + box.height / 2);
+    await expect(this.zenBar).toHaveCSS('opacity', '1');
+  }
+
+  /** Presses a key, such as Tab or Shift+Tab, wherever the focus is. */
+  async pressKey(key: string) {
+    await this.page.keyboard.press(key);
+  }
+
+  /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
+  async stepInZenBar(name: 'Back' | 'Forward') {
+    await this.changeAndWaitForLink(() => this.clickInZenBar(this.zenBarButton(name)));
+  }
+
+  /** Chooses a ranking order in the Zen bar's menu. It writes no history entry. */
+  async chooseRankingOrder(order: 'Pick freely' | 'In order' | 'Shuffle') {
+    await this.clickInZenBar(this.rankingOrderButton);
+    await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
+    await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
+  }
+
+  /** Turns "Hide the queue" on or off in the Zen bar's menu. */
+  async setHideQueue(on: boolean) {
+    await this.clickInZenBar(this.rankingOrderButton);
+    const item = this.page.getByRole('menuitemcheckbox', {name: 'Hide the queue'});
+    await expect(item).toHaveAttribute('aria-checked', String(!on));
+    await item.click();
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  /** Opens the Zen bar's Ranking order menu, and returns it. */
+  async openRankingOrderMenu(): Promise<Locator> {
+    await this.clickInZenBar(this.rankingOrderButton);
+    return this.page.getByRole('menu');
   }
 
   // ---- Notifications ---------------------------------------------------------------------
