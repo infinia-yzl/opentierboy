@@ -140,10 +140,13 @@ export class TierListPage {
     return this.tier('Unranked');
   }
 
-  /** All items in a tier, in display order. */
+  /**
+   * All items in a tier, in display order. Not items: the row handle, the tray's "Add images to
+   * Unranked" tile, and the Template, Upload and Link buttons of an empty list's drop area.
+   */
   itemsIn(tier: string | Locator): Locator {
     const row = typeof tier === 'string' ? this.tier(tier) : tier;
-    return row.getByRole('button', {name: /^(?!Move tier\b|Add images to\b)/});
+    return row.getByRole('button', {name: /^(?!Move tier\b|Add images to\b|(?:Template|Upload|Link)$)/});
   }
 
   item(name: string): Locator {
@@ -1134,6 +1137,81 @@ export class TierListPage {
           : new DragEvent('drop', {...init, dataTransfer: data}));
       }
     }, events.map(({event, file}) => ({event, name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
+  }
+
+  // ---- Image addresses: dropped or pasted text (#107) ------------------------------------------
+
+  /**
+   * What a drag from another page carries, as text: `uriList` (a dragged link), `html` (an image
+   * dragged from a page holds an `<img>`), `plain` (text). The test builds the drag events, as
+   * for dropped files.
+   */
+  private async textTransfer(data: {uriList?: string; html?: string; plain?: string}) {
+    return this.page.evaluateHandle(({uriList, html, plain}) => {
+      const transfer = new DataTransfer();
+      if (html !== undefined) transfer.setData('text/html', html);
+      if (uriList !== undefined) transfer.setData('text/uri-list', uriList);
+      if (plain !== undefined) transfer.setData('text/plain', plain);
+      return transfer;
+    }, data);
+  }
+
+  /** Drops links or text from another page onto the editor's first row. */
+  async dropText(data: {uriList?: string; html?: string; plain?: string}) {
+    await this.waitUntilInteractive();
+    const transfer = await this.textTransfer(data);
+    const element = this.tiers.first();
+    await element.dispatchEvent('dragenter', {dataTransfer: transfer});
+    await element.dispatchEvent('dragover', {dataTransfer: transfer});
+    await element.dispatchEvent('drop', {dataTransfer: transfer});
+  }
+
+  /** Drags a link from another page over the editor and keeps it there (no drop yet). */
+  async dragLinkOver(address: string) {
+    await this.waitUntilInteractive();
+    const transfer = await this.textTransfer({uriList: address, plain: address});
+    const element = this.tiers.first();
+    await element.dispatchEvent('dragenter', {dataTransfer: transfer});
+    await element.dispatchEvent('dragover', {dataTransfer: transfer});
+  }
+
+  /** Moves the dragged link off the page again, as dragging it out of the window does. */
+  async dragLinkAway(address: string) {
+    const transfer = await this.textTransfer({uriList: address, plain: address});
+    await this.tiers.first().dispatchEvent('dragleave', {dataTransfer: transfer});
+  }
+
+  /**
+   * Pastes text into the editor, as pasting a copied image address does. The test builds the
+   * paste event; Firefox drops the data of such an event (SCRIPTED_PASTE_SKIP).
+   */
+  async pasteText(text: string) {
+    await this.waitUntilInteractive();
+    await this.main.evaluate((element, pasted) => {
+      const transfer = new DataTransfer();
+      transfer.setData('text/plain', pasted);
+      element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, text);
+  }
+
+  /** The overlay that shows while files or links are dragged over the editor. */
+  get dropOverlay(): Locator {
+    return this.page.getByText('Drop images or image links to add them');
+  }
+
+  /** The overlay's second line, about Freeze Frame pictures. */
+  get dropOverlayNote(): Locator {
+    return this.page.getByText('Saved Freeze Frame pictures reopen as editable lists.');
+  }
+
+  /** An empty list's drop area, in the Unranked tray: "Drop or paste images here". */
+  get emptyListDropArea(): Locator {
+    return this.unranked.getByText('Drop or paste images here');
+  }
+
+  /** A button of an empty list's drop area: Template, Upload or Link. */
+  emptyListAction(name: 'Template' | 'Upload' | 'Link'): Locator {
+    return this.unranked.getByRole('button', {name, exact: true});
   }
 
   // ---- Files: snapshot files and pictures ---------------------------------------------------

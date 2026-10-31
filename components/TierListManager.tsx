@@ -6,11 +6,12 @@ import {TierListProvider, useTierContext} from '@/contexts/TierContext';
 import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
-import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import {useEditorDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import DropOverlay from "@/components/DropOverlay";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ListTitle} from "@/components/ListTitle";
-import ItemManager from "@/components/ItemManager";
+import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
 import {ItemSet} from "@/models/ItemSet";
 import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
@@ -36,37 +37,42 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
-  usePasteImages(openFiles);
-  useFileDrop(openFiles);
+  // Image addresses that someone drops or pastes: link images (#107).
+  const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
+  usePasteImages(openFiles, openLinks);
+  const dragging = useEditorDrop(openFiles, openLinks);
 
   return (
-    <div className="w-full flex flex-col items-center">
-      {/* The title on the left and the editor's three tools on the right (owner decisions,
-          2026-10-28): Add images, Zen, Share. Zen stays visible in Zen, to turn it off. The title
-          sits right above the rows; on phones the tools sit above the title (2026-10-31). */}
-      <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <ListTitle title={title} onSave={setTitle}/>
-        <div role="group" aria-label="Editor tools" className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
-          <span className="hide-in-zen"><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
-          <ZenToggle/>
-          <span className="hide-in-zen"><ShareButton title={title}/></span>
+    <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
+      <div className="w-full flex flex-col items-center">
+        {/* The title on the left and the editor's three tools on the right (owner decisions,
+            2026-10-28): Add images, Zen, Share. Zen stays visible in Zen, to turn it off. The title
+            sits right above the rows; on phones the tools sit above the title (2026-10-31). */}
+        <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <ListTitle title={title} onSave={setTitle}/>
+          <div role="group" aria-label="Editor tools" className="flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
+            <span className="hide-in-zen"><ItemManager openFocusRef={openFileButtonRef}/></span>
+            <ZenToggle/>
+            <span className="hide-in-zen"><ShareButton title={title}/></span>
+          </div>
         </div>
+        <LinkImageNotice/>
+        {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
+            "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
+        <div className="w-full mt-3">
+          <DragDropTierList
+            belowRows={<RowControls/>}
+            addImagesTile={<ItemManager trigger="tile"/>}
+            emptyListArea={<EmptyListDropArea/>}
+          />
+        </div>
+        <div className="w-full hide-in-zen" data-html2canvas-ignore>
+          <UrlLengthWarning urlLength={urlLength}/>
+        </div>
+        {openListDialog}
+        <DropOverlay visible={dragging}/>
       </div>
-      <LinkImageNotice/>
-      {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
-          "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
-      <div className="w-full mt-3">
-        <DragDropTierList
-          belowRows={<RowControls/>}
-          addImagesTile={<ItemManager onOpenFiles={openFiles} trigger="tile"/>}
-        />
-      </div>
-      <div className="w-full hide-in-zen" data-html2canvas-ignore>
-        <UrlLengthWarning urlLength={urlLength}/>
-      </div>
-      {openListDialog}
-    </div>
+    </AddImagesProvider>
   );
 };
 

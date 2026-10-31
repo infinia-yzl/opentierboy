@@ -19,6 +19,16 @@ import {useAddItemsWithUndo} from '@/components/useAddItems';
 import {recordRecentLink} from '@/components/useRecentLinks';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
+import {checkImage, labelFallback} from '@/lib/images/imageCheck';
+import {
+  type FoundLinkImages,
+  foundNothing,
+  linkImagesFromDrop,
+  MAX_DROPPED_TEXT_LENGTH,
+  MAX_LINKS_PER_ADD,
+} from '@/lib/images/droppedLinks';
+import {IMAGE_CHECK_FAILURE_MESSAGES, LINK_IMAGE_REFUSAL_MESSAGES} from '@/lib/images/messages';
+import type Item from '@/models/Item';
 import {readSnapshotFile, SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot';
 import {imageBytesFromDataUrl} from '@/lib/snapshot/dataUrl';
 import {
@@ -39,6 +49,11 @@ const NOT_ADDED = {
   history: 'You went Back or Forward before they were added:',
   list: 'A list file was being opened, so they were not added:',
 } as const;
+
+/** The name of a link image in messages and on its tile: its file name, else its site. */
+function linkImageLabel(url: string, displayDomain: string): string {
+  return labelFallback(url).text || displayDomain;
+}
 type NotAddedReason = keyof typeof NOT_ADDED;
 
 type FileCheck =
@@ -102,6 +117,11 @@ export interface UseSnapshotFiles {
    * when the visitor leaves the editor, waiting files are dropped quietly.
    */
   openFiles: (files: File[]) => void;
+  /**
+   * Adds image addresses that someone dropped or pasted as link images, in turn with the files
+   * (lib/images/droppedLinks.ts finds and checks them first).
+   */
+  openLinks: (found: FoundLinkImages) => void;
   /** The "Open the list in this file?" dialog. Render it once in the editor. */
   dialog: React.ReactNode;
   /** The Add images button: focus returns to it when the dialog closes. */
@@ -122,7 +142,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const pathname = usePathname();
   const address = stateParam(useSearchParams().get('state'));
   const {tiers, writing} = useTierContext();
-  const {addDeviceImages, importDeviceImages} = useCustomImages();
+  const {addDeviceImages, importDeviceImages, isHostAllowed} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the list is in the address (or the opening ends otherwise). */
@@ -171,9 +191,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const gone = useCallback(() => !alive.current || leaving.current, []);
 
   /** Says which waiting files were not added, and why: one message per reason, growing. */
-  const notAdded = useCallback((files: File[], reason: NotAddedReason) => {
+  const notAdded = useCallback((items: File[] | string[], reason: NotAddedReason) => {
     const names = notAddedNames.current[reason];
-    names.push(...files.map((file) => file.name));
+    names.push(...items.map((item) => (typeof item === 'string' ? item : item.name)));
     const clear = () => {
       notAddedNames.current[reason] = [];
     };
@@ -186,10 +206,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   }, []);
 
   // The handlers below run after awaits: read the latest list, address and helpers through refs.
-  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, pathname, address});
+  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address});
   useEffect(() => {
-    latest.current = {tiers, addDeviceImages, addItemsWithUndo, pathname, address};
-  }, [tiers, addDeviceImages, addItemsWithUndo, pathname, address]);
+    latest.current = {tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address};
+  }, [tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address]);
 
   /** Callers waiting until the address shows the list on screen. */
   const waiters = useRef<(() => void)[]>([]);
@@ -288,6 +308,73 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       await addAsItems(pictures, moves);
     }
   }, [addAsItems, notAdded, gone]);
+
+  /**
+   * Adds dropped or pasted image addresses as link images (#107), with the checks of "From a
+   * link": the addresses passed checkLinkImageUrl already (lib/images/droppedLinks.ts). An image
+   * from a trusted site, or from a site this visitor allowed, is loaded once to check it, and
+   * added only when it loads. An image from any other site is added without loading it: it
+   * waits for the visitor's consent ("Images from other sites"), like a link image in a shared
+   * list. All the images of one drop or paste are one change: one Back step.
+   */
+  const openLinks = useCallback((found: FoundLinkImages) => {
+    if (!alive.current) return;
+    const names = found.accepted.map((link) => linkImageLabel(link.url, link.displayDomain));
+    const problems = found.refused.map((refused) => `${refused.address}: ${LINK_IMAGE_REFUSAL_MESSAGES[refused.reason]}`);
+    if (found.leftOut > 0) {
+      toast('Too many image addresses', {
+        description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
+      });
+    }
+    if (found.accepted.length === 0) {
+      if (problems.length > 0) toast.error(problems.length === 1 ? 'Could not add the image' : 'Could not add the images', {description: problems.join(' ')});
+      return;
+    }
+    leaving.current = false;
+    if (busy.current) {
+      notAdded(names, 'list');
+      return;
+    }
+    const moves = historyMoves.current;
+    const run = queue.current.then(() => addLinksNow());
+    queue.current = run.catch(() => undefined);
+
+    async function addLinksNow() {
+      if (gone()) return;
+      if (historyMoves.current !== moves) {
+        notAdded(names, 'history');
+        return;
+      }
+      if (busy.current) {
+        notAdded(names, 'list');
+        return;
+      }
+      const {isHostAllowed: allowed} = latest.current;
+      const results = await Promise.all(found.accepted.map(async (link, index): Promise<Item | string> => {
+        const label = names[index];
+        const item: Item = {id: link.url, content: label, source: 'link', url: link.url};
+        // Never load an image from a site the visitor has not allowed: it waits for consent.
+        if (!allowed(link.host)) return item;
+        const check = await checkImage(link.url, {label});
+        return check.ok ? item : `${label}: ${IMAGE_CHECK_FAILURE_MESSAGES[check.reason]}`;
+      }));
+      if (gone()) return;
+      if (historyMoves.current !== moves) {
+        notAdded(names, 'history');
+        return;
+      }
+      const items = results.filter((result): result is Item => typeof result !== 'string');
+      const failed = [...problems, ...results.filter((result): result is string => typeof result === 'string')];
+      if (failed.length > 0) {
+        toast.error(items.length > 0 ? 'Some images could not be added' : failed.length === 1 ? 'Could not add the image' : 'Could not add the images', {
+          description: failed.join(' '),
+        });
+      }
+      if (items.length === 0) return;
+      latest.current.addItemsWithUndo(items);
+      await untilWritten();
+    }
+  }, [untilWritten, notAdded, gone]);
 
   /** Ends the opening: the dialog closes, and files are handled again. */
   const finishOpening = useCallback(() => {
@@ -392,18 +479,30 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     </AlertDialog>
   );
 
-  return {openFiles, dialog, openFileButtonRef};
+  return {openFiles, openLinks, dialog, openFileButtonRef};
 }
 
-/** True for a drag or drop that carries files (not text or a link). */
+/** True for a drag or drop that carries files. */
 function carriesFiles(event: DragEvent): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
+
+/** True for a drag or drop that carries files, a link or text: something that may add images. */
+function carriesImagesOrLinks(event: DragEvent): boolean {
+  const types = Array.from(event.dataTransfer?.types ?? []);
+  return types.includes('Files') || types.includes('text/uri-list') || types.includes('text/plain');
 }
 
 /** A file input (for example in "From your device") takes its own drops. */
 function onFileInput(event: Event): boolean {
   const target = event.target instanceof Element ? event.target : null;
   return Boolean(target?.closest('input[type="file"]'));
+}
+
+/** A text field (the title or a row name while it is edited) takes its own text drops. */
+function onTextField(event: Event): boolean {
+  const target = event.target instanceof Element ? event.target : null;
+  return Boolean(target?.closest('input, textarea, [contenteditable=""], [contenteditable="true"]'));
 }
 
 /**
@@ -419,29 +518,109 @@ function dialogOpen(): boolean {
   ].join(', ')) !== null;
 }
 
+/** The most `<img>` addresses read from a drop's HTML. */
+const MAX_DROPPED_IMAGES_READ = 100;
+
 /**
- * Dropping files anywhere on the editor page opens them (useSnapshotFiles). Without this, the
- * browser would leave the page to show the dropped file. While a dialog is open, drops anywhere
- * (also on its overlay) do nothing, except on a file input.
+ * The addresses of the images in a drop's HTML (an image dragged from another page). The HTML is
+ * parsed in a document of its own, which runs no script and loads nothing; only the `src`
+ * attributes are read, as text.
  */
-export function useFileDrop(openFiles: (files: File[]) => void) {
+function imageSourcesInHtml(html: string): string[] {
+  if (html === '' || html.length > MAX_DROPPED_TEXT_LENGTH) return [];
+  try {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    return Array.from(parsed.images).slice(0, MAX_DROPPED_IMAGES_READ).map((image) => image.getAttribute('src') ?? '');
+  } catch {
+    return [];
+  }
+}
+
+/** The link images a drop carries (lib/images/droppedLinks.ts finds and checks them). */
+function droppedLinkImages(data: DataTransfer): FoundLinkImages {
+  return linkImagesFromDrop({
+    imageSources: imageSourcesInHtml(data.getData('text/html')),
+    uriList: data.getData('text/uri-list'),
+    plain: data.getData('text/plain'),
+  });
+}
+
+/**
+ * Dropping on the editor page (owner decision, issue #107): files open (useSnapshotFiles:
+ * openFiles), and image addresses (a link or an image dragged from another page) become link
+ * images (openLinks). Without this, the browser would leave the page to show the dropped file or
+ * link. While a dialog is open, drops anywhere (also on its overlay) do nothing, except on a file
+ * input; a text field takes text dropped on it. Drags that start on this page (selected text)
+ * are left alone.
+ *
+ * Returns true while something that may add images is dragged over the page: the editor shows
+ * the drop overlay then.
+ */
+export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (found: FoundLinkImages) => void): boolean {
+  const [dragging, setDragging] = useState(false);
   useEffect(() => {
+    /** True while a drag that started on this page goes on. */
+    let fromThisPage = false;
+    /** dragenter and dragleave come in pairs for each element the pointer crosses. */
+    let depth = 0;
+    const takes = (event: DragEvent) => !fromThisPage && carriesImagesOrLinks(event) && !onFileInput(event)
+      && !(onTextField(event) && !carriesFiles(event));
+    const stop = () => {
+      depth = 0;
+      setDragging(false);
+    };
+    const onDragStart = () => {
+      fromThisPage = true;
+    };
+    const onDragEnd = () => {
+      fromThisPage = false;
+      stop();
+    };
+    const onDragEnter = (event: DragEvent) => {
+      if (fromThisPage || !carriesImagesOrLinks(event)) return;
+      depth += 1;
+      setDragging(!dialogOpen());
+    };
+    const onDragLeave = (event: DragEvent) => {
+      if (fromThisPage || !carriesImagesOrLinks(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragging(false);
+    };
     const onDragOver = (event: DragEvent) => {
-      if (!carriesFiles(event) || onFileInput(event)) return;
+      if (!takes(event)) return;
       event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = dialogOpen() ? 'none' : 'copy';
     };
     const onDrop = (event: DragEvent) => {
-      if (!carriesFiles(event) || onFileInput(event)) return;
+      if (!takes(event)) {
+        stop();
+        return;
+      }
       event.preventDefault();
-      if (dialogOpen()) return;
-      openFiles(Array.from(event.dataTransfer?.files ?? []));
+      stop();
+      if (dialogOpen() || !event.dataTransfer) return;
+      const files = Array.from(event.dataTransfer.files ?? []);
+      if (files.length > 0) {
+        openFiles(files);
+        return;
+      }
+      const found = droppedLinkImages(event.dataTransfer);
+      if (!foundNothing(found)) openLinks(found);
     };
+    document.addEventListener('dragstart', onDragStart);
+    document.addEventListener('dragend', onDragEnd);
+    window.addEventListener('dragenter', onDragEnter);
+    window.addEventListener('dragleave', onDragLeave);
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
     return () => {
+      document.removeEventListener('dragstart', onDragStart);
+      document.removeEventListener('dragend', onDragEnd);
+      window.removeEventListener('dragenter', onDragEnter);
+      window.removeEventListener('dragleave', onDragLeave);
       window.removeEventListener('dragover', onDragOver);
       window.removeEventListener('drop', onDrop);
     };
-  }, [openFiles]);
+  }, [openFiles, openLinks]);
+  return dragging;
 }

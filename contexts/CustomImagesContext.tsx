@@ -106,6 +106,11 @@ interface CustomImagesContextValue {
   readDeviceImages: (ids: string[]) => Promise<Map<string, Blob>>;
   /** Lets this page load images from these sites (a link image the visitor adds, or [Load]). */
   allowHosts: (hosts: string[], options?: {remember?: boolean}) => void;
+  /**
+   * True when images from this host may load now: a trusted site, or one this visitor allowed.
+   * Before the allowed sites are read, only trusted sites.
+   */
+  isHostAllowed: (host: string) => boolean;
 }
 
 const CustomImagesContext = React.createContext<CustomImagesContextValue | undefined>(undefined);
@@ -446,6 +451,12 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     setAllowedHosts((previous) => new Set([...(previous ?? readAllowedImageSites()), ...hosts]));
   }, []);
 
+  const allowedHostsRef = useRef(allowedHosts);
+  useEffect(() => {
+    allowedHostsRef.current = allowedHosts;
+  }, [allowedHosts]);
+  const isHostAllowed = useCallback((host: string) => isImageHostAllowed(host, allowedHostsRef.current ?? new Set()), []);
+
   const waitingList = allowedHosts ? hostsAwaitingConsent(tiers, allowedHosts) : [];
   const waitingKey = waitingList.join(' ');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the same sites give the same array, so the notice does not re-render
@@ -459,7 +470,8 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     importDeviceImages,
     readDeviceImages,
     allowHosts,
-  }), [deviceStates, linkStates, isPackageItem, addDeviceImages, importDeviceImages, readDeviceImages, allowHosts]);
+    isHostAllowed,
+  }), [deviceStates, linkStates, isPackageItem, addDeviceImages, importDeviceImages, readDeviceImages, allowHosts, isHostAllowed]);
 
   return (
     <CustomImagesContext.Provider value={value}>

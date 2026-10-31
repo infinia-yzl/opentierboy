@@ -13,6 +13,17 @@ from a link, and images from the visitor's device (uploads and pasted images).
   its site when the address has no file name. A link image in a link without any label is
   named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
+- **Dropping a link or pasting an image address** (#107) adds a link image, with the checks
+  of "From a link": the address must pass `checkLinkImageUrl`. An image from a trusted site, or
+  from a site the visitor allowed, is loaded once and added only when it loads. An image from
+  any other site is added without loading it: it waits for [Load], like a link image in a
+  shared list. A drop of an image from another page uses the `<img>` addresses in the drop's
+  HTML, else its link list (`text/uri-list`), else its text; a paste uses only the words that
+  look like addresses (`https://...`, `data:`), so pasted sentences do nothing. One drop or
+  paste adds at most 20 addresses (`MAX_LINKS_PER_ADD`) and reads at most 100,000 characters,
+  and all its images are one change (one Back step). The server never fetches these addresses.
+- **While something is dragged over the editor**, an overlay says where to drop it. An empty
+  list shows a drop area in the Unranked tray, with Template, Upload and Link.
 - **Images from other sites**: when a list holds link images from sites that are not trusted,
   a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
   (remembered in this browser). Until then, those items show as label tiles and the browser
@@ -33,6 +44,7 @@ from a link, and images from the visitor's device (uploads and pasted images).
 | `lib/images/trustedSites.ts` + `trusted-image-sites.json` | Sites whose images load without asking. |
 | `scripts/check-trusted-sites.mjs` + `scripts/tracker-list.pin.json` | Fails when a trusted site is a known tracker. |
 | `lib/images/deviceStore.ts` | Keeps images from the device in the browser (IndexedDB). |
+| `lib/images/droppedLinks.ts` | Finds and checks the image addresses in dropped or pasted text. |
 | `lib/images/imageCheck.ts` | Loads an image once to check it, and gives label-tile data. |
 | `lib/images/prepareImage.ts` | Converts other image formats and large photos before they are kept. |
 | `lib/images/legacyUploads.ts` | Moves uploads that older versions kept in localStorage into the store. |
