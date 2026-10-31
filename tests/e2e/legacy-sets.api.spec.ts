@@ -30,7 +30,7 @@ test.describe('legacy sets', () => {
   });
 
   test.describe('app manifest and search data', () => {
-    test('returns the official image sets and no legacy set in shortcuts when the request has /manifest.webmanifest', async ({request}) => {
+    test('returns the active image sets and no legacy set in shortcuts when the request has /manifest.webmanifest', async ({request}) => {
       const response = await request.get('/manifest.webmanifest');
       expect(response.status()).toBe(200);
       const manifest = await response.json() as {shortcuts: {url: string}[]};
@@ -38,7 +38,7 @@ test.describe('legacy sets', () => {
       expect(manifest.shortcuts.map(({url}) => url)).toEqual(['/about', '/blog', '/rank', '/rank/the-finals/all', '/rank/overwatch/h-all']);
     });
 
-    test('returns the official image sets and no legacy set in the JSON-LD potentialAction when the request has /', async ({request}) => {
+    test('returns the active image sets and no legacy set in the JSON-LD potentialAction when the request has /', async ({request}) => {
       const response = await request.get('/');
       expect(response.status()).toBe(200);
       const html = await response.text();
@@ -55,7 +55,7 @@ test.describe('legacy sets', () => {
   });
 
   test.describe('sitemap', () => {
-    test('returns the official image sets and no legacy set when the request has /sitemap.xml', async ({request}) => {
+    test('returns the active image sets and no legacy set when the request has /sitemap.xml', async ({request}) => {
       const response = await request.get('/sitemap.xml');
       expect(response.status()).toBe(200);
       const sitemap = await response.text();

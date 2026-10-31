@@ -38,7 +38,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# public/images: scripts/prepareImages.js copies or symlinks the official image sets here.
+# public/images: scripts/prepareImages.js copies or symlinks the active image sets here.
 # The legacy sets are frozen: their WebP images are committed (imageset.legacy.json).
 # prepareImages makes the PNG copies for link previews of every set; they are never committed.
 public/images/*

@@ -1,7 +1,7 @@
 import {expect, expectTierNames, test} from '../support/test';
 import {templateItemCount} from '../support/links';
 
-// Official sets grow with new versions, so counts come from imageset.config.json.
+// Active sets grow with new versions, so counts come from imageset.config.json.
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
 test.describe('routes', {tag: '@mobile'}, () => {
