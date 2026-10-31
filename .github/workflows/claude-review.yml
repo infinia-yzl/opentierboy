@@ -1,21 +1,26 @@
 name: Claude review
 
-# Claude reviews each pull request with the code-review plugin and comments on it:
+# Claude reviews a pull request with the code-review plugin and comments on it:
 # inline comments for the issues it finds, or one summary comment when it finds none.
 # Setup and cost: docs/setup-checklist.md. Docs: https://code.claude.com/docs/en/github-actions
 #
-# The review runs only when the CLAUDE_CODE_OAUTH_TOKEN secret is set, and only for
-# pull requests from branches of this repository (fork pull requests get no secrets).
-# Comments are posted by the Claude GitHub App. The workflow token stays read-only.
+# The review runs only when someone adds the "review-claude" label. Only people with triage or
+# write access can add labels, so a pull request from anyone else costs nothing until you
+# choose to review it. It uses the ANTHROPIC_API_KEY secret (billed to that API key), and
+# skips itself while the secret is missing. Pull requests from forks get no secrets, so they
+# are skipped too. Comments are posted by the Claude GitHub App. The workflow token stays
+# read-only.
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    types: [labeled]
 
 permissions: {}
 
+# Other labels start this workflow too, but skip at once. The label is part of the group, so
+# adding another label never cancels a review in progress.
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
   cancel-in-progress: true
 
 jobs:
@@ -23,6 +28,7 @@ jobs:
   # into an output. It never sees the secret's value.
   gate:
     name: gate
+    if: github.event.label.name == 'review-claude'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
@@ -32,17 +38,17 @@ jobs:
       - id: token
         run: echo "has_token=${HAS_TOKEN}" >> "$GITHUB_OUTPUT"
         env:
-          HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          HAS_TOKEN: ${{ secrets.ANTHROPIC_API_KEY != '' }}
 
   review:
     name: review
     needs: gate
-    # Skip without failing when the secret is missing, for forks, for drafts (the plugin
-    # skips drafts too; this saves the runner) and for bots. The action fails the run for
-    # any bot that is not in its allowed_bots list, so pull requests opened or updated by
-    # a bot (Dependabot, the image pipeline bot) skip here. Marking a draft
-    # "ready for review" starts a review.
+    # Runs for the "review-claude" label only. Skips without failing when the secret is
+    # missing, for forks, for drafts (the plugin skips drafts too; this saves the runner) and
+    # for bots. The action fails the run for any bot that is not in its allowed_bots list, so
+    # pull requests opened by a bot (Dependabot, the image pipeline bot) skip here.
     if: >-
+      github.event.label.name == 'review-claude' &&
       needs.gate.outputs.has_token == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       !github.event.pull_request.head.repo.fork &&
@@ -70,7 +76,7 @@ jobs:
       # weaken its own review.
       - uses: anthropics/claude-code-action@16f9f71ab9c490faf367f94dd294897edc25be33 # v1.0.261
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           plugin_marketplaces: https://github.com/anthropics/claude-code.git
           plugins: code-review@claude-code-plugins
           prompt: |
