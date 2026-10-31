@@ -42,6 +42,13 @@ export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a n
 /** Files for the file picker: paths, or files made in the test. */
 type DeviceFiles = string[] | {name: string; mimeType: string; buffer: Buffer}[];
 
+/** A request the page sent, as recordRequests() keeps it. */
+export interface SentRequest {
+  method: string;
+  url: string;
+  body: Buffer;
+}
+
 export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
@@ -896,6 +903,33 @@ export class TierListPage {
         element.dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
       }
     }, groups.map((group) => group.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')}))));
+  }
+
+  // ---- Safety checks ------------------------------------------------------------------------
+
+  /**
+   * Records every request the page sends from now on, with its body. Returns a function that
+   * gives the requests so far. Product rule 5: a device image never reaches the server.
+   */
+  recordRequests(): () => SentRequest[] {
+    const sent: SentRequest[] = [];
+    this.page.on('request', (request) => {
+      sent.push({method: request.method(), url: request.url(), body: request.postDataBuffer() ?? Buffer.alloc(0)});
+    });
+    return () => sent.slice();
+  }
+
+  /**
+   * Whether markup in user text ran as code. Safety tests put `<img onerror>` and `<script>` text
+   * that sets `window.__otbInjected` into titles, row names and labels.
+   */
+  async injectedMarkupRan(): Promise<boolean> {
+    return this.page.evaluate(() => (window as unknown as {__otbInjected?: unknown}).__otbInjected !== undefined);
+  }
+
+  /** The page title in the browser tab. */
+  async documentTitle(): Promise<string> {
+    return this.page.title();
   }
 
   // ---- Files: snapshot files and pictures ---------------------------------------------------
