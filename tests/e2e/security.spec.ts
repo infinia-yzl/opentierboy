@@ -69,6 +69,14 @@ test.describe('security', () => {
       expect(policy).not.toContain('unsafe-eval');
     });
 
+    test('returns the Referrer-Policy, X-Content-Type-Options, Permissions-Policy and COOP headers when the page opens /rank', async ({page}) => {
+      const headers = (await page.goto('/rank'))?.headers() ?? {};
+      expect(headers['referrer-policy']).toBe('no-referrer');
+      expect(headers['x-content-type-options']).toBe('nosniff');
+      expect(headers['permissions-policy']).toContain('camera=()');
+      expect(headers['cross-origin-opener-policy']).toBe('same-origin-allow-popups');
+    });
+
     test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
       await page.goto('/', {waitUntil: 'networkidle'});
       await expect(site.main).toBeVisible();

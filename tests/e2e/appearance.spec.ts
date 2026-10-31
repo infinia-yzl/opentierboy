@@ -35,8 +35,10 @@ test.describe('appearance', () => {
     });
 
     test('renders the page background of the device colour scheme, also after it changes, when the user chooses System', {tag: '@mobile'}, async ({site, page}) => {
-      await page.emulateMedia({colorScheme: 'dark'});
+      // Emulate after the first load: the Cross-Origin-Opener-Policy header moves the page into
+      // a new browsing context in Firefox, and Playwright's emulation set before it is lost.
       await site.gotoHome();
+      await page.emulateMedia({colorScheme: 'dark'});
       await site.chooseMode('light');
       await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
 
