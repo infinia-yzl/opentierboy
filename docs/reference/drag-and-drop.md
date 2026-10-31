@@ -1,8 +1,10 @@
 # Drag and drop: the dnd-kit fork and lib/dnd
 
+For contributors and agents: the copy of dnd-kit in `packages/dnd-kit`, the adapter in
+`lib/dnd` (the only code that uses it), and drag performance.
+
 The editor's drag and drop runs on dnd-kit. It replaced `@hello-pangea/dnd`, which cannot
-handle rows that wrap onto several lines (#142). This document covers the copy of dnd-kit in
-`packages/dnd-kit` and the adapter in `lib/dnd`, which is the only code that uses it.
+handle rows that wrap onto several lines (#142).
 
 ## What is vendored, and why
 
@@ -97,8 +99,9 @@ install.
 
 ### Checking the build against npm
 
-The committed output was checked against the npm tarballs: all 77 files are identical. To
-repeat the check after a build:
+The committed output has the same 77 files as the npm tarballs. The files that the local
+changes touch differ (see "Local changes"), and every other file is identical. To repeat the
+check after a build:
 
 ```bash
 mkdir -p /tmp/dnd-npm && cd /tmp/dnd-npm
@@ -112,8 +115,7 @@ for p in abstract collision dom geometry helpers react state; do
 done
 ```
 
-After a fresh build, `git status` should also show no changes. Once the fork has local changes,
-the files those changes touch will differ from npm, and nothing else should.
+After a fresh build, `git status` should also show no changes.
 
 ## Updating from upstream
 
@@ -358,70 +360,41 @@ label, a handle a `button` named `Move tier <label>`. dnd-kit adds `aria-roledes
 and `aria-pressed`; the editor sets `role`, `tabIndex` and `aria-describedby` itself, so the
 server-rendered page has them too.
 
-### Wiring checklist (done)
-
-- [x] `@hello-pangea/dnd` replaced in `components/DragDropTierList.tsx` and
-  `components/RowHandle.tsx`; the dependency is removed.
-- [x] Keyboard moves with `keyboardItemTarget` for items and `keyboardRowTarget` for rows, in
-  place of dnd-kit's `SortableKeyboardPlugin`.
-- [x] The `dragover` announcement reads the position after the move (the preview), as the
-  screen shows it.
-- [x] Accessible names kept (row `group`, item `button`, handle `Move tier <label>`).
-- [x] Touch: hold-to-drag and the long-press menu (Delete) both work; no text selection or
-  callout on a long press (CSS); a swipe that starts on an item scrolls the page. Tested in
-  Chromium's phone emulation; a real phone is still to be tried.
-- [x] Only the drag methods of `tests/pages/tier-list-page.ts` changed, plus new methods for the
-  new tests: `tests/e2e/drag-and-drop.spec.ts` (wrapping rows, drops that change nothing,
-  announcements, touch), `tests/e2e/editor-rows.spec.ts` (add and remove rows) and
-  `tests/e2e/tile-shapes.spec.ts` (mixed shapes, with a made-up config: see
-  `tests/README.md`).
-- [x] Dragging with 200 tiles measured: `npm run bench:drag` (see "Performance").
-- [x] `MAX_TIER_ROWS <= V3_LIMITS.maxRows` and unique tier and item ids where the editor
-  hands its list to `lib/dnd` (`tests/unit/lib/tierListReducer.test.ts`).
-- [x] `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop) updated.
-
 ## Performance
 
 `scripts/bench-drag.mjs` (`npm run bench:drag -- --url <server>`) drags one item through all
 rows of a 200-tile list in Chromium and reports frame times, preview lag (from the pointer
-entering a row until the item shows there), long tasks and main-thread time per frame.
-`--cpu 4` slows the CPU four times, close to a mid-range phone; `--budget` fails when the
-result at full speed is over the owner's "no visible lag" budget. Measured on the agents'
-sandbox (2 CPUs), 2026-10-28, against a production build:
+entering a row until the item shows there), long tasks and main-thread time per frame. At the
+end of each run it releases the item in row S and counts the frames drawn during the 300 ms
+drop animation (18 at 60 Hz). `--cpu 4` slows the CPU four times, close to a mid-range phone;
+`--budget` fails when the result at full speed is over the owner's "no visible lag" budget
+(`BUDGET` in the script). Runs on one machine vary by about 20%, so compare builds on the same
+machine, with several runs.
 
-| Build | CPU | Frame p50 / p95 | Preview lag median / p95 | Long tasks | Main thread per frame |
-| --- | --- | --- | --- | --- | --- |
-| `@hello-pangea/dnd` (before 5e) | 4x slower | 16.7 / 67-83 ms | (not comparable) | 670-810 | 13 ms |
-| 5e as first opened (#196) | full | 16.7 / 50 ms | 64 / 157 ms | 12 | - |
-| 5e as first opened (#196) | 4x slower | 67 / 167 ms | 452 / 1,064 ms | 878 | 111 ms |
-| 5e after the performance fixes | full | 16.7 / 16.8 ms | 24 / 42 ms | 5 | 13 ms |
-| 5e after the performance fixes | 4x slower | 16.7 / 67 ms | 52 / 156 ms | 140 | 28 ms |
+Measured on the agents' sandbox (2 CPUs), 2026-10-28, against a production build:
 
-The largest cost was the blurred label of every tile (`backdrop-blur-xs` with its own
-compositing layer): during a drag the labels now drop the blur, as they already did while the
-page scrolls (`data-dragging` on the row list, `app/globals.css`). What remains at 4x is mostly
-dnd-kit's own work per moved item: position observers, shape measurements and collision
-detection, about 10 ms of script per frame.
+| CPU | Frame p50 / p95 | Preview lag median / p95 | Long tasks | Main thread per frame |
+| --- | --- | --- | --- | --- |
+| full | 16.7 / 16.8 ms | 24 / 42 ms | 5 | 13 ms |
+| 4x slower | 16.7 / 67 ms | 52 / 156 ms | 140 | 28 ms |
 
-The drop (owner report, 2026-10-28: "as it's easing into the tier row, it seems to be laggy").
-`bench:drag` releases the item in row S at the end of each run and counts the frames drawn
-during the 300 ms drop animation (18 at 60 Hz). Same machine, five runs each:
+| CPU | Drop animation frames, min / median | Worst frame in 800 ms after the release |
+| --- | --- | --- |
+| full | 18 / 18 | 133 ms (after the item has landed) |
+| 4x slower | 6 / 9 | 150 ms |
 
-| Build | CPU | Drop animation frames, min / median | Worst frame in 800 ms after the release |
-| --- | --- | --- | --- |
-| Before the drop fixes | full | 6 / 7 | 117 ms |
-| After the drop fixes | full | 18 / 18 | 133 ms (after the item has landed) |
-| Before the drop fixes | 4x slower | 4 / 5 | 433 ms |
-| After the drop fixes | 4x slower | 6 / 9 | 150 ms |
+What keeps a drag fast:
 
-Two causes, both fixed:
+- The tile labels drop their blur during a drag and its drop animation, as they do while the
+  page scrolls (`data-dragging` on the row list, `app/globals.css`). The blurred label of every
+  tile (`backdrop-blur-xs` with its own compositing layer) was the largest cost.
+- The labels keep the drag style until the dropped item has landed (`useTierDragState`). Their
+  `transition-all` would otherwise animate the blur and the transform of every label (about 400
+  transitions with 200 tiles) during the drop animation.
+- The position observers of the droppables stop at the release ("Local changes" above).
 
-- The tile labels got their blur back at the release. Their `transition-all` then animated the
-  blur and the transform of every label (about 400 transitions with 200 tiles) during the drop
-  animation. The labels now keep the drag style until the item has landed.
-- The position observers of every droppable ran again at the release ("Local changes" above).
-
-What remains comes after the landing: the labels draw their blur again, and the list writes its
-new link (`router.push`), about 0.5 s after the release. The item has stopped moving by then.
-Turning the label transitions off did not change those frames.
-
+What remains at 4x is mostly dnd-kit's own work per moved item: position observers, shape
+measurements and collision detection, about 10 ms of script per frame. After the landing, the
+labels draw their blur again and the list writes its new link (`router.push`), about 0.5 s
+after the release. The item has stopped moving by then. Turning the label transitions off did
+not change those frames.
