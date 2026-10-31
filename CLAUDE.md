@@ -108,7 +108,7 @@ lib/fonts.ts          the game fonts of the image-set cards
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
 lib/dnd/              drag and drop adapter, the only code that imports dnd-kit: pure moves, previews,
                       keyboard targets, announcements (labels, never ids), touch activation, and
-                      the React API in react.tsx (docs/dnd-fork.md)
+                      the React API in react.tsx (docs/reference/drag-and-drop.md)
 lib/tileSize.ts       tile sizes by shape (square, landscape, portrait)
 lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
 lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
@@ -126,12 +126,12 @@ lib/rankRoute.ts      the set and tag a /rank path names, and its HTTP answer (p
 lib/utils.ts          slugs for /rank URLs, tier gradients
 lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
 models/               types: Tier (row templates), Item, ItemSet, ImageSet
-packages/dnd-kit/     the vendored dnd-kit fork (npm workspaces, committed build; docs/dnd-fork.md)
+packages/dnd-kit/     the vendored dnd-kit fork (npm workspaces, committed build; docs/reference/drag-and-drop.md)
 scripts/prepareImages.js   builds imageset.config.json and public/images from the official image-*
                       packages, and checks the committed legacy images (see "Image sets")
 scripts/lib/image-sets.mjs   shared rules: official vs legacy, config entries, shapes
 scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
-scripts/bench-drag.mjs   drag performance benchmark (docs/dnd-fork.md, "Performance")
+scripts/bench-drag.mjs   drag performance benchmark (docs/reference/drag-and-drop.md, "Performance")
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
 trusted-image-sites.json   sites whose link images load without asking
@@ -149,7 +149,8 @@ tests/pages/          page objects (tier-list-page.ts: TierListPage, site-page.t
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
 tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts) at the paths of the code they test; rules/ and fixtures/
-docs/                 owner checklists and guides (releasing.md: versions and releases)
+docs/                 the docs, listed in docs/README.md: maintainers/ (owner settings, releases,
+                      image sets) and reference/ (link format, images, snapshot files, drag and drop)
 ```
 
 ## Link contract
@@ -157,7 +158,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
 - A shared link is `/rank/<set>/<tag>?state=<value>`. The value is lz-string
   `compressToEncodedURIComponent` of JSON.
 - Formats: v0 is an array of tiers; v1 and v2 are `{title?, tiers: [{i, n, t: [{i, c?}]}]}`.
-  The app writes v3: `3.` + lz-string of `{t?, tp?, lp?, sl?, r}` (see `docs/link-format-v3.md`).
+  The app writes v3: `3.` + lz-string of `{t?, tp?, lp?, sl?, r}` (see `docs/reference/link-format.md`).
   Rows are `[id?, name, items]`. An item is an image-set id, `{i, c}` (an id that names no
   image-set item, with its label), `{u, c}` (link image) or `{d, c}` (device image).
   `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format. v3 fixtures live in
@@ -217,7 +218,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
   `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
-  (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
+  (a manual owner step, `docs/maintainers/repository-settings.md`), one pull request adds it:
   1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
      `imageset.custom.json` (this puts it on the official list; the display name becomes its
      URL slug, so choose it once);
@@ -272,7 +273,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
 - **Snapshot file**: Freeze Frame's Download saves the captured PNG with one `iTXt` chunk
   (keyword `opentierboy`) that holds the list: `{version: 1, state, path?, images}`. `state` is
   the v3 link Share hands out; `images` are the list's device images as raster data URLs.
-  Format, limits and reason codes: `docs/snapshot-and-recent.md`. Saved files must keep
+  Format, limits and reason codes: `docs/reference/snapshot-files.md`. Saved files must keep
   opening, like old links: never change what payload version 1 means.
 - Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG (signature,
   CRCs, size caps, capped decompression) and the payload (zod, caps, and each image's size as

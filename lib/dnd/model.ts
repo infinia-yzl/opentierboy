@@ -1,6 +1,6 @@
 /**
  * Shared types of the drag and drop adapter (lib/dnd). Pure types: no React, no DOM, no
- * dnd-kit. See docs/dnd-fork.md for how the pieces fit together.
+ * dnd-kit. See docs/reference/drag-and-drop.md for how the pieces fit together.
  */
 
 /** The smallest shape of an item that the adapter needs. models/Item fits it. */

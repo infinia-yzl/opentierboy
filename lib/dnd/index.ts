@@ -1,6 +1,6 @@
 /**
  * Drag and drop adapter for the tier list. lib/dnd is the only module that may import
- * dnd-kit (the fork in packages/dnd-kit, see docs/dnd-fork.md); ESLint enforces it.
+ * dnd-kit (the fork in packages/dnd-kit, see docs/reference/drag-and-drop.md); ESLint enforces it.
  *
  * - model.ts          shared types (positions, moves, directions)
  * - moves.ts          list changes: move items, reorder rows (labels stay), add/remove rows

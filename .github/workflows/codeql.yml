@@ -3,7 +3,7 @@ name: CodeQL
 # CodeQL advanced setup. While CodeQL "default setup" is on, GitHub rejects the results
 # this workflow uploads ("Upload with CodeQL results rejected due to default setup") and
 # the run fails. Switch the repository to advanced setup before merging this file
-# (docs/setup-checklist.md).
+# (docs/maintainers/repository-settings.md).
 
 on:
   pull_request:

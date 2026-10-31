@@ -14,7 +14,7 @@ import type {DragDropManager} from '../../manager/manager.ts';
 type OptionalInput = 'collisionDetector';
 
 /*
- * OpenTierBoy fork (docs/dnd-fork.md, "Local changes"): position changes in batches.
+ * OpenTierBoy fork (docs/reference/drag-and-drop.md, "Local changes"): position changes in batches.
  *
  * Upstream updates a droppable's shape inside its position observer's callback. Each new shape
  * runs collision detection for every droppable at once, so a render that moves 60 droppables
@@ -88,7 +88,7 @@ export class Droppable<T extends Data = Data> extends AbstractDroppable<
 
             // OpenTierBoy fork: stop tracking positions as soon as the drag stops. Collisions no
             // longer matter, and the list changes at the drop; every droppable's observer would
-            // measure and rebuild itself during the drop animation (see docs/dnd-fork.md).
+            // measure and rebuild itself during the drop animation (see docs/reference/drag-and-drop.md).
             observePosition.value = Boolean(
               source &&
                 dragOperation.status.initialized &&

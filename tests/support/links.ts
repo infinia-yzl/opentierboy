@@ -106,7 +106,7 @@ export function stateFromJson(json: unknown): string {
 }
 
 /**
- * Builds a v3 `state` value (`3.` and lz-string of the JSON, docs/link-format-v3.md), for
+ * Builds a v3 `state` value (`3.` and lz-string of the JSON, docs/reference/link-format.md), for
  * lists with layout settings, link images or device images.
  */
 export function v3State(json: unknown): string {

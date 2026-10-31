@@ -224,7 +224,7 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
 ## 9. Releases
 
 `release.yml` tags each new version once Vercel has deployed it, and creates its GitHub release
-(`docs/releasing.md`). It needs no secret and no new setting:
+(`docs/maintainers/releasing.md`). It needs no secret and no new setting:
 
 1. It runs on Vercel's `repository_dispatch` event `vercel.deployment.success`. Vercel's GitHub
    App sends it after each deployment. GitHub runs it only once `release.yml` is on `main`.

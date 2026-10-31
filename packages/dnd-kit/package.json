@@ -1,7 +1,7 @@
 {
   "name": "opentierboy-dnd-kit-fork",
   "private": true,
-  "description": "Build tools for the dnd-kit fork in this folder. This folder is not an npm workspace of the app. See docs/dnd-fork.md.",
+  "description": "Build tools for the dnd-kit fork in this folder. This folder is not an npm workspace of the app. See docs/reference/drag-and-drop.md.",
   "license": "MIT",
   "type": "module",
   "scripts": {

@@ -274,7 +274,7 @@ out of links.
 
 - Link images load in the browser from trusted sites (`trusted-image-sites.json`), and from
   other sites once the visitor allows them; until then, and when an image fails, the tile shows
-  the label (or, without a label, the site's name). See `docs/custom-images.md`.
+  the label (or, without a label, the site's name). See `docs/reference/images.md`.
 - Device images show the image this browser keeps under their id in the device image store.
   Without one, the label shows on the placeholder image, as for an upload in someone else's
   browser.

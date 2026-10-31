@@ -13,7 +13,7 @@ name: E2E on deployment
 # Security: GitHub runs this workflow file from the deployed commit. A deployment of a
 # fork's pull request would run the fork's copy of this file with access to the
 # "vercel-e2e" environment secrets. Keep Vercel's Git Fork Protection on and never approve
-# a fork deployment without reading it first (docs/setup-checklist.md).
+# a fork deployment without reading it first (docs/maintainers/repository-settings.md).
 # The job runs only for deployment statuses created by Vercel's GitHub App
 # ("vercel[bot]", the creator on this repository's real deployments).
 #

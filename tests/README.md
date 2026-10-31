@@ -172,7 +172,7 @@ tests/
 
 ### Drag and drop
 
-The editor's drag and drop runs on dnd-kit through `lib/dnd` (`docs/dnd-fork.md`). During a
+The editor's drag and drop runs on dnd-kit through `lib/dnd` (`docs/reference/drag-and-drop.md`). During a
 drag the editor shows the list as it would be after the drop: rows and items move out of the
 way of the dragged one. The list itself changes only on the drop, with one history entry.
 
@@ -260,7 +260,7 @@ node scripts/capture-shared-links.mjs --source "Discord #tier-lists, 2026-10" <u
 `generated.json` holds 24 links written by the 2024 code of the three legacy formats (v0, v1,
 v2). A script made them once from git history; it was removed in 2.0.0, and git history keeps
 it (`scripts/generate-legacy-fixtures.mjs`). `v3.json` holds links in the v3 format, and each of its entries must also encode back
-to its `state` (see `docs/link-format-v3.md`). The unit tests in `tests/unit/lib/state/` decode
+to its `state` (see `docs/reference/link-format.md`). The unit tests in `tests/unit/lib/state/` decode
 every entry of these files and of `shared-links.json`.
 The same rule applies: append, never edit. `npm run check:fixtures` fails when an existing
 entry of a fixture file, `image-registry.lock.json` or `image-aliases.json` changed or

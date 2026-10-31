@@ -12,7 +12,7 @@
  * - 1: legacy object `{tiers, title?}`, every item carries its label.
  * - 2: legacy object `{tiers, title?}`, only custom items carry a label. The app writes
  *   this format today.
- * - 3: the `3.` prefixed format (docs/link-format-v3.md). It also stores the row template,
+ * - 3: the `3.` prefixed format (docs/reference/link-format.md). It also stores the row template,
  *   the label position, label visibility, and images from links and devices.
  *
  * A v2 list whose items are all custom, or that has no items, is byte-identical to what
