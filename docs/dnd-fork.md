@@ -308,8 +308,8 @@ Decisions in the adapter:
   of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
   exceed the row cap of the link decoder (`tests/unit/dnd/listIds.test.ts` checks it). The
-  row options menu offers "Add a row" and "Remove a row" (a submenu of the ranked rows), each
-  one history entry.
+  "Add row" button under the rows adds one, and the Row options menu (the cogwheel beside it)
+  offers "Remove a row" (a submenu of the ranked rows). Each is one history entry.
 - **Mixed tile shapes.** Tiles render at their shape with one height (`lib/tileSize.ts`), and
   dnd-kit and the keyboard code work from measured boxes.
 

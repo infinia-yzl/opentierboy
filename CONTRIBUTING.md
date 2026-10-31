@@ -12,6 +12,21 @@ We welcome contributions to OpenTierBoy! Here's how you can help forge the legen
 6. **Push**: `git push origin feature/AmazingFeature`
 7. **Open a Pull Request**: Submit your changes for review.
 
+### Working on the code
+
+You need Node.js 22 and npm.
+
+1. **Install**: `npm ci`
+2. **Run the site**: `npm run dev`, then open http://localhost:3000
+3. **Check your change**: `npm run check` runs the type check, lint, unit tests and the repository checks. CI runs the
+   same script.
+4. **End-to-end tests**: `npx playwright install` once, then `npm run build` and `npm run test:e2e`.
+
+Read [CLAUDE.md](CLAUDE.md) before you change the code. Its product rules keep every shared link and item id working,
+and its review rules list what reviews flag. Commit messages follow
+[Conventional Commits](https://www.conventionalcommits.org/), for example
+`fix(editor): keep the title when switching templates`.
+
 ### Contribution Guidelines
 
 - Ensure your code adheres to the project's coding standards.
@@ -65,9 +80,9 @@ template). If the owner accepts it, it joins the official sets in a pull request
 
 Found a bug or have a suggestion? Open an issue on GitHub:
 
-1. Go to the [Issues](https://github.com/yourusername/opentierboy/issues) tab.
+1. Go to the [Issues](https://github.com/infinia-yzl/opentierboy/issues) tab.
 2. Click "New Issue".
-3. Choose the appropriate template (Bug Report, Feature Request, or Image Update/Addition).
+3. Choose the appropriate template (Bug Report, Feature Request / Feedback, or Image Update or Addition).
 4. Provide a clear title and detailed description.
 5. Add relevant labels if necessary.
 

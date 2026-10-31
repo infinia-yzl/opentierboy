@@ -29,7 +29,9 @@ Ask the owner first, unless the task explicitly asks for it:
 - change anything a user can see or do (layout, wording, flows, defaults);
 - change how links are encoded or decoded;
 - add a dependency, or upgrade a major version;
-- edit a workflow in `.github/` or this file.
+- edit a workflow in `.github/` or this file;
+- change branches, pull requests or history on GitHub (retarget, merge, close, force-push).
+  Discuss the plan first, and check that no pull request can close as a side effect.
 
 Never edit or delete an existing fixture entry, even when asked to "fix a test".
 
@@ -99,6 +101,10 @@ lib/packageItems.ts   item lookup (built once per image-set config, shared), ali
                       items, item and category shapes, custom items
 lib/listLink.ts       the link encode and decode used by the store: link to tiers of items, and back
 lib/linkPreview.ts    preview helpers for the OG route: row gradients, preview image URLs, base URL
+lib/listCard/         the list card that link previews and Freeze Frame both draw: fit rules (fit.ts)
+                      and its data (model.ts); components/ListCard.tsx renders it (LIST_CARD_COLORS)
+lib/appearance.ts     modes, retired themes, fonts, game colours and the head script (see "Appearance")
+lib/fonts.ts          the game fonts of the image-set cards
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
 lib/dnd/              drag and drop adapter, the only code that imports dnd-kit: pure moves, previews,
                       keyboard targets, announcements (labels, never ids), touch activation, and
@@ -273,14 +279,29 @@ docs/                 owner checklists
   its header declares it, at most 4096 x 4096), and never throws. Every image is drawn again
   through a canvas before it is stored (`prepareImageForStore` with `alwaysReencode`), because
   the payload checks only its header (A10).
-- Open file, a dropped file and a pasted file all go through `openFiles` in
-  `components/useSnapshotFiles.tsx`. A file with a list asks first, then opens with one
-  `router.push` (one Back step). Pictures become items, like "From your device".
+- "Open a saved picture…" (in the Add images menu), a dropped file and a pasted file all go
+  through `openFiles` in `components/useSnapshotFiles.tsx`. A file with a list asks first, then
+  opens with one `router.push` (one Back step). Pictures become items, like "From your device".
 - **Recently viewed** (`lib/recent/recentLinks.ts`, `components/useRecentLinks.ts`, the landing
   page section) keeps the links this browser opened in local storage (`otb-recent-links`). The
   editor records a list once, when it opens with a list in its link; edits never record. Pin
   limit 20 and unpinned limit 30 are constants (owner review). Stored entries are checked with
   zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
+
+## Appearance
+
+- **Mode**: Light, Dark or System, through next-themes. Saved themes from before 2.0.0
+  (`ocean-light`, `ocean-dark`, `forest-light`, `forest-dark`) still apply: `THEME_CLASSES` in
+  `lib/appearance.ts` maps them to light and dark.
+- **Font** (Modern: Geologica; Classic: Nunito Sans with Urbanist headings) and **Game colours**
+  are classes on `<html>` (`font-classic`, `no-game-colours`), kept in local storage (`otb-font`,
+  `otb-game-colours`). `APPEARANCE_SCRIPT` (`lib/appearance.ts`) runs in the head of every page
+  (`app/layout.tsx`) and adds them before the page paints. It is a constant string with no user
+  data, and the one allowed `dangerouslySetInnerHTML` besides trusted JSON.
+- **Game colours**: `components/GameColours.tsx` sets `data-game` on `<html>` on an image set's
+  pages, and `app/globals.css` holds each game's primary colour.
+- Link previews and Freeze Frame always use Geologica and the card's warm colours
+  (`LIST_CARD_COLORS`), whatever the visitor chose.
 
 ## Tests
 
@@ -326,6 +347,10 @@ docs/                 owner checklists
   `fix(editor): keep the title when switching templates`.
 - Small, logical commits. Each commit passes `npm run check`.
 - Pull request text: what changed, why, how you verified it, and what you could not verify.
+- The version in `package.json` follows Semantic Versioning (owner decision, 2026-10-31).
+- Until the 2.0.0 cutover, revamp pull requests target `epic/ui-revamp`, and PR #202 brings it
+  into `main`. Merge into the epic with merge commits, never squash: a branch may carry the
+  commits of the branch below it.
 - Write for the owner in plain, short sentences.
 
 ## Review rules
@@ -337,7 +362,7 @@ Reviews (human or Claude) flag these as bugs:
   decodes to.
 - Renaming or removing an image file, image set or item id.
 - Cross-site scripting: user text (titles, labels, link data) rendered as HTML, or
-  `dangerouslySetInnerHTML` with anything other than trusted JSON.
+  `dangerouslySetInnerHTML` with anything other than trusted JSON or `APPEARANCE_SCRIPT`.
 - Untrusted input (shared links, uploaded or pasted files, image URLs) parsed without
   validation and size limits.
 - The server fetching a URL that came from a user.

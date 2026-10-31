@@ -5,7 +5,7 @@ description: This document outlines the terms for using OpenTierBoy. By accessin
 
 # OpenTierBoy Terms of Service
 
-**Effective Date: 18 July 2024**
+**Effective Date: [the 2.0.0 release date, set at the cutover]**
 
 Welcome to OpenTierBoy. These Terms of Service ("Terms") govern your access and use of our website located
 at [https://opentierboy.com](https://opentierboy.com) (collectively or individually "Service") operated by Isaac Yong ("
@@ -75,15 +75,15 @@ or otherwise exploit the content without our permission, except as allowed by th
 
 ## Use of Images and Copyright
 
-OpenTierBoy allows users to upload and use images in their tier lists. Users are responsible for ensuring they have the
-right to use any images they upload. When using images from games, movies, or other copyrighted sources, users should
+OpenTierBoy allows users to add images to their tier lists, by uploading or pasting them, or by linking to images on
+other websites. Users are responsible for ensuring they have the right to use any images they add. When using images from games, movies, or other copyrighted sources, users should
 adhere to fair use principles:
 
 The use should be transformative (e.g., for criticism, commentary, or parody purposes).
 The amount of the copyrighted work used should be reasonable in relation to the purpose of the use.
 The use should not negatively impact the market for the original work.
 
-OpenTierBoy does not claim ownership of any user-uploaded images. Users retain all rights to their original content.
+OpenTierBoy does not claim ownership of any images users add. Users retain all rights to their original content.
 We respect the intellectual property rights of others and expect our users to do the same. If you believe that your
 copyrighted work has been used in a way that constitutes copyright infringement, please contact us
 at [dev@infinia.space](mailto:dev@infinia.space).
