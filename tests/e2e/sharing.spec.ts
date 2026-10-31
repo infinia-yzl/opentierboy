@@ -20,12 +20,9 @@ test.describe('Sharing', () => {
 
   test('Copy Markdown puts a message with the current link on the clipboard', {tag: '@mobile'}, async ({
     tierList,
-    context,
-    browserName,
     openAsVisitor,
   }) => {
-    test.skip(browserName !== 'chromium', 'Only Chromium lets a test grant clipboard read access.');
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await tierList.readCopiedText();
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
     await tierList.copyMarkdown();
@@ -41,13 +38,10 @@ test.describe('Sharing', () => {
 
   test('after Back, Share hands out the list on screen with the label settings on screen', async ({
     tierList,
-    context,
-    browserName,
     openAsVisitor,
     page,
   }) => {
-    test.skip(browserName !== 'chromium', 'Only Chromium lets a test grant clipboard read access.');
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await tierList.readCopiedText();
     await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
     await tierList.dragItemToTier('Mauga', 'S');
     await tierList.chooseLabelPosition('Top');
@@ -67,12 +61,9 @@ test.describe('Sharing', () => {
 
   test('on a slow connection, Copy Markdown right after quick changes shares the latest list', async ({
     tierList,
-    context,
-    browserName,
     openAsVisitor,
   }) => {
-    test.skip(browserName !== 'chromium', 'Only Chromium lets a test grant clipboard read access.');
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await tierList.readCopiedText();
     await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
     await tierList.simulateSlowServer(400);
 

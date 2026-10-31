@@ -132,6 +132,41 @@ test.describe('Drag announcements', () => {
   });
 });
 
+test.describe('Cancelling a move', () => {
+  test('Escape during a mouse drag puts the item back, and the link and history stay', async ({tierList, page}) => {
+    await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
+    await tierList.waitUntilInteractive();
+    const before = page.url();
+    const entries = await tierList.historyLength();
+
+    await tierList.dragItemToTierThenCancel('Mauga', 'A');
+
+    await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in tier S, position 1 of 2.');
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    await expect(tierList.itemsIn('A')).toHaveCount(0);
+    expect(page.url()).toBe(before);
+    expect(await tierList.historyLength()).toBe(entries);
+    // The editor still works: the next drag moves the item.
+    await tierList.dragItemToTier('Mauga', 'A');
+    await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+  });
+
+  test('Escape during a keyboard move puts the item back, and the link and history stay', async ({tierList, page}) => {
+    await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
+    await tierList.waitUntilInteractive();
+    const before = page.url();
+    const entries = await tierList.historyLength();
+
+    await tierList.moveItemWithKeyboardThenCancel('Sigma', ['ArrowUp', 'ArrowUp']);
+
+    await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Sigma is back in Unranked, position 1 of 1.');
+    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
+    await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    expect(page.url()).toBe(before);
+    expect(await tierList.historyLength()).toBe(entries);
+  });
+});
+
 test.describe('Touch', () => {
   test.skip(({browserName, isMobile}) => browserName !== 'chromium' || !isMobile, 'Touch events go through the Chrome DevTools Protocol, on a phone.');
 
