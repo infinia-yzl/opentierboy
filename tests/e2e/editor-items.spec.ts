@@ -126,14 +126,21 @@ test.describe('editor items', () => {
       await tierList.shareButton.click({trial: true, timeout: 3_000});
     });
 
-    test('renders focus on button "Add images" when the user confirms or cancels Remove All', async ({tierList}) => {
+    test('renders focus on button "Add images" when the user confirms Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
       await tierList.removeAllItems();
+
       await expect(tierList.manageItemsButton).toBeFocused();
+    });
+
+    test('renders focus on button "Add images" when the user cancels Remove All', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
       await tierList.cancelRemoveAllItems();
+
       await expect(tierList.manageItemsButton).toBeFocused();
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     });
   });
 

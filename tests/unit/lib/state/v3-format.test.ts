@@ -97,9 +97,13 @@ describe('encodeV3 and decodeState', () => {
     });
   });
 
-  it('returns the title when it is only spaces, and no t key when it is empty', () => {
+  it('returns a t key of 2 spaces from encodeV3, and the same title after decodeState, when the title is 2 spaces', () => {
     expect(jsonOf(encodeV3(list({title: '  '})))).toBe('{"t":"  ","r":[["uncategorized","",[]]]}');
     expect(decodeState(encodeV3(list({title: '  '})))?.title).toBe('  ');
+  });
+
+  it('returns no t key from encodeV3, and no title from decodeState, when the title is empty', () => {
+    expect(jsonOf(encodeV3(list({title: ''})))).toBe('{"r":[["uncategorized","",[]]]}');
     expect(decodeState(v3('{"t":"","r":[["x","",[]]]}'))).not.toHaveProperty('title');
   });
 

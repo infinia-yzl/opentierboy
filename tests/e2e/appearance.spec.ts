@@ -25,37 +25,37 @@ test.describe('appearance', () => {
     test('renders the page background of the chosen mode, also after a reload, when the user chooses Dark or Light', {tag: '@mobile'}, async ({site, page}) => {
       await site.gotoHome();
       await site.chooseMode('dark');
-      await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
 
       await page.reload();
-      await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
 
       await site.chooseMode('light');
-      await expect.poll(() => site.pageBackground()).toBe(LIGHT_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
     });
 
     test('renders the page background of the device colour scheme, also after it changes, when the user chooses System', {tag: '@mobile'}, async ({site, page}) => {
       await page.emulateMedia({colorScheme: 'dark'});
       await site.gotoHome();
       await site.chooseMode('light');
-      await expect.poll(() => site.pageBackground()).toBe(LIGHT_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
 
       await site.chooseMode('system');
-      await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
       await page.emulateMedia({colorScheme: 'light'});
-      await expect.poll(() => site.pageBackground()).toBe(LIGHT_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
 
       await page.reload();
-      await expect.poll(() => site.pageBackground()).toBe(LIGHT_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
       await page.emulateMedia({colorScheme: 'dark'});
-      await expect.poll(() => site.pageBackground()).toBe(DARK_BACKGROUND);
+      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
     });
 
     for (const [retired, mode] of RETIRED_THEMES) {
-      test(`renders the ${mode} page background and checks ${MODE_LABELS[mode]} when localStorage theme is the retired value ${retired}`, async ({site}) => {
+      test(`renders the ${mode} page background and the option ${MODE_LABELS[mode]} checked when localStorage theme is the retired value ${retired}`, async ({site}) => {
         await site.rememberBeforeLoad('theme', retired);
         await site.gotoHome();
-        await expect.poll(() => site.pageBackground()).toBe(mode === 'dark' ? DARK_BACKGROUND : LIGHT_BACKGROUND);
+        await expect(site.body).toHaveCSS('background-color', mode === 'dark' ? DARK_BACKGROUND : LIGHT_BACKGROUND);
 
         await site.openAppearance();
         await expect(site.modeOption(mode)).toBeChecked();
@@ -64,30 +64,30 @@ test.describe('appearance', () => {
 
     test('renders Geologica by default, and Nunito Sans after a reload, when the user chooses the font Classic', async ({site, page}) => {
       await site.gotoHome();
-      await expect.poll(() => site.bodyFont()).toContain('Geologica');
+      await expect(site.body).toHaveCSS('font-family', /Geologica/);
 
       await site.chooseFont('Classic');
-      await expect.poll(() => site.bodyFont()).toContain('Nunito Sans');
+      await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
 
       await page.reload();
-      await expect.poll(() => site.bodyFont()).toContain('Nunito Sans');
+      await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
 
       await site.chooseFont('Modern');
-      await expect.poll(() => site.bodyFont()).toContain('Geologica');
+      await expect(site.body).toHaveCSS('font-family', /Geologica/);
     });
 
     test('renders button "Share" in brand blue, also after a reload, when the user turns off Game colours on an image set page', async ({site, tierList, page}) => {
       await tierList.goto('/rank');
-      await expect.poll(() => site.colorsOf(tierList.shareButton).then((colors) => colors.background)).toBe(BRAND_BLUE);
+      await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
 
       await tierList.goto(TANKS);
-      await expect.poll(() => site.colorsOf(tierList.shareButton).then((colors) => colors.background)).toBe(OVERWATCH_ORANGE);
+      await expect(tierList.shareButton).toHaveCSS('background-color', OVERWATCH_ORANGE);
 
       await site.setGameColours(false);
-      await expect.poll(() => site.colorsOf(tierList.shareButton).then((colors) => colors.background)).toBe(BRAND_BLUE);
+      await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
 
       await page.reload();
-      await expect.poll(() => site.colorsOf(tierList.shareButton).then((colors) => colors.background)).toBe(BRAND_BLUE);
+      await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
     });
   });
 

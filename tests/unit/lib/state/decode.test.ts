@@ -1,8 +1,8 @@
 import LZString from 'lz-string';
 import {describe, expect, it, vi} from 'vitest';
-import {decodeState, encodeV2} from '@/lib/state';
+import {decodeState} from '@/lib/state';
 import sharedLinks from '../../../fixtures/shared-links.json';
-import {randomAppStates, seededRandom, toCanonical} from '../../support/randomStates';
+import {seededRandom} from '../../support/randomStates';
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
 
@@ -52,11 +52,6 @@ describe('decodeState', () => {
 
   describe('decodeState with a version prefix', () => {
     const payloads = sharedLinks.map(link => link.state);
-
-    it('returns a value that starts with N, never a digit, when encodeV2 encodes a list or a shared legacy link is read', () => {
-      const encoded = [...payloads, ...randomAppStates(300, 5).map(state => encodeV2(toCanonical(state)))];
-      for (const value of encoded) expect(value[0]).toBe('N');
-    });
 
     it('returns null when the version prefix has no decoder (0., 1., 2., 4., 10., 03.)', () => {
       for (const prefix of ['0.', '1.', '2.', '4.', '10.', '03.']) {
@@ -108,7 +103,7 @@ describe('decodeState', () => {
       }
     });
 
-    it('returns non-string ids, names, labels and titles unchanged when a legacy value has them', () => {
+    it('returns non-string ids, names and titles unchanged, and {id: undefined} for a number item, when a legacy value has them', () => {
       expect(decodeState(lz('{"tiers":[{"i":1,"n":2,"t":[5,{"i":"x","c":null}]}],"title":7,"extra":true}'))).toEqual({
         version: 2,
         title: 7,

@@ -30,7 +30,7 @@ describe('validateInput', () => {
     ['a very long name', `image-${'a'.repeat(80)}`, 'is not an image set name'],
     ['nothing', '', 'No package name'],
     ['a number', 42, 'No package name'],
-  ])('throws when the package is %s', (_name, packageName, message) => {
+  ])('throws an Error with the reason when the package is %s', (_name, packageName, message) => {
     expect(() => validateInput(packageName, '1.3.0', customConfig)).toThrow(message);
   });
 
@@ -50,11 +50,11 @@ describe('validateInput', () => {
     ['spaces', ' 1.3.0'],
     ['a huge number', '1.3.1234567890'],
     ['nothing', ''],
-  ])('throws when the version is %s', (_name, version) => {
+  ])('throws an Error naming the version when the version is %s', (_name, version) => {
     expect(() => validateInput('image-overwatch', version, customConfig)).toThrow(/version/);
   });
 
-  it('throws when the version is older than the one in package.json', () => {
+  it('throws "older than 1.2.0" when the version is older than the one in package.json', () => {
     expect(() => validateInput('image-overwatch', '1.1.9', customConfig, '1.2.0')).toThrow('older than 1.2.0');
   });
 
@@ -64,10 +64,18 @@ describe('validateInput', () => {
     expect(call).toThrow(/^[^\n]*$/);
   });
 
-  it('returns a numeric order from compareVersions when the version parts have different digit counts', () => {
+});
+
+describe('compareVersions', () => {
+  it('returns a numeric order when the version parts have different digit counts', () => {
     expect(compareVersions('1.10.0', '1.9.9')).toBeGreaterThan(0);
     expect(compareVersions('2.0.0', '10.0.0')).toBeLessThan(0);
     expect(compareVersions('1.2.3', '1.2.3')).toBe(0);
+  });
+});
+
+describe('VERSION_PATTERN', () => {
+  it('returns true when the version is 0.0.0', () => {
     expect(VERSION_PATTERN.test('0.0.0')).toBe(true);
   });
 });
@@ -630,7 +638,7 @@ describe('parseRegistry', () => {
     ['dependencies that are not text', JSON.stringify({'dist.integrity': INTEGRITY('a'), dependencies: {x: 1}}), 'malformed dependencies'],
     ['a gypfile that is not a boolean', JSON.stringify({'dist.integrity': INTEGRITY('a'), gypfile: 'yes'}), 'malformed gypfile'],
     ['a malformed bin', JSON.stringify({'dist.integrity': INTEGRITY('a'), bin: 3}), 'malformed bin'],
-  ])('throws when the answer is %s', (_name, text, message) => {
+  ])('throws an Error with the reason when the answer is %s', (_name, text, message) => {
     expect(() => parseRegistry(text)).toThrow(message);
   });
 });
@@ -680,13 +688,16 @@ describe('checkPackageEntry', () => {
   type Config = {packages: Record<string, unknown>};
   const official = Object.entries(customConfig.packages).filter(([, custom]) => !('legacy' in custom));
 
-  it('writes no error when the entry is one that prepareImages wrote for an official set', () => {
+  it('returns tag names that match TAG_NAME, none named all or __proto__, when the official sets are read', () => {
     expect(official.map(([name]) => name).sort()).toEqual(['image-overwatch', 'image-reachthefinals']);
     for (const [name] of official) {
       const tags = Object.keys(((imagesetConfig as Config).packages[name] as {tags: object}).tags);
       expect(tags.length, name).toBeGreaterThan(0);
       expect(tags.filter((tag) => !TAG_NAME.test(tag) || ['all', '__proto__', 'constructor', 'prototype'].includes(tag)), name).toEqual([]);
     }
+  });
+
+  it('writes no error when the entry is one that prepareImages wrote for an official set', () => {
     for (const [name, custom] of official) {
       const errors: string[] = [];
       checkPackageEntry(name, (imagesetConfig as Config).packages[name], custom, errors);
@@ -705,12 +716,17 @@ describe('checkPackageEntry', () => {
     expect(errors.map((error) => error.split(':')[2]?.trim().split(' ')[0])).toEqual(['displayName', 'googleFont', 'backgroundImage']);
   });
 
+  const newEntry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['everything']}], tags: {everything: {title: 'All', description: 'All', category: 'general'}}};
+
   it('writes no error when the displayName is the package name and imageset.custom.json has none', () => {
-    const entry = {displayName: 'image-new', images: [{filename: 'a.webp', label: 'A', tags: ['everything']}], tags: {everything: {title: 'All', description: 'All', category: 'general'}}};
     const errors: string[] = [];
-    checkPackageEntry('image-new', entry, {}, errors);
+    checkPackageEntry('image-new', newEntry, {}, errors);
     expect(errors).toEqual([]);
-    checkPackageEntry('image-new', {...entry, googleFont: 'Saira'}, {}, errors);
+  });
+
+  it('writes a googleFont error when the entry has a googleFont and imageset.custom.json has none', () => {
+    const errors: string[] = [];
+    checkPackageEntry('image-new', {...newEntry, googleFont: 'Saira'}, {}, errors);
     expect(errors).toEqual(['imageset.config.json: image-new: googleFont is "Saira", but imageset.custom.json at HEAD gives nothing.']);
   });
 });

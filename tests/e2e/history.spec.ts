@@ -52,6 +52,24 @@ test.describe('history', () => {
       await page.goForward();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     });
+
+    test('writes a new history entry when the user clicks Undo in a toast', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      const entries = await tierList.historyLength();
+      await tierList.resetRankings();
+
+      const reset = page.url();
+      await tierList.undoFromToast('Items Reset');
+      await expect(page).not.toHaveURL(reset);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect.poll(() => tierList.historyLength()).toBe(entries + 2);
+
+      // Back steps to the reset list, then to the list as opened.
+      await page.goBack();
+      await expect(tierList.itemsIn('S')).toHaveCount(0);
+      await page.goBack();
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    });
   });
 
   /**
@@ -227,23 +245,6 @@ test.describe('history', () => {
       await tierList.closeMenus();
     });
 
-    test('writes a new history entry when the user clicks Undo in a toast', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-      const entries = await tierList.historyLength();
-      await tierList.resetRankings();
-
-      const reset = page.url();
-      await tierList.undoFromToast('Items Reset');
-      await expect(page).not.toHaveURL(reset);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect.poll(() => tierList.historyLength()).toBe(entries + 2);
-
-      // Back steps to the reset list, then to the list as opened.
-      await page.goBack();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await page.goBack();
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    });
   });
 
   /**

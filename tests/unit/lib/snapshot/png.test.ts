@@ -71,7 +71,7 @@ describe('embedSnapshotText and extractSnapshotText', () => {
     expect(text).toBe(TEXT);
   });
 
-  it('returns a PNG with one snapshot chunk holding the new text when the PNG already has one', async () => {
+  it('returns a PNG with one snapshot chunk of the new text when the PNG already has one', async () => {
     const once = await embed(makePng(), 'first');
     const twice = await embed(once, 'second');
     expect(splitChunks(twice).filter(c => c.type === 'iTXt')).toHaveLength(1);

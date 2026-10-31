@@ -22,8 +22,8 @@ function redSquareDataUrl(): string {
 }
 
 /** Keeps an upload in this browser's localStorage, as the app kept uploads before Phase 5c. */
-async function keepUploadInThisBrowser(page: import('@playwright/test').Page, upload: {i: string; c: string; d: string}) {
-  await page.addInitScript((stored) => localStorage.setItem('customItems', stored), JSON.stringify([upload]));
+async function keepUploadInThisBrowser(tierList: TierListPage, upload: {i: string; c: string; d: string}) {
+  await tierList.storeBeforeLoad('customItems', JSON.stringify([upload]));
 }
 
 /** A v2 link with the upload and Mauga in Unranked. */
@@ -41,12 +41,12 @@ function isRed(color: [number, number, number] | null) {
 
 test.describe('device images', () => {
   test.describe('uploads', () => {
-    test('writes a {d, c} item to the link and no customItems to localStorage when the user uploads an image', async ({tierList, page}) => {
+    test('writes a {d, c} item to the link and no customItems to localStorage when the user uploads an image', async ({tierList}) => {
       await tierList.goto('/rank');
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
-      await expect.poll(() => page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
+      await expect.poll(() => tierList.localStorageItem('customItems')).toBeNull();
       const link = await tierList.shareLink();
       expect(JSON.stringify(v3LinkJson(link))).toMatch(/\{"d":"[A-Za-z0-9_-]{16}","c":"red-square"\}/);
     });
@@ -112,7 +112,7 @@ test.describe('device images', () => {
       await expect(tierList.manageItemsButton).toBeFocused();
     });
 
-    test('renders 300 device images within 20 s when the page reloads a list with 300 uploads', async ({tierList, page}) => {
+    test('renders 300 device images within 20 s when the page reloads a list with 300 uploads', async ({tierList}) => {
       test.slow();
       const count = 300;
       const files = Array.from({length: count}, (_, index) => imageFile(`upload-${String(index + 1).padStart(3, '0')}.png`, RED_SQUARE));
@@ -124,7 +124,7 @@ test.describe('device images', () => {
       const addMs = Date.now() - addStarted;
 
       const loadStarted = Date.now();
-      await page.reload();
+      await tierList.reload();
       await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
       const loadMs = Date.now() - loadStarted;
 
@@ -144,8 +144,8 @@ test.describe('device images', () => {
       }).toBe(true);
     });
 
-    test('renders a label tile when the page opens a link with a device image id listed in localStorage evictedDeviceImages', async ({tierList, page}) => {
-      await page.addInitScript(() => localStorage.setItem('evictedDeviceImages', JSON.stringify(['Gone1234ImageId0'])));
+    test('renders a label tile when the page opens a link with a device image id listed in localStorage evictedDeviceImages', async ({tierList}) => {
+      await tierList.storeBeforeLoad('evictedDeviceImages', JSON.stringify(['Gone1234ImageId0']));
       await tierList.goto(TANKS, listWith([{d: 'Gone1234ImageId0', c: 'Old upload'}, {d: 'NeverHere1234567', c: 'Not here'}]));
 
       await expect(tierList.item('Old upload')).toBeVisible();
@@ -223,10 +223,8 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
     });
 
-    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList, page}) => {
-      await page.addInitScript(() => Object.defineProperty(window, 'indexedDB', {get: () => {
-        throw new DOMException('Blocked', 'SecurityError');
-      }}));
+    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList}) => {
+      await tierList.blockIndexedDb();
       await tierList.goto('/rank');
 
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
@@ -239,6 +237,24 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
       await expect(tierList.toast('Items Added')).toBeVisible();
       await expect(notice).toHaveCount(0);
+    });
+
+    test('renders the uploaded image when a new tab opens the share link after the first tab closes', {
+      annotation: {type: 'issue', description: 'https://github.com/infinia-yzl/opentierboy/issues/86'},
+    }, async ({tierList, context}) => {
+      await tierList.goto('/rank');
+      await tierList.addItemsFromDevice([path.join(IMAGES, 'red-square.png')]);
+      const link = await tierList.shareLink();
+      await tierList.page.close();
+
+      const reopened = new TierListPage(await context.newPage());
+      await reopened.gotoLink(link);
+
+      const image = reopened.itemImage('red-square');
+      await expect(image).toBeVisible();
+      // The tile must show the uploaded red square. Checking only that an image loaded is not
+      // enough: an item the app cannot find shows the placeholder image, which loads too.
+      await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square'))).toBe(true);
     });
   });
 
@@ -301,8 +317,8 @@ test.describe('device images', () => {
    * as "legacy-<id>" (A42), and keeps its image in the device image store under that id.
    */
   test.describe('uploads with short legacy ids', () => {
-    test('writes {"d":"legacy-ab3c9"} to the link, and renders its image after a reopen, when the user moves upload ab3c9', async ({tierList, page}) => {
-      await keepUploadInThisBrowser(page, {i: 'ab3c9', c: 'My cat', d: redSquareDataUrl()});
+    test('writes {"d":"legacy-ab3c9"} to the link, and renders its image after a reopen, when the user moves upload ab3c9', async ({tierList}) => {
+      await keepUploadInThisBrowser(tierList, {i: 'ab3c9', c: 'My cat', d: redSquareDataUrl()});
 
       await tierList.goto(TANKS, linkWithUpload('ab3c9', 'My cat'));
       await tierList.dragItemToTier('My cat', 'S');
@@ -323,31 +339,12 @@ test.describe('device images', () => {
    * effect, after the page has started, so the server and the browser render the same list.
    */
   test.describe('localStorage uploads', () => {
-    test('renders the image of an upload in localStorage customItems when the page opens a link with it', async ({tierList, page}) => {
-      await keepUploadInThisBrowser(page, {i: 'k3j9x0a1b', c: 'My cat', d: redSquareDataUrl()});
+    test('renders the image of an upload in localStorage customItems when the page opens a link with it', async ({tierList}) => {
+      await keepUploadInThisBrowser(tierList, {i: 'k3j9x0a1b', c: 'My cat', d: redSquareDataUrl()});
       await tierList.goto(TANKS, linkWithUpload('k3j9x0a1b', 'My cat'));
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
       // The upload moved into the device image store.
-      await expect.poll(() => page.evaluate(() => localStorage.getItem('customItems'))).toBeNull();
+      await expect.poll(() => tierList.localStorageItem('customItems')).toBeNull();
     });
-
-    test('renders the uploaded image when a new tab opens the share link after the first tab closes', {
-      annotation: {type: 'issue', description: 'https://github.com/infinia-yzl/opentierboy/issues/86'},
-    }, async ({tierList, context}) => {
-      await tierList.goto('/rank');
-      await tierList.addItemsFromDevice([path.join(IMAGES, 'red-square.png')]);
-      const link = await tierList.shareLink();
-      await tierList.page.close();
-
-      const reopened = new TierListPage(await context.newPage());
-      await reopened.gotoLink(link);
-
-      const image = reopened.itemImage('red-square');
-      await expect(image).toBeVisible();
-      // The tile must show the uploaded red square. Checking only that an image loaded is not
-      // enough: an item the app cannot find shows the placeholder image, which loads too.
-      await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square'))).toBe(true);
-    });
-
   });
 });

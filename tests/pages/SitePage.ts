@@ -84,14 +84,12 @@ export class SitePage {
     await this.closeAppearance();
   }
 
-  /** The font family the page body uses, as the browser computes it. */
-  async bodyFont(): Promise<string> {
-    return this.page.evaluate(() => getComputedStyle(document.body).fontFamily);
-  }
-
-  /** The page's background colour, as the browser computes it: white in Light mode, near-black in Dark mode. */
-  async pageBackground(): Promise<string> {
-    return this.page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  /**
+   * The page body, for its computed font and background colour. The body has no role, so this
+   * is a CSS selector.
+   */
+  get body(): Locator {
+    return this.page.locator('body');
   }
 
   /** A Mode option (Light, Dark or System) in the Appearance menu. Open the menu first (openAppearance). */

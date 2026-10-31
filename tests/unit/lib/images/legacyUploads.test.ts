@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {createMemoryDeviceStore, type DeviceStore} from '@/lib/images/deviceStore';
 import {dataUrlToBytes, LEGACY_UPLOADS_KEY, migrateLegacyUploads, parseLegacyUploads} from '@/lib/images/legacyUploads';
 import type {StringStorage} from '@/lib/images/localLists';
+import {isIsoMediaFile} from '@/lib/images/imageType';
 import {avifWithFalseSize, heicStart} from '../../support/avif';
 
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3, 4, 5, 6, 7, 8];
@@ -107,7 +108,8 @@ describe('migrateLegacyUploads', () => {
       {i: 'a1v1f2x3y', c: 'Photo', d: avif},
       {i: 'h1e2i3c4x', c: 'Phone photo', d: heic},
     ])});
-    const prepare = async (blob: Blob) => (['image/avif', 'image/heic'].includes(blob.type) ? {ok: false as const, reason: 'avif-heic'} : {ok: true as const, blob});
+    // Like prepareImageForStore, the stub reads the bytes: the HEIC upload reaches it intact.
+    const prepare = async (blob: Blob) => (isIsoMediaFile(new Uint8Array(await blob.arrayBuffer())) ? {ok: false as const, reason: 'avif-heic'} : {ok: true as const, blob});
     expect(await migrateLegacyUploads(storage, persistentStore(), prepare)).toEqual({moved: ['k3j9x0a1b'], kept: 2, dropped: 0});
     expect(JSON.parse(storage.data.get(LEGACY_UPLOADS_KEY)!)).toEqual([
       {i: 'a1v1f2x3y', c: 'Photo', d: avif},

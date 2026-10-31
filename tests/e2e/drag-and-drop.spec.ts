@@ -222,8 +222,16 @@ test.describe('drag and drop', () => {
       await expect(tierList.itemsIn('A')).toHaveCount(0);
       await expect(page).toHaveURL(before);
       await expect.poll(() => tierList.historyLength()).toBe(entries);
-      // The editor still works: the next drag moves the item.
+    });
+
+    test('renders the item in row A when the user drags it there after a cancelled mouse drag', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
+      await tierList.waitUntilInteractive();
+      await tierList.dragItemToTierThenCancel('Mauga', 'A');
+      await expect(tierList.dragAnnouncer).toContainText('Move cancelled.');
+
       await tierList.dragItemToTier('Mauga', 'A');
+
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
     });
 
@@ -263,7 +271,7 @@ test.describe('drag and drop', () => {
 
       // No drag started, and no text is selected.
       await expect(tierList.dragAnnouncer).toHaveText(announcement ?? '');
-      await expect.poll(() => tierList.page.evaluate(() => String(window.getSelection()))).toBe('');
+      await expect.poll(() => tierList.selectedText()).toBe('');
       await expect(menu).toBeVisible();
     });
 
@@ -293,16 +301,8 @@ test.describe('drag and drop', () => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
 
       for (const element of [tierList.item('Mauga'), tierList.rowHandle('S')]) {
-        const style = await element.evaluate((node) => {
-          const computed = getComputedStyle(node);
-          return {
-            userSelect: computed.userSelect || computed.getPropertyValue('-webkit-user-select'),
-            callout: computed.getPropertyValue('-webkit-touch-callout'),
-          };
-        });
-        expect(style.userSelect).toBe('none');
         // Only Safari knows the touch callout; other browsers return nothing for it.
-        expect(['', 'none']).toContain(style.callout);
+        await expect.poll(() => tierList.textSelectionStyle(element)).toEqual({userSelect: 'none', callout: expect.stringMatching(/^(none)?$/)});
       }
     });
   });

@@ -224,7 +224,8 @@ export default defineConfig([
     },
   },
   // Playwright code: a call or assertion without `await` runs on after the test moves on, so the
-  // test checks nothing or fails at random (Playwright best practices: "Lint your tests"). The
+  // test checks nothing or fails at random (Playwright best practices: "Lint your tests"), and an
+  // async callback that nothing awaits, such as forEach(async …), does the same. The
   // rule needs type information, so these files are linted with the TypeScript project, and
   // only files that exist are linted this way (the lint tests use real paths here).
   {
@@ -234,6 +235,7 @@ export default defineConfig([
     },
     rules: {
       '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
     },
   },
   // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts, dnd-kit

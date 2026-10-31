@@ -73,8 +73,8 @@ describe('satisfies', () => {
     expect(satisfies('0.5.2', '0.5.1')).toBe(false);
   });
 
-  it('throws when the version is a prerelease', () => {
-    expect(() => satisfies('0.5.1-otb.1', '^0.5.1')).toThrow();
+  it('throws "Unsupported version" when the version is a prerelease', () => {
+    expect(() => satisfies('0.5.1-otb.1', '^0.5.1')).toThrow('Unsupported version "0.5.1-otb.1"');
   });
 });
 

@@ -131,17 +131,14 @@ test.describe('link images', () => {
       await expect(tierList.imageSitesNotice).toHaveCount(0);
     });
 
-    test('writes no request and renders no Load notice when the page opens a link image of http://127.0.0.1:9', async ({tierList, page}) => {
-      const requests: string[] = [];
-      page.on('request', (request) => {
-        if (request.url().startsWith('http://127.0.0.1:9/')) requests.push(request.url());
-      });
+    test('writes no request and renders no Load notice when the page opens a link image of http://127.0.0.1:9', async ({tierList}) => {
+      const sent = tierList.recordRequests();
       await tierList.goto(TANKS, listWith([{u: 'http://127.0.0.1:9/secret.png', c: 'Local'}]));
 
       await expect(tierList.item('Local')).toBeVisible();
       await expect(tierList.itemImage('Local')).toHaveCount(0);
       await expect(tierList.imageSitesNotice).toHaveCount(0);
-      expect(requests).toEqual([]);
+      expect(sent().filter((request) => request.url.startsWith('http://127.0.0.1:9/'))).toEqual([]);
     });
   });
 });

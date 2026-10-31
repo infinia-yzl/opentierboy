@@ -134,7 +134,7 @@ describe('scripts/lib/image-sets.mjs', () => {
       ['"legacy": false', {packages: {'image-one': {legacy: false}}}, {}, 'Use true or leave it out'],
       ['a name that is not an image set', {packages: {'left-pad': {}}}, {}, 'is not an image set package name'],
       ['no packages', {}, {}, 'must be {"packages"'],
-    ])('throws when the input has %s', (_name, customConfig, legacy, message) => {
+    ])('throws an Error with the reason when the input has %s', (_name, customConfig, legacy, message) => {
       expect(() => splitPackages(customConfig, legacy)).toThrow(message);
     });
   });
@@ -194,15 +194,18 @@ describe('scripts/lib/image-sets.mjs', () => {
       }));
     });
 
-    it('throws when the package has no images', () => {
+    it('throws "has no images" when the package has no images', () => {
       expect(() => buildPackageEntry({packageName: 'image-ow', displayName: 'OW', images: [], metadata})).toThrow('has no images');
     });
   });
 
-  it('returns packages from mergeConfig in the given order when entries exist, and throws when one is missing', () => {
+  it('returns packages from mergeConfig in the given order, legacy sets marked legacy, when every package has an entry', () => {
     const merged = mergeConfig(['image-b', 'image-old', 'image-a'], {'image-a': entry('A'), 'image-b': entry('B')}, {'image-old': entry('Old')});
     expect(Object.keys(merged.packages)).toEqual(['image-b', 'image-old', 'image-a']);
     expect((merged.packages as Record<string, unknown>)['image-old']).toEqual({...entry('Old'), legacy: true});
+  });
+
+  it('throws "No config entry for image-c" from mergeConfig when the package image-c has no entry', () => {
     expect(() => mergeConfig(['image-c'], {}, {})).toThrow('No config entry for image-c');
   });
 });

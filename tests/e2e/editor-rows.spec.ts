@@ -1,4 +1,4 @@
-import {expect, expectTierList, test} from '../support/test';
+import {expect, expectTierList, expectTierNames, test} from '../support/test';
 import {rankingState, v3State} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
@@ -87,5 +87,47 @@ test.describe('editor rows', () => {
     await tierList.removeTierRow('R7');
     await expect(tierList.tiers).toHaveCount(19);
     await expect(tierList.addRowButton).toBeEnabled();
+  });
+
+  test.describe('row count', () => {
+    test('renders the items of removed rows in Unranked when the user chooses 3 Rows', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], F: ['Sigma']}));
+
+      await tierList.chooseRowCount(3);
+
+      await expectTierNames(tierList, ['S', 'A', 'B', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn(tierList.unranked)).toContainText(['Winston', 'Sigma']);
+      await expect(tierList.tier('C')).toHaveCount(0);
+    });
+
+    test('renders rows SS and D and every item in its row when the user chooses 7 Rows', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], F: ['Sigma']}));
+
+      await tierList.chooseRowCount(7);
+
+      await expectTierNames(tierList, ['SS', 'S', 'A', 'B', 'C', 'D', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn('F')).toHaveText(['Sigma']);
+    });
+
+    test('renders the same 7 rows for the user and a share link visitor when both choose 7 Rows after a row move', async ({tierList, openAsVisitor}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
+      // Moving row S onto A's place moves the items and the tier id; the labels stay in place.
+      await tierList.dragTierOnto('S', 'A');
+      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+      await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+      const friend = await openAsVisitor(await tierList.shareLink());
+
+      // The switch puts items in the row with their tier id, so the link must keep the moved ids.
+      const expected = {tiers: [
+        {name: 'SS', items: []}, {name: 'S', items: ['Mauga']}, {name: 'A', items: ['Winston']}, {name: 'B', items: []},
+        {name: 'C', items: ['Sigma']}, {name: 'D', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
+      ]};
+      await tierList.chooseRowCount(7);
+      await expectTierList(tierList, expected);
+      await friend.chooseRowCount(7);
+      await expectTierList(friend, expected);
+    });
   });
 });

@@ -95,6 +95,11 @@ describe('encodeV3 output length', () => {
 });
 
 describe('tests/fixtures/shared-links.json', () => {
+  // A version prefix such as "3." never matches a legacy value (lib/state/decode.ts).
+  it('returns a state that starts with N when each shared legacy link is read', () => {
+    for (const link of sharedLinks) expect(link.state[0], link.id).toBe('N');
+  });
+
   it('returns v0, v1 and v2 links and no unknown format when shared-links.json is read', () => {
     // v3 links (written since Phase 5b) may join the captured links later (A25).
     const formats = new Set(sharedLinks.map(link => link.format));

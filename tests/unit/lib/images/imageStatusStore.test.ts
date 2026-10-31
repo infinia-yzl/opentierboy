@@ -4,7 +4,7 @@ import {createImageStatusStore} from '@/lib/images/imageStatusStore';
 type State = {status: string; url?: string};
 
 describe('createImageStatusStore', () => {
-  it('writes one call to each listener whose key changed when setMany sets several keys', () => {
+  it('writes one notification to each listener whose key changed when setMany sets several keys', () => {
     const store = createImageStatusStore<State>();
     const a = vi.fn();
     const b = vi.fn();

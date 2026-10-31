@@ -90,7 +90,7 @@ describe('checkLinkImageUrl with accepted addresses', () => {
     expect(checkLinkImageUrl(url)).toMatchObject({ok: true, url});
   });
 
-  it('returns an equal result when the input is its own normalised url', () => {
+  it('returns the same result when checkLinkImageUrl gets the url it returned', () => {
     for (const input of ['HTTPS://Bücher.DE.:443/a b.png', 'https:\\\\example.com\\a.png', 'https://i.imgur.com/a.png']) {
       const first = checkLinkImageUrl(input);
       expect(first.ok, input).toBe(true);

@@ -15,10 +15,7 @@ test.describe('editor layout', () => {
       await tierList.page.setViewportSize({width: 320, height: 700});
       await tierList.goto(TANKS);
       for (const name of ['Add images', 'Zen', 'Share']) {
-        const box = await tierList.editorToolButtons.filter({hasText: name}).boundingBox();
-        if (!box) throw new Error(`${name} is not on the page`);
-        expect(box.x, `${name} starts on the screen`).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width, `${name} ends on the screen`).toBeLessThanOrEqual(320);
+        await expect(tierList.editorToolButton(name), `${name} is wholly on the screen`).toBeInViewport({ratio: 1});
       }
     });
 
@@ -28,14 +25,10 @@ test.describe('editor layout', () => {
       await expect(site.headerButton('Zen')).toHaveCount(0);
     });
 
-    test('renders buttons "Add row" and "Row options" when the editor opens, and hides both when the user turns on Zen', async ({tierList}) => {
+    test('renders buttons "Add row" and "Row options" when the page opens', async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.addRowButton).toBeVisible();
       await expect(tierList.rowOptionsButton).toBeVisible();
-
-      await tierList.setZenMode(true);
-      await expect(tierList.addRowButton).toBeHidden();
-      await expect(tierList.rowOptionsButton).toBeHidden();
     });
   });
 
@@ -51,26 +44,6 @@ test.describe('editor layout', () => {
     test('renders the row label (h2) Unranked when the page opens a template', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-    });
-
-    test('renders the new title when the user opens Edit title with Enter, types a title and presses Enter', async ({tierList}) => {
-      await tierList.goto(TANKS);
-      await tierList.editTitleButton.focus();
-      await tierList.page.keyboard.press('Enter');
-      await expect(tierList.titleInput).toBeFocused();
-      await expect(tierList.titleInput).toHaveValue('OVERWATCH - Tank');
-
-      await tierList.titleInput.fill('Best tanks');
-      await tierList.titleInput.press('Enter');
-      await expect(tierList.title).toHaveText('Best tanks');
-    });
-
-    test('renders the old title when the user presses Escape in the title text box', async ({tierList}) => {
-      await tierList.goto(TANKS);
-      await tierList.editTitleButton.click();
-      await tierList.titleInput.fill('Not saved');
-      await tierList.titleInput.press('Escape');
-      await expect(tierList.title).toHaveText('OVERWATCH - Tank');
     });
 
     test('renders the title within 40 px above row S and the hints in the Unranked row when the page opens', {tag: '@mobile'}, async ({tierList}) => {

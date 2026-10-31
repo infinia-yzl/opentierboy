@@ -69,7 +69,7 @@ test.describe('security', () => {
       expect(policy).not.toContain('unsafe-eval');
     });
 
-    test('writes no CSP violation when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
+    test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
       await page.goto('/', {waitUntil: 'networkidle'});
       await expect(site.main).toBeVisible();
       await tierList.goto('/rank/overwatch/tank');
@@ -80,7 +80,7 @@ test.describe('security', () => {
       await expect.poll(() => cspViolations()).toEqual([]);
     });
 
-    test('writes no CSP violation when the user downloads and opens a Freeze Frame, drops a picture and opens Recently viewed', async ({tierList, site, page, cspViolations}) => {
+    test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
       await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
@@ -102,7 +102,7 @@ test.describe('security', () => {
     });
 
     for (const method of ['html2canvas-pro', 'Original html2canvas'] as CaptureMethod[]) {
-      test(`writes no CSP violation when the user captures a Freeze Frame with ${method} with a link image and a device image`, async ({tierList, page, cspViolations}) => {
+      test(`writes no CSP violation report when the user captures a Freeze Frame with ${method} with a link image and a device image`, async ({tierList, page, cspViolations}) => {
         await serveImageSite(page, 'i.imgur.com');
         const state = v3State({t: 'CSP', tp: 3, r: [
           ['S', [packageItemId('image-overwatch', 'Mauga'), {u: 'https://i.imgur.com/red.png', c: 'Link image'}]],
@@ -132,11 +132,11 @@ test.describe('security', () => {
       // A link image's tile also names its site under the label.
       await expect(tierList.itemsIn('A')).toContainText([`Link ${CLOSING_MARKUP}`]);
       await expect(tierList.page).toHaveTitle(new RegExp(escapeRegExp(`Title ${IMG_MARKUP}`)));
-      await expect.poll(() => tierList.injectedMarkupRan()).toBe(false);
+      expect(await tierList.injectedMarkupRan()).toBe(false);
 
       await site.gotoHome();
       await expect(site.recentLinks).toHaveText([`Title ${IMG_MARKUP}`]);
-      await expect.poll(() => tierList.injectedMarkupRan()).toBe(false);
+      expect(await tierList.injectedMarkupRan()).toBe(false);
     });
 
     test('renders markup as text in the title and a row label, also after a reload, when the user types it', async ({tierList}) => {
@@ -150,7 +150,7 @@ test.describe('security', () => {
       await expect(tierList.title).toHaveText(CLOSING_MARKUP);
       await expect(tierList.tier(SCRIPT_MARKUP)).toBeVisible();
       await expect(tierList.page).toHaveTitle(new RegExp(escapeRegExp(CLOSING_MARKUP)));
-      await expect.poll(() => tierList.injectedMarkupRan()).toBe(false);
+      expect(await tierList.injectedMarkupRan()).toBe(false);
     });
 
     test('renders the file name with markup as the item label when the user uploads a picture named with markup', async ({tierList}) => {
@@ -158,7 +158,7 @@ test.describe('security', () => {
       // The label is the name before its first dot, so the markup has none.
       await tierList.addItemsFromDevice([imageFile('<img src=x onerror=__otbInjected=4>.png')]);
       await expect(tierList.item('<img src=x onerror=__otbInjected=4>')).toBeVisible();
-      await expect.poll(() => tierList.injectedMarkupRan()).toBe(false);
+      expect(await tierList.injectedMarkupRan()).toBe(false);
     });
 
     test('returns the markup of the list HTML-escaped in the page when the request has a state parameter with markup', async ({page}) => {

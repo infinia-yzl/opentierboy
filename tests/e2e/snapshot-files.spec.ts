@@ -159,11 +159,10 @@ test.describe('snapshot files', () => {
 
       await expect(friend.page).toHaveURL(new RegExp(`${TANKS}\\?state=3\\.`));
       await expectTierList(friend, SNAPSHOT_LIST);
-      await expect.poll(() => friend.itemImageCenterColor('red-square')).toEqual([expect.any(Number), expect.any(Number), expect.any(Number)]);
-      const [red, green, blue] = (await friend.itemImageCenterColor('red-square'))!;
-      expect(red).toBeGreaterThan(200);
-      expect(green).toBeLessThan(60);
-      expect(blue).toBeLessThan(60);
+      await expect.poll(async () => {
+        const color = await friend.itemImageCenterColor('red-square');
+        return color !== null && color[0] > 200 && color[1] < 60 && color[2] < 60;
+      }, {message: 'the item image is red'}).toBe(true);
       // The image is in the friend's device store now: it survives a reload.
       await friend.reload();
       await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
@@ -235,8 +234,8 @@ test.describe('snapshot files', () => {
 
       // The link is the file's own, and no copy of the image was stored.
       await expect(tierList.page).toHaveURL(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
-      await expect.poll(() => tierList.deviceImageCount()).toBe(1);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
+      expect(await tierList.deviceImageCount()).toBe(1);
     });
 
     test('renders the stored copy and no error toast when the user opens a snapshot file with an AVIF under a stored id', async ({tierList}) => {
@@ -269,15 +268,17 @@ test.describe('snapshot files', () => {
       await friend.openFile(pngFile('snapshot.png', snapshot));
       await friend.confirmOpenList({newAddress: false});
       await expect(friend.page).toHaveURL(link);
-      await expect.poll(() => friend.deviceImageCount()).toBe(images);
-      await expect.poll(() => friend.historyLength()).toBe(length);
+      await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
+      expect(await friend.historyLength()).toBe(length);
 
-      // A third time from another list: the same link again.
+      // A third time from another list: the same link again. Its image loads once the import is
+      // done, so the count after it covers the second open too.
       await friend.goto('/rank');
       await friend.openFile(pngFile('snapshot.png', snapshot));
       await friend.confirmOpenList();
       await expect(friend.page).toHaveURL(link);
-      await expect.poll(() => friend.deviceImageCount()).toBe(images);
+      await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
+      expect(await friend.deviceImageCount()).toBe(images);
       const friendSite = new SitePage(friend.page);
       await friendSite.gotoHome();
       await expect(friendSite.recentLinks).toHaveText(['Tanks with a cat']);
@@ -440,6 +441,7 @@ test.describe('snapshot files', () => {
       await page.keyboard.press('Escape');
       await expect(tierList.openListDialog).toContainText('Opening the list…');
       await expect(tierList.openListDialog).toBeHidden();
+      await expect(tierList.page).toHaveURL(/\?state=3\./);
       await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
       await expect(tierList.title).toHaveText('Snapshot list');
@@ -521,7 +523,7 @@ test.describe('snapshot files', () => {
       await expect.poll(() => tierList.historyLength()).toBe(before + 1);
     });
 
-    test('renders the home page when the user leaves the editor while pastes wait', async ({tierList, page, browserName}) => {
+    test('writes the list to Recently viewed once when the user leaves the editor while pastes wait', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
       const before = await tierList.historyLength();
@@ -532,7 +534,7 @@ test.describe('snapshot files', () => {
       await tierList.leaveForHome();
 
       const site = new SitePage(page);
-      await expect(site.recentLinks.filter({hasText: 'Leaving'})).toHaveCount(1);
+      await expect(site.recentLink('Leaving')).toHaveCount(1);
       await expect(page).toHaveURL(/^[^?]*\/$/);
     });
 
@@ -612,7 +614,7 @@ test.describe('snapshot files', () => {
       await expect(tierList.toast('Could not open the file')).toContainText('This file is damaged, or it was not made by OpenTierBoy.');
 
       await tierList.openFile(pngFile('newer.png', pngWithSnapshotText(RED_SQUARE, JSON.stringify({version: 2, state: '3.abc'}))));
-      await expect(tierList.toast('Could not open the file').filter({hasText: 'newer version'})).toBeVisible();
+      await expect(tierList.toastAbout('Could not open the file', 'newer version')).toBeVisible();
 
       await expect(tierList.openListDialog).toHaveCount(0);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
@@ -687,7 +689,7 @@ test.describe('snapshot files', () => {
       await tierList.dropFile(text);
       await expect(tierList.toast('Could not open the file')).toContainText('notes.txt: This file is not a picture.');
       await tierList.openFile(pdf);
-      await expect(tierList.toast('Could not open the file').filter({hasText: 'scan.pdf'})).toBeVisible();
+      await expect(tierList.toastAbout('Could not open the file', 'scan.pdf')).toBeVisible();
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
@@ -713,12 +715,12 @@ test.describe('snapshot files', () => {
       await tierList.goto('/rank');
 
       await tierList.dropFile({name: 'photo.heic', mimeType: 'image/heic', buffer: isoMedia('heic')});
-      await expect(tierList.toast('Some images could not be added').filter({hasText: 'photo'})).toContainText(AVIF_HEIC_REFUSAL);
+      await expect(tierList.toastAbout('Some images could not be added', 'photo')).toContainText(AVIF_HEIC_REFUSAL);
       await tierList.openFile({name: 'picture.avif', mimeType: 'image/avif', buffer: isoMedia('avif')});
-      await expect(tierList.toast('Some images could not be added').filter({hasText: 'picture'})).toContainText(AVIF_HEIC_REFUSAL);
+      await expect(tierList.toastAbout('Some images could not be added', 'picture')).toContainText(AVIF_HEIC_REFUSAL);
       // A browser may give a .heic file no type at all: its bytes decide.
       await tierList.dropFile({name: 'IMG_0001.HEIC', mimeType: '', buffer: isoMedia('heic')});
-      await expect(tierList.toast('Some images could not be added').filter({hasText: 'IMG_0001'})).toContainText(AVIF_HEIC_REFUSAL);
+      await expect(tierList.toastAbout('Some images could not be added', 'IMG_0001')).toContainText(AVIF_HEIC_REFUSAL);
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
       await expect.poll(() => tierList.deviceImageCount()).toBe(0);
@@ -811,7 +813,7 @@ test.describe('snapshot files', () => {
   // (CORS) cannot be exported, so the capture draws such images as label tiles (A10).
   test.describe('Freeze Frame with link images', () => {
     for (const method of METHODS) {
-      test(`renders the captured image when the user clicks Capture Preview with ${method} with link images on screen`, async ({tierList, page, consoleErrors}) => {
+      test(`renders a captured image of over 50 colours when the user clicks Capture Preview with ${method} and link images`, async ({tierList, page, consoleErrors}) => {
         await serveImageSite(page, 'i.imgur.com');
         await serveImageSite(page, 'upload.wikimedia.org', {cors: false});
         await tierList.goto(TANKS, v3State({t: 'Link images', tp: 3, r: [

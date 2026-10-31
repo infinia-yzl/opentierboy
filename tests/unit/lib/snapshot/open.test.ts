@@ -214,12 +214,15 @@ describe('snapshotFileName', () => {
 });
 
 describe('snapshotImageTypeOf, dataUrlFromImageBytes and imageBytesFromDataUrl', () => {
-  it('returns the type from the first bytes, and the same bytes after a data URL round trip, when given PNG bytes', () => {
+  it('returns the PNG type and the same bytes after a data URL round trip when given PNG bytes', () => {
     const bytes = makePng(3, 3);
     expect(snapshotImageTypeOf(bytes)).toBe('image/png');
     const url = dataUrlFromImageBytes(bytes)!;
     expect(url.startsWith('data:image/png;base64,')).toBe(true);
     expect(imageBytesFromDataUrl(url)).toEqual({type: 'image/png', bytes});
+  });
+
+  it('returns the type from snapshotImageTypeOf when given JPEG, GIF or WebP bytes', () => {
     expect(snapshotImageTypeOf(Uint8Array.from([0xff, 0xd8, 0xff, 0]))).toBe('image/jpeg');
     expect(snapshotImageTypeOf(new TextEncoder().encode('GIF89a......'))).toBe('image/gif');
     expect(snapshotImageTypeOf(new TextEncoder().encode('RIFF\0\0\0\0WEBPVP8 '))).toBe('image/webp');

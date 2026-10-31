@@ -186,6 +186,11 @@ export class TierListPage {
     return this.editorTools.getByRole('button');
   }
 
+  /** One button in Editor tools, by its name. */
+  editorToolButton(name: string): Locator {
+    return this.editorTools.getByRole('button', {name, exact: true});
+  }
+
   /** A menu item in the open menu, by its name (the item menu, Add images, Row options). */
   menuItem(name: string): Locator {
     return this.page.getByRole('menuitem', {name});
@@ -264,13 +269,13 @@ export class TierListPage {
     });
   }
 
-  /** The number of entries in the tab's history (window.history.length). */
   /** Leaves the editor for the landing page with the site's logo link in the header. */
   async leaveForHome() {
     await this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'}).click();
     await expect(this.page).toHaveURL(/^[^?]*\/$/);
   }
 
+  /** The number of entries in the tab's history (window.history.length). */
   async historyLength(): Promise<number> {
     return this.page.evaluate(() => window.history.length);
   }
@@ -914,6 +919,31 @@ export class TierListPage {
     await this.page.evaluate((value) => localStorage.setItem('customItems', value), JSON.stringify(entries));
   }
 
+  /**
+   * Stores a localStorage value before the next page load, once, as an earlier visit would have.
+   * Later loads in the same tab find what the app made of it.
+   */
+  async storeBeforeLoad(key: string, value: string) {
+    await this.page.addInitScript(([storageKey, storedValue]) => {
+      if (!sessionStorage.getItem('test-stored-' + storageKey)) {
+        localStorage.setItem(storageKey, storedValue);
+        sessionStorage.setItem('test-stored-' + storageKey, '1');
+      }
+    }, [key, value]);
+  }
+
+  /** A localStorage value of this site, or null. */
+  async localStorageItem(key: string): Promise<string | null> {
+    return this.page.evaluate((storageKey) => localStorage.getItem(storageKey), key);
+  }
+
+  /** Makes window.indexedDB throw on every page load, as browsers that block storage do. */
+  async blockIndexedDb() {
+    await this.page.addInitScript(() => Object.defineProperty(window, 'indexedDB', {get: () => {
+      throw new DOMException('Blocked', 'SecurityError');
+    }}));
+  }
+
   /** The ids of old uploads still waiting in localStorage to move into the image store. */
   async oldUploadIds(): Promise<string[]> {
     const stored = await this.page.evaluate(() => localStorage.getItem('customItems'));
@@ -1049,6 +1079,25 @@ export class TierListPage {
    * Records every request the page sends from now on, with its body. Returns a function that
    * gives the requests so far. Product rule 5: a device image never reaches the server.
    */
+  /** The text the user has selected on the page. */
+  async selectedText(): Promise<string> {
+    return this.page.evaluate(() => String(window.getSelection()));
+  }
+
+  /**
+   * The computed user-select and -webkit-touch-callout of an element. A browser that does not
+   * know the callout (all but Safari) returns ''; WebKit names user-select with its prefix.
+   */
+  async textSelectionStyle(element: Locator): Promise<{userSelect: string; callout: string}> {
+    return element.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        userSelect: computed.userSelect || computed.getPropertyValue('-webkit-user-select'),
+        callout: computed.getPropertyValue('-webkit-touch-callout'),
+      };
+    });
+  }
+
   recordRequests(): () => SentRequest[] {
     const sent: SentRequest[] = [];
     this.page.on('request', (request) => {
@@ -1062,6 +1111,9 @@ export class TierListPage {
    * that sets `window.__otbInjected` into titles, row names and labels.
    */
   async injectedMarkupRan(): Promise<boolean> {
+    // An <img onerror> runs once its image fails, so wait until every eager image has loaded or
+    // failed. Lazy images (link images) may wait for a scroll; markup put in the page has none.
+    await expect.poll(() => this.page.evaluate(() => [...document.images].filter((image) => image.loading !== 'lazy').every((image) => image.complete))).toBe(true);
     return this.page.evaluate(() => (window as unknown as {__otbInjected?: unknown}).__otbInjected !== undefined);
   }
 
@@ -1428,6 +1480,11 @@ export class TierListPage {
   /** A toast notification that contains the given text. */
   toast(text: string | RegExp): Locator {
     return this.page.getByRole('listitem').filter({hasText: text});
+  }
+
+  /** The toast with this title whose text also names `detail`, such as a file name. */
+  toastAbout(text: string | RegExp, detail: string): Locator {
+    return this.toast(text).filter({hasText: detail});
   }
 
   async undoFromToast(text: string | RegExp, options?: {timeout?: number}) {

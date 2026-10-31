@@ -11,7 +11,6 @@ import {
   openDeviceStore,
   type OpenDeviceStoreOptions,
   planEviction,
-  sniffImageType,
 } from '@/lib/images/deviceStore';
 import {avifWithFalseSize, heicStart} from '../../support/avif';
 
@@ -92,8 +91,8 @@ function writeRaw(factory: IDBFactory, storeName: 'images' | 'meta', record: unk
   });
 }
 
-describe('createDeviceImageId and isDeviceImageId', () => {
-  it('returns 16 URL-safe characters when createDeviceImageId gets 12 random bytes', () => {
+describe('createDeviceImageId', () => {
+  it('returns 16 URL-safe characters, a valid device image id, when it gets 12 random bytes', () => {
     const id = createDeviceImageId(buffer => buffer.fill(0xff));
     expect(id).toBe('________________');
     expect(createDeviceImageId(buffer => buffer.fill(0))).toBe('AAAAAAAAAAAAAAAA');
@@ -101,41 +100,6 @@ describe('createDeviceImageId and isDeviceImageId', () => {
     const ids = new Set(Array.from({length: 1000}, () => createDeviceImageId()));
     expect(ids.size).toBe(1000);
     for (const created of ids) expect(isDeviceImageId(created)).toBe(true);
-  });
-
-  it('returns true only when the value is a string of 8 to 64 URL-safe characters', () => {
-    for (const id of ['abcdefgh', 'A-_09zZx', 'a'.repeat(64)]) expect(isDeviceImageId(id), id).toBe(true);
-    for (const id of ['', 'abcdefg', 'a'.repeat(65), 'abcd efgh', 'abcd/efgh', 'abcd.efgh', 'blob:https://x', '__proto__', 'constructor', 'hasOwnProperty', 42, null, undefined, ['abcdefgh']]) {
-      expect(isDeviceImageId(id), String(id)).toBe(false);
-    }
-  });
-});
-
-describe('sniffImageType', () => {
-  it('returns the image type when the first bytes are a PNG, JPEG, GIF, WebP or AVIF header', () => {
-    expect(sniffImageType(bytes(HEADERS.png))).toBe('image/png');
-    expect(sniffImageType(bytes(HEADERS.jpeg))).toBe('image/jpeg');
-    expect(sniffImageType(bytes(HEADERS.gif))).toBe('image/gif');
-    expect(sniffImageType(bytes([...'GIF87a'].map(c => c.charCodeAt(0))))).toBe('image/gif');
-    expect(sniffImageType(bytes(HEADERS.webp))).toBe('image/webp');
-    expect(sniffImageType(bytes(HEADERS.avif))).toBe('image/avif');
-    // AVIF listed as a compatible brand after another major brand.
-    const mif1 = [0, 0, 0, 0x20, ...[...'ftypmif1\0\0\0\0mif1miafMA1Bavif'].map(c => c.charCodeAt(0))];
-    expect(sniffImageType(bytes(mif1))).toBe('image/avif');
-  });
-
-  it('returns null when the bytes are SVG, HTML, HEIC, another format or shorter than a header', () => {
-    const text = (value: string) => new TextEncoder().encode(value.padEnd(32, ' '));
-    expect(sniffImageType(text('<svg xmlns="http://www.w3.org/2000/svg">'))).toBeNull();
-    expect(sniffImageType(text('<?xml version="1.0"?><svg>'))).toBeNull();
-    expect(sniffImageType(text('<!doctype html><script>alert(1)</script>'))).toBeNull();
-    expect(sniffImageType(text('%PDF-1.7'))).toBeNull();
-    expect(sniffImageType(bytes([0, 0, 0, 0x18, ...[...'ftypheic\0\0\0\0mif1heic'].map(c => c.charCodeAt(0))]))).toBeNull();
-    // "avif" as the minor version field is not a brand.
-    expect(sniffImageType(bytes([0, 0, 0, 0x14, ...[...'ftypmif1avifmif1'].map(c => c.charCodeAt(0))]))).toBeNull();
-    expect(sniffImageType(bytes([...'RIFF\0\0\0\0WAVE'].map(c => c.charCodeAt(0))))).toBeNull();
-    expect(sniffImageType(new Uint8Array([0x89, 0x50, 0x4e]))).toBeNull();
-    expect(sniffImageType(new Uint8Array())).toBeNull();
   });
 });
 
@@ -168,7 +132,7 @@ describe('planEviction', () => {
     expect(planEviction([entry('a', 50, 1), entry('b', 50, 2)], {id: 'a', size: 50}, limits)).toEqual([]);
   });
 
-  it('returns only ids of unkept images, or null when they free too little room, when some images are kept', () => {
+  it('returns only ids outside the set {keep}, or null when they free too little room, when {keep} has ids', () => {
     const entries = [entry('a', 50, 1), entry('b', 50, 2)];
     expect(planEviction(entries, {id: 'c', size: 50}, limits, new Set(['a']))).toEqual(['b']);
     expect(planEviction(entries, {id: 'c', size: 50}, limits, new Set(['a', 'b']))).toBeNull();
@@ -328,7 +292,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.usage()).toEqual({count: 2, totalBytes: 64});
   });
 
-  it('returns an unkept id in evicted, or reason \'storage-full\' when only kept images could make room', async () => {
+  it('returns an id outside {keep} in evicted, or reason \'storage-full\' when only ids in {keep} could make room', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 100}});
     await store.put(image(40));
     await store.put(image(40));
@@ -344,17 +308,35 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(await store.usage()).toEqual({count: 5, totalBytes: 50});
   });
 
-  it('returns the images newest first from list, true once from delete, and zero usage from clear when the store has 2 images', async () => {
+  /** A store with 2 images: img-00000001 (32 bytes), then img-00000002 (33 bytes). */
+  async function storeWith2Images() {
     const store = await open();
     await store.put(image(32));
     await store.put(image(33));
+    return store;
+  }
+
+  it('returns the images newest first from list when the store has 2 images', async () => {
+    const store = await storeWith2Images();
     expect(await store.list()).toEqual([
       {id: 'img-00000002', type: 'image/png', size: 33, storedAt: 1001, usedAt: 1001},
       {id: 'img-00000001', type: 'image/png', size: 32, storedAt: 1000, usedAt: 1000},
     ]);
+  });
+
+  it('returns true from delete once, then false, when the id is in the store', async () => {
+    const store = await storeWith2Images();
     expect(await store.delete('img-00000001')).toBe(true);
     expect(await store.delete('img-00000001')).toBe(false);
+  });
+
+  it('returns false from delete when the id is not a string', async () => {
+    const store = await storeWith2Images();
     expect(await store.delete(42 as unknown as string)).toBe(false);
+  });
+
+  it('returns zero usage after clear when the store has 2 images', async () => {
+    const store = await storeWith2Images();
     await store.clear();
     expect(await store.usage()).toEqual({count: 0, totalBytes: 0});
   });
@@ -409,7 +391,7 @@ describe('openDeviceStore with IndexedDB', () => {
     });
   }
 
-  it('returns ok with the least recently used unkept id in evicted when the first write hits QuotaExceededError', async () => {
+  it('returns ok with the least recently used id outside {keep} in evicted when the first write hits QuotaExceededError', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
     await store.put(image(40)); // img-00000001, the oldest
     await store.put(image(40)); // img-00000002
@@ -430,7 +412,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect((await store.list()).map(info => info.id)).toEqual(['img-00000002']);
   });
 
-  it('returns reason \'storage-full\' with no retry when the quota is full and every image is kept', async () => {
+  it('returns reason \'storage-full\' with no retry when the quota is full and {keep} has every image', async () => {
     const store = await open({limits: {maxImageBytes: 60, maxTotalBytes: 1000}});
     await store.put(image(40));
     failNextWrites(2);
@@ -491,7 +473,7 @@ describe('openDeviceStore with IndexedDB', () => {
     expect(() => store.close()).not.toThrow();
   });
 
-  it('returns results when put, get, getMany, list, usage and delete are called detached from the store (A47)', async () => {
+  it('returns the put image from get, getMany, list, usage and delete when they are called detached from the store (A47)', async () => {
     const store = await open();
     expect(store.persistent).toBe(true);
     const {put, get, getMany, list, usage, delete: remove} = store;
@@ -598,10 +580,16 @@ describe('openDeviceStore without IndexedDB', () => {
     }
   });
 
-  it('returns the IndexedDB store\'s results for limits, eviction, type checks and close when the store is in memory', async () => {
-    const store = createMemoryDeviceStore({limits: {maxImageBytes: 60, maxTotalBytes: 100}, now: tickingClock(), createId: sequentialIds()});
+  const memoryStore = () => createMemoryDeviceStore({limits: {maxImageBytes: 60, maxTotalBytes: 100}, now: tickingClock(), createId: sequentialIds()});
+
+  it('returns reason too-large or unsupported-type from put when the store is in memory and the image is too big or SVG', async () => {
+    const store = memoryStore();
     expect(await store.put(image(61))).toEqual({ok: false, reason: 'too-large'});
     expect(await store.put(new Blob(['<svg/>'.padEnd(40)]))).toEqual({ok: false, reason: 'unsupported-type'});
+  });
+
+  it('returns the least recently used id in evicted, or storage-full, when the in-memory store is full', async () => {
+    const store = memoryStore();
     await store.put(image(40));
     await store.put(image(40));
     await store.get('img-00000001');
@@ -609,9 +597,20 @@ describe('openDeviceStore without IndexedDB', () => {
     expect(await store.put(image(40), {keep: ['img-00000001', 'img-00000003']})).toEqual({ok: false, reason: 'storage-full'});
     expect((await store.list()).map(info => info.id)).toEqual(['img-00000003', 'img-00000001']);
     expect(await store.usage()).toEqual({count: 2, totalBytes: 80});
-    expect(await store.delete('img-00000003')).toBe(true);
+  });
+
+  it('returns true from delete and an empty list after clear when the in-memory store has images', async () => {
+    const store = memoryStore();
+    await store.put(image(40));
+    await store.put(image(40));
+    expect(await store.delete('img-00000002')).toBe(true);
     await store.clear();
     expect(await store.list()).toEqual([]);
+  });
+
+  it('returns reason storage-error from put and null from get when the in-memory store is closed', async () => {
+    const store = memoryStore();
+    await store.put(image(40));
     store.close();
     expect(await store.put(image(10))).toEqual({ok: false, reason: 'storage-error'});
     expect(await store.get('img-00000001')).toBeNull();

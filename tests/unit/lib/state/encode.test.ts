@@ -24,6 +24,11 @@ describe('encodeState', () => {
 
 /** The v2 encoder stays byte for byte what the app wrote before lib/state and before v3. */
 describe('encodeV2', () => {
+  // Every legacy value starts with N, so a version prefix such as "3." never matches one.
+  it('returns a value that starts with N when it encodes 300 random lists', () => {
+    for (const state of randomAppStates(300, 5)) expect(encodeV2(toCanonical(state))[0]).toBe('N');
+  });
+
   it('returns the bytes TierCortex.encodeTierStateForURL wrote before lib/state when given 2,000 random lists', () => {
     const states = randomAppStates(2000, 20261025);
     for (let index = 0; index < states.length; index++) {

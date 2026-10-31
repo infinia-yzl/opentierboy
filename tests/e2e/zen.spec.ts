@@ -3,11 +3,11 @@ import {expect, test} from '../support/test';
 const TANKS = '/rank/overwatch/tank';
 
 test.describe('zen', () => {
-  test('renders no button "Row options", "Add images" or "Share" when the user turns on Zen', {tag: '@mobile'}, async ({
+  test('renders no button "Add row", "Row options", "Add images" or "Share" when the user turns on Zen', {tag: '@mobile'}, async ({
     tierList,
   }) => {
     await tierList.goto(TANKS);
-    const toolbar = [tierList.rowOptionsButton, tierList.manageItemsButton, tierList.shareButton];
+    const toolbar = [tierList.addRowButton, tierList.rowOptionsButton, tierList.manageItemsButton, tierList.shareButton];
 
     await tierList.setZenMode(true);
 

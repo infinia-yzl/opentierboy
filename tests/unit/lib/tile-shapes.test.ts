@@ -153,7 +153,7 @@ describe('buildPackageEntry, imageShape and tagShape (scripts/lib/image-sets.mjs
     expect(imageShape('image-mixed', undefined)).toBeUndefined();
   });
 
-  it('throws has the unknown shape when imageShape or tagShape gets an unknown shape', () => {
+  it('throws "has the unknown shape" when imageShape or tagShape gets an unknown shape', () => {
     expect(() => imageShape('image-mixed', {filename: 'a.webp', shape: 'round', tags: []})).toThrow('image "a.webp" has the unknown shape "round"');
     expect(() => tagShape('image-mixed', {name: 'maps', shape: 'wide'})).toThrow('tag "maps" has the unknown shape "wide"');
   });

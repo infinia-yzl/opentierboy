@@ -209,9 +209,9 @@ four verbs:
 
 | Verb | The test asserts | Example |
 | --- | --- | --- |
-| `returns` | a return value, a resolved Promise or result object; an HTTP response in `.api` specs; a script's exit code | `returns {ok: false, reason: 'ip-address'} when the host is an IPv4 address` |
+| `returns` | a return value, a resolved Promise or result object; an HTTP response (status, headers, body); a script's exit code | `returns {ok: false, reason: 'ip-address'} when the host is an IPv4 address` |
 | `throws` | a thrown error or a rejected Promise | `throws TypeError when the input is empty` |
-| `writes` | stored or sent data: IndexedDB, localStorage, files, a script's output, the `state` parameter, history entries, network requests, the clipboard | `writes 1 history entry when the user drops an item in row S` |
+| `writes` | stored or sent data: IndexedDB, localStorage, files, a script's output, the `state` parameter, history entries, network requests, the clipboard, calls to listeners, console errors and CSP violation reports | `writes 1 history entry when the user drops an item in row S` |
 | `renders` | what the page has in the DOM: elements, text, order, visibility, focus, images, colours | `renders the item in row S when the user drags it to row S` |
 
 - Pick the verb of the assertion the test exists for. Join a second result with "and" only
@@ -225,6 +225,9 @@ four verbs:
 - Banned words: carry, keep, hold, give, bring, show, works, handles, correctly, properly,
   should, always.
 - Decision ids such as (A10) and issue numbers such as (#107) stay at the end of the name.
+- A name has at most 120 characters.
+- `tests/unit/rules/test-names.test.ts` checks these rules, and the one top-level `describe` of
+  each end-to-end file, on every test file.
 
 ## Golden shared links
 

@@ -18,12 +18,6 @@ test.describe('shared links', () => {
       });
     }
 
-    test('renders the template when the page opens a link with a state parameter that does not decode', async ({tierList}) => {
-      await tierList.goto('/rank/overwatch/tank', 'this-is-not-a-valid-state');
-
-      await expect(tierList.title).toHaveText('OVERWATCH - Tank');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
-    });
   });
 
   test.describe('link preview tags', () => {
@@ -140,6 +134,13 @@ test.describe('shared links', () => {
     test('renders the template when the page opens a link with a 1,000,000-character row name', async ({tierList}) => {
       // A million characters of tier name in a link of about 2,600 characters.
       await tierList.goto('/rank/overwatch/tank', hugeTierNameState());
+
+      await expect(tierList.title).toHaveText('OVERWATCH - Tank');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
+    });
+
+    test('renders the template when the page opens a link with a state parameter that does not decode', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto('/rank/overwatch/tank', 'this-is-not-a-valid-state');
 
       await expect(tierList.title).toHaveText('OVERWATCH - Tank');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
