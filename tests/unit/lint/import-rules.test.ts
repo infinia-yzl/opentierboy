@@ -94,7 +94,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
     const all = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    for (const file of ['components/Probe.tsx', 'lib/snapshot/payload.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'app/api/og/probe.ts', 'tests/e2e/probe.spec.ts', 'tests/unit/probe.test.ts', 'tests/support/probe.ts', 'scripts/probe.mjs']) {
+    for (const file of ['components/Probe.tsx', 'lib/snapshot/payload.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'app/api/og/probe.ts', 'tests/e2e/history.spec.ts', 'tests/unit/probe.test.ts', 'tests/support/links.ts', 'scripts/probe.mjs']) {
       expect(await reportedLines(file, code, rules), file).toEqual(all);
     }
     expect(await reportedLines('lib/zod.ts', code, rules)).toEqual([]);
@@ -134,14 +134,14 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
     const all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-    for (const file of ['tests/e2e/probe.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/Probe.ts']) {
+    for (const file of ['tests/e2e/history.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/SitePage.ts']) {
       expect(await reportedLines(file, code, rules), file).toEqual(all);
     }
     // TypeScript only: the non-null form of page.context().browser().
-    expect(await reportedLines('tests/e2e/probe.spec.ts', 'export const p = async (page) => page.context().browser()!.newPage();\n', rules)).toEqual([1]);
+    expect(await reportedLines('tests/e2e/history.spec.ts', 'export const p = async (page) => page.context().browser()!.newPage();\n', rules)).toEqual([1]);
     const commonJs = 'module.exports = async (route, browser) => {\n  await route.continue();\n  await browser.newContext();\n};\n';
     expect(await reportedLines('tests/e2e/probe.spec.cjs', commonJs, rules)).toEqual([2, 3]);
-    expect(await reportedLines('tests/support/probe.ts', code, rules)).toEqual([]);
+    expect(await reportedLines('tests/support/links.ts', code, rules)).toEqual([]);
     expect(await reportedLines('tests/support/probe.mjs', code, rules)).toEqual([]);
     expect(await reportedLines('tests/support/probe.cjs', commonJs, rules)).toEqual([]);
   });

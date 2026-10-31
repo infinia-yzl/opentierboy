@@ -44,7 +44,7 @@ const DND_KIT_IMPORTS = ['@dnd-kit/react', '@dnd-kit/react/sortable', '@dnd-kit/
 // Loading the ESLint config with the Next.js plugins takes a few seconds, more on a busy machine.
 describe('ESLint: dnd-kit only in lib/dnd', {timeout: 90_000}, () => {
   it('blocks dnd-kit in components, other lib code, scripts, configs and other tests', async () => {
-    for (const file of ['components/Probe.tsx', 'lib/Probe.ts', 'app/rank/probe.tsx', 'scripts/probe.mjs', 'next.config.mjs', 'tests/e2e/probe.spec.ts', 'tests/unit/probe.test.ts']) {
+    for (const file of ['components/Probe.tsx', 'lib/Probe.ts', 'app/rank/probe.tsx', 'scripts/probe.mjs', 'next.config.mjs', 'tests/e2e/history.spec.ts', 'tests/unit/probe.test.ts']) {
       expect(await dndKitBlocked(file, DND_KIT_IMPORTS), file).toEqual([1, 2, 3, 4, 5]);
     }
   });

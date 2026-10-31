@@ -67,7 +67,7 @@ describe('ESLint rule: no classes in our own code (A47)', {timeout: 90_000}, () 
   });
 
   it('allows classes in tests, in the vendored dnd-kit fork and in the named config files at the root', async () => {
-    const quiet = ['tests/unit/probe.test.ts', 'tests/e2e/probe.spec.ts', 'tests/pages/Probe.ts', 'tests/support/probe.ts', 'packages/dnd-kit/src/probe.ts', ...ROOT_CONFIG_FILES];
+    const quiet = ['tests/unit/probe.test.ts', 'tests/e2e/history.spec.ts', 'tests/pages/SitePage.ts', 'tests/support/links.ts', 'packages/dnd-kit/src/probe.ts', ...ROOT_CONFIG_FILES];
     for (const file of quiet) {
       expect((await reported(file, CLASSES)).lines, file).toEqual([]);
     }

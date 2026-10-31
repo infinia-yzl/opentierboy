@@ -223,6 +223,19 @@ export default defineConfig([
       'react-hooks/rules-of-hooks': 'off',
     },
   },
+  // Playwright code: a call or assertion without `await` runs on after the test moves on, so the
+  // test checks nothing or fails at random (Playwright best practices: "Lint your tests"). The
+  // rule needs type information, so these files are linted with the TypeScript project, and
+  // only files that exist are linted this way (the lint tests use real paths here).
+  {
+    files: ['tests/e2e/**/*.ts', 'tests/pages/**/*.ts', 'tests/support/**/*.ts'],
+    languageOptions: {
+      parserOptions: {projectService: true, tsconfigRootDir: import.meta.dirname},
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+    },
+  },
   // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts, dnd-kit
   // only in lib/dnd.
   {
