@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, it} from 'vitest';
-import {installFunctionTrap} from '../support/functionTrap';
+import {installFunctionTrap} from '../support/function-trap';
 
 // No static import of zod or lib/zod here: the trap must be in place before zod loads.
 const trap = installFunctionTrap();

@@ -13,7 +13,7 @@ import {
   makePng,
   SIGNATURE,
   splitChunks,
-} from '../../support/pngHelpers';
+} from '../../support/png-helpers';
 
 const MiB = 1024 * 1024;
 const TEXT = '{"version":1,"state":"3.N4Ig","title":"Ünïcödé ✨ 名前 🧪"}';

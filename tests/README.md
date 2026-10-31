@@ -58,12 +58,13 @@ Projects (see `playwright.config.ts`):
 ```
 tests/
   e2e/            Playwright specs: one file per UI area or route (see "Where a test goes")
-  pages/          page objects: every selector and every user action (TierListPage, SitePage)
+  pages/          page objects: every selector and every user action (tier-list-page.ts, site-page.ts)
   support/        Playwright fixtures and helpers: links, image sites, snapshot files
   fixtures/       golden links and link states, golden snapshot files, images to upload (append-only)
   unit/           Vitest unit tests, at the same paths as the code they test
-    lib/, app/, scripts/   one test file per source file
-    rules/        project rules: ESLint, imports, plain modules, the dnd-kit fork wiring
+    lib/, app/, models/, scripts/   one test file per source file
+    rules/        project rules: ESLint, imports, plain modules, the dnd-kit fork wiring,
+                  image shapes, test names and file names
     fixtures/     checks of the golden fixtures in tests/fixtures
     support/      unit test helpers
 ```
@@ -108,6 +109,16 @@ tests/
   | `journeys` | long scenarios over several areas, with Back and Forward |
   | `tile-shapes` | tiles of other shapes (needs a special build) |
 
+## File names
+
+- **A unit test of one source file has that file's name and path**, whatever its case:
+  `lib/images/deviceStore.ts` is tested in `tests/unit/lib/images/deviceStore.test.ts`, and
+  `lib/TierCortex.ts` in `tests/unit/lib/TierCortex.test.ts`. A search for the name finds both.
+- **Every other file and folder under `tests/` is kebab-case:** specs (`drag-and-drop.spec.ts`),
+  tests of several files (`lib/state/v3-format.test.ts`), rule tests, page objects
+  (`tier-list-page.ts` holds the class `TierListPage`), helpers (`image-sites.ts`) and fixtures.
+- `tests/unit/rules/test-file-names.test.ts` checks both rules on every file.
+
 ## Writing tests
 
 - **Import `test` and `expect` from `tests/support/test.ts`.** It provides the `tierList`,
@@ -142,7 +153,7 @@ tests/
   `context.request`, the `request` fixture and the runner's `fetch()` (guarded when the module
   is first imported). A blocked request fails the test, also one marked `test.fail()`; one
   outside a test fails its file or the worker. Play image sites with
-  `tests/support/imageSites.ts`. Lint refuses the ways around it (`route.continue()`,
+  `tests/support/image-sites.ts`. Lint refuses the ways around it (`route.continue()`,
   `route.fetch()`, `browser.newContext()`, `browser.newPage()`, `launch()`...) outside
   `tests/support`. Known limits, not guarded: `node:http` and `node:https` in tests, a route
   that answers a site address with a redirect to an outside host (or falls back with an
@@ -154,7 +165,7 @@ tests/
   that a test makes (`new ClipboardEvent('paste', {clipboardData})`), so tests that paste skip
   Firefox with `test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP)`. WebKit refuses
   `page.goto()` of a `blob:` URL in a new tab, so the test that opens an upload's image in a
-  tab skips WebKit (`BLOB_TAB_SKIP`). Both reasons live in `tests/pages/TierListPage.ts`. These
+  tab skips WebKit (`BLOB_TAB_SKIP`). Both reasons live in `tests/pages/tier-list-page.ts`. These
   are limits of the test tools; Chromium runs every one of these tests.
 - **Run a new test under load before you commit it**, for example
   `npx playwright test --workers=4 --repeat-each=5 path/to.spec.ts`.
@@ -199,7 +210,7 @@ npx playwright test tests/e2e/tile-shapes.spec.ts
 git checkout imageset.config.json              # back to the real config, then build again
 ```
 
-While the made-up config is in place, the guard in `tests/unit/lib/tile-shapes.test.ts` fails on
+While the made-up config is in place, the guard in `tests/unit/rules/image-shapes.test.ts` fails on
 purpose.
 
 ## Test names

@@ -2,7 +2,7 @@ import {describe, expect, it} from 'vitest';
 import {decodeState, encodeState, type EncodableState} from '@/lib/state';
 import {readSnapshotFile, writeSnapshotFile} from '@/lib/snapshot';
 import {snapshotLinkAfterImport, snapshotToOpen} from '@/lib/snapshot/open';
-import {makePng} from '../../support/pngHelpers';
+import {makePng} from '../../support/png-helpers';
 
 const pngDataUrl = (bytes: Uint8Array) => `data:image/png;base64,${Buffer.from(bytes).toString('base64')}`;
 

@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, it} from 'vitest';
-import {installFunctionTrap} from '../support/functionTrap';
+import {installFunctionTrap} from '../support/function-trap';
 
 /**
  * The reason for lib/zod: plain zod calls new Function when it builds an object schema. If

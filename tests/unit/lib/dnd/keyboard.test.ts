@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {groupIntoLines, keyboardItemTarget, keyboardRowTarget, wrapIntoLines, type LayoutRow} from '@/lib/dnd/keyboard';
 import {moveItem} from '@/lib/dnd/moves';
-import {seededRandom} from '../../support/randomStates';
+import {seededRandom} from '../../support/random-states';
 
 /** Tile sizes in pixels (the shapes of Phase 4 at the editor's desktop size). */
 const SIZE = {square: [80, 80], landscape: [120, 68], portrait: [60, 80]} as const;

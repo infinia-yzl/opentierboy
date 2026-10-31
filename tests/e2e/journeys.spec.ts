@@ -1,7 +1,7 @@
 import {expect, expectTierList, test} from '../support/test';
 import {rankingState} from '../support/links';
-import {BLUE_SQUARE, imageFile} from '../support/imageSites';
-import type {TierListPage} from '../pages/TierListPage';
+import {BLUE_SQUARE, imageFile} from '../support/image-sites';
+import type {TierListPage} from '../pages/tier-list-page';
 
 /**
  * Longer editing journeys. Each journey makes several changes in a row, then walks the browser

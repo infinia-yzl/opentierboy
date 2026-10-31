@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {embedSnapshotText, readSnapshotFile, writeSnapshotFile} from '@/lib/snapshot';
-import {decodePng, makePng} from '../../support/pngHelpers';
+import {decodePng, makePng} from '../../support/png-helpers';
 
 const STATE = '3.N4IgLgFgpgTg4mAdgVw';
 

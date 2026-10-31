@@ -134,7 +134,7 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     ].join('\n') + '\n';
     const rules = ['no-restricted-syntax'];
     const all = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
-    for (const file of ['tests/e2e/history.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/SitePage.ts']) {
+    for (const file of ['tests/e2e/history.spec.ts', 'tests/e2e/probe.spec.js', 'tests/e2e/probe.spec.mjs', 'tests/e2e/probe.spec.mts', 'tests/e2e/probe.spec.tsx', 'tests/pages/site-page.ts']) {
       expect(await reportedLines(file, code, rules), file).toEqual(all);
     }
     // TypeScript only: the non-null form of page.context().browser().

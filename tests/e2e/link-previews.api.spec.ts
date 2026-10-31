@@ -2,7 +2,7 @@ import http from 'node:http';
 import type {AddressInfo} from 'node:net';
 import {expect, SHARED_LINKS, test} from '../support/test';
 import {LEGACY_SETS, legacyItemIds, legacyItems, packageItemId, stateFromJson, v3State} from '../support/links';
-import {lzBomb, lzWithRun} from '../unit/support/lzStream';
+import {lzBomb, lzWithRun} from '../unit/support/lz-stream';
 
 /**
  * The preview image that chat apps and social sites show for a shared link.
@@ -158,7 +158,7 @@ test.describe('link previews', () => {
 
     // Links made to hang or crash the server (A29). Each one must get the default preview quickly,
     // and the server must keep answering other requests. The links are built here in milliseconds
-    // (tests/unit/support/lzStream.ts); lz-string itself would take seconds to compress them.
+    // (tests/unit/support/lz-stream.ts); lz-string itself would take seconds to compress them.
     const HOSTILE_TIMEOUT = 5_000;
     const hostileLinks = [
       {name: 'a 5-million-character tier name', state: () => lzWithRun(HUGE_NAME_JSON, 'x', 5_000_000).input},

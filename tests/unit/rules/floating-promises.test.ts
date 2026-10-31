@@ -51,13 +51,13 @@ describe('ESLint @typescript-eslint/no-floating-promises', {timeout: 90_000}, ()
   });
 
   it('returns an error for each Playwright call without await when the file is a page object or a support file', async () => {
-    expect(await reportedLines('tests/pages/SitePage.ts', PAGE_OBJECT_PROBE)).toEqual([3, 4]);
+    expect(await reportedLines('tests/pages/site-page.ts', PAGE_OBJECT_PROBE)).toEqual([3, 4]);
     expect(await reportedLines('tests/support/links.ts', PAGE_OBJECT_PROBE)).toEqual([3, 4]);
   });
 });
 
 describe('ESLint @typescript-eslint/no-misused-promises', {timeout: 90_000}, () => {
   it('returns an error when an async callback goes to forEach in a page object', async () => {
-    expect(await reportedLines('tests/pages/SitePage.ts', PAGE_OBJECT_PROBE, '@typescript-eslint/no-misused-promises')).toEqual([6]);
+    expect(await reportedLines('tests/pages/site-page.ts', PAGE_OBJECT_PROBE, '@typescript-eslint/no-misused-promises')).toEqual([6]);
   });
 });

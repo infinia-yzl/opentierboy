@@ -1,7 +1,7 @@
 /** Link images: images added by their web address, and the consent to load images from other sites. */
 import {expect, test} from '../support/test';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, serveImageSite} from '../support/imageSites';
+import {BLUE_SQUARE, serveImageSite} from '../support/image-sites';
 
 const TANKS = '/rank/overwatch/tank';
 

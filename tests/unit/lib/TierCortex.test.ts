@@ -6,11 +6,12 @@ import {createTierCortex, type TierCortex} from '@/lib/TierCortex';
 import {encodeTierStateForURL, rowTemplateOf, uniqueTierIds} from '@/lib/listLink';
 import {decodeState, deviceImageIdForUpload} from '@/lib/state';
 import sharedLinks from '../../fixtures/shared-links.json';
-import {PreRefactorTierCortex} from '../support/TierCortex.pre-refactor';
-import {randomAppStates, seededRandom} from '../support/randomStates';
+import {PreRefactorTierCortex} from '../support/tier-cortex-pre-refactor';
+import {randomAppStates, seededRandom} from '../support/random-states';
 import {isCustomItem, packageItemLookup, resolveItemsFromPackage} from '@/lib/packageItems';
 import imagesetConfig from '@/imageset.config.json';
 import ImageSetConfig from '@/models/ImageSet';
+import {itemShape} from '@/models/Item';
 
 /**
  * TierCortex now hands the link format to lib/state. These tests prove that nothing a user
@@ -702,5 +703,93 @@ describe('createTierCortex in each environment', () => {
     // With a base URL in the options, making a TierCortex reads no global either.
     expect(fresh.createTierCortex({baseUrl: 'https://given.example'}).getAssetUrl(logo)).toBe('https://given.example/brand/otb-logo-wide.png');
     expect(() => fresh.createTierCortex()).toThrow('window was read');
+  });
+});
+
+/**
+ * Tile shapes (square, landscape, portrait) travel from the image set packages through
+ * scripts/prepareImages.js and imageset.config.json to the items TierCortex resolves. No
+ * published set uses a non-square shape yet, so these tests use a made-up config. Tiles render
+ * at their shape since the drag and drop update (revamp Phase 5e, lib/tileSize.ts).
+ */
+describe('createTierCortex with tile shapes', () => {
+  const CONFIG = {
+    packages: {
+      'image-mixed': {
+        displayName: 'Mixed',
+        images: [
+          {filename: 'map.webp', label: 'Map', tags: ['maps'], shape: 'landscape'},
+          {filename: 'hero.webp', label: 'Hero', tags: ['heroes'], shape: 'portrait'},
+          {filename: 'icon.webp', label: 'Icon', tags: ['icons']},
+          {filename: 'boxed.webp', label: 'Boxed', tags: ['icons'], shape: 'square'},
+          {filename: 'odd.webp', label: 'Odd', tags: ['icons'], shape: 'hexagon'},
+        ],
+        tags: {
+          maps: {title: 'Maps', description: 'Maps', category: 'general', shape: 'landscape'},
+          heroes: {title: 'Heroes', description: 'Heroes', category: 'general', shape: 'portrait'},
+          icons: {title: 'Icons', description: 'Icons', category: 'general'},
+        },
+      },
+    },
+  } as unknown as ImageSetConfig;
+  const LINK = lz(JSON.stringify({title: 'Shapes', tiers: [
+    {i: 'tier-s', n: 'S', t: [{i: 'image-mixed-map.webp'}, {i: 'image-mixed-hero.webp'}]},
+    {i: 'uncategorized', n: '', t: [{i: 'image-mixed-icon.webp'}, {i: 'image-mixed-old-map.webp'}, {i: 'k3j9x0a1b', c: 'my cat'}]},
+  ]}));
+
+  const cortex = createTierCortex({imageSetConfig: CONFIG, aliases: {'image-mixed-old-map.webp': 'image-mixed-map.webp'}});
+
+  it('returns the image shape, and square for uploads and unknown ids, when a link has image-set items', () => {
+    const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
+    const shapes = tiers.map((tier) => tier.items.map((item) => [item.content, itemShape(item)]));
+    expect(shapes).toEqual([
+      [['Map', 'landscape'], ['Hero', 'portrait']],
+      // The old id of Map points to Map, which is already in S, so it keeps only that place (A32).
+      // Uploaded and unknown items are square.
+      [['Icon', 'square'], ['my cat', 'square']],
+    ]);
+  });
+
+  it('returns the shape of the alias target when a link names a renamed id', () => {
+    const renamed = cortex.decodeTierStateFromURL(lz(JSON.stringify({tiers: [{i: 'tier-s', n: 'S', t: [{i: 'image-mixed-old-map.webp'}]}]})))!;
+    expect(renamed.tiers[0].items.map((item) => [item.content, itemShape(item)])).toEqual([['Map', 'landscape']]);
+  });
+
+  it('returns shape only for landscape and portrait images when resolveItemsFromPackage runs', () => {
+    const items = cortex.resolveItemsFromPackage('image-mixed', ['map.webp', 'icon.webp', 'boxed.webp', 'odd.webp']);
+    expect(items.map((item) => item.shape)).toEqual(['landscape', undefined, undefined, undefined]);
+    expect(items.map(itemShape)).toEqual(['landscape', 'square', 'square', 'square']);
+  });
+
+  it('returns the image shapes on items when getInitialTiers opens a template', () => {
+    const tiers = cortex.getInitialTiers(undefined, {
+      packageName: 'image-mixed', packageDisplayName: 'Mixed', tagName: 'all', tagTitle: 'All Items',
+      images: ['hero.webp', 'icon.webp'],
+    });
+    expect(tiers.at(-1)!.items.map(itemShape)).toEqual(['portrait', 'square']);
+  });
+
+  it('returns a link with ids only and no shape when a list with shaped items is encoded', () => {
+    const tiers = cortex.decodeTierStateFromURL(LINK)!.tiers;
+    const encoded = encodeTierStateForURL('Shapes', tiers.map((tier) => ({
+      ...tier,
+      items: tier.items.map((item) => ({i: item.id, c: cortex.isCustomItem(item.id) ? item.content : undefined})),
+    })));
+    expect(LZString.decompressFromEncodedURIComponent(encoded)).not.toContain('shape');
+    expect(LZString.decompressFromEncodedURIComponent(encoded)).not.toContain('landscape');
+  });
+
+  it('returns the shape and the PNG URL when getOgSafeItem gets a landscape item', () => {
+    const [map] = cortex.resolveItemsFromPackage('image-mixed', ['map.webp']);
+    expect(cortex.getOgSafeItem(map)).toMatchObject({shape: 'landscape', imageUrl: expect.stringMatching(/\/images\/image-mixed\/map\.png$/)});
+  });
+
+  it('returns the declared category shape when getCategoryShape runs, and square for none or unknown names', () => {
+    expect(cortex.getCategoryShape('image-mixed', 'maps')).toBe('landscape');
+    expect(cortex.getCategoryShape('image-mixed', 'heroes')).toBe('portrait');
+    expect(cortex.getCategoryShape('image-mixed', 'icons')).toBe('square');
+    expect(cortex.getCategoryShape('image-mixed', 'missing')).toBe('square');
+    expect(cortex.getCategoryShape('image-mixed', 'constructor')).toBe('square');
+    expect(cortex.getCategoryShape('image-unknown', 'maps')).toBe('square');
   });
 });

@@ -1,5 +1,5 @@
 import {expect, test} from '../support/test';
-import type {ThemeMode} from '../pages/SitePage';
+import type {ThemeMode} from '../pages/site-page';
 
 // The Appearance menu (owner decisions, 2026-10-28): Mode, Game colours and Font.
 const TANKS = '/rank/overwatch/tank';

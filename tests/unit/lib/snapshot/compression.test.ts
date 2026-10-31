@@ -1,38 +1,13 @@
 import zlib from 'node:zlib';
 import {describe, expect, it} from 'vitest';
 import {deflate, inflateCapped} from '@/lib/snapshot/compression';
-import {crc32} from '@/lib/snapshot/crc32';
-
-/** Deterministic noise (xorshift32), which does not compress. */
-function randomBytes(length: number, seed = 1): Uint8Array {
-  const out = new Uint8Array(length);
-  let x = seed || 1;
-  for (let i = 0; i < length; i++) {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    out[i] = x & 0xff;
-  }
-  return out;
-}
+import {randomBytes} from '../../support/random-bytes';
 
 /** Compares bytes with Buffer.compare: a deep toEqual on large typed arrays takes seconds. */
 function expectBytes(result: Awaited<ReturnType<typeof inflateCapped>>, expected: Uint8Array) {
   expect(result.ok).toBe(true);
   if (result.ok) expect(Buffer.compare(result.bytes, expected)).toBe(0);
 }
-
-describe('crc32', () => {
-  it('returns the node:zlib CRC-32 when given a whole buffer or a range', () => {
-    expect(crc32(new Uint8Array())).toBe(0);
-    expect(crc32(new TextEncoder().encode('IEND'))).toBe(0xae426082);
-    for (const length of [1, 7, 256, 10_000]) {
-      const bytes = randomBytes(length, length);
-      expect(crc32(bytes)).toBe(zlib.crc32(bytes));
-      expect(crc32(bytes, 1, length - 1)).toBe(zlib.crc32(bytes.subarray(1, length - 1)));
-    }
-  });
-});
 
 describe('deflate and inflateCapped', () => {
   it('returns bytes that round-trip with node:zlib when deflate or inflateCapped gets Unicode text', async () => {

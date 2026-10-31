@@ -12,8 +12,8 @@ import {
   V3_LIMITS,
 } from '@/lib/state';
 import sharedLinks from '../../../fixtures/shared-links.json';
-import {lzBomb, lzWithRun} from '../../support/lzStream';
-import {randomAppStates, randomV3States, seededRandom, toCanonical} from '../../support/randomStates';
+import {lzBomb, lzWithRun} from '../../support/lz-stream';
+import {randomAppStates, randomV3States, seededRandom, toCanonical} from '../../support/random-states';
 
 const lz = (json: string) => LZString.compressToEncodedURIComponent(json);
 const v3 = (json: string) => `3.${lz(json)}`;

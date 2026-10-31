@@ -1,7 +1,7 @@
 /** HTTP answers of /rank paths: status codes, redirects and the page the server sends. */
 import {expect, test} from '../support/test';
 import {LEGACY_SETS, rankingState} from '../support/links';
-import {lzWithRun} from '../unit/support/lzStream';
+import {lzWithRun} from '../unit/support/lz-stream';
 
 /**
  * The HTTP answers of /rank paths (proxy.ts, lib/rankRoute.ts). The editor page streams, and a

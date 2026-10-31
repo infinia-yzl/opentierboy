@@ -3,8 +3,8 @@ import {describe, expect, it} from 'vitest';
 import {decompressFromEncodedURIComponentCapped, measureDecompressedLength} from '@/lib/state/lz';
 import sharedLinks from '../../../fixtures/shared-links.json';
 import generated from '../../../fixtures/state/generated.json';
-import {LzBitWriter, LzStreamWriter, lzBomb, lzWithRun} from '../../support/lzStream';
-import {seededRandom} from '../../support/randomStates';
+import {LzBitWriter, LzStreamWriter, lzBomb, lzWithRun} from '../../support/lz-stream';
+import {seededRandom} from '../../support/random-states';
 
 const URI_SAFE = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$';
 

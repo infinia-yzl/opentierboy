@@ -2,15 +2,17 @@ import {describe, expect, it} from 'vitest';
 import {isDeviceImageId} from '@/lib/state/deviceId';
 import {
   buildSnapshotPayload,
+  IMAGE_SIZE_SEARCH_BYTES,
   isAvifOrHeicDataUrl,
   parseSnapshotPayload,
+  rasterDataUrlInfo,
   rasterDataUrlType,
   SNAPSHOT_PAYLOAD_LIMITS,
   type SnapshotImage,
 } from '@/lib/snapshot/payload';
 import {SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot/png';
-import {gifHeader, jpegHeader, pngHeader, webpHeader} from '../../support/imageHeaders';
-import {makePng} from '../../support/pngHelpers';
+import {dataUrlOf, gifHeader, gifWithLongComment, jpegHeader, pngHeader, webpHeader} from '../../support/image-headers';
+import {makePng} from '../../support/png-helpers';
 
 const limits = SNAPSHOT_PAYLOAD_LIMITS;
 const STATE = '3.N4IgLgFgpgTg4mAdgVw';
@@ -395,5 +397,48 @@ describe('buildSnapshotPayload with bad input', () => {
 
   it('returns a maxPayloadBytes of at most SNAPSHOT_PNG_LIMITS.maxTextBytes when the limits are read', () => {
     expect(limits.maxPayloadBytes).toBeLessThanOrEqual(SNAPSHOT_PNG_LIMITS.maxTextBytes);
+  });
+});
+
+describe('rasterDataUrlInfo and parseSnapshotPayload with image bombs', () => {
+  const {maxImageSide, maxImagePixels} = SNAPSHOT_PAYLOAD_LIMITS;
+
+  it('returns the type and size when a raster data URL declares at most 4096 × 4096 pixels', () => {
+    expect(maxImagePixels).toBe(maxImageSide * maxImageSide);
+    expect(rasterDataUrlInfo(dataUrlOf('image/png', pngHeader(4096, 4096)))).toEqual({type: 'image/png', width: 4096, height: 4096});
+    expect(rasterDataUrlInfo(dataUrlOf('image/webp', webpHeader(512, 512)))).toMatchObject({width: 512});
+    expect(rasterDataUrlInfo(dataUrlOf('image/jpeg', jpegHeader(4096, 10)))).toMatchObject({width: 4096, height: 10});
+    expect(rasterDataUrlInfo(dataUrlOf('image/gif', gifHeader(64, 32)))).toMatchObject({width: 64, height: 32});
+    // A GIF keeps its first frame after its extensions: they are searched within the window.
+    expect(rasterDataUrlInfo(dataUrlOf('image/gif', gifWithLongComment(64, 32, 20_000)))).toMatchObject({width: 64, height: 32});
+  });
+
+  it('returns null when the declared size is over 4096 per side or unreadable', () => {
+    const refused = [
+      dataUrlOf('image/png', pngHeader(0, 10)),
+      dataUrlOf('image/gif', gifHeader(10, 0)),
+      dataUrlOf('image/png', pngHeader(12_000, 12_000)),
+      dataUrlOf('image/png', pngHeader(4097, 1)),
+      dataUrlOf('image/png', pngHeader(1, 4097)),
+      dataUrlOf('image/gif', gifHeader(65_535, 65_535)),
+      // A small screen whose first frame is huge: Chrome shows the frame's size.
+      dataUrlOf('image/gif', gifHeader(10, 10, {width: 12_000, height: 12_000})),
+      // A GIF whose first frame comes after more than the search window of extensions.
+      dataUrlOf('image/gif', gifWithLongComment(10, 10, IMAGE_SIZE_SEARCH_BYTES)),
+      dataUrlOf('image/jpeg', jpegHeader(8000, 8000)),
+      dataUrlOf('image/jpeg', jpegHeader(10, 10, {paddingBytes: IMAGE_SIZE_SEARCH_BYTES})),
+      dataUrlOf('image/webp', webpHeader(16_384, 16_384, 'VP8X')),
+      dataUrlOf('image/webp', webpHeader(5000, 2, 'VP8L')),
+      dataUrlOf('image/webp', webpHeader(4097, 4097, 'VP8 ')),
+      dataUrlOf('image/png', pngHeader(10, 10).subarray(0, 20)),
+    ];
+    for (const dataUrl of refused) expect(rasterDataUrlInfo(dataUrl), dataUrl.slice(0, 40)).toBeNull();
+  });
+
+  it('returns reason \'invalid-payload\' within 250 ms when the payload has a 12,000 × 12,000 PNG', () => {
+    const text = JSON.stringify({version: 1, state: '3.abc', images: [{id: 'bombImage001', label: 'Bomb', dataUrl: dataUrlOf('image/png', pngHeader(12_000, 12_000))}]});
+    const started = performance.now();
+    expect(parseSnapshotPayload(text)).toMatchObject({ok: false, reason: 'invalid-payload'});
+    expect(performance.now() - started).toBeLessThan(250);
   });
 });

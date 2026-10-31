@@ -145,7 +145,7 @@ public/images/        official sets: copied at build time (git-ignored); legacy 
                       image-helldivers2). PNG copies of all sets are made at build time (git-ignored)
 articles/             blog posts (Markdown)
 tests/e2e/            Playwright specs, one file per UI area or route (tests/README.md, "Where a test goes")
-tests/pages/          page objects (TierListPage, SitePage)
+tests/pages/          page objects (tier-list-page.ts: TierListPage, site-page.ts: SitePage)
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
 tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts) at the paths of the code they test; rules/ and fixtures/
@@ -215,7 +215,7 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   `packageItemLookup` (`lib/packageItems.ts`) puts it on items (`itemShape()`). Tiles render
   at their shape (`lib/tileSize.ts`), but link previews still draw every image as a square.
   Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
-  `tests/unit/lib/tile-shapes.test.ts` fails if `imageset.config.json` holds one.
+  `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json` holds one.
 - **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
   (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
   1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
@@ -308,6 +308,8 @@ docs/                 owner checklists and guides (releasing.md: versions and re
 - Read `tests/README.md` before writing e2e tests.
 - Name each test `<verb> <result> when <condition>`, with the verb `returns`, `throws`,
   `writes` or `renders` (`tests/README.md`, "Test names").
+- A unit test of one source file has that file's name and path; every other file under `tests/`
+  is kebab-case (`tests/README.md`, "File names").
 - Import `test` and `expect` from `tests/support/test.ts`. Put selectors in page objects
   (`tests/pages/`), never in specs.
 - Locate by role and accessible name. If an element has none, add an `aria-label` to the

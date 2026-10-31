@@ -4,10 +4,10 @@
  */
 import {expect, SHARED_LINKS, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
-import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
-import {pngFile} from '../support/snapshotFiles';
+import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
+import {pngFile} from '../support/snapshot-files';
 import {escapeRegExp} from '../support/regexp';
-import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/TierListPage';
+import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
 
 /**
  * User text is shown as text (review rules: cross-site scripting). Titles, row names and labels

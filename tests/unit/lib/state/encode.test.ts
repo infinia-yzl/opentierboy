@@ -1,8 +1,8 @@
 import LZString from 'lz-string';
 import {describe, expect, it} from 'vitest';
 import {decodeState, DEFAULT_WRITE_FORMAT, encodeState, encodeV2, encodeV3} from '@/lib/state';
-import {PreRefactorTierCortex} from '../../support/TierCortex.pre-refactor';
-import {randomAppStates, randomV3States, toCanonical} from '../../support/randomStates';
+import {PreRefactorTierCortex} from '../../support/tier-cortex-pre-refactor';
+import {randomAppStates, randomV3States, toCanonical} from '../../support/random-states';
 
 const json = (encoded: string) => LZString.decompressFromEncodedURIComponent(encoded);
 

@@ -1,6 +1,6 @@
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
-import type {TierListPage} from '../pages/TierListPage';
+import type {TierListPage} from '../pages/tier-list-page';
 
 const TANKS = '/rank/overwatch/tank';
 const SUPPORT = '/rank/overwatch/sup';

@@ -1,6 +1,9 @@
 import {describe, expect, it} from 'vitest';
 import {isIsoMediaFile, readImageSize, sniffImageType} from '@/lib/images/imageType';
+import {IMAGE_SIZE_SEARCH_BYTES} from '@/lib/snapshot/payload';
 import {avifWithFalseSize, heicStart} from '../../support/avif';
+import {gifHeader, jpegHeader, pngHeader, webpHeader} from '../../support/image-headers';
+import {makePng} from '../../support/png-helpers';
 
 const bytes = (...parts: (number[] | string)[]) =>
   Uint8Array.from(parts.flatMap((part) => (typeof part === 'string' ? [...part].map((c) => c.charCodeAt(0)) : part)));
@@ -118,5 +121,32 @@ describe('isIsoMediaFile', () => {
   it('returns false when the bytes are PNG or GIF', () => {
     expect(isIsoMediaFile(bytes([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(false);
     expect(isIsoMediaFile(bytes('GIF89a'))).toBe(false);
+  });
+});
+
+/** The headers that snapshot files carry (tests/unit/support/image-headers.ts). */
+describe('readImageSize with snapshot image headers', () => {
+  it('returns the width and height when the bytes are a snapshot PNG, GIF, JPEG or WebP header', () => {
+    expect(readImageSize(makePng(17, 9))).toEqual({width: 17, height: 9});
+    expect(readImageSize(pngHeader(300, 200))).toEqual({width: 300, height: 200});
+    expect(readImageSize(gifHeader(64, 32))).toEqual({width: 64, height: 32});
+    expect(readImageSize(jpegHeader(640, 480))).toEqual({width: 640, height: 480});
+    expect(readImageSize(jpegHeader(640, 480, {sof: 0xc2, paddingBytes: 30_000}))).toEqual({width: 640, height: 480});
+    expect(readImageSize(webpHeader(512, 256, 'VP8X'))).toEqual({width: 512, height: 256});
+    expect(readImageSize(webpHeader(512, 256, 'VP8L'))).toEqual({width: 512, height: 256});
+    expect(readImageSize(webpHeader(512, 256, 'VP8 '))).toEqual({width: 512, height: 256});
+    expect(readImageSize(webpHeader(16_384, 16_384, 'VP8X'))).toEqual({width: 16_384, height: 16_384});
+  });
+
+  it('returns null when the header is cut off, has no size or is not a raster type', () => {
+    expect(readImageSize(new Uint8Array())).toBeNull();
+    expect(readImageSize(pngHeader(10, 10).subarray(0, 20))).toBeNull();
+    // A JPEG cut off before its size, or with image data before any size.
+    expect(readImageSize(jpegHeader(10, 10, {paddingBytes: 70_000}).subarray(0, IMAGE_SIZE_SEARCH_BYTES))).toBeNull();
+    expect(readImageSize(Uint8Array.from([0xff, 0xd8, 0xff, 0xda, 0, 4, 0, 0]))).toBeNull();
+    expect(readImageSize(Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]))).toBeNull();
+    expect(readImageSize(Uint8Array.from([0xff, 0xd8, 0x00, 0x00, 0x00]))).toBeNull();
+    expect(readImageSize(new TextEncoder().encode('RIFF\0\0\0\0WEBPABCD' + '\0'.repeat(20)))).toBeNull();
+    expect(readImageSize(new TextEncoder().encode('<svg width="10" height="10"/>'))).toBeNull();
   });
 });

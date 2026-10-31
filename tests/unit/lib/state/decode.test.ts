@@ -2,7 +2,7 @@ import LZString from 'lz-string';
 import {describe, expect, it, vi} from 'vitest';
 import {decodeState} from '@/lib/state';
 import sharedLinks from '../../../fixtures/shared-links.json';
-import {seededRandom} from '../../support/randomStates';
+import {seededRandom} from '../../support/random-states';
 
 const lz = (text: string) => LZString.compressToEncodedURIComponent(text);
 

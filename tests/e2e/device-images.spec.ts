@@ -1,9 +1,9 @@
 /** Device images: pictures uploaded or pasted from the device, kept in this browser (IndexedDB). */
 import {expect, test} from '../support/test';
-import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/TierListPage';
+import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/tier-list-page';
 import {FIVE_ROW_TIERS, packageItemId, rawState, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
-import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/imageSites';
+import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/image-sites';
 import fs from 'node:fs';
 import path from 'node:path';
 

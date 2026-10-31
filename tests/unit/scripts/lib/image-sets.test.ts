@@ -7,11 +7,13 @@ import customConfig from '@/imageset.custom.json';
 import legacyConfig from '@/imageset.legacy.json';
 import {
   buildPackageEntry,
+  imageShape,
   legacyEntry,
   legacyFiles,
   mergeConfig,
   officialPackages,
   splitPackages,
+  tagShape,
   tagSlug,
 } from '@/scripts/lib/image-sets.mjs';
 import {createSEOFriendlyTagSlug} from '@/lib/utils';
@@ -207,5 +209,52 @@ describe('scripts/lib/image-sets.mjs', () => {
 
   it('throws "No config entry for image-c" from mergeConfig when the package image-c has no entry', () => {
     expect(() => mergeConfig(['image-c'], {}, {})).toThrow('No config entry for image-c');
+  });
+});
+
+describe('buildPackageEntry, imageShape and tagShape with tile shapes', () => {
+  const tags = {
+    maps: {name: 'maps', title: 'Maps', description: 'Maps', shape: 'landscape'},
+    heroes: {name: 'heroes', title: 'Heroes', description: 'Heroes', shape: 'portrait'},
+    icons: {name: 'icons', title: 'Icons', description: 'Icons', shape: 'square'},
+    plain: {name: 'plain', title: 'Plain', description: 'Plain'},
+  };
+
+  it('returns image shapes, omitting square, when buildPackageEntry gets per-image shapes (image-set 2.2.0)', () => {
+    const entry = buildPackageEntry({
+      packageName: 'image-mixed',
+      displayName: 'Mixed',
+      images: ['map.webp', 'hero.webp', 'icon.webp', 'plain.webp'],
+      metadata: [
+        {filename: 'map.webp', label: 'Map', tags: [tags.maps], shape: 'landscape'},
+        {filename: 'hero.webp', label: 'Hero', tags: [tags.heroes, tags.maps], shape: 'portrait'},
+        {filename: 'icon.webp', label: 'Icon', tags: [tags.icons], shape: 'square'},
+        {filename: 'plain.webp', label: 'Plain', tags: [tags.plain], shape: 'square'},
+      ],
+    });
+    expect(JSON.stringify(entry.images)).toBe(JSON.stringify([
+      {filename: 'map.webp', label: 'Map', tags: ['maps'], shape: 'landscape'},
+      {filename: 'hero.webp', label: 'Hero', tags: ['heroes', 'maps'], shape: 'portrait'},
+      {filename: 'icon.webp', label: 'Icon', tags: ['icons']},
+      {filename: 'plain.webp', label: 'Plain', tags: ['plain']},
+    ]));
+    expect(entry.tags).toEqual({
+      maps: {title: 'Maps', description: 'Maps', category: 'general', shape: 'landscape'},
+      heroes: {title: 'Heroes', description: 'Heroes', category: 'general', shape: 'portrait'},
+      icons: {title: 'Icons', description: 'Icons', category: 'general'},
+      plain: {title: 'Plain', description: 'Plain', category: 'general'},
+    });
+  });
+
+  it('returns the shape of the first tag that has one, omitting square, when an image has no shape', () => {
+    expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.plain, tags.heroes, tags.maps]})).toBe('portrait');
+    expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.icons, tags.maps]})).toBeUndefined();
+    expect(imageShape('image-mixed', {filename: 'a.webp', tags: [tags.plain]})).toBeUndefined();
+    expect(imageShape('image-mixed', undefined)).toBeUndefined();
+  });
+
+  it('throws "has the unknown shape" when imageShape or tagShape gets an unknown shape', () => {
+    expect(() => imageShape('image-mixed', {filename: 'a.webp', shape: 'round', tags: []})).toThrow('image "a.webp" has the unknown shape "round"');
+    expect(() => tagShape('image-mixed', {name: 'maps', shape: 'wide'})).toThrow('tag "maps" has the unknown shape "wide"');
   });
 });

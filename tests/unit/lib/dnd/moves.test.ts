@@ -10,9 +10,10 @@ import {
   removeTier,
   reorderRows,
 } from '@/lib/dnd/moves';
+import {V3_LIMITS} from '@/lib/state';
 import type Tier from '@/models/Tier';
 import {tierTemplates} from '@/models/Tier';
-import {seededRandom} from '../../support/randomStates';
+import {seededRandom} from '../../support/random-states';
 
 function item(id: string, content = id) {
   return {id, content};
@@ -315,5 +316,11 @@ describe('removeTier (#182)', () => {
       expect(new Set(tiers.map(t => t.id)).size).toBe(tiers.length);
     }
     expect(tiers.flatMap(t => t.items.map(i => i.id)).sort()).toEqual(all);
+  });
+});
+
+describe('MAX_TIER_ROWS (#182)', () => {
+  it('returns at most V3_LIMITS.maxRows when MAX_TIER_ROWS is compared with the v3 decoder cap', () => {
+    expect(MAX_TIER_ROWS).toBeLessThanOrEqual(V3_LIMITS.maxRows);
   });
 });

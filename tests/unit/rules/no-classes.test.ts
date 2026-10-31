@@ -67,7 +67,7 @@ describe('ESLint no-restricted-syntax for classes', {timeout: 90_000}, () => {
   });
 
   it('returns no class error when the file is in tests, packages/dnd-kit or ROOT_CONFIG_FILES at the root', async () => {
-    const quiet = ['tests/unit/probe.test.ts', 'tests/e2e/history.spec.ts', 'tests/pages/SitePage.ts', 'tests/support/links.ts', 'packages/dnd-kit/src/probe.ts', ...ROOT_CONFIG_FILES];
+    const quiet = ['tests/unit/probe.test.ts', 'tests/e2e/history.spec.ts', 'tests/pages/site-page.ts', 'tests/support/links.ts', 'packages/dnd-kit/src/probe.ts', ...ROOT_CONFIG_FILES];
     for (const file of quiet) {
       expect((await reported(file, CLASSES)).lines, file).toEqual([]);
     }

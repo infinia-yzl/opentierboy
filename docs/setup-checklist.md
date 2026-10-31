@@ -217,7 +217,7 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
    tiles show such images at their shape, but link previews still draw every image as a square
    and crop it. The image repositories refuse such images on release while
    `src/set-config.json` has `"allowNonSquare": false`, and OpenTierBoy's unit tests
-   (`tests/unit/lib/tile-shapes.test.ts`) fail on an update that brings one. Set `allowNonSquare` to
+   (`tests/unit/rules/image-shapes.test.ts`) fail on an update that brings one. Set `allowNonSquare` to
    `true`, and remove that guard test, once cropped link previews are fine for you (or once
    link previews draw shapes).
 

@@ -309,7 +309,7 @@ Decisions in the adapter:
   label shows and can be clicked to rename it. `removeTier` moves the row's items to the end
   of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
-  exceed the row cap of the link decoder (`tests/unit/lib/dnd/list-ids.test.ts` checks it). The
+  exceed the row cap of the link decoder (`tests/unit/lib/tierListReducer.test.ts` checks it). The
   "Add row" button under the rows adds one, and the Row options menu (the cogwheel beside it)
   offers "Remove a row" (a submenu of the ranked rows). Each is one history entry.
 - **Mixed tile shapes.** Tiles render at their shape with one height (`lib/tileSize.ts`), and
@@ -370,14 +370,14 @@ server-rendered page has them too.
 - [x] Touch: hold-to-drag and the long-press menu (Delete) both work; no text selection or
   callout on a long press (CSS); a swipe that starts on an item scrolls the page. Tested in
   Chromium's phone emulation; a real phone is still to be tried.
-- [x] Only the drag methods of `tests/pages/TierListPage.ts` changed, plus new methods for the
+- [x] Only the drag methods of `tests/pages/tier-list-page.ts` changed, plus new methods for the
   new tests: `tests/e2e/drag-and-drop.spec.ts` (wrapping rows, drops that change nothing,
   announcements, touch), `tests/e2e/editor-rows.spec.ts` (add and remove rows) and
   `tests/e2e/tile-shapes.spec.ts` (mixed shapes, with a made-up config: see
   `tests/README.md`).
 - [x] Dragging with 200 tiles measured: `npm run bench:drag` (see "Performance").
 - [x] `MAX_TIER_ROWS <= V3_LIMITS.maxRows` and unique tier and item ids where the editor
-  hands its list to `lib/dnd` (`tests/unit/lib/dnd/list-ids.test.ts`).
+  hands its list to `lib/dnd` (`tests/unit/lib/tierListReducer.test.ts`).
 - [x] `CLAUDE.md` (stack, folder map) and `tests/README.md` (drag and drop) updated.
 
 ## Performance

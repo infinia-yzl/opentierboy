@@ -5,10 +5,10 @@
 import zlib from 'node:zlib';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/imageSites';
-import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshotFiles';
-import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/TierListPage';
-import {SitePage} from '../pages/SitePage';
+import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
+import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshot-files';
+import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
 import path from 'node:path';
 import golden from '../fixtures/snapshots/snapshots.json';

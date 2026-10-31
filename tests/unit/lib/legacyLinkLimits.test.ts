@@ -7,7 +7,7 @@ import {checkLegacyState, LEGACY_LINK_LIMITS} from '@/lib/legacyLinkLimits';
 import {decodeState} from '@/lib/state';
 import {isVersionedValue} from '@/lib/state/decode';
 import sharedLinks from '../../fixtures/shared-links.json';
-import {lzBomb, lzWithRun} from '../support/lzStream';
+import {lzBomb, lzWithRun} from '../support/lz-stream';
 
 /**
  * Legacy links (v0, v1, v2) with bad data: TierCortex rejects them after the frozen decoder
