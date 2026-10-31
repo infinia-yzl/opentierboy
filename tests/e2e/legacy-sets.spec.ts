@@ -83,7 +83,7 @@ test.describe('legacy sets', () => {
     test('renders cards and links for the active sets and no legacy set when the landing page opens', {tag: '@mobile'}, async ({site}) => {
       await site.gotoHome();
 
-      await expect(site.cardTitles).toHaveText(['THE FINALS', 'OVERWATCH', 'Others']);
+      await expect(site.cardTitles).toHaveText(['THE FINALS', 'OVERWATCH', 'Your own list']);
       const targets = await site.linkTargets();
       expect(targets).toContain('/rank/the-finals/all');
       expect(targets).toContain('/rank/overwatch/tank');

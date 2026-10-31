@@ -32,7 +32,7 @@ import {
 import {stateParam} from '@/lib/tierListReducer';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const NOT_A_PICTURE = 'This file is not a picture.';
+export const NOT_A_PICTURE = 'This file is not a picture.';
 
 /** Why waiting files were not added (the "Files not added" message). */
 const NOT_ADDED = {
@@ -47,7 +47,7 @@ type FileCheck =
   | {kind: 'message'; message: string};
 
 /** True for a picture "From your device" would take: raster bytes, or an image type the browser reports. */
-async function isPictureFile(file: File): Promise<boolean> {
+export async function isPictureFile(file: File): Promise<boolean> {
   // The rule of "From your device" (prepareImageForStore): a raster picture by its bytes, or a
   // file the browser calls an image (SVG, BMP), which is drawn again before it is stored. AVIF
   // and HEIC pass here, also by their bytes alone (a browser may give a .heic file no type),
@@ -67,7 +67,7 @@ async function isPictureFile(file: File): Promise<boolean> {
  * caps the text, checks the payload with zod (images by their declared size too) and refuses a
  * link too long to open (lib/snapshot).
  */
-async function checkFile(file: File): Promise<FileCheck> {
+export async function checkFile(file: File): Promise<FileCheck> {
   try {
     if (file.size > SNAPSHOT_PNG_LIMITS.maxFileBytes) return {kind: 'image'};
     const head = new Uint8Array(await file.slice(0, PNG_SIGNATURE.length).arrayBuffer());
@@ -85,7 +85,7 @@ async function checkFile(file: File): Promise<FileCheck> {
 }
 
 /** The images of a snapshot as files, from their data URLs (already checked by the payload schema). */
-function snapshotImages(snapshot: SnapshotToOpen): SnapshotDeviceImage[] {
+export function snapshotImages(snapshot: SnapshotToOpen): SnapshotDeviceImage[] {
   return snapshot.images.flatMap((image) => {
     const decoded = imageBytesFromDataUrl(image.dataUrl);
     return decoded ? [{id: image.id, label: image.label || 'Image', blob: new Blob([decoded.bytes], {type: decoded.type})}] : [];
