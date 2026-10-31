@@ -90,8 +90,10 @@ async function record(name, {setup, scenario}) {
   list.push(`file '${frames.at(-1).file}'`);
   writeFileSync(path.join(dir, 'list.txt'), list.join('\n'));
   const gif = path.join(OUT, `${name}.gif`);
+  // One palette from every frame. A palette from the changed pixels only (stats_mode=diff) lacks
+  // the colours of a page that appears late, such as the tier rows after Recently viewed opens a list.
   const filters = `fps=${GIF.fps},scale=${GIF.width}:-1:flags=lanczos,split[a][b];` +
-    `[a]palettegen=max_colors=${GIF.colours}:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle`;
+    `[a]palettegen=max_colors=${GIF.colours}:stats_mode=full[p];[b][p]paletteuse=dither=bayer:bayer_scale=4`;
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', path.join(dir, 'list.txt'), '-vf', filters, '-loop', '0', gif]);
   rmSync(dir, {recursive: true, force: true});
   console.log(`${name}.gif: ${frames.length} frames`);
