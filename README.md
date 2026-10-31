@@ -35,7 +35,7 @@
 - **Freeze Frame**: Capture your rankings as an image. A downloaded Freeze Frame reopens as an editable list
 - **Recently Viewed**: The lists you opened come back on the home page. Pin the ones you want to keep
 - **Appearance**: Light, Dark or System mode, each game's own colours, and a Modern or Classic font
-- **Zen**: Hide the tools and rank without distractions, for screenshots and recordings
+- **Zen**: Hide the buttons and rank by dragging, without distractions
 - **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking. Your list lives in its link.
   Images you upload or paste stay in your browser and never reach our server. Images from trusted sites load
   straight from those sites; images from other sites load only after you allow them.
@@ -73,7 +73,7 @@ Found a bug or have a suggestion? Open an issue on GitHub:
 
 OpenTierBoy is built mostly by AI coding agents (Claude, by Anthropic). The work is spec-driven: the owner writes
 what to build, the agents follow the rules in [CLAUDE.md](CLAUDE.md), and automated tests check the result. The owner
-checks the behaviour and reviews the changes, but may not review every line of code.
+makes some checks by hand and may not review every line of code.
 
 OpenTierBoy is provided "as is", without warranty of any kind, and its authors are not liable for any damages arising
 from its use. See sections 15 and 16 of the [LICENSE](LICENSE).
