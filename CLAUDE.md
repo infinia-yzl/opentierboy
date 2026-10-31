@@ -279,7 +279,7 @@ docs/                 owner checklists
   its header declares it, at most 4096 x 4096), and never throws. Every image is drawn again
   through a canvas before it is stored (`prepareImageForStore` with `alwaysReencode`), because
   the payload checks only its header (A10).
-- "Open a saved picture…" (in the Add images menu), a dropped file and a pasted file all go
+- "Open a Freeze Frame…" (in the Add images menu), a dropped file and a pasted file all go
   through `openFiles` in `components/useSnapshotFiles.tsx`. A file with a list asks first, then
   opens with one `router.push` (one Back step). Pictures become items, like "From your device".
 - **Recently viewed** (`lib/recent/recentLinks.ts`, `components/useRecentLinks.ts`, the landing

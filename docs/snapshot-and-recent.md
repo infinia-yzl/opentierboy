@@ -14,7 +14,10 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   does not fit, or its link could get longer than 13,000 characters once the file opens in
   another browser (see below), a message offers the picture without the list. The file name comes from the title (letters and digits of any script), or
   `tier-list.png`. This button is new (A10): Copy Image cannot carry the list.
-- **Open a saved picture…** (in the Add images menu), **dropping a file** onto the editor and
+  A line under Download says what the file carries (owner decision, 2026-10-31): "The file
+  keeps your list and your own pictures. Anyone you send it to can open it here and edit the
+  list."
+- **Open a Freeze Frame…** (in the Add images menu), **dropping a file** onto the editor and
   **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
   - All three take the same files as "From your device", through the same code: a PNG, JPEG,
     WebP or GIF picture by its first bytes is stored as it is (within the pixel caps), and any
