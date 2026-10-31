@@ -60,7 +60,8 @@ tests/
   e2e/            specs, one file per user journey (ranking, editing, sharing, history...)
   pages/          page objects: TierListPage (the editor at /rank/...), SitePage
   support/        test.ts (fixtures and assertions), links.ts (build a ranking link)
-  fixtures/       shared-links.json (golden links), state/ (golden link states), images/ (files to upload)
+  fixtures/       shared-links.json (golden links), state/ (golden link states), images/ (files to upload),
+                  snapshots/ (golden Freeze Frame files, append-only: see its README)
   unit/           Vitest unit tests (*.test.ts), for example the link format in lib/state
 ```
 
