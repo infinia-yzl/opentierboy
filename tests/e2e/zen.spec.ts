@@ -5,6 +5,10 @@ const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
 /** A list with four items in Unranked and none ranked. */
 const TRAY_STATE = rankingState('image-overwatch', {'': TRAY});
+/** The ranked rows of the tank template, top to bottom. */
+const ALL_RANKED_ROWS = ['S', 'A', 'B', 'C', 'F'];
+/** The rows the tray's items go to, one each, in the order they are ranked. */
+const RANKED_ROWS = ALL_RANKED_ROWS.slice(0, TRAY.length);
 
 test.describe('zen', () => {
   test('renders no button "Add row", "Row options", "Add images" or "Share" when the user turns on Zen', {tag: '@mobile'}, async ({
@@ -284,6 +288,63 @@ test.describe('zen', () => {
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
       await expect(tierList.itemsIn('B')).toHaveText(['Sigma']);
       await expect(tierList.upNextItem).toHaveAccessibleName('Orisa');
+    });
+
+    // The whole queue, one item after another: each drop leaves a new tile up next, and every
+    // tile on the page must still take a drag (the drop helpers check it after each drop).
+    for (const order of ['In order', 'Shuffle'] as const) {
+      test(`writes 1 history entry per drop and each item to its row when the user ranks the queue to empty by mouse with ${order}`, async ({
+        tierList,
+      }) => {
+        await tierList.goto(TANKS, TRAY_STATE);
+        await tierList.setZenMode(true);
+        await tierList.chooseRankingOrder(order);
+        const newEntries = await tierList.countNewHistoryEntries();
+        const ranked: Record<string, string> = {};
+
+        for (const [drop, row] of RANKED_ROWS.entries()) {
+          const name = await tierList.upNextItem.getAttribute('aria-label') ?? '';
+          await tierList.dragItemToTier(name, row);
+          ranked[row] = name;
+
+          expect(await newEntries()).toBe(drop + 1);
+          await expect(tierList.itemsIn(row)).toHaveText([name]);
+          await expect(tierList.unranked.getByText(`${TRAY.length - drop - 1} left`, {exact: true})).toBeVisible();
+        }
+
+        if (order === 'In order') expect(Object.values(ranked)).toEqual(TRAY);
+        else expect(Object.values(ranked).sort()).toEqual([...TRAY].sort());
+        for (const row of RANKED_ROWS) {
+          await expect(tierList.itemsIn(row)).toHaveText([ranked[row]]);
+        }
+        await expect(tierList.upNextItem).toHaveCount(0);
+        await expect(tierList.zenStepCount).toHaveText(`${TRAY.length + 1} / ${TRAY.length + 1}`);
+      });
+    }
+
+    test('writes 1 history entry per drop and each item to its row when the user ranks the queue to empty by keyboard, In order', async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS, TRAY_STATE);
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      for (const [drop, row] of RANKED_ROWS.entries()) {
+        await expect(tierList.upNextItem).toHaveAccessibleName(TRAY[drop]);
+        // The Up arrow goes one row up per press, from the tray: row F first, then C... up to S.
+        const presses = ALL_RANKED_ROWS.length - ALL_RANKED_ROWS.indexOf(row);
+        await tierList.moveItemWithKeyboard(TRAY[drop], Array(presses).fill('ArrowUp'));
+
+        expect(await newEntries()).toBe(drop + 1);
+        await expect(tierList.itemsIn(row)).toHaveText([TRAY[drop]]);
+      }
+
+      for (const [drop, row] of RANKED_ROWS.entries()) {
+        await expect(tierList.itemsIn(row)).toHaveText([TRAY[drop]]);
+      }
+      await expect(tierList.upNextItem).toHaveCount(0);
+      await expect(tierList.zenStepCount).toHaveText(`${TRAY.length + 1} / ${TRAY.length + 1}`);
     });
 
     test('renders every Unranked item once, up next or in the queue, when the user chooses Shuffle', {tag: '@mobile'}, async ({tierList}) => {
