@@ -15,11 +15,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import {useTierContext} from '@/contexts/TierContext';
 import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImagesContext';
-import {useAddItemsWithUndo} from '@/components/useAddItems';
+import {useAddItemsWithUndo, useLinkImageItems} from '@/components/useAddItems';
 import {recordRecentLink} from '@/components/useRecentLinks';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
-import {checkImage, labelFallback} from '@/lib/images/imageCheck';
+import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/imageCheck';
 import {
   type FoundLinkImages,
   foundNothing,
@@ -27,8 +27,7 @@ import {
   MAX_DROPPED_TEXT_LENGTH,
   MAX_LINKS_PER_ADD,
 } from '@/lib/images/droppedLinks';
-import {IMAGE_CHECK_FAILURE_MESSAGES, LINK_IMAGE_REFUSAL_MESSAGES} from '@/lib/images/messages';
-import type Item from '@/models/Item';
+import {IMAGE_CHECK_FAILURE_MESSAGES} from '@/lib/images/messages';
 import {readSnapshotFile, SNAPSHOT_PNG_LIMITS} from '@/lib/snapshot';
 import {imageBytesFromDataUrl} from '@/lib/snapshot/dataUrl';
 import {
@@ -54,6 +53,9 @@ const NOT_ADDED = {
 function linkImageLabel(url: string, displayDomain: string): string {
   return labelFallback(url).text || displayDomain;
 }
+
+/** Load check failures of an address that is an image: it loaded, but its size is refused. */
+const IMAGE_SIZE_FAILURES: ReadonlySet<ImageCheckFailure> = new Set<ImageCheckFailure>(['too-large', 'no-size']);
 type NotAddedReason = keyof typeof NOT_ADDED;
 
 type FileCheck =
@@ -142,8 +144,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const pathname = usePathname();
   const address = stateParam(useSearchParams().get('state'));
   const {tiers, writing} = useTierContext();
-  const {addDeviceImages, importDeviceImages, isHostAllowed} = useCustomImages();
+  const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
+  const linkImageItems = useLinkImageItems();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the list is in the address (or the opening ends otherwise). */
   const [opening, setOpening] = useState(false);
@@ -206,10 +209,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   }, []);
 
   // The handlers below run after awaits: read the latest list, address and helpers through refs.
-  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address});
+  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address});
   useEffect(() => {
-    latest.current = {tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address};
-  }, [tiers, addDeviceImages, addItemsWithUndo, isHostAllowed, pathname, address]);
+    latest.current = {tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address};
+  }, [tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address]);
 
   /** Callers waiting until the address shows the list on screen. */
   const waiters = useRef<(() => void)[]>([]);
@@ -310,26 +313,17 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   }, [addAsItems, notAdded, gone]);
 
   /**
-   * Adds dropped or pasted image addresses as link images (#107), with the checks of "From a
-   * link": the addresses passed checkLinkImageUrl already (lib/images/droppedLinks.ts). An image
-   * from a trusted site, or from a site this visitor allowed, is loaded once to check it, and
-   * added only when it loads. An image from any other site is added without loading it: it
-   * waits for the visitor's consent ("Images from other sites"), like a link image in a shared
-   * list. All the images of one drop or paste are one change: one Back step.
+   * Adds dropped or pasted image addresses as link images (#107), through the same checks as "From
+   * a link": the address passed checkLinkImageUrl (lib/images/droppedLinks.ts), its image is
+   * loaded once (checkImage), and only an image that loads becomes an item. The visitor chose it,
+   * so its site may load on this page (useLinkImageItems, as "From a link" does). An address that
+   * is not an image (a page, a video) adds nothing and says nothing, as before addresses could be
+   * dropped or pasted; only an image that is too large or has no size gets a message. All the
+   * images of one drop or paste are one change: one Back step.
    */
   const openLinks = useCallback((found: FoundLinkImages) => {
-    if (!alive.current) return;
+    if (!alive.current || found.accepted.length === 0) return;
     const names = found.accepted.map((link) => linkImageLabel(link.url, link.displayDomain));
-    const problems = found.refused.map((refused) => `${refused.address}: ${LINK_IMAGE_REFUSAL_MESSAGES[refused.reason]}`);
-    if (found.leftOut > 0) {
-      toast('Too many image addresses', {
-        description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
-      });
-    }
-    if (found.accepted.length === 0) {
-      if (problems.length > 0) toast.error(problems.length === 1 ? 'Could not add the image' : 'Could not add the images', {description: problems.join(' ')});
-      return;
-    }
     leaving.current = false;
     if (busy.current) {
       notAdded(names, 'list');
@@ -349,29 +343,30 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         notAdded(names, 'list');
         return;
       }
-      const {isHostAllowed: allowed} = latest.current;
-      const results = await Promise.all(found.accepted.map(async (link, index): Promise<Item | string> => {
-        const label = names[index];
-        const item: Item = {id: link.url, content: label, source: 'link', url: link.url};
-        // Never load an image from a site the visitor has not allowed: it waits for consent.
-        if (!allowed(link.host)) return item;
-        const check = await checkImage(link.url, {label});
-        return check.ok ? item : `${label}: ${IMAGE_CHECK_FAILURE_MESSAGES[check.reason]}`;
-      }));
+      const checks = await Promise.all(found.accepted.map((link, index) => checkImage(link.url, {label: names[index]})));
       if (gone()) return;
+      const images = found.accepted
+        .map((link, index) => ({url: link.url, host: link.host, label: names[index]}))
+        .filter((_, index) => checks[index].ok);
       if (historyMoves.current !== moves) {
-        notAdded(names, 'history');
+        if (images.length > 0) notAdded(images.map((image) => image.label), 'history');
         return;
       }
-      const items = results.filter((result): result is Item => typeof result !== 'string');
-      const failed = [...problems, ...results.filter((result): result is string => typeof result === 'string')];
+      // Only an image that loaded and was refused for its size is surely an image.
+      const failed = checks.flatMap((check, index) =>
+        !check.ok && IMAGE_SIZE_FAILURES.has(check.reason) ? [`${names[index]}: ${IMAGE_CHECK_FAILURE_MESSAGES[check.reason]}`] : []);
       if (failed.length > 0) {
-        toast.error(items.length > 0 ? 'Some images could not be added' : failed.length === 1 ? 'Could not add the image' : 'Could not add the images', {
+        toast.error(images.length > 0 ? 'Some images could not be added' : failed.length === 1 ? 'Could not add the image' : 'Could not add the images', {
           description: failed.join(' '),
         });
       }
-      if (items.length === 0) return;
-      latest.current.addItemsWithUndo(items);
+      if (images.length === 0) return;
+      if (found.leftOut > 0) {
+        toast('Too many image addresses', {
+          description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
+        });
+      }
+      latest.current.addItemsWithUndo(latest.current.linkImageItems(images));
       await untilWritten();
     }
   }, [untilWritten, notAdded, gone]);

@@ -92,8 +92,9 @@ test.describe('link images', () => {
     });
   });
 
-  // A dropped link or a pasted image address adds a link image, with the checks of "From a link"
-  // (owner decision 2026-10-28, issue #107). Images from unknown sites wait for consent.
+  // A dropped link or a pasted image address adds a link image, through the same checks as "From a
+  // link" (owner decision 2026-10-28, issue #107): the address must be an image that loads, and its
+  // site may load on this page. Addresses that are not images add nothing, as before.
   test.describe('dropped and pasted addresses (#107)', () => {
     test('renders the image and writes {u, c} and 1 history entry when the user drops a link to an image of a trusted site', async ({tierList, page}) => {
       await serveImageSite(page, TRUSTED);
@@ -148,58 +149,80 @@ test.describe('link images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('red')).toBe(true);
     });
 
-    test('writes no request to an unknown site until the user clicks Load when the user drops a link to its image', async ({tierList, page}) => {
+    // The visitor chose the image, as with "From a link": its site may load at once (allowHosts).
+    test('renders the image and no notice when the user drops a link to an image of an unknown site', async ({tierList, page}) => {
       const site = await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
       await tierList.goto('/rank');
 
       await tierList.dropText({uriList: `https://${OTHER}/blue.png`});
 
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(1);
-      await expect(tierList.item('blue')).toBeVisible();
-      await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER]);
-      await expect(tierList.itemImage('blue')).toHaveCount(0);
-      expect(site.requests).toEqual([]);
-
-      await tierList.loadImagesFromOtherSites();
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
       await expect.poll(() => tierList.itemImageHasLoaded('blue')).toBe(true);
+      await expect(tierList.imageSitesNotice).toHaveCount(0);
+      expect(site.requests.length).toBeGreaterThan(0);
     });
 
-    test('writes no request to an unknown site and renders the notice when the user pastes an address of its image', async ({tierList, page, browserName}) => {
+    test('renders the image and no notice when the user pastes an address of an image of an unknown site', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      const site = await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
       await tierList.goto('/rank');
 
       await tierList.pasteText(`https://${OTHER}/blue.png`);
 
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(1);
-      await expect(tierList.item('blue')).toBeVisible();
-      await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER]);
-      expect(site.requests).toEqual([]);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
+      await expect.poll(() => tierList.itemImageHasLoaded('blue')).toBe(true);
+      await expect(tierList.imageSitesNotice).toHaveCount(0);
     });
 
-    test('renders the reason in a toast and no item when the user pastes an address that fails checkLinkImageUrl', async ({tierList, browserName}) => {
+    test('writes no history entry and renders no item or toast when the user pastes a link to a page that is not an image', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      const pages = await serveImageSite(page, 'www.youtube.com', {contentType: 'text/html', body: Buffer.from('<!doctype html><title>Video</title>')});
+      await serveImageSite(page, TRUSTED);
       await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.pasteText('http://i.imgur.com/a.png');
+      await tierList.pasteText('https://www.youtube.com/watch?v=abc');
+      await expect.poll(() => pages.requests.length).toBe(1);
+      // A paste of an image after it: the pastes are added in turn, so the page added nothing.
+      await tierList.pasteText('https://i.imgur.com/red.png');
 
-      const toast = tierList.toast('Could not add the image');
-      await expect(toast).toContainText('http://i.imgur.com/a.png: Use an address that starts with https://.');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(newEntries).toBe(1);
+      expect(await tierList.toast('Could not add').count()).toBe(0);
     });
 
-    test('renders the reason in a toast and no item when the user drops a link to a trusted site that is not an image', async ({tierList, page}) => {
-      await serveImageSite(page, TRUSTED, {status: 404, contentType: 'text/html', body: Buffer.from('not found')});
+    test('writes no history entry and renders no item or toast when the user drops a link to a page that is not an image', async ({tierList, page}) => {
+      const pages = await serveImageSite(page, TRUSTED, {status: 404, contentType: 'text/html', body: Buffer.from('not found')});
       await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
 
       await tierList.dropText({uriList: 'https://i.imgur.com/gallery/page'});
+      await expect.poll(() => pages.requests.length).toBe(1);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.dropText({uriList: `https://${OTHER}/blue.png`});
 
-      await expect(tierList.toast('Could not add the image')).toContainText('The image did not load');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
+      await expect.poll(newEntries).toBe(1);
+      expect(await tierList.toast('Could not add').count()).toBe(0);
     });
 
-    test('writes no history entry and renders no toast when the user pastes text without an address', async ({tierList, browserName}) => {
+    test('writes no history entry and renders no toast when the user pastes an address that fails checkLinkImageUrl', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.pasteText('http://i.imgur.com/a.png');
+      await tierList.pasteText('https://i.imgur.com/red.png');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(newEntries).toBe(1);
+      expect(await tierList.toast('Could not add').count()).toBe(0);
+    });
+
+    test('writes no history entry and renders no toast when the user pastes text without an address', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
       await tierList.goto('/rank');
       const newEntries = await tierList.countNewHistoryEntries();
 
@@ -209,11 +232,12 @@ test.describe('link images', () => {
 
       await expect(tierList.item('blue')).toBeVisible();
       await expect.poll(newEntries).toBe(1);
-      await expect(tierList.toast('Could not add')).toHaveCount(0);
+      expect(await tierList.toast('Could not add').count()).toBe(0);
     });
 
-    test('renders 20 items and the toast "Too many image addresses" when the user pastes 25 addresses', async ({tierList, browserName}) => {
+    test('renders 20 items and the toast "Too many image addresses" when the user pastes 25 addresses', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
       await tierList.goto('/rank');
 
       await tierList.pasteText(Array.from({length: 25}, (_, index) => `https://${OTHER}/${index}.png`).join('\n'));

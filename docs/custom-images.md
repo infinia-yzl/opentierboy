@@ -13,15 +13,17 @@ from a link, and images from the visitor's device (uploads and pasted images).
   its site when the address has no file name. A link image in a link without any label is
   named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
-- **Dropping a link or pasting an image address** (#107) adds a link image, with the checks
-  of "From a link": the address must pass `checkLinkImageUrl`. An image from a trusted site, or
-  from a site the visitor allowed, is loaded once and added only when it loads. An image from
-  any other site is added without loading it: it waits for [Load], like a link image in a
-  shared list. A drop of an image from another page uses the `<img>` addresses in the drop's
-  HTML, else its link list (`text/uri-list`), else its text; a paste uses only the words that
-  look like addresses (`https://...`, `data:`), so pasted sentences do nothing. One drop or
-  paste adds at most 20 addresses (`MAX_LINKS_PER_ADD`) and reads at most 100,000 characters,
-  and all its images are one change (one Back step). The server never fetches these addresses.
+- **Dropping a link or pasting an image address** (#107) adds a link image, through the same
+  checks as "From a link": the address must pass `checkLinkImageUrl`, and its image is loaded
+  once (`checkImage`) and added only when it loads. The visitor chose the image, so its site may
+  load on this page, as with "From a link" (`useLinkImageItems` in `components/useAddItems.ts`,
+  which both use). An address that is not an image (a web page, a video) adds nothing and says
+  nothing; only an image refused for its size gets a message. A drop of an image from another
+  page uses the `<img>` addresses in the drop's HTML, else its link list (`text/uri-list`), else
+  its text; a paste uses only the words that look like addresses (`https://...`, `data:`), so
+  pasted sentences do nothing. One drop or paste adds at most 20 addresses (`MAX_LINKS_PER_ADD`)
+  and reads at most 100,000 characters, and all its images are one change (one Back step). The
+  server never fetches these addresses.
 - **While something is dragged over the editor**, an overlay says where to drop it. An empty
   list shows a drop area in the Unranked tray, with Template, Upload and Link.
 - **Images from other sites**: when a list holds link images from sites that are not trusted,

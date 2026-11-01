@@ -4,8 +4,9 @@
  *
  * The text is untrusted input. Only so much of it is read (MAX_DROPPED_TEXT_LENGTH), at most
  * MAX_LINKS_PER_ADD addresses are taken from one drop or paste, and every address goes through
- * checkLinkImageUrl, the check of Add images › "From a link". The caller then follows the
- * trusted-site rules: an image from a site the visitor has not allowed is never loaded here.
+ * checkLinkImageUrl, the check of Add images › "From a link". The caller then loads each image
+ * once, as "From a link" does, and adds only the images that load
+ * (components/useSnapshotFiles.tsx: openLinks).
  *
  * Pure code: no browser or Node APIs. The browser reads the drop's HTML (the `<img>` addresses)
  * and hands the strings in.
