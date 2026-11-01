@@ -23,9 +23,11 @@ so it can keep going for years.
 Your list's title now sits at the top of the editor, with Add images, Zen and Share right beside it. In the old
 editor, these tools hid behind icons with no names, so it's no surprise that several of you asked where they were.
 
-Lists can grow now, too. Add row takes you up to 20 rows, which is plenty for the power-scaling lists some of you
+Lists can grow now, too. Add row takes you up to 19 rows, which is plenty for the power-scaling lists some of you
 asked for. Drag and drop is rebuilt as well to remove a pesky bug that prevented items from being arranged when the
 row grew beyond one line.
+
+If your list is long, Compact tiles (in Row options) fit more of it on the screen.
 
 ![Adding rows until the list has ten, then removing one](/blog/2-0-0/rows.gif)
 
@@ -45,7 +47,7 @@ I'd still recommend saving it to a Freeze Frame for any list that matters to you
 up.
 
 Images you add from the web now travel with your shared link, so your friends see them too. Images you upload stay on
-your device, and hitting "Share" shows you which ones those are.
+your device, and hitting "Share" shows you how many of them there are.
 
 ![Opening Share on a list with one web image and one uploaded image, then copying the link](/blog/2-0-0/share-panel.gif)
 
@@ -72,9 +74,8 @@ you one item at a time, and "Hide the queue" keeps the next pick a surprise.
 
 ![Ranking in Zen, stepping back and forward, then shuffling and hiding the queue](/blog/2-0-0/zen-bar.gif)
 
-For videos and streams, Zen now comes in 16:9 for YouTube and 9:16 for Shorts and TikTok. There is also a transparent
-overlay that you can add to OBS as a browser source, so your list sits on top of your stream. If your list is long,
-Compact tiles fit more of it on the screen.
+For videos and streams, Zen now comes in 16:9 for YouTube and 9:16 for Shorts and TikTok. There is also a green-screen
+overlay: capture your browser window in OBS and key out the green, so your list sits on top of your stream.
 
 ![The same list in 16:9, in 9:16 and as an overlay](/blog/2-0-0/creator-layouts.gif)
 
