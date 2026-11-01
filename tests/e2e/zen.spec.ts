@@ -5,6 +5,8 @@ const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
 /** A list with four items in Unranked and none ranked. */
 const TRAY_STATE = rankingState('image-overwatch', {'': TRAY});
+/** A title that runs across the title row, under where the Zen bar used to float. */
+const LONG_TITLE = 'Every tank hero in OVERWATCH, ranked from the best pick to the worst one this season';
 /** The ranked rows of the tank template, top to bottom. */
 const ALL_RANKED_ROWS = ['S', 'A', 'B', 'C', 'F'];
 /** The rows the tray's items go to, one each, in the order they are ranked. */
@@ -190,15 +192,35 @@ test.describe('zen', () => {
       await expect(tierList.zenBarButton('Forward')).toBeDisabled();
     });
 
-    test('renders the Zen bar see-through while the mouse is still, and opaque again when the mouse moves', async ({tierList, page}) => {
+    // Owner decision, 2026-11-01: the bar never fades. Ranking moves the mouse anyway.
+    test('renders the Zen bar opaque and clickable when the mouse rests for 10 seconds in Zen', async ({tierList, page}) => {
+      await page.clock.install();
       await tierList.goto(TANKS);
       await tierList.setZenMode(true);
       await page.mouse.move(20, 400);
 
-      await expect(tierList.zenBar).toHaveCSS('opacity', '0');
+      await tierList.letTimePass(10_000);
 
-      await page.mouse.move(40, 420);
+      // Pointer events change at once; a fading bar's opacity would still read 1 here.
+      await expect(tierList.zenBar).toHaveCSS('pointer-events', 'auto');
       await expect(tierList.zenBar).toHaveCSS('opacity', '1');
+    });
+
+    // Owner decision, 2026-11-01: the bar has its own row above the title, at the top centre,
+    // and covers nothing of the list.
+    test('renders the Zen bar above the title at the top centre, overlapping no title, row or item, when the user turns on Zen', {tag: '@mobile'}, async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}, LONG_TITLE));
+
+      await tierList.setZenMode(true);
+
+      expect(await tierList.listPartsUnderZenBar()).toEqual([]);
+      const bar = (await tierList.zenBar.boundingBox())!;
+      const title = (await tierList.title.boundingBox())!;
+      const main = (await tierList.main.boundingBox())!;
+      expect(bar.y + bar.height).toBeLessThanOrEqual(title.y);
+      expect(Math.abs(bar.x + bar.width / 2 - (main.x + main.width / 2))).toBeLessThan(2);
     });
 
     test('renders focus on the Zen bar when the user turns on Zen, and on button "Zen" when the user exits Zen', async ({tierList}) => {
@@ -209,30 +231,6 @@ test.describe('zen', () => {
 
       await tierList.setZenMode(false);
       await expect(tierList.zenModeToggle).toBeFocused();
-    });
-
-    test('renders the Zen bar opaque when the user presses Tab while the mouse is still', async ({tierList, page}) => {
-      await tierList.goto(TANKS);
-      await tierList.setZenMode(true);
-      await page.mouse.move(20, 400);
-      await expect(tierList.zenBar).toHaveCSS('opacity', '0');
-
-      await tierList.pressKey('Tab');
-
-      await expect(tierList.rankingOrderButton).toBeFocused();
-      await expect(tierList.zenBar).toHaveCSS('opacity', '1');
-    });
-
-    test('renders the Zen bar see-through when the user clicks a button of the bar and the mouse then rests', async ({tierList, page}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.setZenMode(true);
-      // Closing the menu with Escape first: the click after it counts as a click.
-      await tierList.openRankingOrderMenu();
-      await tierList.pressKey('Escape');
-      await tierList.chooseRankingOrder('In order');
-      await page.mouse.move(20, 400);
-
-      await expect(tierList.zenBar).toHaveCSS('opacity', '0');
     });
   });
 

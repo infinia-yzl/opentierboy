@@ -209,7 +209,6 @@ test.describe('zen layouts', () => {
 
     test('renders the Zen bar at the bottom of the frame when the layout is 9:16', async ({tierList}) => {
       await tierList.gotoInLayout(TANKS, LIST, '9x16');
-      await tierList.wakeZenBar();
 
       const bar = await tierList.zenBar.boundingBox();
       expect(bar && bar.y + bar.height).toBeGreaterThan(PORTRAIT_FULL_HD.height - 200);

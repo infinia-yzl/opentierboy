@@ -63,8 +63,6 @@ const TierListEditor: React.FC = () => {
     <ZenStage>
     <div className={cn(
       'w-full flex flex-col items-center',
-      // On phones in Zen, room above the wordmark for the Zen bar.
-      !stage && 'zen-mode:max-sm:pt-14',
       // 16:9 and 9:16: the frame's padding, and the space between the title, rows and tray.
       (stage === 'wide' || stage === 'tall') && 'grow px-(--stage-pad-x) py-(--stage-pad-y) gap-(--stage-gap)',
       // 9:16: the Zen bar sits at the bottom, under the tray (the board "9:16 · In order").
@@ -72,8 +70,9 @@ const TierListEditor: React.FC = () => {
       // The overlay: the list in a panel at the frame's top right (the board "Overlay · green key").
       stage === 'overlay' && 'absolute top-(--stage-pad-y) right-(--stage-pad-x) stage:w-(--stage-panel-width) p-(--stage-panel-pad) rounded-(--stage-panel-radius) gap-(--stage-gap) bg-background text-foreground',
     )}>
-      {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen. First on the
-          page, so the keyboard reaches it first. */}
+      {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen, in its own row
+          above the title (owner decision, 2026-11-01). First on the page, so the keyboard
+          reaches it first. */}
       <ZenBar/>
       {/* The title on the left and the editor's three tools on the right (owner decisions,
           2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
