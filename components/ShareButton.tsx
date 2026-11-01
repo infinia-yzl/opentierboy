@@ -126,11 +126,12 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
             {device === 1 ? (
-              <><strong>1 image from your device stays on this device.</strong> People who open the link see its name.
-                To share it too, capture a picture on the Image tab and download it.</>
+              <><strong>1 image from your device isn&apos;t in the link.</strong> People who open the link see its name
+                in its place. To share the image itself, download a Freeze Frame from the Image tab.</>
             ) : (
-              <><strong>{device} images from your device stay on this device.</strong> People who open the link see their
-                names. To share them too, capture a picture on the Image tab and download it.</>
+              <><strong>{device} images from your device aren&apos;t in the link.</strong> People who open the link see
+                their names in their place. To share the images themselves, download a Freeze Frame from the Image
+                tab.</>
             )}
           </AlertDescription>
         </Alert>
@@ -140,11 +141,11 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
             {link === 1 ? (
-              <><strong>1 image from another site travels in the link.</strong> People who open the link load it from
-                that site, or see its name until they choose Load.</>
+              <><strong>1 image from the web is in the link.</strong> People who open the link see it too. Some sites
+                need their OK first: until they press Load, they see the image&apos;s name.</>
             ) : (
-              <><strong>{link} images from other sites travel in the link.</strong> People who open the link load them
-                from those sites, or see their names until they choose Load.</>
+              <><strong>{link} images from the web are in the link.</strong> People who open the link see them too. Some
+                sites need their OK first: until they press Load, they see the images&apos; names.</>
             )}
           </AlertDescription>
         </Alert>

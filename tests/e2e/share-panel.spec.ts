@@ -142,7 +142,7 @@ test.describe('share panel', () => {
       await expect(tierList.linkImageNotes).toHaveCount(0);
     });
 
-    test('renders the note "2 images from other sites travel in the link." when the page opens a list with 2 link images', {tag: '@mobile'}, async ({tierList, page}) => {
+    test('renders the note "2 images from the web are in the link." when the page opens a list with 2 link images', {tag: '@mobile'}, async ({tierList, page}) => {
       await serveImageSite(page, 'i.imgur.com');
       await tierList.goto(TANKS, v3State({t: 'Link images', tp: 3, r: [
         ['S', [packageItemId('image-overwatch', 'Mauga'), {u: 'https://i.imgur.com/red.png', c: 'Red'}]],
@@ -153,10 +153,10 @@ test.describe('share panel', () => {
 
       await expect(tierList.linkImageNotes).toHaveCount(1);
       await expect(tierList.linkImageNotes).toHaveText(
-        '2 images from other sites travel in the link. People who open the link load them from those sites, or see their names until they choose Load.');
+        "2 images from the web are in the link. People who open the link see them too. Some sites need their OK first: until they press Load, they see the images' names.");
     });
 
-    test('renders the note "1 image from your device stays on this device." when the user adds an image from the device', async ({tierList}) => {
+    test('renders the note "1 image from your device isn\'t in the link." when the user adds an image from the device', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
 
@@ -164,7 +164,7 @@ test.describe('share panel', () => {
 
       await expect(tierList.linkImageNotes).toHaveCount(1);
       await expect(tierList.linkImageNotes).toHaveText(
-        '1 image from your device stays on this device. People who open the link see its name. To share it too, capture a picture on the Image tab and download it.');
+        "1 image from your device isn't in the link. People who open the link see its name in its place. To share the image itself, download a Freeze Frame from the Image tab.");
     });
 
     test('renders a note for 3 device images and one for 1 link image when the page opens a list with both', {tag: '@mobile'}, async ({tierList, page}) => {
@@ -177,8 +177,8 @@ test.describe('share panel', () => {
       await tierList.openSharePanel();
 
       await expect(tierList.linkImageNotes).toHaveText([
-        '3 images from your device stay on this device. People who open the link see their names. To share them too, capture a picture on the Image tab and download it.',
-        '1 image from another site travels in the link. People who open the link load it from that site, or see its name until they choose Load.',
+        "3 images from your device aren't in the link. People who open the link see their names in their place. To share the images themselves, download a Freeze Frame from the Image tab.",
+        "1 image from the web is in the link. People who open the link see it too. Some sites need their OK first: until they press Load, they see the image's name.",
       ]);
     });
   });
