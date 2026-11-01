@@ -151,26 +151,58 @@ test.describe('editor layout', () => {
       await expect(tierList.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
     });
 
-    test('renders 80 px tiles with their names when the user chooses Comfortable after Compact', async ({tierList}) => {
+    test('renders 80 px tiles with their names when the user chooses Comfortable after Compact and restores item labels', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
       await tierList.chooseTileSize('Compact');
 
       await tierList.chooseTileSize('Comfortable');
+      await tierList.setItemLabelsVisible(true);
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
       await expect(tierList.item('Reinhardt')).toContainText('Reinhardt', {useInnerText: true});
     });
 
-    test('writes no history entry and leaves the address as it is when the user chooses Compact and Comfortable', async ({tierList, page}) => {
+    test('writes no history entry when the user chooses Compact and Comfortable', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      const address = page.url();
       const newEntries = await tierList.countNewHistoryEntries();
 
       await tierList.chooseTileSize('Compact');
       await tierList.chooseTileSize('Comfortable');
 
       expect(await newEntries()).toBe(0);
-      expect(page.url()).toBe(address);
+    });
+
+    // Owner decision, 2026-11-01: Compact tiles follow Show Labels, and choosing Compact turns it
+    // off. Show Labels is a label setting, written in place of the current history entry (A3).
+    test('writes no history entry and renders menu item "Hide Labels" checked when the user chooses Compact with item labels on', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.openRowOptions();
+      await expect(tierList.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
+      await tierList.pressKey('Escape');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.chooseTileSize('Compact');
+
+      await tierList.openRowOptions();
+      await expect(tierList.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
+      await expect(tierList.itemCaption('Reinhardt')).toHaveCount(0);
+      expect(await newEntries()).toBe(0);
+    });
+
+    test('renders each name under its 48 px Compact tile when the user restores item labels after choosing Compact', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.chooseTileSize('Compact');
+
+      await tierList.setItemLabelsVisible(true);
+
+      for (const name of ['Reinhardt', 'Zarya', 'Mauga', 'Winston']) {
+        await expect(tierList.itemCaption(name)).toBeVisible();
+        const tile = (await tierList.item(name).getByRole('img').boundingBox())!;
+        const caption = (await tierList.itemCaption(name).boundingBox())!;
+        expect(Math.round(tile.width)).toBe(48);
+        expect(caption.y).toBeGreaterThanOrEqual(tile.y + tile.height - 0.5);
+      }
+      await expect(tierList.itemNameTag('Reinhardt')).toHaveCount(0);
     });
   });
 });

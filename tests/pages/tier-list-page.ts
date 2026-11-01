@@ -1842,13 +1842,23 @@ export class TierListPage {
     });
   }
 
+  /** The name a Compact tile shows under itself, with Show Labels on. */
+  itemCaption(name: string): Locator {
+    return this.item(name).getByText(name, {exact: true});
+  }
+
   // ---- Tile size (the dense editor) ------------------------------------------------------
 
   /** Chooses a tile size in the Row options menu. A view setting: it writes no link. */
   async chooseTileSize(name: TileSizeName) {
     await this.rowOptionsButton.click();
     const choice = this.rowOption(name);
-    await choice.click();
+    // Choosing Compact turns Show Labels off, which rewrites the link in place: wait for it.
+    const turnsLabelsOff = name === 'Compact'
+      && await choice.getAttribute('aria-checked') !== 'true'
+      && await this.rowOption('Show Labels').getAttribute('aria-checked') === 'true';
+    if (turnsLabelsOff) await this.changeAndWaitForLink(() => choice.click());
+    else await choice.click();
     await expect(this.page.getByRole('menu')).toHaveCount(0);
   }
 

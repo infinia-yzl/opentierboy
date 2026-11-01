@@ -55,8 +55,10 @@ export function useGameColours(): [boolean, (on: boolean) => void] {
 
 /**
  * The dense editor's tile size (owner decision, 2026-10-31): Comfortable (the tiles the editor
- * always had) or Compact (48 px, names on hover), for big lists. A view setting of this browser,
- * like the font: never part of the list's link. Chosen in the Row options menu.
+ * always had) or Compact (48 px), for big lists. A view setting of this browser, like the font:
+ * never part of the list's link. Chosen in the Row options menu. Compact tiles follow Show Labels
+ * (names under the tiles, or in a tag on hover), and choosing Compact turns Show Labels off (owner
+ * decision, 2026-11-01; components/TierTemplateSelector.tsx).
  */
 export function useTileSizeChoice(): [TileSizeChoice, (choice: TileSizeChoice) => void] {
   const compact = useSyncExternalStore(subscribeToHtmlClass, hasHtmlClass(COMPACT_TILES_CLASS), () => false);

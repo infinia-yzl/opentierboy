@@ -52,6 +52,14 @@ const TierTemplateSelector: React.FC = () => {
     }
   };
 
+  // Choosing Compact turns Show Labels off (owner decision, 2026-11-01); the user can turn it
+  // back on, and Compact tiles then show their names under them. Show Labels is a label setting:
+  // it rewrites the link in place, with no new history entry (A3).
+  const handleTileSizeChange = (choice: TileSizeChoice) => {
+    if (choice === 'compact' && tileSize !== 'compact' && showLabels) toggleLabels();
+    setTileSize(choice);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -100,10 +108,10 @@ const TierTemplateSelector: React.FC = () => {
           <DropdownMenuRadioItem value="hide">Hide Labels</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         {/* The dense editor (owner decision, 2026-10-31): a view setting of this browser, never
-            part of the link (components/useAppearance.ts). Compact shows names on hover. */}
+            part of the link (components/useAppearance.ts). Compact tiles follow Show Labels. */}
         <DropdownMenuSeparator/>
         <DropdownMenuLabel>Tile Size</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={tileSize} onValueChange={(value) => setTileSize(value as TileSizeChoice)}>
+        <DropdownMenuRadioGroup value={tileSize} onValueChange={(value) => handleTileSizeChange(value as TileSizeChoice)}>
           <DropdownMenuRadioItem value="comfortable">Comfortable</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

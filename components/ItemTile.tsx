@@ -68,13 +68,16 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
 
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
-  // Compact tiles (the dense editor) show the name only on hover or keyboard focus, in a tag
-  // under the tile; the tile then lets the tag out of its box.
-  const tileContent = (
+  const hasImage = Boolean(linkSrc || tileImageUrl);
+  // Compact tiles (the dense editor) follow Show Labels (owner decision, 2026-11-01): with
+  // labels on, a picture's name sits under the tile; with labels off, a tag shows it on hover or
+  // keyboard focus, and the tile lets the tag out of its box. A label tile shows its name inside.
+  const captioned = isCompact && showLabel && hasImage;
+  const box = (
     <div className={`group/tile relative ${tileClassName({shape})} overflow-hidden compact:overflow-visible`}
          title={domain ? `Image from ${domain}` : undefined}
          onDragStart={preventNativeDrag}>
-      {linkSrc || tileImageUrl ? (
+      {hasImage ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
             {linkSrc ? (
@@ -128,7 +131,7 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
           {domain && domain !== label && <span className="text-[9px] leading-tight text-muted-foreground">{domain}</span>}
         </div>
       )}
-      {isCompact && (
+      {isCompact && !captioned && (
         <span
           role="tooltip"
           className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md group-hover/tile:block in-focus-visible:block"
@@ -138,6 +141,13 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
       )}
     </div>
   );
+  const tileContent = captioned ? (
+    // As wide as the tile; the name keeps to one line and ends with an ellipsis when it is longer.
+    <div className="flex w-min flex-col items-center" onDragStart={preventNativeDrag}>
+      {box}
+      <span className="mt-0.5 block w-0 min-w-full truncate text-center text-[10px] leading-tight">{label}</span>
+    </div>
+  ) : box;
 
   if (isZenMode) {
     return tileContent;
