@@ -1016,8 +1016,10 @@ export class TierListPage {
    * Waits until the editor responds to input. The server-rendered rows show before the page has
    * started in the browser; a paste event before that finds no listener. Opening the items menu
    * proves the page has started (and its effects, such as recording Recently viewed, have run).
+   * In Zen that button hides; Zen is on, so the page's own code ran and the page has started.
    */
   async waitUntilInteractive() {
+    if (await this.zenModeToggle.getAttribute('aria-pressed') === 'true') return;
     const menu = this.page.getByRole('menu');
     await expect(async () => {
       if (!(await menu.isVisible())) await this.manageItemsButton.click();

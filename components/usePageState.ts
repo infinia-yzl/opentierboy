@@ -68,9 +68,13 @@ function createScrollingStore() {
   });
 }
 
+/** True while zen mode is on (the `zen-mode` class on <html>), read now: for event handlers. */
+export function zenModeIsOn(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('zen-mode');
+}
+
 function createZenModeStore() {
-  const read = () => typeof document !== 'undefined' && document.documentElement.classList.contains('zen-mode');
-  return createPageStore(read, (changed) => {
+  return createPageStore(zenModeIsOn, (changed) => {
     const observer = new MutationObserver(changed);
     observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
     return () => observer.disconnect();

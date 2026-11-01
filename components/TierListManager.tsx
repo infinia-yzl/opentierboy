@@ -8,6 +8,7 @@ import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
 import {useEditorDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
 import DropOverlay from "@/components/DropOverlay";
+import {useZenMode} from "@/components/usePageState";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ListTitle} from "@/components/ListTitle";
@@ -41,6 +42,8 @@ const TierListEditor: React.FC = () => {
   const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
   usePasteImages(openFiles, openLinks);
   const dragging = useEditorDrop(openFiles, openLinks);
+  // No drop overlay in Zen, which turns off adding items.
+  const isZenMode = useZenMode();
 
   return (
     <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
@@ -70,7 +73,7 @@ const TierListEditor: React.FC = () => {
           <UrlLengthWarning urlLength={urlLength}/>
         </div>
         {openListDialog}
-        <DropOverlay visible={dragging}/>
+        <DropOverlay visible={dragging && !isZenMode}/>
       </div>
     </AddImagesProvider>
   );

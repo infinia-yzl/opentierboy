@@ -16,6 +16,7 @@ import {
 import {useTierContext} from '@/contexts/TierContext';
 import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImagesContext';
 import {useAddItemsWithUndo, useLinkImageItems} from '@/components/useAddItems';
+import {zenModeIsOn} from '@/components/usePageState';
 import {recordRecentLink} from '@/components/useRecentLinks';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
@@ -546,10 +547,11 @@ function droppedLinkImages(data: DataTransfer): FoundLinkImages {
  * images (openLinks). Without this, the browser would leave the page to show the dropped file or
  * link. While a dialog is open, drops anywhere (also on its overlay) do nothing, except on a file
  * input; a text field takes text dropped on it. Drags that start on this page (selected text)
- * are left alone.
+ * are left alone. Zen turns off adding items: a dropped link adds nothing then. Dropped files
+ * open in Zen too, as they did before links could be dropped.
  *
- * Returns true while something that may add images is dragged over the page: the editor shows
- * the drop overlay then.
+ * Returns true while something that may add images is dragged over the page, outside Zen: the
+ * editor shows the drop overlay then.
  */
 export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (found: FoundLinkImages) => void): boolean {
   const [dragging, setDragging] = useState(false);
@@ -577,7 +579,7 @@ export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (fo
     const onDragEnter = (event: DragEvent) => {
       if (fromThisPage || !carriesImagesOrLinks(event)) return;
       depth += 1;
-      setDragging(!dialogOpen());
+      setDragging(!dialogOpen() && !zenModeIsOn());
     };
     const onDragLeave = (event: DragEvent) => {
       if (fromThisPage || !carriesImagesOrLinks(event)) return;
@@ -587,7 +589,8 @@ export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (fo
     const onDragOver = (event: DragEvent) => {
       if (!takes(event)) return;
       event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = dialogOpen() ? 'none' : 'copy';
+      const refused = dialogOpen() || (zenModeIsOn() && !carriesFiles(event));
+      if (event.dataTransfer) event.dataTransfer.dropEffect = refused ? 'none' : 'copy';
     };
     const onDrop = (event: DragEvent) => {
       if (!takes(event)) {
@@ -602,6 +605,7 @@ export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (fo
         openFiles(files);
         return;
       }
+      if (zenModeIsOn()) return;
       const found = droppedLinkImages(event.dataTransfer);
       if (!foundNothing(found)) openLinks(found);
     };
