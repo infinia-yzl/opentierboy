@@ -271,6 +271,21 @@ test.describe('zen', () => {
       await expect(tierList.queueItems).toHaveText(['Sigma', 'Orisa']);
     });
 
+    test('writes each item up next to its row when the user drags three items up next in a row', async ({tierList}) => {
+      await tierList.goto(TANKS, TRAY_STATE);
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+
+      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.dragItemToTier('Sigma', 'B');
+
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+      await expect(tierList.itemsIn('B')).toHaveText(['Sigma']);
+      await expect(tierList.upNextItem).toHaveAccessibleName('Orisa');
+    });
+
     test('renders every Unranked item once, up next or in the queue, when the user chooses Shuffle', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
       await tierList.setZenMode(true);
