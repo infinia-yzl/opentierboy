@@ -241,7 +241,7 @@ function resolveTiers(catalog: ItemCatalog, state: CanonicalState): Tier[] {
 function resolveCanonicalItem(catalog: ItemCatalog, item: CanonicalItem, version: CanonicalState['version']): Item {
   if (item.kind === 'link') {
     // No image URL: the editor loads the address only from allowed sites
-    // (contexts/CustomImagesContext.tsx), and link previews only from trusted ones.
+    // (contexts/CustomImagesContext.tsx), and link previews never load it (a label tile).
     return {id: item.id, content: item.content, source: 'link', url: item.url};
   }
   if (item.kind === 'device') return resolveDeviceItem(item.id, item.content);

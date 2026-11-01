@@ -14,8 +14,8 @@ export function isItemShape(value: unknown): value is ItemShape {
 /**
  * How a v3 link stores an item (lib/state, docs/link-format-v3.md):
  * - 'link': an image from a web address (`url`). The browser loads it from trusted sites, and
- *   from other sites once the visitor allows them; the server only from trusted sites, for
- *   link previews (contexts/CustomImagesContext.tsx, app/api/og/link-images.ts).
+ *   from other sites once the visitor allows them (contexts/CustomImagesContext.tsx). The
+ *   server never loads it: link previews draw it as a label tile (app/api/og/list-preview.ts).
  * - 'device': an upload or pasted image, by its local id (`id`): its key in this browser's
  *   image store (lib/images/deviceStore.ts).
  * - 'package': an image-set id that the image sets do not know (any more), from a v3 link.

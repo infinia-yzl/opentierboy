@@ -24,8 +24,9 @@ from a link, and images from the visitor's device (uploads and pasted images).
   a label tile. When the browser cannot keep images, the editor says once that they last only
   for the tab.
 - **Freeze Frame** draws link images when their site allows it, and label tiles otherwise.
-- **Link previews** draw images from trusted sites, and label tiles for other link images and
-  for uploads.
+- **Link previews** draw only image-set pictures. Every link image (from any site, trusted or
+  not) and every upload is a label tile (owner decision, 2026-11-01). The server never fetches
+  a link image's address.
 
 | Module | What it does |
 | --- | --- |
@@ -38,7 +39,6 @@ from a link, and images from the visitor's device (uploads and pasted images).
 | `lib/images/legacyUploads.ts` | Moves uploads that older versions kept in localStorage into the store. |
 | `lib/images/localLists.ts` | Always-allowed sites and removed images, in localStorage. |
 | `contexts/CustomImagesContext.tsx` | Connects all of this to the editor. |
-| `app/api/og/link-images.ts` | Loads trusted link images for link previews, with caps. |
 | `lib/security/csp.ts` | Builds the Content Security Policy header (`next.config.ts` sends it). |
 | `lib/images/messages.ts` | The messages people see when an image cannot be added. |
 

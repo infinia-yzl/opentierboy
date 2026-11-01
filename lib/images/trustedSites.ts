@@ -6,8 +6,8 @@
  * exactly. An entry with `"subdomains": true` also matches every name under it.
  * `npm run check:trusted-sites` checks the list against a tracker blocklist.
  *
- * Pure code: no browser or Node APIs, so the edge OG route may use it (amendment A8: the
- * preview draws trusted-site images and label tiles for everything else).
+ * Pure code: no browser or Node APIs, so the edge OG route may use it. Link previews never
+ * load link images, trusted or not: they draw label tiles (owner decision, 2026-11-01).
  */
 import trustedSitesFile from '@/trusted-image-sites.json';
 import {checkLinkImageUrl} from './linkImage';

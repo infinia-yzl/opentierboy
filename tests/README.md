@@ -157,8 +157,8 @@ tests/
   `route.fetch()`, `browser.newContext()`, `browser.newPage()`, `launch()`...) outside
   `tests/support`. Known limits, not guarded: `node:http` and `node:https` in tests, a route
   that answers a site address with a redirect to an outside host (or falls back with an
-  outside `url`), and fetches the server makes for `/api/og` (no test sends it a trusted-site
-  image).
+  outside `url`), and fetches the server makes for `/api/og` (it loads only the app's own
+  images; `tests/unit/app/api/og/route.test.ts` checks that it requests no link image address).
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
 - **Some input cannot be simulated in every browser.** Firefox drops the files of a paste event

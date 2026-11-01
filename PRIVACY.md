@@ -72,8 +72,8 @@ follows:
    websites on our trusted list load at once; images from any other website load only after you allow them. The website
    that hosts an image can see your browser's request, as with any image on the web, and its own privacy policy applies.
 4. **Link previews**: When a link to a list is shared in a chat or on a social network, our server draws a preview
-   picture of the list. To draw it, our server fetches the images that come from websites on our trusted list. It never
-   fetches images from any other website, and it never receives your device pictures, which appear as label tiles.
+   picture of the list. It draws only pictures from our own image sets. It never fetches images from other websites,
+   and it never receives your device pictures: both appear as label tiles.
 5. **Responsibility**: You are responsible for the content of the images you add. We do not monitor or moderate them.
 6. **Removal**: We do not store your pictures on our servers, so we cannot remove them. You can remove them from your
    device by clearing this site's data in your browser settings. Images from other websites stay on those websites.
