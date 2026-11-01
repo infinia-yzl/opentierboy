@@ -153,7 +153,7 @@ test.describe('share panel', () => {
 
       await expect(tierList.linkImageNotes).toHaveCount(1);
       await expect(tierList.linkImageNotes).toHaveText(
-        '2 images from other sites travel in the link. People who open it load them from those sites.');
+        '2 images from other sites travel in the link. People who open the link load them from those sites, or see their names until they choose Load.');
     });
 
     test('renders the note "1 image from your device stays on this device." when the user adds an image from the device', async ({tierList}) => {
@@ -164,7 +164,7 @@ test.describe('share panel', () => {
 
       await expect(tierList.linkImageNotes).toHaveCount(1);
       await expect(tierList.linkImageNotes).toHaveText(
-        '1 image from your device stays on this device. People who open the link see its name. To share it too, download the picture below.');
+        '1 image from your device stays on this device. People who open the link see its name. To share it too, capture a picture on the Image tab and download it.');
     });
 
     test('renders a note for 3 device images and one for 1 link image when the page opens a list with both', {tag: '@mobile'}, async ({tierList, page}) => {
@@ -177,8 +177,8 @@ test.describe('share panel', () => {
       await tierList.openSharePanel();
 
       await expect(tierList.linkImageNotes).toHaveText([
-        '3 images from your device stay on this device. People who open the link see their names. To share them too, download the picture below.',
-        '1 image from another site travels in the link. People who open it load it from that site.',
+        '3 images from your device stay on this device. People who open the link see their names. To share them too, capture a picture on the Image tab and download it.',
+        '1 image from another site travels in the link. People who open the link load it from that site, or see its name until they choose Load.',
       ]);
     });
   });

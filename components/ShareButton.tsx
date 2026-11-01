@@ -113,7 +113,9 @@ const FRAME_CHOICES: readonly {value: FrameChoice; label: string}[] = [
 
 /**
  * Which images the link carries (the board "SharePanel"): link images travel in the link, device
- * images stay in this browser, and Freeze Frame's Download keeps them in the file.
+ * images stay in this browser, and Freeze Frame's Download keeps them in the file. Download is on
+ * the Image tab, after Capture Preview. Link images from sites outside the trusted list show as
+ * label tiles until the viewer chooses Load (components/LinkImageNotice.tsx).
  */
 function LinkImageNotes({link, device}: {link: number; device: number}) {
   if (link === 0 && device === 0) return null;
@@ -125,10 +127,10 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
           <AlertDescription>
             {device === 1 ? (
               <><strong>1 image from your device stays on this device.</strong> People who open the link see its name.
-                To share it too, download the picture below.</>
+                To share it too, capture a picture on the Image tab and download it.</>
             ) : (
               <><strong>{device} images from your device stay on this device.</strong> People who open the link see their
-                names. To share them too, download the picture below.</>
+                names. To share them too, capture a picture on the Image tab and download it.</>
             )}
           </AlertDescription>
         </Alert>
@@ -138,10 +140,11 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
             {link === 1 ? (
-              <><strong>1 image from another site travels in the link.</strong> People who open it load it from that site.</>
+              <><strong>1 image from another site travels in the link.</strong> People who open the link load it from
+                that site, or see its name until they choose Load.</>
             ) : (
-              <><strong>{link} images from other sites travel in the link.</strong> People who open it load them from
-                those sites.</>
+              <><strong>{link} images from other sites travel in the link.</strong> People who open the link load them
+                from those sites, or see their names until they choose Load.</>
             )}
           </AlertDescription>
         </Alert>
