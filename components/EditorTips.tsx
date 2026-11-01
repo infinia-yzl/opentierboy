@@ -163,7 +163,7 @@ const TOAST_TIPS: Partial<Record<TipId, ToastTip>> = {
   },
   'device-images': {
     title: 'Your images stay in this browser',
-    description: 'A link shares their names; a Freeze Frame shares the images too.',
+    description: 'A link shares their names; a downloaded Freeze Frame shares the images too.',
   },
 };
 

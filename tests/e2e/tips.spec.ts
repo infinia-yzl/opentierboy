@@ -254,7 +254,7 @@ test.describe('tips', () => {
       await expect(tips.deviceImagesToast).toHaveCount(0);
       await tips.closeToast(tips.linkSaveToast);
 
-      await expect(tips.deviceImagesToast).toContainText('A link shares their names; a Freeze Frame shares the images too.');
+      await expect(tips.deviceImagesToast).toContainText('A link shares their names; a downloaded Freeze Frame shares the images too.');
       await expect(tips.all).toHaveCount(1);
       await tips.closeToast(tips.deviceImagesToast);
       // The upload is in Unranked and nothing is ranked: the first-drag tip comes last.
