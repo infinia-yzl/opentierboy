@@ -374,6 +374,66 @@ export class TierListPage {
   }
 
   /**
+   * Drags an item with the mouse to the end of a tier and, right after the release (while the
+   * drop still animates), presses another item and moves the mouse a little, as someone ranking
+   * fast does, then releases it there. A press during the drop animation starts no drag of the
+   * editor (tests/README.md, "Drag and drop"). Returns once the drop animation has ended.
+   */
+  async dragItemToTierThenPressItem(itemName: string, tierName: string, pressedName: string) {
+    const pressed = this.item(pressedName);
+    await this.dropAndWaitForLink(() =>
+      this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
+        x: box.x + box.width - 120,
+        y: box.y + box.height / 2,
+      }), {
+        afterRelease: async () => {
+          const from = await centerOf(pressed);
+          const mouse = this.page.mouse;
+          await mouse.move(from.x, from.y);
+          await mouse.down();
+          // Past the 5 px that start a mouse drag, and still on the pressed item.
+          await mouse.move(from.x + 12, from.y + 6, {steps: 4});
+          await mouse.up();
+        },
+      }),
+    );
+  }
+
+  /**
+   * Starts counting the drags the browser itself starts from now on: dragstart events that no
+   * handler cancelled (a native drag, for example of an image). Returns a function that reads
+   * the count. The listener sits on the window, so it reads each event after the page's own
+   * handlers.
+   */
+  async countNativeDrags(): Promise<() => Promise<number>> {
+    await this.page.evaluate(() => {
+      const counted = window as unknown as {nativeDrags: number};
+      counted.nativeDrags = 0;
+      window.addEventListener('dragstart', (event) => {
+        if (!event.defaultPrevented) counted.nativeDrags += 1;
+      });
+    });
+    return () => this.page.evaluate(() => (window as unknown as {nativeDrags: number}).nativeDrags);
+  }
+
+  /**
+   * Sends a dragstart event from an item's image, as the browser does when a native drag of
+   * the picture begins. Returns true when the page cancelled it (no native drag).
+   */
+  async dragStartFromItemImageIsCancelled(itemName: string): Promise<boolean> {
+    return this.itemImage(itemName).evaluate((image) => {
+      const event = new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()});
+      image.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  }
+
+  /** The images of every tile in the rows and the Unranked tray, the item up next and the queue included. */
+  get allItemImages(): Locator {
+    return this.tiers.getByRole('img');
+  }
+
+  /**
    * Drags an item with the mouse over a tier, then presses Escape before releasing the button,
    * so the drag is cancelled. Returns once the cancel is announced and the drop animation ended.
    */
@@ -460,7 +520,7 @@ export class TierListPage {
    * The page auto-scrolls while the pointer is near the top or bottom of the window. The
    * helper keeps moving the pointer to the same page point until the scrolling stops.
    */
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false} = {}) {
+  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
@@ -508,6 +568,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     }
     await mouse.up();
+    await afterRelease?.();
     await this.dropSettled();
     await this.expectEveryItemDraggable();
   }

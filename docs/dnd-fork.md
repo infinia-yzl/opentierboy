@@ -295,7 +295,10 @@ Decisions in the adapter:
   drag starts; a browser that opens a context menu earlier on a long press (Chrome on Android)
   also stops the drag. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as
   before. These numbers are constants in `activation.ts` for a test on a real phone. Items and
-  row handles turn off text selection and the iOS touch callout (CSS).
+  row handles turn off text selection and the iOS touch callout (CSS). A tile's picture never
+  starts the browser's own drag (`components/ItemTile.tsx`: `draggable={false}`,
+  `-webkit-user-drag: none`, and a `dragstart` handler that cancels the event), also during a
+  drop animation, when a press starts no drag of the editor.
 - **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before, for
   pointer drops. dnd-kit skips it when the user prefers reduced motion. Keyboard drops have no
   animation (each arrow key already put the element on its place), so focus comes back to the
