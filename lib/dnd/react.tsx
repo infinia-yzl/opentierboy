@@ -407,6 +407,12 @@ export function useTierItems({tierId}: {tierId: string}) {
 /**
  * An item tile, sortable inside its row and between rows. Put `ref` on the tile and
  * `describedBy` in its aria-describedby (the keyboard instructions).
+ *
+ * One component per item: key the component that calls this by the item id, so a tile never
+ * changes items. dnd-kit keeps its draggables by id. A tile whose item changed would rename its
+ * draggable while the item's new tile (in the row it was dropped in) registers the old id:
+ * dnd-kit then drops the renamed one, and the tile takes no more drags. A press on its image
+ * starts the browser's own image drag instead.
  */
 export function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; index: number}) {
   const {ref, isDragging, isDropping} = useSortable({
