@@ -76,6 +76,9 @@ async function copyOverlayAddress(choiceId: string) {
   }
 }
 
+/** The Zen bar's menus: Ranking order and Layout. */
+type BarMenu = 'order' | 'layout';
+
 /** The ids of the Unranked items (the last row). */
 const trayIdsOf = (tiers: readonly {items: readonly {id: string}[]}[]) => tiers[tiers.length - 1]?.items.map(item => item.id) ?? [];
 
@@ -151,9 +154,14 @@ function ZenBarContent() {
   const {step, total} = useListSteps();
   const {order, hideQueue} = useRankingOrder();
   const zenLayout = useZenLayout();
-  const [orderMenuOpen, setOrderMenuOpen] = useState(false);
-  const [layoutMenuOpen, setLayoutMenuOpen] = useState(false);
-  const menuOpen = orderMenuOpen || layoutMenuOpen;
+  // One menu open at a time: opening one closes the other. The bar sets its own pointer events,
+  // so it still takes clicks while a menu has turned them off for the rest of the page; a click
+  // on the other menu's button opened that menu and left the first one open.
+  const [openMenu, setOpenMenu] = useState<BarMenu | null>(null);
+  const menuOpen = openMenu !== null;
+  const onMenuOpenChange = (menu: BarMenu) => (open: boolean) => {
+    setOpenMenu((current) => open ? menu : current === menu ? null : current);
+  };
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const shown = useBarShown(menuOpen || hovered || focused);
@@ -238,7 +246,7 @@ function ZenBarContent() {
             <ChevronRightIcon className={ICON_SIZE}/>
           </BarButton>
           <span aria-hidden="true" className={SEPARATOR}/>
-          <DropdownMenu open={orderMenuOpen} onOpenChange={setOrderMenuOpen}>
+          <DropdownMenu open={openMenu === 'order'} onOpenChange={onMenuOpenChange('order')}>
             <Tooltip open={shown ? undefined : false}>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
@@ -270,7 +278,7 @@ function ZenBarContent() {
           </DropdownMenu>
           {/* Layout (owner decision, 2026-10-31): Zen in the editor, 16:9, 9:16 or the stream
               overlay, and the wordmark. View settings: they never write the link or history. */}
-          <DropdownMenu open={layoutMenuOpen} onOpenChange={setLayoutMenuOpen}>
+          <DropdownMenu open={openMenu === 'layout'} onOpenChange={onMenuOpenChange('layout')}>
             <Tooltip open={shown ? undefined : false}>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger asChild>
