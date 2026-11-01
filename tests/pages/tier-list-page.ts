@@ -1612,6 +1612,61 @@ export class TierListPage {
     return this.page.getByRole('menu');
   }
 
+  /**
+   * Every open menu. An open menu hides the rest of the page from assistive technology, also
+   * another open menu, so this counts the hidden ones too.
+   */
+  get openMenus(): Locator {
+    return this.page.getByRole('menu', {includeHidden: true});
+  }
+
+  /**
+   * Clicks a menu button of the Zen bar while one of its menus is open, as a person can: the
+   * open menu hides the bar from assistive technology, but the bar still takes clicks.
+   */
+  async clickZenBarMenuButtonOverOpenMenu(menu: 'Ranking order' | 'Layout') {
+    const bar = this.page.getByRole('toolbar', {name: 'Zen', includeHidden: true});
+    await bar.getByRole('button', {name: new RegExp(`^${menu}: `), includeHidden: true}).click();
+  }
+
+  /** The name of the item up next (In order or Shuffle). */
+  async upNextItemName(): Promise<string> {
+    await expect(this.upNextItem).toHaveCount(1);
+    return (await this.upNextItem.getAttribute('aria-label')) ?? '';
+  }
+
+  /**
+   * Drags an item to the end of a tier with the mouse, as a person does: one press on the item,
+   * one movement to the row in small steps, one release. Unlike dragItemToTier it never presses
+   * twice: a press that starts no drag of the item (the browser's own drag of its image, for
+   * example) fails. Returns once the link is in the address bar.
+   */
+  async dragItemToTierByHand(itemName: string, tierName: string) {
+    // A press starts a drag only once the previous drop has landed. The drag library takes
+    // presses again a frame or two after the drop animation ends, when the rows drop their
+    // data-dragging mark (components/DragDropTierList.tsx, RowList). A person never presses
+    // that fast; a test can.
+    await this.dropSettled();
+    await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
+      message: 'the previous drop should have landed',
+    }).toBe(true);
+    await this.changeAndWaitForLink(async () => {
+      const item = this.item(itemName);
+      await item.scrollIntoViewIfNeeded();
+      const from = await centerOf(item);
+      const row = await boxOf(this.tier(tierName));
+      const mouse = this.page.mouse;
+      await mouse.move(from.x, from.y);
+      await mouse.down();
+      await mouse.move(row.x + row.width - 120, row.y + row.height / 2, {steps: 20});
+      await expect(this.dragAnnouncer, 'the press should drag the item').toHaveText(
+        new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`),
+      );
+      await mouse.up();
+      await this.dropSettled();
+    });
+  }
+
   /** Turns the Layout menu's "Wordmark" on or off. */
   async setWordmarkShown(on: boolean) {
     const menu = await this.openLayoutMenu();

@@ -1,5 +1,6 @@
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
+import type {LayoutParam, TierListPage, ZenLayoutName} from '../pages/tier-list-page';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -11,6 +12,26 @@ const LONG_LIST = rankingState('image-overwatch', {'': LONG_TRAY});
 
 const FULL_HD = {width: 1920, height: 1080};
 const PORTRAIT_FULL_HD = {width: 1080, height: 1920};
+
+/**
+ * Drags an item by hand (real mouse input, one press) to the end of a row. Checks that it lands
+ * there and that the link gained exactly one history entry. `entries` counts the new history
+ * entries since the test started (TierListPage.countNewHistoryEntries).
+ */
+async function dropByHand(tierList: TierListPage, entries: () => Promise<number>, item: string, tier: string) {
+  const before = await entries();
+  await tierList.dragItemToTierByHand(item, tier);
+  await expect(tierList.itemsIn(tier).last()).toHaveAccessibleName(item);
+  expect(await entries()).toBe(before + 1);
+}
+
+/** Drags the item up next (In order or Shuffle) by hand to a row, as dropByHand does. Returns its name. */
+async function dropUpNextByHand(tierList: TierListPage, entries: () => Promise<number>, tier: string): Promise<string> {
+  const item = await tierList.upNextItemName();
+  await dropByHand(tierList, entries, item, tier);
+  await expect(tierList.upNextItem).not.toHaveAccessibleName(item);
+  return item;
+}
 
 test.describe('zen layouts', () => {
   test.describe('entering and leaving', () => {
@@ -293,6 +314,166 @@ test.describe('zen layouts', () => {
       await tierList.openLayoutMenu();
 
       await expect(tierList.copyOverlayLinkMenuItem).toHaveAttribute('aria-disabled', 'true');
+    });
+  });
+
+  test.describe('menus', () => {
+    test.use({viewport: FULL_HD});
+
+    test('renders only menu Layout when the user clicks button Layout while menu Ranking order is open', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.setZenMode(true);
+      await tierList.openRankingOrderMenu();
+      await expect(tierList.openMenus).toHaveCount(1);
+
+      await tierList.clickZenBarMenuButtonOverOpenMenu('Layout');
+
+      await expect(tierList.openMenus).toHaveCount(1);
+      await expect(tierList.openMenus).toHaveAccessibleName('Layout: Editor');
+    });
+
+    test('renders only menu Ranking order, and no menu after Escape, when the user clicks it while menu Layout is open', {tag: '@mobile'}, async ({
+      tierList, page,
+    }) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.setZenMode(true);
+      await tierList.openLayoutMenu();
+
+      await tierList.clickZenBarMenuButtonOverOpenMenu('Ranking order');
+
+      await expect(tierList.openMenus).toHaveCount(1);
+      await expect(tierList.openMenus).toHaveAccessibleName('Ranking order: Pick freely');
+      await expect(page.getByRole('menuitemradio', {name: 'In order'})).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(tierList.openMenus).toHaveCount(0);
+      await expect(tierList.zenBar).toBeVisible();
+    });
+  });
+
+  // Real mouse input: one press per drag, as a person drags (TierListPage.dragItemToTierByHand).
+  // The item up next is one tile that changes items after each drop; it must take every drag.
+  test.describe('mouse drags', () => {
+    test.use({viewport: FULL_HD});
+
+    for (const layout of ['Editor', '16:9', '9:16', 'Overlay · green key', 'Overlay · transparent'] as const satisfies readonly ZenLayoutName[]) {
+      test(`renders the item in its row and writes 1 history entry per drop when the user drags the item up next twice in ${layout}`, async ({
+        tierList,
+      }) => {
+        await tierList.goto(TANKS, LIST);
+        await tierList.setZenMode(true);
+        await tierList.chooseRankingOrder('In order');
+        if (layout !== 'Editor') await tierList.chooseLayout(layout);
+        const entries = await tierList.countNewHistoryEntries();
+
+        expect(await dropUpNextByHand(tierList, entries, 'S')).toBe('Mauga');
+        expect(await dropUpNextByHand(tierList, entries, 'A')).toBe('Winston');
+
+        expect(await entries()).toBe(2);
+        await expect(tierList.itemsIn('S')).toHaveText(['Reinhardt', 'Zarya', 'D.Va', 'Mauga']);
+      });
+    }
+
+    test('renders each item in its row and writes 1 history entry per drop when the user drags after each layout change', async ({tierList}) => {
+      await tierList.goto(TANKS, LONG_LIST);
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+      const entries = await tierList.countNewHistoryEntries();
+
+      const steps = [['16:9', 'S'], ['9:16', 'A'], ['Overlay · green key', 'B'], ['Overlay · transparent', 'C'], ['Editor', 'F']] as const;
+      for (const [layout, tier] of steps) {
+        await tierList.chooseLayout(layout);
+        await dropUpNextByHand(tierList, entries, tier);
+      }
+
+      expect(await entries()).toBe(steps.length);
+      await expect(tierList.unranked.getByText(`${LONG_TRAY.length - steps.length} left`)).toBeVisible();
+    });
+
+    for (const layout of ['16x9', '9x16', 'overlay-green', 'overlay-transparent'] as const satisfies readonly LayoutParam[]) {
+      test(`renders the item in its row and writes 1 history entry per drop when the user drags twice after opening layout ${layout}`, async ({
+        tierList,
+      }) => {
+        await tierList.gotoInLayout(TANKS, LIST, layout);
+        await tierList.chooseRankingOrder('In order');
+        const entries = await tierList.countNewHistoryEntries();
+
+        await dropUpNextByHand(tierList, entries, 'A');
+        await dropUpNextByHand(tierList, entries, 'B');
+
+        await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+        await expect(tierList.itemsIn('B')).toHaveText(['Winston']);
+        await expect(tierList.zenFrame).toBeVisible();
+      });
+    }
+
+    test('renders the item in its row and writes 1 history entry per drop when the user drags with Compact tiles in Zen and 16:9', async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS, LONG_LIST);
+      await tierList.chooseTileSize('Compact');
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+      const entries = await tierList.countNewHistoryEntries();
+
+      await dropUpNextByHand(tierList, entries, 'S');
+      await dropUpNextByHand(tierList, entries, 'A');
+      await tierList.chooseLayout('16:9');
+      await dropUpNextByHand(tierList, entries, 'B');
+      await tierList.chooseLayout('Editor');
+      await dropUpNextByHand(tierList, entries, 'C');
+
+      expect(await entries()).toBe(4);
+    });
+
+    test('renders the items in rows S and A and writes 1 history entry per drop when the user drags 2 Unranked items in 9:16', async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.setZenMode(true);
+      await tierList.chooseLayout('9:16');
+      await expect(tierList.rankingOrderButton).toHaveAccessibleName('Ranking order: Pick freely');
+      const entries = await tierList.countNewHistoryEntries();
+
+      await dropByHand(tierList, entries, 'Sigma', 'S');
+      await dropByHand(tierList, entries, 'Winston', 'A');
+
+      await expect(tierList.itemsIn('Unranked')).toHaveText(['Mauga', 'Orisa']);
+    });
+
+    for (const order of ['In order', 'Shuffle'] as const) {
+      test(`renders the item in its row and writes 1 history entry per drop when the user drags twice with ranking ${order} in 9:16`, async ({
+        tierList,
+      }) => {
+        await tierList.goto(TANKS, LIST);
+        await tierList.setZenMode(true);
+        await tierList.chooseLayout('9:16');
+        await tierList.chooseRankingOrder(order);
+        const entries = await tierList.countNewHistoryEntries();
+
+        const first = await dropUpNextByHand(tierList, entries, 'A');
+        const second = await dropUpNextByHand(tierList, entries, 'B');
+
+        expect(TRAY).toEqual(expect.arrayContaining([first, second]));
+        await expect(tierList.unranked.getByText('2 left')).toBeVisible();
+      });
+    }
+
+    test('renders the items in row F and writes 1 history entry per move when the user moves them with keys after a layout change', async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS, LIST);
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+      await tierList.chooseLayout('16:9');
+      const entries = await tierList.countNewHistoryEntries();
+      await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
+      expect(await entries()).toBe(1);
+
+      await tierList.chooseLayout('9:16');
+      await tierList.moveItemWithKeyboard('Winston', ['ArrowUp']);
+
+      await expect(tierList.itemsIn('F')).toHaveText(['Mauga', 'Winston']);
+      expect(await entries()).toBe(2);
     });
   });
 
