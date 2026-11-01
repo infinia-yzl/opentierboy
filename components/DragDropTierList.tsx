@@ -304,7 +304,10 @@ const UpNextTray = memo<{
             <>
               {/* The item up next: the tile to drag, with a ring. In 9:16 it is large, with its name under it. */}
               <div className={cn('relative self-start stage:[--stage-tile:var(--stage-hero)]', tall && 'self-center')}>
+                {/* Keyed by the item, like every tile (useTierItem): when the item up next
+                    changes, a new tile takes its place. */}
                 <TierItem
+                  key={next.item.id}
                   item={next.item}
                   tierId={tier.id}
                   index={next.index}
