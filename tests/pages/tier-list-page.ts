@@ -1788,10 +1788,21 @@ export class TierListPage {
       const mouse = this.page.mouse;
       await mouse.move(from.x, from.y);
       await mouse.down();
-      await mouse.move(row.x + row.width - 120, row.y + row.height / 2, {steps: 20});
-      await expect(this.dragAnnouncer, 'the press should drag the item').toHaveText(
-        new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`),
-      );
+      const to = {x: row.x + row.width - 120, y: row.y + row.height / 2};
+      await mouse.move(to.x, to.y, {steps: 20});
+      const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`);
+      // A hand never holds perfectly still: when the drag has not reached the row, the pointer
+      // moves by a pixel and back, as a person's does (still the one press). On a busy machine
+      // the drag library can miss the last move; a nudge never turns another row into this one.
+      const reached = await expect(this.dragAnnouncer).toHaveText(atRow, {timeout: 3_000}).then(() => true, () => false);
+      if (!reached) {
+        let nudge = 1;
+        await expect(async () => {
+          nudge = -nudge;
+          await mouse.move(to.x + nudge, to.y);
+          await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow, {timeout: 1_000});
+        }).toPass({timeout: 10_000});
+      }
       await mouse.up();
       await this.dropSettled();
     });

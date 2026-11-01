@@ -213,7 +213,8 @@ always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item u
 No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
 Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
 the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
-into view, then the item, before it drags. The long-list tests use the full THE FINALS template
+into view, then the item, before it drags; when the drag has not reached the row 3 s after the
+move, it nudges the pointer by a pixel and back (still one press), as a hand does. The long-list tests use the full THE FINALS template
 (77 items) and a list of 19 rows.
 
 ### Tile shapes
