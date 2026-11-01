@@ -210,6 +210,12 @@ when the window is as wide as the frame and as high as the frame plus the strip:
 16:9 and the overlay (an 88 px strip), 1080 x 2024 for 9:16 (a 104 px strip). The Zen bar is
 always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item under it.
 
+No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
+Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
+the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
+into view, then the item, before it drags. The long-list tests use the full THE FINALS template
+(77 items) and a list of 19 rows.
+
 ### Tile shapes
 
 `tests/e2e/tile-shapes.spec.ts` checks tiles of mixed shapes (square, landscape, portrait).

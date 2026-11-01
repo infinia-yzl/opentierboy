@@ -105,6 +105,17 @@ const TierItems = memo<{
 TierItems.displayName = 'TierItems';
 
 /**
+ * The Unranked tray (or Up next) in a frame layout: it gives way before the rows, down to its
+ * least height, and scrolls (owner decisions, 2026-11-01). The frame and the cover never scroll
+ * (components/ZenStage.tsx).
+ * - 16:9 and 9:16 have a fixed height: from a 0% basis the tray starts at its least height and
+ *   grows into the space under the rows. The rows give way only once the tray is at its least.
+ * - The overlay's panel is as tall as its content, up to the frame: 0% then counts as the
+ *   tray's content, and the tray shrinks a million times faster than the rows.
+ */
+const STAGE_TRAY_FLEX = 'stage:basis-[0%] stage:shrink-[1000000] stage-wide:grow stage-tall:grow';
+
+/**
  * The tier letter's size: big for a letter or two, smaller for longer names, which wrap. Compact
  * tiles (the dense editor) take smaller letters; the frame layouts take theirs from the frame
  * (`--stage-letter`, lib/zen/layouts.ts).
@@ -206,10 +217,10 @@ const UnrankedTray = memo<{
   }
   return (
     // In a frame layout the tray has no box, and its tiles take the frame's tray size; in 9:16 it
-    // fills the space under the rows, in the middle (the board "9:16 · Pick freely"). In 16:9 it
-    // takes the space under the rows and scrolls, so the frame keeps its size for recording
-    // (owner decision, 2026-11-01).
-    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage-wide:flex-1 stage-wide:min-h-0 stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]">
+    // fills the space under the rows, in the middle (the board "9:16 · Pick freely"). It takes
+    // the space under the rows and its items scroll, so the frame keeps its size (owner
+    // decisions, 2026-11-01): it gives way before the rows (STAGE_TRAY_FLEX).
+    <section role="group" aria-label={tierLabel} className={`mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:justify-center-safe ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-tile))] stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]`}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <EditableLabel
           text={tier.name}
@@ -234,9 +245,8 @@ const UnrankedTray = memo<{
         showLabels={showLabels}
         onDeleteItem={onDeleteItem}
         trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
-        // In 9:16 the tray fills the space under the rows and centres its items in it; in 16:9 its
-        // items scroll.
-        className="stage-tall:flex-none stage-wide:overflow-y-auto"
+        // In a frame the items scroll. In 9:16 they keep their own height, centred in the tray.
+        className="stage:overflow-y-auto stage:overflow-x-hidden stage-tall:flex-[0_1_auto]"
       />
     </section>
   );
@@ -274,7 +284,9 @@ const UpNextTray = memo<{
   const left = itemsLeftText(tier.items.length);
   const queueLabel = hideQueue ? 'Queue (hidden)' : 'Queue';
   return (
-    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage-tall:flex stage-tall:flex-col">
+    // In a frame layout it takes the space under the rows and scrolls when it must (owner
+    // decisions, 2026-11-01), as the Unranked tray does.
+    <section role="group" aria-label={tierLabel} className={`mt-4 w-full rounded-xl bg-muted p-3 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-hero))] stage:overflow-y-auto stage:overflow-x-hidden stage-tall:flex stage-tall:flex-col stage-tall:justify-center-safe`}>
       <div
         ref={ref}
         className={cn(
@@ -361,7 +373,9 @@ const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
     // (app/globals.css), as scrolling does: hundreds of blurred layers made every frame of a
     // drag slow. The blur comes back once the item has landed: at the release, the labels'
     // transitions back to the blur made the drop animation slow.
-    <div className="w-full" data-dragging={dragging || undefined}>
+    // In a frame layout the rows keep their size; only when they alone are taller than the frame
+    // do they scroll inside it (owner decision, 2026-11-01).
+    <div className="w-full stage:min-h-0 stage:overflow-y-auto stage:overflow-x-hidden" data-dragging={dragging || undefined}>
       <div className={`w-full border-t border-black/10 dark:border-white/10 ${rowDrag ? 'ring-2 ring-ring' : ''}`}>
         {children}
       </div>

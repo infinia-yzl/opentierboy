@@ -1714,7 +1714,7 @@ export class TierListPage {
   }
 
   /** Opens a list, turns Zen on and chooses a layout in the Zen bar's Layout menu. */
-  async gotoInLayout(path: string, state: string, layout: ZenLayoutName) {
+  async gotoInLayout(path: string, state: string | undefined, layout: ZenLayoutName) {
     await this.goto(path, state);
     await this.setZenMode(true);
     if (layout !== 'Editor') await this.chooseLayout(layout);
@@ -1779,6 +1779,9 @@ export class TierListPage {
     }).toBe(true);
     await this.changeAndWaitForLink(async () => {
       const item = this.item(itemName);
+      // In a creator layout the rows and the tray scroll on their own, inside a frame that stays
+      // still: the row first, then the item.
+      await this.tier(tierName).scrollIntoViewIfNeeded();
       await item.scrollIntoViewIfNeeded();
       const from = await centerOf(item);
       const row = await boxOf(this.tier(tierName));
@@ -1827,19 +1830,26 @@ export class TierListPage {
   }
 
   /**
-   * The Unranked tray's items scroll (16:9 with a long list): true when the items are taller
-   * than their box, and the box can scroll them.
+   * The Unranked tray scrolls (a long list in a creator layout): true when its items, or Up next
+   * and the queue, are taller than the box that scrolls them.
    */
   async unrankedItemsScroll(): Promise<boolean> {
-    return this.unranked.getByRole('button').first().evaluate((item) => {
-      let box: HTMLElement | null = item.parentElement;
-      while (box && box !== document.body) {
-        const style = getComputedStyle(box);
-        if (/(auto|scroll)/.test(style.overflowY)) return box.scrollHeight > box.clientHeight;
-        box = box.parentElement;
-      }
-      return false;
-    });
+    return scrollsInside(this.unranked.getByRole('button').first());
+  }
+
+  /** The rows scroll (more rows than a creator layout's frame holds): true when they are taller than their box. */
+  async rowsScroll(): Promise<boolean> {
+    return scrollsInside(this.tiers.first());
+  }
+
+  /**
+   * True when the content of a creator layout's frame, or of the cover around it, is taller than
+   * its box: then the frame or the cover would scroll. A creator layout keeps both still (owner
+   * decision, 2026-11-01).
+   */
+  async frameOverflows(): Promise<boolean> {
+    return this.zenFrame.evaluate((frame) => [frame, frame.parentElement as HTMLElement]
+      .some((box) => box.scrollHeight > box.clientHeight + 1 || box.scrollTop > 0));
   }
 
   /** The name a Compact tile shows under itself, with Show Labels on. */
@@ -1890,6 +1900,21 @@ export class TierListPage {
 }
 
 type Box = {x: number; y: number; width: number; height: number};
+
+/**
+ * True when the nearest box around an element that scrolls (overflow auto or scroll) has more
+ * content than room. False when no box around it scrolls.
+ */
+async function scrollsInside(locator: Locator): Promise<boolean> {
+  return locator.evaluate((element) => {
+    let box: HTMLElement | null = element.parentElement;
+    while (box && box !== document.body) {
+      if (/(auto|scroll)/.test(getComputedStyle(box).overflowY)) return box.scrollHeight > box.clientHeight + 1;
+      box = box.parentElement;
+    }
+    return false;
+  });
+}
 
 /** True when two boxes share some area (boxes that only touch at an edge do not). */
 function boxesOverlap(a: Box, b: Box): boolean {

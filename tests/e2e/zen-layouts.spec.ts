@@ -1,5 +1,5 @@
 import {expect, test} from '../support/test';
-import {rankingState} from '../support/links';
+import {packageItemId, rankingState, rawState} from '../support/links';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
 
 const TANKS = '/rank/overwatch/tank';
@@ -11,6 +11,12 @@ const LONG_TRAY = ['Ana', 'Ashe', 'Wrecking Ball', 'Baptiste', 'Bastion', 'Brigi
 const LONG_LIST = rankingState('image-overwatch', {'': LONG_TRAY});
 /** Every THE FINALS item (77) in Unranked: a full template. */
 const FULL_TEMPLATE = '/rank/the-finals/all';
+/** 19 ranked rows, R1 to R19 (taller than any frame holds), and the four tray items in Unranked. */
+const ROW_NAMES = Array.from({length: 19}, (_, index) => `R${index + 1}`);
+const NINETEEN_ROWS = rawState({tiers: [
+  ...ROW_NAMES.map((name) => ({i: `row-${name}`, n: name, t: []})),
+  {i: 'uncategorized', n: '', t: TRAY.map((label) => ({i: packageItemId('image-overwatch', label)}))},
+]});
 
 /** The creator layouts: each draws the list in a frame, under a strip that holds the Zen bar. */
 const CREATOR_LAYOUTS = ['16:9', '9:16', 'Overlay · green key'] as const satisfies readonly ZenLayoutName[];
@@ -248,6 +254,7 @@ test.describe('zen layouts', () => {
       await tierList.chooseLayout('16:9');
 
       expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
+      expect(await tierList.frameOverflows()).toBe(false);
       expect(await tierList.unrankedItemsScroll()).toBe(true);
       // The rows keep their size: a tile and the row's 1 px border.
       expect(await tierList.sizeOf(tierList.tier('S'))).toEqual({width: 1920 - 2 * 72, height: 121});
@@ -265,6 +272,99 @@ test.describe('zen layouts', () => {
       expect(await entries()).toBe(1);
       expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
     });
+  });
+
+  // Owner decision, 2026-11-01: no creator layout scrolls its frame or the cover around it.
+  // The part under the rows (the tray, or Up next and the queue) takes the space left and
+  // scrolls; the rows keep their size. When the rows alone are taller than the frame, the rows
+  // scroll inside it.
+  test.describe('long lists', () => {
+    for (const order of ['Pick freely', 'In order', 'Shuffle'] as const) {
+      test(`renders the 9:16 frame at 1080 x 1920 with no overflow when the list has 77 items with ranking ${order}`, async ({tierList, page}) => {
+        await page.setViewportSize(TALL_WINDOW);
+        await tierList.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
+
+        if (order !== 'Pick freely') await tierList.chooseRankingOrder(order);
+
+        expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+        expect(await tierList.frameOverflows()).toBe(false);
+        expect((await tierList.sizeOf(tierList.tier('S'))).height).toBe(121);
+        if (order === 'Pick freely') expect(await tierList.unrankedItemsScroll()).toBe(true);
+      });
+
+      test(`writes 1 history entry per drop when the user drags 2 of 77 items into rows in 9:16 with ranking ${order}`, async ({tierList, page}) => {
+        await page.setViewportSize(TALL_WINDOW);
+        await tierList.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
+        if (order !== 'Pick freely') await tierList.chooseRankingOrder(order);
+        const entries = await tierList.countNewHistoryEntries();
+
+        if (order === 'Pick freely') {
+          await dropByHand(tierList, entries, (await tierList.itemsIn(tierList.unranked).last().getAttribute('aria-label'))!, 'S');
+          await dropByHand(tierList, entries, (await tierList.itemsIn(tierList.unranked).nth(60).getAttribute('aria-label'))!, 'F');
+        } else {
+          await dropUpNextByHand(tierList, entries, 'S');
+          await dropUpNextByHand(tierList, entries, 'F');
+        }
+
+        expect(await entries()).toBe(2);
+        expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+        expect(await tierList.frameOverflows()).toBe(false);
+      });
+    }
+
+    test('renders the panel within the frame and a scrolling Unranked tray when the list has 77 items in the overlay', async ({tierList, page}) => {
+      await page.setViewportSize(WIDE_WINDOW);
+      await tierList.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
+
+      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
+      expect(await tierList.frameOverflows()).toBe(false);
+      expect(await tierList.unrankedItemsScroll()).toBe(true);
+      const frame = (await tierList.zenFrame.boundingBox())!;
+      const tray = (await tierList.unranked.boundingBox())!;
+      // The panel keeps its 40 px margin to the frame's bottom, and its 24 px padding.
+      expect(tray.y + tray.height).toBeLessThanOrEqual(frame.y + frame.height - 40 - 24 + 1);
+      expect((await tierList.sizeOf(tierList.tier('S'))).height).toBe(97);
+    });
+
+    test('writes 1 history entry and renders the item in row S when the user drags the 71st of 77 items to row S in the overlay', async ({
+      tierList, page,
+    }) => {
+      await page.setViewportSize(WIDE_WINDOW);
+      await tierList.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
+      // The first tile of the tray's last line: at its left, clear of the "Entered Zen Mode" toast.
+      const item = (await tierList.itemsIn(tierList.unranked).nth(70).getAttribute('aria-label'))!;
+      const entries = await tierList.countNewHistoryEntries();
+
+      await dropByHand(tierList, entries, item, 'S');
+
+      expect(await entries()).toBe(1);
+      expect(await tierList.frameOverflows()).toBe(false);
+      expect(await tierList.frameCoverColour()).toBe('rgb(0, 177, 64)');
+    });
+
+    for (const layout of CREATOR_LAYOUTS) {
+      test(`renders the frame with no overflow and scrolling rows when the list has 19 rows in ${layout}`, async ({tierList, page}) => {
+        await page.setViewportSize(WINDOWS[layout]);
+        await tierList.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
+
+        expect(await tierList.frameOverflows()).toBe(false);
+        expect(await tierList.rowsScroll()).toBe(true);
+        await expect(tierList.item('Mauga')).toBeInViewport();
+      });
+
+      test(`writes 1 history entry and renders the item in row R19 when the user drags it there with 19 rows in ${layout}`, async ({
+        tierList, page,
+      }) => {
+        await page.setViewportSize(WINDOWS[layout]);
+        await tierList.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
+        const entries = await tierList.countNewHistoryEntries();
+
+        await dropByHand(tierList, entries, 'Mauga', 'R19');
+
+        expect(await entries()).toBe(1);
+        expect(await tierList.frameOverflows()).toBe(false);
+      });
+    }
   });
 
   test.describe('9:16', () => {

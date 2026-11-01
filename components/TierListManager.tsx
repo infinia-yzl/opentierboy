@@ -65,10 +65,11 @@ const TierListEditor: React.FC = () => {
       'w-full flex flex-col items-center',
       // 16:9 and 9:16: the frame's padding, and the space between the title, rows and tray.
       (stage === 'wide' || stage === 'tall') && 'grow px-(--stage-pad-x) py-(--stage-pad-y) gap-(--stage-gap)',
-      // 16:9: the frame keeps its height, and the Unranked tray takes the space left.
-      stage === 'wide' && 'min-h-0',
-      // The overlay: the list in a panel at the frame's top right (the board "Overlay · green key").
-      stage === 'overlay' && 'absolute top-(--stage-pad-y) right-(--stage-pad-x) stage:w-(--stage-panel-width) p-(--stage-panel-pad) rounded-(--stage-panel-radius) gap-(--stage-gap) bg-background text-foreground',
+      // The frame keeps its height: the Unranked tray takes the space left (ZenStage).
+      (stage === 'wide' || stage === 'tall') && 'min-h-0',
+      // The overlay: the list in a panel at the frame's top right (the board "Overlay · green key"),
+      // at most as tall as the frame less its margins.
+      stage === 'overlay' && 'absolute top-(--stage-pad-y) right-(--stage-pad-x) stage:w-(--stage-panel-width) max-h-[calc(var(--stage-frame-height)-2*var(--stage-pad-y))] p-(--stage-panel-pad) rounded-(--stage-panel-radius) gap-(--stage-gap) bg-background text-foreground',
     )}>
       {/* The title on the left and the editor's three tools on the right (owner decisions,
           2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
@@ -96,7 +97,7 @@ const TierListEditor: React.FC = () => {
       <LinkImageNotice/>
       {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
           "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
-      <div className={stage ? cn('w-full', stage === 'tall' && 'grow flex flex-col', stage === 'wide' && 'grow min-h-0 flex flex-col') : 'w-full mt-3'}>
+      <div className={stage ? cn('w-full min-h-0 flex flex-col', stage !== 'overlay' && 'grow') : 'w-full mt-3'}>
         <DragDropTierList
           belowRows={<RowControls/>}
           addImagesTile={<ItemManager onOpenFiles={openFiles} trigger="tile"/>}
