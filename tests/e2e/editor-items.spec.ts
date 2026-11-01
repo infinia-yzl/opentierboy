@@ -179,11 +179,60 @@ test.describe('editor items', () => {
       await expect(tierList.hints).toHaveCount(0);
     });
 
-    test('renders the tile with "drop or paste" and no drop area when the page opens a list with items', {tag: '@mobile'}, async ({tierList}) => {
+    test('renders the tile and no drop area when the page opens a list with items', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS);
 
-      await expect(tierList.addImagesTile).toContainText('drop or paste');
+      await expect(tierList.addImagesTile).toBeVisible();
       await expect(tierList.emptyListDropArea).toHaveCount(0);
+    });
+
+    // Dropping and pasting need a mouse and a keyboard: on touch screens the words about them
+    // hide, as "Paste an image to add it as an item." does (the class tooltip-mouse).
+    test.describe('mouse wording', () => {
+      test.skip(({isMobile}) => isMobile, 'The words about dropping and pasting show with a mouse.');
+
+      test('renders "drop or paste" on the tile when the page opens a list with items', async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await expect(tierList.addImagesTileHint).toBeVisible();
+      });
+
+      test('renders the heading "Drop or paste images here" when the page opens an empty list', async ({tierList}) => {
+        await tierList.goto('/rank');
+
+        await expect(tierList.emptyListDropArea).toHaveText('Drop or paste images here');
+      });
+    });
+
+    test.describe('touch wording', () => {
+      test.skip(({isMobile}) => !isMobile, 'The touch wording shows on touch screens.');
+
+      test('renders no "drop or paste" on the tile when the page opens a list with items', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await expect(tierList.addImagesTile).toBeVisible();
+        await expect(tierList.addImagesTileHint).toBeHidden();
+      });
+
+      test('renders the heading "Add images here" with Template, Upload and Link when the page opens an empty list', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto('/rank');
+
+        await expect(tierList.emptyListDropArea).toHaveText('Add images here');
+        await expect(tierList.emptyListAction('Template')).toBeVisible();
+        await expect(tierList.emptyListAction('Upload')).toBeVisible();
+        await expect(tierList.emptyListAction('Link')).toBeVisible();
+      });
+
+      test('renders no hints "or drop" and "or paste" when the user opens the Add images menu', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await tierList.openManageItemsMenu();
+
+        await expect(tierList.menuItem('From your device')).toBeVisible();
+        await expect(tierList.menuHint('From your device', 'or drop')).toBeHidden();
+        await expect(tierList.menuHint('From a link', 'or paste')).toBeHidden();
+        await expect(tierList.menuHint('Open a Freeze Frame…', 'or drop')).toBeHidden();
+      });
     });
 
     test('renders the template picker, then the items, when the user clicks Template in the drop area of an empty list', async ({tierList}) => {
@@ -219,7 +268,8 @@ test.describe('editor items', () => {
       await expect(tierList.manageItemsButton).toBeFocused();
     });
 
-    test('renders the hints "or drop" and "or paste" on the matching items when the user opens the Add images menu', async ({tierList}) => {
+    test('renders the hints "or drop" and "or paste" on the matching items when the user opens the Add images menu', async ({tierList, isMobile}) => {
+      test.skip(isMobile, 'The hints show with a mouse.');
       await tierList.goto(TANKS);
 
       await tierList.openManageItemsMenu();

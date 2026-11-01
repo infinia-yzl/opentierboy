@@ -1218,9 +1218,22 @@ export class TierListPage {
     return this.page.getByText('Saved Freeze Frame pictures reopen as editable lists.');
   }
 
-  /** An empty list's drop area, in the Unranked tray: "Drop or paste images here". */
+  /**
+   * An empty list's drop area, in the Unranked tray, by its heading on screen: "Drop or paste
+   * images here" with a mouse, "Add images here" on a touch screen.
+   */
   get emptyListDropArea(): Locator {
-    return this.unranked.getByText('Drop or paste images here');
+    return this.unranked.getByText(/^(?:Drop or paste images here|Add images here)$/).filter({visible: true});
+  }
+
+  /** The line "drop or paste" on the tray's "Add images to Unranked" tile (mouse only). */
+  get addImagesTileHint(): Locator {
+    return this.addImagesTile.getByText('drop or paste', {exact: true});
+  }
+
+  /** The hint after a menu item of the Add images menu: "or drop" or "or paste" (mouse only). */
+  menuHint(item: string, hint: 'or drop' | 'or paste'): Locator {
+    return this.menuItem(item).getByText(hint, {exact: true});
   }
 
   /** A button of an empty list's drop area: Template, Upload or Link. */

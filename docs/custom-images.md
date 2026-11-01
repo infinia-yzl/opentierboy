@@ -27,7 +27,9 @@ from a link, and images from the visitor's device (uploads and pasted images).
 - **Zen** turns off adding items: dropped links and pasted addresses add nothing, and the drop
   overlay does not show. Dropped and pasted picture files are added in Zen, as before.
 - **While something is dragged over the editor**, an overlay says where to drop it. An empty
-  list shows a drop area in the Unranked tray, with Template, Upload and Link.
+  list shows a drop area in the Unranked tray, with Template, Upload and Link. The words about
+  dropping and pasting (the overlay aside) show only with a mouse: on touch screens the drop
+  area reads "Add images here", and the tile and menu hints hide.
 - **Images from other sites**: when a list holds link images from sites that are not trusted,
   a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
   (remembered in this browser). Until then, those items show as label tiles and the browser

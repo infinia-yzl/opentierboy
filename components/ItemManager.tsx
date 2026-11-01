@@ -247,9 +247,13 @@ interface ItemManagerProps {
   trigger?: 'button' | 'tile';
 }
 
-/** A hint after a menu item: how else to add images that way (owner decision, 2026-10-31). */
+/**
+ * A hint after a menu item: how else to add images that way (owner decision, 2026-10-31).
+ * Dropping and pasting need a mouse and a keyboard, so the hints hide on touch screens, as
+ * "Paste an image to add it as an item." does (the class tooltip-mouse).
+ */
 const MenuHint: React.FC<{children: React.ReactNode}> = ({children}) => (
-  <DropdownMenuShortcut className="pl-4 tracking-normal opacity-100 text-muted-foreground">{children}</DropdownMenuShortcut>
+  <DropdownMenuShortcut className="tooltip-mouse pl-4 tracking-normal opacity-100 text-muted-foreground">{children}</DropdownMenuShortcut>
 );
 
 /** The Add images menu, opened by the toolbar button or by the Unranked tray's tile. */
@@ -273,7 +277,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
           >
             <PlusIcon className="h-4 w-4"/>
             Add images
-            <span className="text-[9px] font-normal leading-tight">drop or paste</span>
+            {/* Dropping and pasting need a mouse and a keyboard: hidden on touch screens. */}
+            <span className="tooltip-mouse text-[9px] font-normal leading-tight">drop or paste</span>
           </Button>
         ) : (
           <Button variant="outline" ref={setTriggerRef}
@@ -322,7 +327,8 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
 /**
  * An empty list's drop area, in place of the Unranked tray's items (owner decision, 2026-10-31):
  * "Drop or paste images here", with Template, Upload and Link. They open "From template", "From
- * your device" and "From a link".
+ * your device" and "From a link". Touch screens cannot drop or paste here, so they read "Add
+ * images here" (the classes tooltip-mouse and tooltip-touch).
  */
 export const EmptyListDropArea: React.FC = () => {
   const {open} = useAddImages();
@@ -330,7 +336,8 @@ export const EmptyListDropArea: React.FC = () => {
   return (
     <div className="flex flex-col items-center gap-2.5 px-4 py-7 rounded-lg border border-dashed border-muted-foreground/40 text-center">
       <ImageIcon aria-hidden="true" className="h-7 w-7 text-muted-foreground"/>
-      <p className="text-[15px] font-semibold">Drop or paste images here</p>
+      <p className="tooltip-mouse text-[15px] font-semibold">Drop or paste images here</p>
+      <p className="tooltip-touch text-[15px] font-semibold">Add images here</p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button size="sm" variant="outline" onClick={action('template')}>Template</Button>
         <Button size="sm" variant="outline" onClick={action('device')}>Upload</Button>
