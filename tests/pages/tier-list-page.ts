@@ -1615,28 +1615,52 @@ export class TierListPage {
       await this.zenModeToggle.click();
       await expect(this.zenBar).toBeVisible();
     } else {
-      await this.clickInZenBar(this.zenBarButton('Exit Zen'));
+      await this.zenBarButton('Exit Zen').click();
       await expect(this.zenBar).toHaveCount(0);
       await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
     }
   }
 
   /**
-   * Clicks a button of the Zen bar. The bar hides while the mouse is still, so the mouse first
-   * moves over the bar, which shows it again.
+   * The parts of the list that the Zen bar's box overlaps: the title ("title"), the rows and the
+   * Unranked tray (by their heading) and the items (by their label). Empty when the bar covers
+   * nothing of the list.
    */
-  private async clickInZenBar(button: Locator) {
-    await this.wakeZenBar();
-    await button.click();
+  async listPartsUnderZenBar(): Promise<string[]> {
+    const bar = await this.zenBar.boundingBox();
+    if (!bar) throw new Error('The Zen bar is not on the page');
+    const title = (await this.title.count()) > 0 ? this.title : this.titleInput;
+    const parts: {name: string; locator: Locator}[] = [{name: 'title', locator: title}];
+    for (const row of await this.tiers.all()) {
+      parts.push({name: `row ${await row.getByRole('heading', {level: 2}).innerText()}`, locator: row});
+    }
+    for (const item of await this.allItems.all()) {
+      parts.push({name: `item ${await item.getAttribute('aria-label')}`, locator: item});
+    }
+    const covered: string[] = [];
+    for (const {name, locator} of parts) {
+      const box = await locator.boundingBox();
+      if (box && boxesOverlap(bar, box)) covered.push(name);
+    }
+    return covered;
   }
 
-  /** Moves the mouse over the Zen bar, and waits until the bar shows. */
-  async wakeZenBar() {
-    const box = await this.zenBar.boundingBox();
-    if (!box) throw new Error('The Zen bar is not on the page');
-    await this.page.mouse.move(box.x + 2, box.y + box.height / 2);
-    await this.page.mouse.move(box.x + 4, box.y + box.height / 2);
-    await expect(this.zenBar).toHaveCSS('opacity', '1');
+  /**
+   * Moves the page's clock on (the test installed it with `page.clock.install()`), then waits
+   * until the page has handled what those timers started: React renders in message tasks, which
+   * the clock does not fake, so two message round trips run after them.
+   */
+  async letTimePass(ms: number) {
+    await this.page.clock.runFor(ms);
+    await this.page.evaluate(async () => {
+      for (let round = 0; round < 2; round++) {
+        await new Promise<void>((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = () => resolve();
+          channel.port2.postMessage(null);
+        });
+      }
+    });
   }
 
   /** Presses a key, such as Tab or Shift+Tab, wherever the focus is. */
@@ -1646,19 +1670,19 @@ export class TierListPage {
 
   /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
   async stepInZenBar(name: 'Back' | 'Forward') {
-    await this.changeAndWaitForLink(() => this.clickInZenBar(this.zenBarButton(name)));
+    await this.changeAndWaitForLink(() => this.zenBarButton(name).click());
   }
 
   /** Chooses a ranking order in the Zen bar's menu. It writes no history entry. */
   async chooseRankingOrder(order: 'Pick freely' | 'In order' | 'Shuffle') {
-    await this.clickInZenBar(this.rankingOrderButton);
+    await this.rankingOrderButton.click();
     await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
     await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
   }
 
   /** Turns "Hide the queue" on or off in the Zen bar's menu. */
   async setHideQueue(on: boolean) {
-    await this.clickInZenBar(this.rankingOrderButton);
+    await this.rankingOrderButton.click();
     const item = this.page.getByRole('menuitemcheckbox', {name: 'Hide the queue'});
     await expect(item).toHaveAttribute('aria-checked', String(!on));
     await item.click();
@@ -1667,7 +1691,7 @@ export class TierListPage {
 
   /** Opens the Zen bar's Ranking order menu, and returns it. */
   async openRankingOrderMenu(): Promise<Locator> {
-    await this.clickInZenBar(this.rankingOrderButton);
+    await this.rankingOrderButton.click();
     return this.page.getByRole('menu');
   }
 
@@ -1689,6 +1713,11 @@ export class TierListPage {
 }
 
 type Box = {x: number; y: number; width: number; height: number};
+
+/** True when two boxes share some area (boxes that only touch at an edge do not). */
+function boxesOverlap(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
 type Point = {x: number; y: number};
 
 /**

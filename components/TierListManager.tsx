@@ -50,10 +50,10 @@ const TierListEditor: React.FC = () => {
   useEffect(() => () => setZenMode(false, {announce: false}), []);
 
   return (
-    // On phones in Zen, room above the wordmark for the Zen bar.
-    <div className="w-full flex flex-col items-center zen-mode:max-sm:pt-14">
-      {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen. First on the
-          page, so the keyboard reaches it first. */}
+    <div className="w-full flex flex-col items-center">
+      {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen, in its own row
+          above the title (owner decision, 2026-11-01). First on the page, so the keyboard
+          reaches it first. */}
       <ZenBar/>
       {/* The title on the left and the editor's three tools on the right (owner decisions,
           2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
