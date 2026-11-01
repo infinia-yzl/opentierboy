@@ -9,7 +9,7 @@ import ItemTile from "@/components/ItemTile";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
-import {TierDragDrop, useTierDragDescription, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
+import {DraggableTierItem, TierDragDrop, useTierDragDescription, useTierDragState, useTierItems, useTierRow} from "@/lib/dnd/react";
 import type {ItemMove, RowMove} from "@/lib/dnd/model";
 import {useZenMode} from "@/components/usePageState";
 import {useRankingOrder} from "@/components/useRankingOrder";
@@ -37,22 +37,25 @@ const TierItem = memo<{
   sourceId?: string;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
-}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => {
-  const {ref, isDragging, describedBy} = useTierItem({itemId: item.id, tierId, index});
-  return (
-    <div
-      ref={ref}
-      role="button"
-      tabIndex={0}
-      aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
-      aria-label={itemDisplayLabel(item)}
-      // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
-      className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
-    >
-      <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
-    </div>
-  );
-});
+}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => (
+  // DraggableTierItem keys the tile by its item id: a tile never changes items (lib/dnd/react.tsx).
+  <DraggableTierItem itemId={item.id} tierId={tierId} index={index}>
+    {({ref, isDragging, describedBy, roleDescription}) => (
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-roledescription={roleDescription}
+        aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
+        aria-label={itemDisplayLabel(item)}
+        // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
+        className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
+      >
+        <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
+      </div>
+    )}
+  </DraggableTierItem>
+));
 TierItem.displayName = 'TierItem';
 
 const TierItems = memo<{
@@ -304,10 +307,9 @@ const UpNextTray = memo<{
             <>
               {/* The item up next: the tile to drag, with a ring. In 9:16 it is large, with its name under it. */}
               <div className={cn('relative self-start stage:[--stage-tile:var(--stage-hero)]', tall && 'self-center')}>
-                {/* Keyed by the item, like every tile (useTierItem): when the item up next
-                    changes, a new tile takes its place. */}
+                {/* The same tile as in the rows: DraggableTierItem keys it by its item, so when
+                    the item up next changes, a new tile takes its place. */}
                 <TierItem
-                  key={next.item.id}
                   item={next.item}
                   tierId={tier.id}
                   index={next.index}

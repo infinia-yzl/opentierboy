@@ -16,6 +16,17 @@ import {tileClassName, tileSize} from "@/lib/tileSize";
 import {useCompactTiles, usePageScrolling, useZenMode} from "@/components/usePageState";
 import {useActiveStage} from "@/components/useZenLayout";
 
+/**
+ * A tile's picture never starts the browser's own drag (owner decision, 2026-11-01): items move
+ * only through the editor's drag and drop. A native image drag, started for example by a press
+ * during the previous drop's animation, could otherwise drop the picture back onto the editor.
+ * The images are not draggable (`draggable={false}`, and `-webkit-user-drag: none` for Safari);
+ * this handler on the tile is the backstop for any other part of it.
+ */
+function preventNativeDrag(event: React.DragEvent) {
+  event.preventDefault();
+}
+
 interface ItemTileProps extends Item {
   onDelete?: (id: string) => void;
   showLabel?: boolean;
@@ -61,7 +72,8 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   // under the tile; the tile then lets the tag out of its box.
   const tileContent = (
     <div className={`group/tile relative ${tileClassName({shape})} overflow-hidden compact:overflow-visible`}
-         title={domain ? `Image from ${domain}` : undefined}>
+         title={domain ? `Image from ${domain}` : undefined}
+         onDragStart={preventNativeDrag}>
       {linkSrc || tileImageUrl ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
@@ -74,7 +86,8 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
                 loading="lazy"
                 decoding="async"
                 data-link-image={linkSrc}
-                className="w-full h-full object-contain"
+                draggable={false}
+                className="w-full h-full object-contain [-webkit-user-drag:none]"
               />
             ) : (
               <Image
@@ -86,6 +99,8 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
                   objectFit: "contain"
                 }}
                 unoptimized={tileImageUrl?.startsWith('blob:')}
+                draggable={false}
+                className="[-webkit-user-drag:none]"
                 placeholder="blur"
                 blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mN8Vw8AAmEBb87E6jIAAAAASUVORK5CYII="
               />

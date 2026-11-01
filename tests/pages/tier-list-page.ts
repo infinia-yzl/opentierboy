@@ -162,6 +162,29 @@ export class TierListPage {
     return this.main.getByRole('button', {name, exact: true});
   }
 
+  /**
+   * Every item tile in the rows and the Unranked tray (in Zen, the item up next). The queue
+   * after the item up next is a list of pictures, not items to drag.
+   */
+  get allItems(): Locator {
+    return this.itemsIn(this.tiers);
+  }
+
+  /**
+   * Checks that every item tile can start a drag. A tile has the role description "draggable"
+   * only while the drag library has its draggable (lib/dnd/react.tsx, DraggableTierItem), so
+   * a tile that would take no drag, where a press starts the browser's own image drag, has
+   * none. The drop helpers call this after every drop, so any test that drops something
+   * fails on such a tile.
+   */
+  async expectEveryItemDraggable() {
+    await expect.poll(() => this.allItems.evaluateAll((items) => items
+      .filter((item) => item.getAttribute('aria-roledescription') !== 'draggable')
+      .map((item) => item.getAttribute('aria-label'))), {
+      message: 'every item tile should take a drag (role description "draggable")',
+    }).toEqual([]);
+  }
+
   /** An item's image. An item without an image (a label tile) has none. */
   itemImage(name: string): Locator {
     return this.item(name).getByRole('img');
@@ -326,6 +349,15 @@ export class TierListPage {
     await expect(this.page, 'the shareable link should update').not.toHaveURL(before);
   }
 
+  /**
+   * Runs a drop that changes the list, waits for the new link, and checks again that every
+   * item tile can start a drag: the list on screen has its final tiles once the link is written.
+   */
+  private async dropAndWaitForLink(drop: () => Promise<void>) {
+    await this.changeAndWaitForLink(drop);
+    await this.expectEveryItemDraggable();
+  }
+
   // ---- Ranking -----------------------------------------------------------------------------
 
   /**
@@ -344,13 +376,73 @@ export class TierListPage {
 
   /** Drags an item with the mouse and drops it at the end of a tier. */
   async dragItemToTier(itemName: string, tierName: string) {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       // Drop in the free space at the end of the row, left of the row handle.
       this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
         x: box.x + box.width - 120,
         y: box.y + box.height / 2,
       })),
     );
+  }
+
+  /**
+   * Drags an item with the mouse to the end of a tier and, right after the release (while the
+   * drop still animates), presses another item and moves the mouse a little, as someone ranking
+   * fast does, then releases it there. A press during the drop animation starts no drag of the
+   * editor (tests/README.md, "Drag and drop"). Returns once the drop animation has ended.
+   */
+  async dragItemToTierThenPressItem(itemName: string, tierName: string, pressedName: string) {
+    const pressed = this.item(pressedName);
+    await this.dropAndWaitForLink(() =>
+      this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
+        x: box.x + box.width - 120,
+        y: box.y + box.height / 2,
+      }), {
+        afterRelease: async () => {
+          const from = await centerOf(pressed);
+          const mouse = this.page.mouse;
+          await mouse.move(from.x, from.y);
+          await mouse.down();
+          // Past the 5 px that start a mouse drag, and still on the pressed item.
+          await mouse.move(from.x + 12, from.y + 6, {steps: 4});
+          await mouse.up();
+        },
+      }),
+    );
+  }
+
+  /**
+   * Starts counting the drags the browser itself starts from now on: dragstart events that no
+   * handler cancelled (a native drag, for example of an image). Returns a function that reads
+   * the count. The listener sits on the window, so it reads each event after the page's own
+   * handlers.
+   */
+  async countNativeDrags(): Promise<() => Promise<number>> {
+    await this.page.evaluate(() => {
+      const counted = window as unknown as {nativeDrags: number};
+      counted.nativeDrags = 0;
+      window.addEventListener('dragstart', (event) => {
+        if (!event.defaultPrevented) counted.nativeDrags += 1;
+      });
+    });
+    return () => this.page.evaluate(() => (window as unknown as {nativeDrags: number}).nativeDrags);
+  }
+
+  /**
+   * Sends a dragstart event from an item's image, as the browser does when a native drag of
+   * the picture begins. Returns true when the page cancelled it (no native drag).
+   */
+  async dragStartFromItemImageIsCancelled(itemName: string): Promise<boolean> {
+    return this.itemImage(itemName).evaluate((image) => {
+      const event = new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()});
+      image.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  }
+
+  /** The images of every tile in the rows and the Unranked tray, the item up next and the queue included. */
+  get allItemImages(): Locator {
+    return this.tiers.getByRole('img');
   }
 
   /**
@@ -383,6 +475,7 @@ export class TierListPage {
     await keyboard.press('Escape');
     await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(itemName);
+    await this.expectEveryItemDraggable();
   }
 
   /**
@@ -402,7 +495,7 @@ export class TierListPage {
    * follows the target item until it stays put.
    */
   async dragItemNextTo(itemName: string, targetItemName: string, side: 'before' | 'after') {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       this.dragWithMouse(this.item(itemName), this.item(targetItemName), (box) => ({
         x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
         y: box.y + box.height / 2,
@@ -418,7 +511,7 @@ export class TierListPage {
 
   /** Drags a whole row by its handle and drops it on the position of another row. */
   async dragTierOnto(tierName: string, targetTierName: string) {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       this.dragWithMouse(this.rowHandle(tierName), this.rowHandle(targetTierName), centerOfBox),
     );
   }
@@ -439,7 +532,7 @@ export class TierListPage {
    * The page auto-scrolls while the pointer is near the top or bottom of the window. The
    * helper keeps moving the pointer to the same page point until the scrolling stops.
    */
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false} = {}) {
+  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
@@ -487,7 +580,9 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     }
     await mouse.up();
+    await afterRelease?.();
     await this.dropSettled();
+    await this.expectEveryItemDraggable();
   }
 
   /**
@@ -523,7 +618,7 @@ export class TierListPage {
    */
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
     const move = () => this.moveWithKeyboard(this.item(itemName), keys, itemName);
-    await (waitForLink ? this.changeAndWaitForLink(move) : move());
+    await (waitForLink ? this.dropAndWaitForLink(move) : move());
   }
 
   /**
@@ -532,14 +627,14 @@ export class TierListPage {
    */
   async moveItemWithKeyboardAndListen(itemName: string, keys: string[]): Promise<string[]> {
     const heard: string[] = [];
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
     return heard;
   }
 
   /** Moves a whole row with the keyboard, using its row handle. */
   async moveTierWithKeyboard(tierName: string, keys: string[]) {
     // The labels stay in place, so the moved row's handle has the name of its new position.
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
   }
 
   private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
@@ -564,6 +659,7 @@ export class TierListPage {
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
       message: 'focus should come back to what was moved',
     }).toMatch(typeof focusAfter === 'string' ? new RegExp(`^${escapeRegExp(focusAfter)}$`) : focusAfter);
+    await this.expectEveryItemDraggable();
   }
 
   // ---- Touch (Chromium only: touch events through the Chrome DevTools Protocol) --------------
@@ -574,7 +670,7 @@ export class TierListPage {
    * wait for it. The drag starts after a 250 ms hold (lib/dnd/activation.ts).
    */
   async touchDragItemToTier(itemName: string, tierName: string) {
-    await this.changeAndWaitForLink(async () => {
+    await this.dropAndWaitForLink(async () => {
       const touch = await this.touchscreen();
       const item = this.item(itemName);
       await item.scrollIntoViewIfNeeded();
@@ -594,6 +690,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
       await touch('touchEnd', null, start + 0.7);
       await this.dropSettled();
+      await this.expectEveryItemDraggable();
     });
   }
 
