@@ -4,6 +4,7 @@ import {
   finishTip,
   hideTips,
   loadStoredTips,
+  openedFromLinkLoad,
   parseStoredTips,
   requestTip,
   startSession,
@@ -211,5 +212,41 @@ describe('endSession', () => {
   it('returns a session with no tip on screen or waiting and the same stored tips when the editor closes', () => {
     const session = requestTip(requestTip(fresh(), 'link-save'), 'first-drag');
     expect(endSession(session)).toEqual({stored: session.stored, current: null, waiting: []});
+  });
+});
+
+describe('openedFromLinkLoad', () => {
+  const PATH = '/rank/overwatch/tank';
+  const STATE = 'N4IgzgxgTg9gtgSwF5wIYBcAWB7A';
+  const link = `https://opentierboy.com${PATH}?state=${STATE}`;
+  const opening = (navigation: {type: string; url: string} | null, editorOpenedBefore = false) =>
+    ({navigation, pathname: PATH, state: STATE, editorOpenedBefore});
+
+  it('returns true when the document was loaded for the editor\'s address and no editor opened before', () => {
+    expect(openedFromLinkLoad(opening({type: 'navigate', url: link}))).toBe(true);
+  });
+
+  it('returns false when the document was loaded for another address (a router.push from the home page)', () => {
+    expect(openedFromLinkLoad(opening({type: 'navigate', url: 'https://opentierboy.com/'}))).toBe(false);
+    expect(openedFromLinkLoad(opening({type: 'navigate', url: `https://opentierboy.com${PATH}`}))).toBe(false);
+  });
+
+  it('returns false when an editor opened in this document before (Back after an in-app move)', () => {
+    expect(openedFromLinkLoad(opening({type: 'navigate', url: link}, true))).toBe(false);
+  });
+
+  it('returns false when the page was reloaded or reached with Back or Forward', () => {
+    expect(openedFromLinkLoad(opening({type: 'reload', url: link}))).toBe(false);
+    expect(openedFromLinkLoad(opening({type: 'back_forward', url: link}))).toBe(false);
+  });
+
+  it('returns false when the browser has no navigation entry or its address cannot be read', () => {
+    expect(openedFromLinkLoad(opening(null))).toBe(false);
+    expect(openedFromLinkLoad(opening({type: 'navigate', url: 'not a url'}))).toBe(false);
+  });
+
+  it('returns true when the state parameter is percent-encoded in the document address', () => {
+    const encoded = `https://opentierboy.com${PATH}?state=${encodeURIComponent('3.a+b$c')}`;
+    expect(openedFromLinkLoad({navigation: {type: 'navigate', url: encoded}, pathname: PATH, state: '3.a+b$c', editorOpenedBefore: false})).toBe(true);
   });
 });

@@ -2,12 +2,13 @@
 
 import React, {useEffect, useRef, useState} from 'react';
 import {toast} from 'sonner';
+import {usePathname, useSearchParams} from 'next/navigation';
 import {Cross2Icon} from '@radix-ui/react-icons';
 import {Button} from '@/components/ui/button';
 import {useTierContext} from '@/contexts/TierContext';
 import {useZenMode} from '@/components/usePageState';
 import {endTips, openSharePanel, useTips} from '@/components/useTips';
-import type {TipId} from '@/lib/tips/tips';
+import {openedFromLinkLoad, type TipId} from '@/lib/tips/tips';
 import type Tier from '@/models/Tier';
 import {cn} from '@/lib/utils';
 
@@ -34,10 +35,23 @@ const waitsForFirstDrag = (tiers: readonly Tier[]) =>
 const deviceImageIds = (tiers: readonly Tier[]) =>
   new Set(tiers.flatMap(tier => tier.items.filter(item => item.source === 'device').map(item => item.id)));
 
-/** True when the page was reloaded or reached with Back or Forward: not a link opened fresh. */
-function pageWasReopened(): boolean {
+/** Whether an editor opened in this document already (a store with a closure, A47). */
+function createDocumentEditors() {
+  let opened = false;
+  return Object.freeze({
+    openedBefore: (): boolean => opened,
+    markOpened: () => {
+      opened = true;
+    },
+  });
+}
+
+const documentEditors = createDocumentEditors();
+
+/** The document's navigation: its type and the address it was loaded for, or null. */
+function documentNavigation(): {type: string; url: string} | null {
   const [entry] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
-  return entry?.type === 'reload' || entry?.type === 'back_forward';
+  return entry ? {type: entry.type, url: entry.name} : null;
 }
 
 /** "Hide tips" and the close button of a tip. */
@@ -164,10 +178,28 @@ export function EditorTips() {
   const isZenMode = useZenMode();
   // The editor started with a list from its link (urlLength is set only then).
   const [openedWithList] = useState(urlLength > 0);
+  // The address the editor opened at, as Next.js renders it (window.location may still show the
+  // page before during a move inside OpenTierBoy).
+  const pathname = usePathname();
+  const stateParam = useSearchParams().get('state');
+  const [openedAt] = useState(() => ({pathname, state: stateParam}));
   const previous = useRef({tiers, title});
 
   // The tips end with the editor.
   useEffect(() => endTips, []);
+
+  // Whether the editor opened with the page itself, from a link opened fresh (as from a chat
+  // app), and not after a move inside OpenTierBoy: a router.push from the home page, opening a
+  // file, or any other in-app move (lib/tips/tips.ts: openedFromLinkLoad).
+  const openedFromLink = useRef(false);
+  useEffect(() => {
+    openedFromLink.current = openedFromLinkLoad({
+      navigation: documentNavigation(),
+      ...openedAt,
+      editorOpenedBefore: documentEditors.openedBefore(),
+    });
+    documentEditors.markOpened();
+  }, [openedAt]);
 
   // A friend's list: a list opened fresh from a link, before this browser made any change
   // (a list it made itself, opened again, is not someone else's).
@@ -176,7 +208,7 @@ export function EditorTips() {
   useEffect(() => {
     if (!session || sharedListDecided.current) return;
     sharedListDecided.current = true;
-    if (!openedWithList || pageWasReopened() || session.stored.seen.includes('link-save')) return;
+    if (!openedWithList || !openedFromLink.current || session.stored.seen.includes('link-save')) return;
     request('shared-list');
   }, [session, openedWithList, request]);
 

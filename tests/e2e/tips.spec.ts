@@ -187,6 +187,28 @@ test.describe('tips', () => {
       await expect(tips.sharedList).toBeHidden();
     });
 
+    // Only a link opened fresh (a full page load, as from a chat app) is someone else's list: a
+    // list reached by a move inside OpenTierBoy is the visitor's own (their images dropped on the
+    // home page, a Freeze Frame they opened, Recently viewed).
+    test('writes no shared-list tip as seen when the user opens a list from Recently viewed and drops an item', async ({tierList, site}) => {
+      const tips = new Tips(tierList.page);
+      await tierList.storeBeforeLoad('otb-tips', JSON.stringify({seen: [], off: false}));
+      await tierList.storeBeforeLoad('otb-recent-links', JSON.stringify({
+        version: 1,
+        links: [{path: TANKS, state: SHARED, title: 'Tanks by a friend', openedAt: 1, pinned: false}],
+      }));
+      await site.gotoHome();
+
+      await site.recentLink('Tanks by a friend').click();
+      await expect(tierList.title).toHaveText('Tanks by a friend');
+      await expect(tips.sharedList).toBeHidden();
+      // A shared-list tip that showed would be seen, and the first change ends it.
+      await tierList.dragItemToTier('Winston', 'B');
+      await expect(tips.linkSaveToast).toBeVisible();
+
+      expect(await tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
+    });
+
     test('renders no shared-list tip when the page opens a link after this browser made a change', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);

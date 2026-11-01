@@ -6,7 +6,8 @@
  *   never ranked. Ends with the first drop into a row.
  * - 'link-save': right after the first change this browser makes (a toast).
  * - 'shared-list': the editor opens a list from a link, for the first time in this browser.
- *   Ends when closed, or with the first change.
+ *   Only a link opened fresh (a full page load, as from a chat app) counts, never a list reached
+ *   by a move inside OpenTierBoy (openedFromLinkLoad). Ends when closed, or with the first change.
  * - 'device-images': this browser adds its first image from the device (a toast).
  *
  * Rules:
@@ -197,4 +198,48 @@ export function hideTips(session: TipsSession): TipsSession {
 export function endSession(session: TipsSession): TipsSession {
   if (session.current === null && session.waiting.length === 0) return session;
   return {...session, current: null, waiting: []};
+}
+
+/** How the editor was reached, as the browser tells it. */
+export interface EditorOpening {
+  /**
+   * The document's navigation (PerformanceNavigationTiming): its type ('navigate', 'reload',
+   * 'back_forward', 'prerender') and the address the document was loaded for. Null when the
+   * browser gives none.
+   */
+  navigation: {type: string; url: string} | null;
+  /** The editor's path when it opened. */
+  pathname: string;
+  /** The editor's `state` parameter when it opened, or null. */
+  state: string | null;
+  /** An editor opened in this document before this one. */
+  editorOpenedBefore: boolean;
+}
+
+function decodedPath(path: string): string {
+  try {
+    return decodeURI(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * True when the editor opened with the page itself: a link opened fresh, as from a chat app.
+ * The document was loaded for the editor's address (not reloaded, and not reached with Back or
+ * Forward), and no editor opened in this document before. A move inside OpenTierBoy loads no
+ * document: a router.push from the home page, opening a file, Recently viewed, or Back after an
+ * in-app move keeps the document of another address, or comes after an editor. The shared-list
+ * tip shows only then.
+ */
+export function openedFromLinkLoad(opening: EditorOpening): boolean {
+  const {navigation} = opening;
+  if (opening.editorOpenedBefore || !navigation || navigation.type === 'reload' || navigation.type === 'back_forward') return false;
+  let url: URL;
+  try {
+    url = new URL(navigation.url);
+  } catch {
+    return false;
+  }
+  return decodedPath(url.pathname) === decodedPath(opening.pathname) && url.searchParams.get('state') === opening.state;
 }
