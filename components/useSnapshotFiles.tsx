@@ -569,7 +569,10 @@ export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (fo
       depth = 0;
       setDragging(false);
     };
-    const onDragStart = () => {
+    const onDragStart = (event: DragEvent) => {
+      // A cancelled dragstart (an item tile cancels its own) starts no drag, and no dragend
+      // follows it: it must not leave the page ignoring the next drop from another page.
+      if (event.defaultPrevented) return;
       fromThisPage = true;
     };
     const onDragEnd = () => {
@@ -607,14 +610,16 @@ export function useEditorDrop(openFiles: (files: File[]) => void, openLinks: (fo
       const found = droppedLinkImages(event.dataTransfer);
       if (!foundNothing(found)) openLinks(found);
     };
-    document.addEventListener('dragstart', onDragStart);
+    // On the window, so it reads each dragstart after the page's own handlers (React's, on the
+    // document), and sees whether one of them cancelled it.
+    window.addEventListener('dragstart', onDragStart);
     document.addEventListener('dragend', onDragEnd);
     window.addEventListener('dragenter', onDragEnter);
     window.addEventListener('dragleave', onDragLeave);
     window.addEventListener('dragover', onDragOver);
     window.addEventListener('drop', onDrop);
     return () => {
-      document.removeEventListener('dragstart', onDragStart);
+      window.removeEventListener('dragstart', onDragStart);
       document.removeEventListener('dragend', onDragEnd);
       window.removeEventListener('dragenter', onDragEnter);
       window.removeEventListener('dragleave', onDragLeave);

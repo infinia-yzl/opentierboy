@@ -1166,6 +1166,18 @@ export class TierListPage {
     await element.dispatchEvent('drop', {dataTransfer: transfer});
   }
 
+  /**
+   * Fires a dragstart on an item that a handler on the item cancels, as a tile does for the
+   * browser's own drag of its picture. No drag starts, so no dragend follows.
+   */
+  async fireCancelledDragStartOn(itemName: string) {
+    await this.waitUntilInteractive();
+    await this.item(itemName).evaluate((element) => {
+      element.addEventListener('dragstart', (event) => event.preventDefault(), {once: true});
+      element.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));
+    });
+  }
+
   /** Drags a link from another page over the editor and keeps it there (no drop yet). */
   async dragLinkOver(address: string) {
     await this.waitUntilInteractive();

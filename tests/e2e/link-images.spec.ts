@@ -109,6 +109,20 @@ test.describe('link images', () => {
       expect(JSON.stringify(v3LinkJson(page.url()))).toContain('{"u":"https://i.imgur.com/red.png","c":"red"}');
     });
 
+    test('renders the image and writes 1 history entry when the user drops a link after a cancelled dragstart on an item', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto(TANKS);
+      const count = await tierList.itemsIn(tierList.unranked).count();
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.fireCancelledDragStartOn('Mauga');
+      await tierList.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(count + 1);
+      await expect(tierList.item('red')).toBeVisible();
+      await expect.poll(newEntries).toBe(1);
+    });
+
     test('writes 1 history entry and renders both images when the user drops an image from a page with two images', async ({tierList, page}) => {
       await serveImageSite(page, TRUSTED);
       await tierList.goto('/rank');
