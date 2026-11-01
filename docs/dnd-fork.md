@@ -271,6 +271,14 @@ Decisions in the adapter:
   place depends only on where the pointer is, so with tiles of different widths the preview
   settles instead of flipping back and forth. A pointer drag released over nothing that takes
   it (outside the rows) changes nothing, as before.
+- **Only what shows takes a drop.** In Zen's creator layouts the Unranked tray and, with very
+  many rows, the rows scroll inside a frame that stays still (owner decision, 2026-11-01). A tile
+  half scrolled out of the tray keeps its whole box, which reaches over the rows above it, so a
+  pointer over a row landed in the tray. Every row, row item area and item tile uses
+  `shownPartCollisions` (`react.tsx`): dnd-kit's own detector (read once from a droppable that is
+  never registered, `defaultCollisionDetector` in `dndKit.ts`), except that a droppable cut by a
+  box that clips its overflow takes no collision while the pointer is over its hidden part. The
+  window's edge does not count, so the editor's drags work as before.
 - **Rows** take the place of the row they move onto, with their label while dragging. On drop
   `reorderRows` moves the contents (items, id and every other field) and leaves each label at
   its position, exactly as before (product rule 6). Since 2.0.0, Unranked (the last row) is a
