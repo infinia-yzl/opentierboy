@@ -1,14 +1,16 @@
 /**
  * Zen's layouts for creators (owner decision, 2026-10-31, "Approved to build"): the editor's own
  * Zen, Zen 16:9 for recording at 1920 x 1080, Zen 9:16 for Shorts and TikTok at 1080 x 1920,
- * and the stream overlay for OBS (the list in a panel over a green key, or over nothing).
+ * and the stream overlay (the list in a panel over a green key, for a chroma key filter).
  *
- * A layout is a view setting: it never changes the list, its link or the history (product rule
- * 2). The three creator layouts draw the editor in a frame: a box of the frame's aspect ratio,
- * as large as the window allows, with every size in frame pixels (the boards' pixels). At a
- * window of the frame's size, a frame pixel is a CSS pixel. The sizes are CSS variables
- * (stageVariables), so the browser lays the frame out at its real size: drag and drop measure
- * real boxes, with no CSS transform or zoom.
+ * A layout is a view setting, chosen in the Zen bar's Layout menu: it never changes the list, its
+ * link or the history (product rule 2), and no address opens it (owner decision, 2026-11-01).
+ * The three creator layouts draw the editor in a frame: a box of the frame's aspect ratio, under
+ * a strip that holds the Zen bar (owner decision, 2026-11-01), the two together as large as the
+ * window allows. Every size is in frame pixels (the boards' pixels): at a window of the frame's
+ * width and the frame's height plus the strip's, a frame pixel is a CSS pixel. The sizes are CSS
+ * variables (stageVariables), so the browser lays the frame out at its real size: drag and drop
+ * measure real boxes, with no CSS transform or zoom.
  *
  * Plain data and functions: no React, no browser globals.
  */
@@ -16,62 +18,20 @@
 export type ZenLayout = 'editor' | 'wide' | 'tall' | 'overlay';
 /** The layouts drawn in a frame: every layout but the editor's own Zen. */
 export type StageLayout = Exclude<ZenLayout, 'editor'>;
-export type OverlayBackground = 'green' | 'transparent';
 
-/** One choice of the Zen bar's Layout menu: a layout, and for the overlay its background. */
-export interface LayoutChoice {
-  readonly layout: ZenLayout;
-  readonly background: OverlayBackground;
-}
+/** The layouts of the Layout menu, in order. */
+export const ZEN_LAYOUTS: readonly ZenLayout[] = Object.freeze(['editor', 'wide', 'tall', 'overlay']);
 
-/** The choices of the Layout menu, in order, by the value of the `layout` address parameter. */
-export const LAYOUT_CHOICES: Readonly<Record<string, LayoutChoice>> = Object.freeze({
-  editor: Object.freeze({layout: 'editor', background: 'green'}),
-  '16x9': Object.freeze({layout: 'wide', background: 'green'}),
-  '9x16': Object.freeze({layout: 'tall', background: 'green'}),
-  'overlay-green': Object.freeze({layout: 'overlay', background: 'green'}),
-  'overlay-transparent': Object.freeze({layout: 'overlay', background: 'transparent'}),
-});
-
-/** The names of the Layout menu's choices (the boards' titles). */
-export const LAYOUT_CHOICE_NAMES: Readonly<Record<string, string>> = Object.freeze({
+/** The names of the Layout menu's layouts (the boards' titles). */
+export const ZEN_LAYOUT_NAMES: Readonly<Record<ZenLayout, string>> = Object.freeze({
   editor: 'Editor',
-  '16x9': '16:9',
-  '9x16': '9:16',
-  'overlay-green': 'Overlay · green key',
-  'overlay-transparent': 'Overlay · transparent',
+  wide: '16:9',
+  tall: '9:16',
+  overlay: 'Overlay · green key',
 });
-
-/** The name of the address parameter that opens a list in a layout, for OBS browser sources. */
-export const LAYOUT_PARAM = 'layout';
 
 /** The key colour behind the overlay (the board's chroma green). */
 export const OVERLAY_GREEN = '#00b140';
-
-/** The `layout` parameter's value (and the Layout menu's value) of a choice. */
-export function layoutChoiceId({layout, background}: LayoutChoice): string {
-  if (layout === 'wide') return '16x9';
-  if (layout === 'tall') return '9x16';
-  if (layout === 'overlay') return `overlay-${background}`;
-  return 'editor';
-}
-
-/** The choice that a `layout` parameter names, or null for none or an unknown value. */
-export function parseLayoutParam(value: string | null | undefined): LayoutChoice | null {
-  if (!value || !Object.prototype.hasOwnProperty.call(LAYOUT_CHOICES, value)) return null;
-  return LAYOUT_CHOICES[value];
-}
-
-/**
- * The address of a list in a layout, for an OBS browser source: the page's address as it is
- * (`search` is the raw query string, `state` included, so nothing in the link is decoded and
- * written again), with the `layout` parameter in place of any earlier one. The app reads
- * `layout` once, when the page opens; the list's own link (`state`) never holds it.
- */
-export function layoutAddress(origin: string, pathname: string, search: string, choice: LayoutChoice): string {
-  const kept = search.replace(/^\?/, '').split('&').filter(part => part && !part.startsWith(`${LAYOUT_PARAM}=`));
-  return `${origin}${pathname}?${[...kept, `${LAYOUT_PARAM}=${layoutChoiceId(choice)}`].join('&')}`;
-}
 
 /** The sizes of a frame layout, in frame pixels (the boards' pixels). */
 export interface StageSizes {
@@ -103,6 +63,11 @@ export interface StageSizes {
   /** Tiles of the queue after the item up next, and how many of them show. */
   readonly queueTile: number;
   readonly queueLimit: number;
+  /** The row handle's width and its icon (rows move by mouse and keyboard in every layout). */
+  readonly handle: number;
+  readonly handleIcon: number;
+  /** The strip above the frame that holds the Zen bar (its height), and the bar in it. */
+  readonly strip: number;
   /** The Zen bar: its height, its buttons, their icons and the step count's text. */
   readonly bar: number;
   readonly barButton: number;
@@ -114,7 +79,7 @@ export interface StageSizes {
   readonly panelRadius: number;
 }
 
-const WIDE_BAR = {bar: 56, barButton: 44, barIcon: 20, barText: 18};
+const WIDE_BAR = {strip: 88, bar: 56, barButton: 44, barIcon: 20, barText: 18};
 
 /**
  * The boards: "16:9 · dark · Pick freely" (Stage169), "9:16 · In order" (Stage916) and
@@ -126,6 +91,7 @@ export const STAGE_SIZES: Readonly<Record<StageLayout, StageSizes>> = Object.fre
     padY: 40, padX: 72, gap: 24,
     title: 68, wordmark: 56,
     tile: 120, letterColumn: 160, letter: 76, label: 15,
+    handle: 60, handleIcon: 24,
     trayTile: 120, trayHeading: 24, trayCount: 18,
     hero: 136, ring: 4, heroName: 0,
     queueTile: 120, queueLimit: 12,
@@ -137,10 +103,12 @@ export const STAGE_SIZES: Readonly<Record<StageLayout, StageSizes>> = Object.fre
     padY: 64, padX: 48, gap: 32,
     title: 80, wordmark: 48,
     tile: 120, letterColumn: 128, letter: 64, label: 15,
+    handle: 60, handleIcon: 24,
     trayTile: 160, trayHeading: 26, trayCount: 26,
-    hero: 380, ring: 6, heroName: 56,
+    // The item up next: one and a half tiles (owner decision, 2026-11-01), its name in proportion.
+    hero: 180, ring: 4, heroName: 28,
     queueTile: 120, queueLimit: 8,
-    bar: 72, barButton: 60, barIcon: 26, barText: 22,
+    strip: 104, bar: 72, barButton: 60, barIcon: 26, barText: 22,
     panelWidth: 0, panelPad: 0, panelRadius: 0,
   }),
   overlay: Object.freeze({
@@ -148,6 +116,7 @@ export const STAGE_SIZES: Readonly<Record<StageLayout, StageSizes>> = Object.fre
     padY: 40, padX: 40, gap: 16,
     title: 44, wordmark: 36,
     tile: 96, letterColumn: 104, letter: 48, label: 13,
+    handle: 48, handleIcon: 20,
     trayTile: 72, trayHeading: 18, trayCount: 18,
     hero: 72, ring: 3, heroName: 0,
     queueTile: 72, queueLimit: 2,
@@ -162,11 +131,14 @@ export function isStageLayout(layout: ZenLayout): layout is StageLayout {
 }
 
 /**
- * The CSS length of one frame pixel: the frame as large as the window allows, at the frame's
- * aspect ratio. At a window of the frame's size it is 1px.
+ * The CSS length of one frame pixel: the frame and the strip above it as large as the frame
+ * layout's box allows (components/ZenStage.tsx), at the frame's aspect ratio. Container units of
+ * that box, not viewport units: browsers differ on whether viewport units leave out scrollbars,
+ * and the box is the space the frame really has. At a box of the frame's width and the frame's
+ * height plus the strip's, it is 1px.
  */
-export function frameUnit({width, height}: StageSizes['frame']): string {
-  return `min(calc(100vw / ${width}), calc(100dvh / ${height}))`;
+export function frameUnit({frame: {width, height}, strip}: Pick<StageSizes, 'frame' | 'strip'>): string {
+  return `min(calc(100cqw / ${width}), calc(100cqh / ${height + strip}))`;
 }
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
@@ -178,7 +150,7 @@ const kebab = (name: string) => name.replace(/[A-Z]/g, letter => `-${letter.toLo
  */
 export function stageVariables(layout: StageLayout): Record<string, string> {
   const sizes = STAGE_SIZES[layout];
-  const variables: Record<string, string> = {'--u': frameUnit(sizes.frame)};
+  const variables: Record<string, string> = {'--u': frameUnit(sizes)};
   for (const [name, value] of Object.entries(sizes)) {
     if (typeof value !== 'number' || name === 'queueLimit') continue;
     variables[`--stage-${kebab(name)}`] = `calc(var(--u) * ${value})`;

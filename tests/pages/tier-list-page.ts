@@ -5,9 +5,8 @@ import {escapeRegExp} from '../support/regexp';
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
 /** The choices of the Zen bar's Layout menu. */
-export type ZenLayoutName = 'Editor' | '16:9' | '9:16' | 'Overlay · green key' | 'Overlay · transparent';
+export type ZenLayoutName = 'Editor' | '16:9' | '9:16' | 'Overlay · green key';
 /** The values of the `layout` address parameter (lib/zen/layouts.ts). */
-export type LayoutParam = '16x9' | '9x16' | 'overlay-green' | 'overlay-transparent';
 /** The tile sizes in the Row options menu (the dense editor). */
 export type TileSizeName = 'Comfortable' | 'Compact';
 
@@ -1714,9 +1713,16 @@ export class TierListPage {
     return this.zenBar.getByRole('button', {name: /^Layout: /});
   }
 
-  /** Opens a list in a layout with the `layout` address parameter, as an OBS browser source does. */
-  async gotoInLayout(path: string, state: string, layout: LayoutParam) {
-    await this.page.goto(`${path}?state=${state}&layout=${layout}`);
+  /** Opens a list, turns Zen on and chooses a layout in the Zen bar's Layout menu. */
+  async gotoInLayout(path: string, state: string, layout: ZenLayoutName) {
+    await this.goto(path, state);
+    await this.setZenMode(true);
+    if (layout !== 'Editor') await this.chooseLayout(layout);
+  }
+
+  /** Opens a page by its address as typed, for example with parameters the app does not read. */
+  async gotoAddress(address: string) {
+    await this.page.goto(address);
     await expect(this.tiers.first()).toBeVisible();
   }
 
@@ -1788,18 +1794,9 @@ export class TierListPage {
     });
   }
 
-  /** Turns the Layout menu's "Wordmark" on or off. */
-  async setWordmarkShown(on: boolean) {
-    const menu = await this.openLayoutMenu();
-    const item = menu.getByRole('menuitemcheckbox', {name: 'Wordmark'});
-    await expect(item).toHaveAttribute('aria-checked', String(!on));
-    await item.click();
-    await expect(this.page.getByRole('menu')).toHaveCount(0);
-  }
-
-  /** The Layout menu's "Copy link for OBS". Open the menu first (openLayoutMenu). */
-  get copyOverlayLinkMenuItem(): Locator {
-    return this.page.getByRole('menuitem', {name: 'Copy link for OBS'});
+  /** The items of an open menu, whatever their kind (radio, check box or plain item), in order. */
+  menuItems(menu: Locator): Locator {
+    return menu.getByRole('menuitemradio').or(menu.getByRole('menuitemcheckbox')).or(menu.getByRole('menuitem'));
   }
 
   /** The frame of a creator layout: "Frame 16:9" (16:9 and the overlays) or "Frame 9:16". */
@@ -1815,17 +1812,35 @@ export class TierListPage {
   }
 
   /**
-   * The background colours behind the frame: the cover the frame sits on, the page's <body> and
-   * <html>, as computed CSS colours. A transparent overlay has rgba(0, 0, 0, 0) for all three.
+   * Clicks the frame's top left corner: the green key in the overlay, away from the list's panel.
+   * Waits until no tooltip is left: a closing tooltip still takes the next Escape.
    */
-  async frameBackdrop(): Promise<{cover: string; body: string; html: string}> {
-    return this.zenFrame.evaluate((frame) => ({
-      cover: getComputedStyle(frame.parentElement as Element).backgroundColor,
-      body: getComputedStyle(document.body).backgroundColor,
-      html: getComputedStyle(document.documentElement).backgroundColor,
-    }));
+  async clickFrameCorner() {
+    const frame = await boxOf(this.zenFrame);
+    await this.page.mouse.click(frame.x + 10, frame.y + 10);
+    await expect(this.page.getByRole('tooltip')).toHaveCount(0);
   }
 
+  /** The colour of the cover behind a creator layout's frame, as a computed CSS colour. */
+  async frameCoverColour(): Promise<string> {
+    return this.zenFrame.evaluate((frame) => getComputedStyle(frame.parentElement as Element).backgroundColor);
+  }
+
+  /**
+   * The Unranked tray's items scroll (16:9 with a long list): true when the items are taller
+   * than their box, and the box can scroll them.
+   */
+  async unrankedItemsScroll(): Promise<boolean> {
+    return this.unranked.getByRole('button').first().evaluate((item) => {
+      let box: HTMLElement | null = item.parentElement;
+      while (box && box !== document.body) {
+        const style = getComputedStyle(box);
+        if (/(auto|scroll)/.test(style.overflowY)) return box.scrollHeight > box.clientHeight;
+        box = box.parentElement;
+      }
+      return false;
+    });
+  }
 
   // ---- Tile size (the dense editor) ------------------------------------------------------
 

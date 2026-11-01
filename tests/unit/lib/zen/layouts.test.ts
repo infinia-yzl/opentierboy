@@ -1,17 +1,14 @@
 import {describe, expect, it} from 'vitest';
 import {
   frameUnit,
-  LAYOUT_CHOICE_NAMES,
-  LAYOUT_CHOICES,
-  layoutAddress,
-  layoutChoiceId,
-  parseLayoutParam,
   shownQueue,
   STAGE_SIZES,
   stageVariables,
+  ZEN_LAYOUT_NAMES,
+  ZEN_LAYOUTS,
 } from '@/lib/zen/layouts';
 
-/** Zen's creator layouts (lib/zen/layouts.ts, used by the Zen bar, ZenStage and the head script). */
+/** Zen's creator layouts (lib/zen/layouts.ts, used by the Zen bar and ZenStage). */
 
 /** The pixels of a stage variable when one frame pixel is `unit` CSS pixels. */
 const pixels = (variable: string, unit: number) => {
@@ -20,46 +17,9 @@ const pixels = (variable: string, unit: number) => {
   return Number(match[1]) * unit;
 };
 
-describe('LAYOUT_CHOICES', () => {
-  it('returns Editor, 16:9, 9:16 and the two overlays in the menu order when the names are read', () => {
-    expect(Object.keys(LAYOUT_CHOICES).map(id => LAYOUT_CHOICE_NAMES[id]))
-      .toEqual(['Editor', '16:9', '9:16', 'Overlay · green key', 'Overlay · transparent']);
-  });
-
-  it('returns each choice from its own id when layoutChoiceId reads it', () => {
-    for (const [id, choice] of Object.entries(LAYOUT_CHOICES)) {
-      expect(layoutChoiceId(choice), id).toBe(id);
-    }
-  });
-});
-
-describe('parseLayoutParam', () => {
-  it('returns the layout and background when the value names a choice', () => {
-    expect(parseLayoutParam('16x9')).toEqual({layout: 'wide', background: 'green'});
-    expect(parseLayoutParam('9x16')).toEqual({layout: 'tall', background: 'green'});
-    expect(parseLayoutParam('overlay-transparent')).toEqual({layout: 'overlay', background: 'transparent'});
-  });
-
-  it('returns null when the value is missing, empty, unknown or an object property name', () => {
-    for (const value of [null, undefined, '', 'overlay', '16:9', 'constructor', '__proto__', 'toString']) {
-      expect(parseLayoutParam(value), String(value)).toBeNull();
-    }
-  });
-});
-
-describe('layoutAddress', () => {
-  it('returns the page address with the layout parameter after the state as it was written when the page has a list', () => {
-    expect(layoutAddress('https://opentierboy.com', '/rank/overwatch/tank', '?state=3.N4Ig+x$-a', LAYOUT_CHOICES['overlay-transparent']))
-      .toBe('https://opentierboy.com/rank/overwatch/tank?state=3.N4Ig+x$-a&layout=overlay-transparent');
-  });
-
-  it('returns one layout parameter in place of an earlier one when the address has one', () => {
-    expect(layoutAddress('https://a.test', '/rank/x', '?layout=16x9&state=abc', LAYOUT_CHOICES['overlay-green']))
-      .toBe('https://a.test/rank/x?state=abc&layout=overlay-green');
-  });
-
-  it('returns the path with the layout parameter alone when the page has no query', () => {
-    expect(layoutAddress('https://a.test', '/rank/x', '', LAYOUT_CHOICES['9x16'])).toBe('https://a.test/rank/x?layout=9x16');
+describe('ZEN_LAYOUTS', () => {
+  it('returns Editor, 16:9, 9:16 and Overlay · green key in the menu order when the names are read (2026-11-01)', () => {
+    expect(ZEN_LAYOUTS.map(layout => ZEN_LAYOUT_NAMES[layout])).toEqual(['Editor', '16:9', '9:16', 'Overlay · green key']);
   });
 });
 
@@ -73,7 +33,7 @@ describe('STAGE_SIZES', () => {
   it('returns the 9:16 board sizes when the tall layout is read', () => {
     const tall = STAGE_SIZES.tall;
     expect(tall.frame).toEqual({width: 1080, height: 1920});
-    expect([tall.tile, tall.letter, tall.hero, tall.heroName, tall.trayTile]).toEqual([120, 64, 380, 56, 160]);
+    expect([tall.tile, tall.letter, tall.hero, tall.heroName, tall.trayTile]).toEqual([120, 64, 180, 28, 160]);
   });
 
   it('returns the overlay board sizes when the overlay layout is read', () => {
@@ -84,16 +44,30 @@ describe('STAGE_SIZES', () => {
   });
 });
 
+describe('STAGE_SIZES for the Zen bar and the rows', () => {
+  it('returns a strip taller than the Zen bar when any layout is read', () => {
+    for (const layout of ['wide', 'tall', 'overlay'] as const) {
+      expect(STAGE_SIZES[layout].strip, layout).toBeGreaterThan(STAGE_SIZES[layout].bar);
+    }
+  });
+
+  it('returns a row handle half a tile wide when any layout is read', () => {
+    for (const layout of ['wide', 'tall', 'overlay'] as const) {
+      expect(STAGE_SIZES[layout].handle * 2, layout).toBe(STAGE_SIZES[layout].tile);
+    }
+  });
+});
+
 describe('frameUnit', () => {
-  it('returns the smaller of the width and height ratios when the frame is 1920 x 1080', () => {
-    expect(frameUnit({width: 1920, height: 1080})).toBe('min(calc(100vw / 1920), calc(100dvh / 1080))');
+  it('returns the smaller of the width and height ratios of the container when the frame is 1920 x 1080 under an 88 px strip', () => {
+    expect(frameUnit({frame: {width: 1920, height: 1080}, strip: 88})).toBe('min(calc(100cqw / 1920), calc(100cqh / 1168))');
   });
 });
 
 describe('stageVariables', () => {
   it('returns every board size in frame pixels when the layout is 16:9 and a frame pixel is 1 CSS pixel', () => {
     const variables = stageVariables('wide');
-    expect(variables['--u']).toBe(frameUnit(STAGE_SIZES.wide.frame));
+    expect(variables['--u']).toBe(frameUnit(STAGE_SIZES.wide));
     expect(pixels(variables['--stage-tile'], 1)).toBe(120);
     expect(pixels(variables['--stage-letter'], 1)).toBe(76);
     expect(pixels(variables['--stage-letter-column'], 1)).toBe(160);
@@ -103,7 +77,7 @@ describe('stageVariables', () => {
 
   it('returns sizes in proportion when a frame pixel is 0.75 CSS pixels', () => {
     const variables = stageVariables('tall');
-    expect(pixels(variables['--stage-hero'], 0.75)).toBe(285);
+    expect(pixels(variables['--stage-hero'], 0.75)).toBe(135);
     expect(pixels(variables['--stage-frame-height'], 0.75)).toBe(1440);
   });
 

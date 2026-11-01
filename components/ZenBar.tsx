@@ -11,13 +11,11 @@ import {
   LuRectangleVertical,
   LuShuffle,
 } from 'react-icons/lu';
-import {toast} from 'sonner';
 import {Button} from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -31,14 +29,8 @@ import {setZenMode} from '@/components/zenMode';
 import {stepBack, stepForward, useListSteps} from '@/components/useListSteps';
 import {getRankingOrder, setHideQueue, setRankingOrder, useRankingOrder} from '@/components/useRankingOrder';
 import {RANKING_ORDER_NAMES, RANKING_ORDERS, type RankingOrder} from '@/lib/zen/queue';
-import {setLayoutChoice, setWordmark, useZenLayout} from '@/components/useZenLayout';
-import {
-  LAYOUT_CHOICE_NAMES,
-  LAYOUT_CHOICES,
-  layoutAddress,
-  layoutChoiceId,
-  type ZenLayout,
-} from '@/lib/zen/layouts';
+import {setZenLayout, useZenLayout} from '@/components/useZenLayout';
+import {ZEN_LAYOUT_NAMES, ZEN_LAYOUTS, type ZenLayout} from '@/lib/zen/layouts';
 import {cn} from '@/lib/utils';
 
 const ORDER_ICONS: Record<RankingOrder, React.ComponentType<{className?: string; 'aria-hidden'?: boolean}>> = {
@@ -59,20 +51,6 @@ const BUTTON_SIZE = 'h-8 w-8 stage:size-(--stage-bar-button)';
 const ICON_SIZE = 'h-4 w-4 stage:size-(--stage-bar-icon)';
 const SEPARATOR = 'mx-1 h-5 w-px bg-border stage:h-[calc(var(--stage-bar)*0.57)]';
 
-/**
- * Copies the address of this list in the overlay, for an OBS browser source (lib/zen/layouts.ts,
- * layoutAddress). The address is the page's own, with the `layout` parameter.
- */
-async function copyOverlayAddress(choiceId: string) {
-  const {origin, pathname, search} = window.location;
-  try {
-    await navigator.clipboard.writeText(layoutAddress(origin, pathname, search, LAYOUT_CHOICES[choiceId]));
-    toast.success('Link for OBS copied', {description: 'Add it to OBS as a browser source.'});
-  } catch {
-    toast.error('Failed to copy the link');
-  }
-}
-
 /** The Zen bar's menus: Ranking order and Layout. */
 type BarMenu = 'order' | 'layout';
 
@@ -92,7 +70,8 @@ function isTextField(target: EventTarget | null): boolean {
  * Zen, unless something else used it (a menu, a drag, a text box).
  *
  * The bar is always shown, and it never covers the list (owner decisions, 2026-11-01): it has
- * its own row at the top of the editor, above the title, and scrolls with the page.
+ * its own row at the top of the editor, above the title, and scrolls with the page. In 16:9,
+ * 9:16 and the stream overlay it sits in a strip above the frame, at the frame's sizes.
  */
 export function ZenBar() {
   const isZenMode = useZenMode();
@@ -140,13 +119,13 @@ function ZenBarContent() {
 
   const orderName = RANKING_ORDER_NAMES[order];
   const OrderIcon = ORDER_ICONS[order];
-  const layoutId = layoutChoiceId(zenLayout);
-  const layoutName = LAYOUT_CHOICE_NAMES[layoutId];
-  const LayoutIcon = LAYOUT_ICONS[zenLayout.layout];
+  const layoutName = ZEN_LAYOUT_NAMES[zenLayout];
+  const LayoutIcon = LAYOUT_ICONS[zenLayout];
 
   return (
-    // Its own row at the top centre, above the title row: it takes room instead of covering the list.
-    <div className="flex w-full justify-center pb-3" data-html2canvas-ignore>
+    // Its own row at the top centre, above the title row: it takes room instead of covering the
+    // list. In a frame layout, the strip above the frame is its row (components/ZenStage.tsx).
+    <div className="flex w-full justify-center pb-3 stage:pb-0" data-html2canvas-ignore>
       <TooltipProvider>
         <div
           ref={barRef}
@@ -200,8 +179,8 @@ function ZenBarContent() {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          {/* Layout (owner decision, 2026-10-31): Zen in the editor, 16:9, 9:16 or the stream
-              overlay, and the wordmark. View settings: they never write the link or history. */}
+          {/* Layout (owner decisions, 2026-10-31 and 2026-11-01): Zen in the editor, 16:9, 9:16 or
+              the stream overlay. A view setting: it never writes the link or history. */}
           <DropdownMenu open={openMenu === 'layout'} onOpenChange={onMenuOpenChange('layout')}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -216,20 +195,13 @@ function ZenBarContent() {
             </Tooltip>
             <DropdownMenuContent align="center" className="w-56">
               <DropdownMenuLabel>Layout</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={layoutId} onValueChange={(value) => setLayoutChoice(LAYOUT_CHOICES[value])}>
-                {Object.keys(LAYOUT_CHOICES).map((id) => (
-                  <DropdownMenuRadioItem key={id} value={id}>
-                    {LAYOUT_CHOICE_NAMES[id]}
+              <DropdownMenuRadioGroup value={zenLayout} onValueChange={(value) => setZenLayout(value as ZenLayout)}>
+                {ZEN_LAYOUTS.map((layout) => (
+                  <DropdownMenuRadioItem key={layout} value={layout}>
+                    {ZEN_LAYOUT_NAMES[layout]}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator/>
-              <DropdownMenuCheckboxItem checked={zenLayout.wordmark} onCheckedChange={setWordmark}>
-                Wordmark
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuItem disabled={zenLayout.layout !== 'overlay'} onSelect={() => copyOverlayAddress(layoutId)}>
-                Copy link for OBS
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <span aria-hidden="true" className={SEPARATOR}/>

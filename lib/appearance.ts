@@ -8,8 +8,6 @@
  * localStorage. Pure data and functions: no DOM access at import time.
  */
 
-import {isStageLayout, LAYOUT_CHOICES, LAYOUT_PARAM} from '@/lib/zen/layouts';
-
 export type Mode = 'light' | 'dark' | 'system';
 export type FontChoice = 'modern' | 'classic';
 
@@ -74,29 +72,12 @@ export const TILE_SIZE_STORAGE_KEY = 'otb-tile-size';
 export const COMPACT_TILES_CLASS = 'tiles-compact';
 
 /**
- * The frame layouts that the `layout` parameter of a /rank address names (lib/zen/layouts.ts),
- * as the head script sets them on <html>: [data-zen-layout, data-zen-background or ''].
- */
-const LAYOUT_ATTRIBUTES: Readonly<Record<string, readonly [string, string]>> = Object.fromEntries(
-  Object.entries(LAYOUT_CHOICES)
-    .filter(([, choice]) => isStageLayout(choice.layout))
-    .map(([param, choice]) => [param, [choice.layout, choice.layout === 'overlay' && choice.background === 'transparent' ? 'transparent' : '']]),
-);
-
-/**
  * Runs in <head> before the page paints, so the chosen font, the game colours setting and the
- * tile size show from the first frame. On a /rank page whose address names a known layout (an
- * OBS browser source), it also turns Zen on in that layout, so the page never paints the editor
- * or a background first. It only reads localStorage and the address, compares them with fixed
- * values, and adds fixed classes and attributes; it never throws.
+ * tile size show from the first frame. It only reads localStorage and adds classes; it never
+ * throws.
  */
 export const APPEARANCE_SCRIPT = `(function(){try{var d=document.documentElement;`
   + `if(localStorage.getItem('${FONT_STORAGE_KEY}')==='classic')d.classList.add('${CLASSIC_FONT_CLASS}');`
   + `if(localStorage.getItem('${GAME_COLOURS_STORAGE_KEY}')==='off')d.classList.add('${NO_GAME_COLOURS_CLASS}');`
   + `if(localStorage.getItem('${TILE_SIZE_STORAGE_KEY}')==='compact')d.classList.add('${COMPACT_TILES_CLASS}');`
-  + `}catch(e){}`
-  + `try{var m=${JSON.stringify(LAYOUT_ATTRIBUTES)};`
-  + `var l=location.pathname.indexOf('/rank')===0&&new URLSearchParams(location.search).get('${LAYOUT_PARAM}');`
-  + `if(l&&Object.prototype.hasOwnProperty.call(m,l)){d.classList.add('zen-mode');d.setAttribute('data-zen-layout',m[l][0]);`
-  + `if(m[l][1])d.setAttribute('data-zen-background',m[l][1]);}`
   + `}catch(e){}})();`;

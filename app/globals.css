@@ -396,21 +396,9 @@ html.zen-mode .show-in-zen {
 }
 
 /*
- * Zen's frame layouts (components/ZenStage.tsx). The frame covers the window and scrolls by
- * itself, so the page under it stays still. The head script (lib/appearance.ts) sets
- * data-zen-layout before the page paints when the address asks for a layout, so the editor
- * does not show before the frame does. The transparent overlay has no background at all, for
- * OBS browser sources. Unlayered, so it wins over the utilities.
+ * Zen's frame layouts (components/ZenStage.tsx). The frame layout covers the window and scrolls
+ * by itself, so the page under it stays still. Unlayered, so it wins over the utilities.
  */
 html[data-zen-layout] body {
   overflow: hidden;
-}
-
-html[data-zen-layout]:not(:has([data-zen-stage])) main {
-  visibility: hidden;
-}
-
-html[data-zen-background='transparent'],
-html[data-zen-background='transparent'] body {
-  background: transparent;
 }

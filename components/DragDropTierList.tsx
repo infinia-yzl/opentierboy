@@ -206,8 +206,10 @@ const UnrankedTray = memo<{
   }
   return (
     // In a frame layout the tray has no box, and its tiles take the frame's tray size; in 9:16 it
-    // fills the space under the rows, in the middle (the board "9:16 · Pick freely").
-    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]">
+    // fills the space under the rows, in the middle (the board "9:16 · Pick freely"). In 16:9 it
+    // takes the space under the rows and scrolls, so the frame keeps its size for recording
+    // (owner decision, 2026-11-01).
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:grow stage-tall:justify-center stage-wide:flex-1 stage-wide:min-h-0 stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <EditableLabel
           text={tier.name}
@@ -232,8 +234,9 @@ const UnrankedTray = memo<{
         showLabels={showLabels}
         onDeleteItem={onDeleteItem}
         trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
-        // In 9:16 the tray fills the space under the rows and centres its items in it.
-        className="stage-tall:flex-none"
+        // In 9:16 the tray fills the space under the rows and centres its items in it; in 16:9 its
+        // items scroll.
+        className="stage-tall:flex-none stage-wide:overflow-y-auto"
       />
     </section>
   );

@@ -99,7 +99,7 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
-| `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlays |
+  | `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlay (green key) |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
   | `shared-links` | golden links people shared, and their page tags |
@@ -200,6 +200,15 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   not wait for it; the long press waits until the item menu shows.
 - **Rows that wrap** are tested at the default window size: twelve tiles do not fit on one
   line.
+
+### Zen's creator layouts
+
+`tests/e2e/zen-layouts.spec.ts` opens a layout the way a person does: Zen on, then the Layout
+menu (`TierListPage.gotoInLayout`); no address opens one. A creator layout draws a frame under a
+strip that holds the Zen bar, and the two together fit the window. A frame pixel is a CSS pixel
+when the window is as wide as the frame and as high as the frame plus the strip: 1920 x 1168 for
+16:9 and the overlay (an 88 px strip), 1080 x 2024 for 9:16 (a 104 px strip). The Zen bar is
+always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item under it.
 
 ### Tile shapes
 
