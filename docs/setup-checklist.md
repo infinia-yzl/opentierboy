@@ -89,10 +89,11 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
    The weekly OSV-Scanner run only reports. The pull request scan fails when a pull
    request adds a new known vulnerability.
 8. Dependabot version updates (`.github/dependabot.yml`) run weekly. The `image-sets`
-   group (all `image-*` packages) also runs weekly: Dependabot cannot give one group its
-   own daily schedule. The main path for image set updates is the image-set-update
-   workflow from Phase 4, which opens a pull request when a new version is published.
-   Dependabot is the fallback.
+   group (the `image-*` packages of the active sets) also runs weekly: Dependabot cannot give
+   one group its own daily schedule. The legacy image sets are on the ignore list: they stay
+   at the exact version they shipped with. The main path for image set updates is the
+   image-set-update workflow from Phase 4, which opens a pull request when a new version is
+   published. Dependabot is the fallback.
 
 ## 4. Claude review on pull requests
 

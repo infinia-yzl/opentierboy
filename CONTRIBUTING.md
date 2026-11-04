@@ -78,8 +78,9 @@ Published images are never renamed or removed: their ids appear in shared links.
 ### Legacy image sets
 
 SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development Technologies and the Example Items
-Template are legacy sets. They are frozen: their images are kept in this repository, they take no
-new contributions, and the app no longer offers them. Links that already use them keep working.
+Template are legacy sets. They are frozen: the app installs each one's npm package at the exact
+version it shipped with and never updates it. They take no new contributions, and the app no
+longer offers them. Links that already use them keep working.
 Please do not open pull requests or issues to change them, here or in their old repositories.
 
 ### New image sets
