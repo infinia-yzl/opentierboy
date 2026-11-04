@@ -3,17 +3,19 @@ import path from 'node:path';
 import {expect, test} from '../support/test';
 import {LEGACY_SETS, legacyFiles} from '../support/links';
 
-const publicImages = path.join(__dirname, '..', '..', 'public', 'images');
+const repoRoot = path.join(__dirname, '..', '..');
+const publicImages = path.join(repoRoot, 'public', 'images');
 
 /**
- * The images of the legacy sets are committed in public/images/<package>/, and the build makes
- * their PNG copies next to them. They keep the URLs they always had: tiles load the WebP files,
- * and link previews load the PNG copies.
+ * The legacy sets come from npm packages pinned to an exact version. The build copies their
+ * images into public/images/<package>/ and makes their PNG copies next to them. They keep the
+ * URLs they always had: tiles load the WebP files (the bytes of the pinned package), and link
+ * previews load the PNG copies.
  */
 test.describe('legacy sets', () => {
   test.describe('image files', () => {
     for (const set of LEGACY_SETS) {
-      test(`returns 200, the image type and the committed bytes when the request has a ${set.displayName} image path`, async ({request}) => {
+      test(`returns 200, the image type and the package bytes when the request has a ${set.displayName} image path`, async ({request}) => {
         const files = legacyFiles(set.packageName);
         expect(files.length).toBeGreaterThan(0);
         for (let start = 0; start < files.length; start += 20) {
@@ -21,8 +23,11 @@ test.describe('legacy sets', () => {
             const response = await request.get(encodeURI(`/images/${set.packageName}/${file}`));
             expect(response.status(), file).toBe(200);
             expect(response.headers()['content-type'], file).toBe(file.endsWith('.png') ? 'image/png' : 'image/webp');
-            const onDisk = fs.readFileSync(path.join(publicImages, set.packageName, file));
-            expect((await response.body()).equals(onDisk), `${file} is the file in public/images`).toBe(true);
+            // WebP files are the pinned package's files; PNG copies are the ones the build made.
+            const source = file.endsWith('.png')
+              ? path.join(publicImages, set.packageName, file)
+              : path.join(repoRoot, 'node_modules', set.packageName, 'public', 'images', file);
+            expect((await response.body()).equals(fs.readFileSync(source)), `${file} is the file at ${path.relative(repoRoot, source)}`).toBe(true);
           }));
         }
       });

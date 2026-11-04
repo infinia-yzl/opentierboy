@@ -510,7 +510,7 @@ export function checkUpdate({packageName, version, changes, read, published}) {
   };
   if (changes.length === 0) errors.push('The patch changes nothing.');
 
-  // Active sets are copied into public/images/ at build time and never committed, so the
+  // Image sets are copied into public/images/ at build time and never committed, so the
   // patch may not hold image files: everything outside ALLOWED_FILES is refused.
   for (const change of changes) {
     const file = change.path;

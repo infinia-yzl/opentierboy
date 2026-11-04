@@ -2,8 +2,8 @@ import {expect, test} from '../support/test';
 import {LEGACY_SETS, legacyItems, packageItemId, rawState} from '../support/links';
 
 /**
- * Legacy image sets are frozen in the repository (imageset.legacy.json, images in
- * public/images/<package>/). They are hidden from the template picker, the landing page and
+ * Legacy image sets are frozen (imageset.legacy.json, npm packages pinned to an exact
+ * version). They are hidden from the template picker, the landing page and
  * the sitemap, but their pages, old links and previews keep working.
  */
 test.describe('legacy sets', () => {

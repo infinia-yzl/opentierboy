@@ -83,9 +83,16 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     fs.symlinkSync(path.join(repoRoot, 'node_modules/sharp'), path.join(root, 'node_modules/sharp'), 'dir');
     fakePackage('image-one', ['a.webp', 'sub/b.webp']);
     fakePackage('image-two', ['c.webp']);
+    fakePackage('image-old', ['x.webp']);
     write('imageset.custom.json', {packages: {'image-one': {displayName: 'One'}, 'image-old': {legacy: true}, 'image-two': {displayName: 'Two', googleFont: 'Saira'}}});
-    write('imageset.legacy.json', {'image-old': {displayName: 'Old', images: [{filename: 'x.webp', label: 'X', tags: []}], tags: {}, legacy: true}});
-    write('public/images/image-old/x.webp', webp);
+    // The frozen entry is exactly what the fake image-old package builds with the display name Old.
+    write('imageset.legacy.json', {'image-old': {
+      displayName: 'Old',
+      images: [{filename: 'x.webp', label: 'X.WEBP', tags: ['all-of-them']}],
+      tags: {'all-of-them': {title: 'All of them', description: 'Description of all-of-them in Old', category: 'general'}},
+      backgroundImage: '/old.webp',
+      legacy: true,
+    }});
     write('public/placeholder-image.png', placeholder);
     write('imageset.config.json', '{"packages": {}}');
     write('image-aliases.json', {});
@@ -100,16 +107,19 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     fs.rmSync(root, {recursive: true, force: true});
   });
 
-  it('writes the active images, all PNG copies and an ordered imageset.config.json when it runs with --copy', async () => {
-    for (const file of ['image-one/a.webp', 'image-one/a.png', 'image-one/sub/b.webp', 'image-one/sub/b.png', 'image-two/c.webp', 'image-two/c.png']) {
+  it('writes the images of every set, all PNG copies and an ordered imageset.config.json when it runs with --copy', async () => {
+    for (const file of ['image-one/a.webp', 'image-one/a.png', 'image-one/sub/b.webp', 'image-one/sub/b.png', 'image-two/c.webp', 'image-two/c.png', 'image-old/x.webp', 'image-old/x.png']) {
       expect(exists(`public/images/${file}`), file).toBe(true);
     }
-    // The committed legacy WebP stays as it is; its PNG copy is made from it.
+    // The legacy set is copied from its package like the active sets, byte for byte.
     expect(fs.readFileSync(path.join(root, 'public/images/image-old/x.webp')).equals(webp)).toBe(true);
     expect(await sharp(path.join(root, 'public/images/image-old/x.png')).metadata()).toMatchObject({format: 'png', width: 4, height: 4});
     const packages = JSON.parse(config()).packages;
     expect(Object.keys(packages)).toEqual(['image-one', 'image-old', 'image-two']);
-    expect(packages['image-old'].legacy).toBe(true);
+    // A legacy set's entry is its frozen entry, key order included.
+    const frozen = JSON.parse(fs.readFileSync(path.join(root, 'imageset.legacy.json'), 'utf8'))['image-old'];
+    expect(JSON.stringify(packages['image-old'])).toBe(JSON.stringify(frozen));
+    expect(packages['image-one']).not.toHaveProperty('legacy');
     expect(packages['image-two']).toMatchObject({displayName: 'Two', googleFont: 'Saira', images: [{filename: 'c.webp', label: 'C.WEBP', tags: ['all-of-them']}]});
     const files = checkImages('--files');
     expect(files.output).toContain('Image files OK');
@@ -122,7 +132,7 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     for (const [file, width, height] of sizes) {
       write(`node_modules/image-one/public/images/${file}`, await image(width, height));
     }
-    write('public/images/image-old/x.webp', await image(2048, 2048));
+    write('node_modules/image-old/public/images/x.webp', await image(2048, 2048));
 
     const result = prepare();
     expect(result.status).toBe(0);
@@ -165,24 +175,33 @@ exports.getImageMetadata = () => walk(dir).map((filename) => ({filename, label: 
     expect(result.status).toBe(1);
   });
 
-  it('returns exit code 1 and writes no change to imageset.config.json when a committed legacy image is missing', () => {
+  it('returns exit code 1 and writes no config change when a legacy package builds an entry unlike its frozen entry', () => {
     const before = config();
-    fs.rmSync(path.join(root, 'public/images/image-old/x.webp'));
+    write('node_modules/image-old/public/images/y.webp', webp);
 
     const result = prepare();
-    expect(result.output).toContain('Legacy set image-old (committed images; restore them with git): 1 file(s) missing');
-    expect(result.output).toContain('x.webp');
+    expect(result.output).toContain('image-old@1.0.0 builds a config entry that differs from its frozen entry in imageset.legacy.json');
+    expect(result.output).toContain('image-old: image "y.webp" is new');
+    expect(result.output).toContain('imageset.config.json was not updated');
     expect(result.status).toBe(1);
     expect(config()).toBe(before);
   });
 
-  it('returns exit code 1 when a committed legacy image is not a valid WebP file', () => {
-    // The PNG copy from the first run exists; prepareImages removes it before converting again.
-    expect(exists('public/images/image-old/x.png')).toBe(true);
-    write('public/images/image-old/x.webp', 'not a WebP image');
+  it('returns exit code 1 and writes no change to imageset.config.json when a legacy package is missing', () => {
+    const before = config();
+    fs.renameSync(path.join(root, 'node_modules/image-old'), path.join(root, 'image-old-moved'));
 
     const result = prepare();
-    expect(result.output).toContain('Legacy set image-old (PNG copies for link previews): 1 file(s) missing in public/images/image-old: x.png');
+    expect(result.output).toContain('Could not prepare image-old');
+    expect(result.status).toBe(1);
+    expect(config()).toBe(before);
+  });
+
+  it('returns exit code 1 when a legacy package image is not a valid WebP file', () => {
+    write('node_modules/image-old/public/images/x.webp', 'not a WebP image');
+
+    const result = prepare();
+    expect(result.output).toContain('image-old: 1 file(s) missing in public/images/image-old: x.png');
     expect(result.status).toBe(1);
   });
 
