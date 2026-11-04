@@ -83,6 +83,28 @@ version it shipped with and never updates it. They take no new contributions, an
 longer offers them. Links that already use them keep working.
 Please do not open pull requests or issues to change them, here or in their old repositories.
 
+### Removing an image set from a fork
+
+OpenTierBoy itself never removes a shipped set, because old links use its ids. A fork may remove
+one. The checks that protect OpenTierBoy's old links then need these steps too:
+
+1. Run `npm uninstall <package>`, for example `npm uninstall image-supervive`.
+2. Delete the set's entry from `imageset.custom.json`. For a legacy set, also delete its entry from
+   `imageset.legacy.json`; the build refuses an entry in one file without the other.
+3. Delete the set's ids from `image-registry.lock.json`: every entry whose `"package"` is that
+   package. `npm run check:images` fails when a registered id has no image.
+4. For a legacy set, also delete its line from the `ignore` list in `.github/dependabot.yml` and from
+   `LEGACY_SETS` in `tests/support/links.ts`. The rule test `tests/unit/rules/legacy-set-pins.test.ts`
+   checks both lists.
+5. For an active set, delete it from `FEATURED_SETS` in `app/page.tsx` if it is there.
+6. Delete or change the tests and fixtures that use the set. `tests/fixtures/` holds real links
+   made with OpenTierBoy, and some of them use legacy sets, so their tests fail once the images are
+   gone. The legacy specs (`tests/e2e/legacy-sets.spec.ts` and `legacy-sets.api.spec.ts`) and a few
+   unit tests name the legacy sets too.
+7. Run `npm run build` and `npm run check`.
+
+Links that use the removed set then show placeholders in the fork.
+
 ### New image sets
 
 A new set starts from the [image-set template](https://github.com/infinia-yzl/image-set), version
