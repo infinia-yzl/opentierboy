@@ -57,6 +57,8 @@ npm run check:images      # every shipped item id is registered (`-- --update` a
                           # `-- --files`: its image and PNG copy are in public/images/)
 npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
 npm run check:trusted-sites   # no trusted image site is on the pinned tracker list (downloads it with git)
+npm run add-image-set -- <package>@<x.y.z> --name "<Display Name>"   # first version of a new active set
+npm run remove-image-set -- <package>   # forks only: dry run; `--yes` removes the set
 npx playwright install    # once per machine: the browsers for Playwright
 npm run test:e2e          # Playwright; needs `npm run build` first
 npm run test:e2e -- --project=chromium tests/e2e/drag-and-drop.spec.ts
@@ -131,6 +133,8 @@ scripts/prepareImages.js   builds imageset.config.json and public/images from th
                       and checks each legacy set against its frozen entry (see "Image sets")
 scripts/lib/image-sets.mjs   shared rules: active vs legacy, config entries, shapes
 scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
+scripts/add-image-set.mjs, scripts/remove-image-set.mjs   maintainer commands: add a new active
+                      set, remove a set in a fork (rules in scripts/lib/image-set-commands.mjs)
 scripts/bench-drag.mjs   drag performance benchmark (docs/dnd-fork.md, "Performance")
 image-registry.lock.json   every item id ever shipped (append-only)
 image-aliases.json    old item id → new item id, for renamed images
@@ -203,6 +207,9 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   `{package, version}`. The workflow installs that exact version, registers new ids and runs
   the checks and tests. The owner reviews and merges every pull request; nothing merges on its
   own. Dependabot's `image-sets` group is the fallback.
+- **New active sets**: the workflow takes only sets already on the active list, so the first
+  version of a new set is added with `npm run add-image-set` (`scripts/add-image-set.mjs`), and
+  later versions arrive through `image-set-update.yml`.
 - **Legacy sets** are frozen: SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
   Technologies and the example template (`image-set`). They come from npm like the active
   sets, but each package is pinned to an exact version in `package.json` (`image-set@2.1.0`,
@@ -226,19 +233,23 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   at their shape (`lib/tileSize.ts`), but link previews still draw every image as a square.
   Until the owner decides otherwise, image sets must not publish other shapes; a unit test in
   `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json` holds one.
-- **Adding DEADLOCK** (`image-deadlock`, not on npm yet). Once its first version is published
-  (a manual owner step, `docs/setup-checklist.md`), one pull request adds it:
-  1. add `"image-deadlock": {"displayName": "DEADLOCK", ...}` at the end of
-     `imageset.custom.json` (this puts it on the active list; the display name becomes its
-     URL slug, so choose it once);
-  2. `npm install image-deadlock@<version> --save-exact`;
-  3. `npm run prepare-images` and `npm run check:images -- --update`, then commit
-     `imageset.config.json` and `image-registry.lock.json`;
-  4. if it should have a landing page card, add it to `FEATURED_SETS` in `app/page.tsx`
-     (ask the owner; tests in `tests/e2e/legacy-sets.spec.ts` list the cards).
-  The image-deadlock repository's `release.yml` already sends the dispatch, so later versions
-  arrive through `image-set-update.yml`. The workflow refuses packages that are not on the
-  active list, so the first version cannot come through it.
+- **Adding a new active set** (after its first version is on npm, and the owner accepted it):
+  `npm run add-image-set -- <package>@<x.y.z> --name "<Display Name>"`, optionally with
+  `--font "<a font of lib/fonts.ts>"` and `--background /splash/<file>.webp`. The display name
+  becomes the set's URL slug, so choose it once. The command refuses a name that is not
+  `image-*`, a set already listed (active or legacy), a version that is not exact, and a slug
+  another set uses. It installs the exact version, adds the entry at the end of
+  `imageset.custom.json`, runs prepareImages and `check:images -- --update`, and puts every file
+  back when the package fails a check (shapes other than square, ids another package
+  registered, missing images, the checks of `scripts/image-set-update.mjs`). Commit
+  `package.json`, `package-lock.json`, `imageset.custom.json`, `imageset.config.json` and
+  `image-registry.lock.json`. A landing page card (`FEATURED_SETS` in `app/page.tsx`) is the
+  owner's decision; the command never adds one (tests in `tests/e2e/legacy-sets.spec.ts` list
+  the cards).
+- **Removing a set** happens only in forks: OpenTierBoy never removes a shipped set.
+  `npm run remove-image-set -- <package>` prints what it would change; with `--yes` it removes
+  the set (CONTRIBUTING.md, "Removing an image set from a fork"). It never edits tests or
+  fixtures; it lists the ones that still name the set.
 - **Making a set legacy**: copy its entry from `imageset.config.json` into
   `imageset.legacy.json` with `"legacy": true`, set its `imageset.custom.json` entry to
   `{"legacy": true}`, pin its package to the exact installed version

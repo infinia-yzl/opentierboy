@@ -212,9 +212,10 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
 2. `image-deadlock` does not exist on npm yet, and trusted publishing can only be set up
    for an existing package. Publish its first version by hand from a clean checkout of
    `main`: `npm ci`, `npm run validate -- --release`, `npm login`, then
-   `npm publish --access public`. Then ask for the change that adds DEADLOCK to OpenTierBoy
-   (CLAUDE.md, "Image sets"): the first version is added by hand, later versions arrive
-   through the bot.
+   `npm publish --access public`. Then add it to OpenTierBoy with
+   `npm run add-image-set -- <package>@<version> --name "<Display Name>"` (CLAUDE.md, "Image
+   sets") and commit the files it lists: the first version is added this way, later versions
+   arrive through the bot.
 3. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`,
    `image-deadlock`): npmjs.com → the package → **Settings → Trusted Publisher** →
    **GitHub Actions**:
