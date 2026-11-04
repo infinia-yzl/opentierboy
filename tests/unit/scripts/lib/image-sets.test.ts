@@ -7,6 +7,7 @@ import customConfig from '@/imageset.custom.json';
 import legacyConfig from '@/imageset.legacy.json';
 import {
   buildPackageEntry,
+  frozenEntryDifferences,
   imageShape,
   legacyEntry,
   legacyFiles,
@@ -163,6 +164,48 @@ describe('scripts/lib/image-sets.mjs', () => {
     it('returns each file and a PNG copy of each WebP file from legacyFiles when the images mix WebP and PNG', () => {
       expect(legacyFiles({images: [{filename: 'a.webp'}, {filename: 'sub/B.WEBP'}, {filename: 'c.png'}]}))
         .toEqual(['a.webp', 'a.png', 'sub/B.WEBP', 'sub/B.png', 'c.png']);
+    });
+  });
+
+  describe('frozenEntryDifferences', () => {
+    const frozen = {
+      displayName: 'Old',
+      images: [{filename: 'a.webp', label: 'A', tags: ['t']}, {filename: 'b.webp', label: 'B', tags: ['t']}],
+      tags: {t: {title: 'T', description: 'All', category: 'general'}},
+      backgroundImage: '/old.webp',
+      legacy: true,
+    };
+    const built = () => {
+      const copy = JSON.parse(JSON.stringify(frozen));
+      delete copy.legacy;
+      return copy;
+    };
+
+    it('returns [] when the built entry equals the frozen entry without its legacy key', () => {
+      expect(frozenEntryDifferences('image-old', built(), frozen)).toEqual([]);
+    });
+
+    it.each([
+      ['a changed label', (entry: typeof frozen) => { entry.images[1].label = 'Bee'; }, 'image-old: image "b.webp" is {"filename":"b.webp","label":"Bee","tags":["t"]} instead of {"filename":"b.webp","label":"B","tags":["t"]}'],
+      ['a removed image', (entry: typeof frozen) => { entry.images.pop(); }, 'image-old: image "b.webp" is missing'],
+      ['a new image', (entry: typeof frozen) => { entry.images.push({filename: 'c.webp', label: 'C', tags: []}); }, 'image-old: image "c.webp" is new'],
+      ['images in another order', (entry: typeof frozen) => { entry.images.reverse(); }, 'image-old: the images are in a different order'],
+      ['a new tag', (entry: typeof frozen) => { Object.assign(entry.tags, {u: {title: 'U', description: 'U', category: 'general'}}); }, 'image-old: tag "u" is new'],
+      ['a changed display name', (entry: typeof frozen) => { entry.displayName = 'New'; }, 'image-old: displayName is "New" instead of "Old"'],
+      ['a missing background image', (entry: Partial<typeof frozen>) => { delete entry.backgroundImage; }, 'image-old: backgroundImage is nothing instead of "/old.webp"'],
+    ])('returns the difference when the built entry has %s', (_name, change, difference) => {
+      const entry = built();
+      change(entry);
+      expect(frozenEntryDifferences('image-old', entry, frozen)).toEqual([difference]);
+    });
+
+    it('returns "the keys are in a different order" when only the key order differs', () => {
+      const {displayName, images, tags, backgroundImage} = built();
+      expect(frozenEntryDifferences('image-old', {images, displayName, tags, backgroundImage}, frozen)).toEqual(['image-old: the keys are in a different order']);
+    });
+
+    it('throws from legacyEntry when the frozen entry has no images', () => {
+      expect(() => frozenEntryDifferences('image-old', built(), {...frozen, images: []})).toThrow('has no images');
     });
   });
 

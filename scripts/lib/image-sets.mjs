@@ -130,6 +130,54 @@ export function legacyFiles(entry) {
   ));
 }
 
+const json = (value) => (value === undefined ? 'nothing' : JSON.stringify(value));
+
+/**
+ * The differences between two lists of [key, value] pairs (images by filename, tags by name),
+ * one line each: missing, new and changed entries, or a different order.
+ */
+function listDifferences(what, actual, expected) {
+  const actualByKey = new Map(actual);
+  const expectedByKey = new Map(expected);
+  const differences = [];
+  for (const [key, item] of expectedByKey) {
+    if (!actualByKey.has(key)) differences.push(`${what} ${json(key)} is missing`);
+    else if (json(actualByKey.get(key)) !== json(item)) differences.push(`${what} ${json(key)} is ${json(actualByKey.get(key))} instead of ${json(item)}`);
+  }
+  for (const key of actualByKey.keys()) {
+    if (!expectedByKey.has(key)) differences.push(`${what} ${json(key)} is new`);
+  }
+  if (differences.length === 0 && json([...actualByKey.keys()]) !== json([...expectedByKey.keys()])) {
+    differences.push(`the ${what}s are in a different order`);
+  }
+  return differences;
+}
+
+/**
+ * The differences between the config entry that a legacy set's pinned package builds
+ * (buildPackageEntry, with the display fields of the frozen entry) and its frozen entry in
+ * imageset.legacy.json, one line each. Returns [] only when imageset.config.json would hold
+ * exactly the frozen entry, key order included. prepareImages stops the build on any
+ * difference: a legacy set never changes.
+ */
+export function frozenEntryDifferences(packageName, built, frozen) {
+  const expected = legacyEntry(packageName, frozen);
+  if (!isPlainObject(built)) return [`${packageName}: the package built no config entry`];
+  const actual = {...built, legacy: true};
+  if (json(actual) === json(expected)) return [];
+  const differences = [];
+  for (const key of new Set([...Object.keys(expected), ...Object.keys(actual)])) {
+    if (key === 'images' || key === 'tags') continue;
+    if (json(actual[key]) !== json(expected[key])) differences.push(`${key} is ${json(actual[key])} instead of ${json(expected[key])}`);
+  }
+  const images = (entry) => (Array.isArray(entry.images) ? entry.images.map((image) => [image?.filename, image]) : []);
+  const tags = (entry) => (isPlainObject(entry.tags) ? Object.entries(entry.tags) : []);
+  differences.push(...listDifferences('image', images(actual), images(expected)));
+  differences.push(...listDifferences('tag', tags(actual), tags(expected)));
+  if (differences.length === 0) differences.push('the keys are in a different order');
+  return differences.map((difference) => `${packageName}: ${difference}`);
+}
+
 /**
  * The shape of a tag (category) as written to imageset.config.json: its declared shape, or
  * undefined for square and for tags without a shape. Throws on an unknown shape.
