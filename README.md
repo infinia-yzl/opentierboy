@@ -138,6 +138,9 @@ This means:
 
 See the [LICENSE](LICENSE) file for full details.
 
+The license covers the code. The OpenTierBoy name, logo and wordmark belong to the project owner: a fork needs its own
+name and logo. See [TRADEMARKS.md](TRADEMARKS.md).
+
 ## 🌐 Community
 
 Join our [Discord server](https://discord.gg/CEtDSHV38b) to share your tier lists, discuss features, and connect
