@@ -164,7 +164,7 @@ that reads the secret below.
 
 ## 7. Bot app for the image pipeline (Phase 4)
 
-When an active image set (THE FINALS, OVERWATCH, later DEADLOCK) publishes a new version,
+When an active image set (THE FINALS, OVERWATCH) publishes a new version,
 its repository tells OpenTierBoy, and `image-set-update.yml` opens a pull request with the
 update. A GitHub App (the "bot") pushes that branch and opens the pull request. The same app
 lets the image repositories send the notice and open their weekly wiki extract pull requests.
@@ -178,7 +178,7 @@ lets the image repositories send the notice and open their weekly wiki extract p
 2. After creating it, note the **App ID** (or the **Client ID**; either works). Click
    **Generate a private key**. A `.pem` file downloads.
 3. Click **Install App** → your account → **Only select repositories** → `opentierboy`,
-   `image-set`, `image-reachthefinals`, `image-overwatch` and `image-deadlock`.
+   `image-set`, `image-reachthefinals`, `image-overwatch` and the repository of any new set.
    The workflows ask for less than the app may do: each run gets a token for one repository
    with only the permissions that step needs.
 4. In each of those repositories, create an environment named `bot`: **Settings →
@@ -209,15 +209,15 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
 1. In each image repository, create an environment `npm-publish` (**Settings →
    Environments**) with **Deployment branches and tags** set to `main` only. Optionally add
    yourself as a required reviewer, so every release waits for your click.
-2. `image-deadlock` does not exist on npm yet, and trusted publishing can only be set up
-   for an existing package. Publish its first version by hand from a clean checkout of
+2. Trusted publishing can only be set up for a package that already exists on npm. For a
+   new image set, publish its first version by hand from a clean checkout of
    `main`: `npm ci`, `npm run validate -- --release`, `npm login`, then
    `npm publish --access public`. Then add it to OpenTierBoy with
    `npm run add-image-set -- <package>@<version> --name "<Display Name>"` (CLAUDE.md, "Image
    sets") and commit the files it lists: the first version is added this way, later versions
    arrive through the bot.
-3. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`,
-   `image-deadlock`): npmjs.com → the package → **Settings → Trusted Publisher** →
+3. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`, and any new
+   set): npmjs.com → the package → **Settings → Trusted Publisher** →
    **GitHub Actions**:
    - Organization or user: `infinia-yzl`
    - Repository: the image repository name, for example `image-overwatch`

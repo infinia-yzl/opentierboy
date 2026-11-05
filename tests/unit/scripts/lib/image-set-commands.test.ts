@@ -149,7 +149,7 @@ describe('checkAdd', () => {
     const repoContext = {customConfig: JSON.parse(readRepo('imageset.custom.json')), legacyConfig: JSON.parse(readRepo('imageset.legacy.json'))};
     expect(thrown(() => checkAdd({...request, displayName: 'Helldivers  2'}, repoContext)).code).toBe('slug-taken');
     expect(thrown(() => checkAdd({...request, displayName: 'The Finals'}, repoContext)).code).toBe('slug-taken');
-    expect(checkAdd({...request, displayName: 'DEADLOCK'}, repoContext).slug).toBe('deadlock');
+    expect(checkAdd({...request, displayName: 'Demo Game'}, repoContext).slug).toBe('demo-game');
   });
 });
 
