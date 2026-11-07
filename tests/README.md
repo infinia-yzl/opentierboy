@@ -99,6 +99,7 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
+  | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
   | `shared-links` | golden links people shared, and their page tags |
@@ -159,6 +160,9 @@ tests/
   that answers a site address with a redirect to an outside host (or falls back with an
   outside `url`), and fetches the server makes for `/api/og` (no test sends it a trusted-site
   image).
+- **The tips are off in every test** but `tips.spec.ts`: the fixtures store tips off before
+  each page starts (`tests/support/test.ts`), so tips never cover what a test checks. A spec
+  turns them on with `test.use({tips: true})`.
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
 - **Some input cannot be simulated in every browser.** Firefox drops the files of a paste event

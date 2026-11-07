@@ -28,6 +28,11 @@ export interface VisitorOptions {
 }
 
 type Fixtures = {
+  /**
+   * The one-time tips (components/EditorTips.tsx). Off unless a test turns them on with
+   * `test.use({tips: true})` (tests/e2e/tips.spec.ts): other tests check the page without them.
+   */
+  tips: boolean;
   tierList: TierListPage;
   site: SitePage;
   /** Opens a link in a fresh browser context, as a friend who receives the link would. */
@@ -62,6 +67,20 @@ type WorkerFixtures = {
    */
   blockedOutsideTestsReport: void;
 };
+
+/**
+ * Turns the tips off in a context before its pages start, as "Hide tips" would, unless the
+ * browser already holds a tips value. The key and value follow lib/tips/tips.ts.
+ */
+async function turnTipsOff(context: BrowserContext) {
+  await context.addInitScript(() => {
+    try {
+      if (localStorage.getItem('otb-tips') === null) localStorage.setItem('otb-tips', JSON.stringify({seen: [], off: true}));
+    } catch {
+      // Pages without storage (about:blank) show no tips either.
+    }
+  });
+}
 
 /** Where blocked requests are recorded: the running test's list, while a test runs. */
 let requestSink: string[] | null = null;
@@ -216,9 +235,11 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await use(guardRequestContext(request, baseURL, externalRequests));
   },
   // Against a protected Vercel deployment, send the bypass secret to that site only.
-  context: async ({context, baseURL, externalRequests}, use) => {
+  tips: [false, {option: true}],
+  context: async ({context, baseURL, externalRequests, tips}, use) => {
     await guardContext(context, baseURL, externalRequests);
     await sendBypassOnlyToSite(context, baseURL);
+    if (!tips) await turnTipsOff(context);
     await use(context);
   },
   tierList: async ({page}, use) => {
@@ -227,13 +248,14 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   site: async ({page}, use) => {
     await use(new SitePage(page));
   },
-  openAsVisitor: async ({browser, baseURL, externalRequests}, use) => {
+  openAsVisitor: async ({browser, baseURL, externalRequests, tips}, use) => {
     const contexts: Awaited<ReturnType<Browser['newContext']>>[] = [];
     await use(async (link: string, options: VisitorOptions = {}) => {
       const context = await browser.newContext();
       contexts.push(context);
       await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
+      if (!tips) await turnTipsOff(context);
       await options.beforeOpen?.(context);
       const visitor = new TierListPage(await context.newPage());
       await visitor.gotoLink(link);
@@ -241,7 +263,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     });
     await Promise.all(contexts.map((context) => context.close()));
   },
-  openInChromiumProfile: async ({playwright, baseURL, externalRequests, browserName}, use) => {
+  openInChromiumProfile: async ({playwright, baseURL, externalRequests, browserName, tips}, use) => {
     const opened: {context: BrowserContext; directory: string}[] = [];
     await use(async () => {
       if (browserName !== 'chromium') throw new Error('openInChromiumProfile works in Chromium only.');
@@ -250,6 +272,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       opened.push({context, directory});
       await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
+      if (!tips) await turnTipsOff(context);
       const page = context.pages()[0] ?? await context.newPage();
       return {tierList: new TierListPage(page), context};
     });

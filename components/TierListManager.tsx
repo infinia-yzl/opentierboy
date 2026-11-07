@@ -17,6 +17,7 @@ import {Alert, AlertDescription, AlertTitle} from "@/components/ui/alert";
 import {CameraIcon, QuestionMarkCircledIcon} from "@radix-ui/react-icons";
 import {GiCardAceSpades, GiLightBackpack, GiScrollQuill} from "react-icons/gi";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
+import {EditorTips} from "@/components/EditorTips";
 
 interface TierListManagerProps {
   initialItemSet?: ItemSet;
@@ -29,6 +30,7 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
   <TierListProvider initialItemSet={initialItemSet} initialState={initialState} pageTitle={title ?? ''}>
     <CustomImagesProvider>
       <TierListEditor/>
+      <EditorTips/>
     </CustomImagesProvider>
   </TierListProvider>
 );
