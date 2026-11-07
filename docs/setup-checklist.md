@@ -210,12 +210,10 @@ The full steps are in each image repository's `MIGRATION.md`; this is the short 
    Environments**) with **Deployment branches and tags** set to `main` only. Optionally add
    yourself as a required reviewer, so every release waits for your click.
 2. Trusted publishing can only be set up for a package that already exists on npm. For a
-   new image set, publish its first version by hand from a clean checkout of
-   `main`: `npm ci`, `npm run validate -- --release`, `npm login`, then
-   `npm publish --access public`. Then add it to OpenTierBoy with
-   `npm run add-image-set -- <package>@<version> --name "<Display Name>"` (CLAUDE.md, "Image
-   sets") and commit the files it lists: the first version is added this way, later versions
-   arrive through the bot.
+   new image set, publish its first version by hand from a clean checkout of `main`:
+   `npm ci`, `npm run validate -- --release`, `npm login`, then `npm publish --access public`.
+   Then add it to OpenTierBoy by hand (CONTRIBUTING.md, "Adding an image set"): the first
+   version is added by hand, and later versions arrive through the bot.
 3. For each image set (`image-set`, `image-reachthefinals`, `image-overwatch`, and any new
    set): npmjs.com → the package → **Settings → Trusted Publisher** →
    **GitHub Actions**:

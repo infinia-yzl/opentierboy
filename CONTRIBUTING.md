@@ -86,17 +86,22 @@ Please do not open pull requests or issues to change them, here or in their old 
 ### Removing an image set from a fork
 
 OpenTierBoy itself never removes a shipped set, because old links use its ids. A fork may remove
-one with `npm run remove-image-set -- <package>`, for example
-`npm run remove-image-set -- image-supervive`. Without `--yes` it only prints what it would
-change. With `--yes` it uninstalls the package and removes the set from the image set files,
-the item id registry and its aliases, and the lists that name it (`.github/dependabot.yml` and
-`LEGACY_SETS` in `tests/support/links.ts` for a legacy set, `FEATURED_SETS` in `app/page.tsx`
-for an active set). Then it runs `npm run check`.
+one. The checks that protect OpenTierBoy's old links then need these steps too:
 
-The command never edits tests or fixtures. It lists the files under `tests/` that still use the
-set, and a person must decide on each of them. `tests/fixtures/` holds real links made with
-OpenTierBoy, and some of them use legacy sets, so their tests fail once the images are gone.
-Run `npm run build` and `npm run check` once that is done.
+1. Run `npm uninstall <package>`, for example `npm uninstall image-supervive`.
+2. Delete the set's entry from `imageset.custom.json`. For a legacy set, also delete its entry from
+   `imageset.legacy.json`; the build refuses an entry in one file without the other.
+3. Delete the set's ids from `image-registry.lock.json`: every entry whose `"package"` is that
+   package. `npm run check:images` fails when a registered id has no image.
+4. For a legacy set, also delete its line from the `ignore` list in `.github/dependabot.yml` and from
+   `LEGACY_SETS` in `tests/support/links.ts`. The rule test `tests/unit/rules/legacy-set-pins.test.ts`
+   checks both lists.
+5. For an active set, delete it from `FEATURED_SETS` in `app/page.tsx` if it is there.
+6. Delete or change the tests and fixtures that use the set. `tests/fixtures/` holds real links
+   made with OpenTierBoy, and some of them use legacy sets, so their tests fail once the images are
+   gone. The legacy specs (`tests/e2e/legacy-sets.spec.ts` and `legacy-sets.api.spec.ts`) and a few
+   unit tests name the legacy sets too.
+7. Run `npm run build` and `npm run check`.
 
 Links that use the removed set then show placeholders in the fork.
 
@@ -109,9 +114,23 @@ GitHub Actions (`release.yml`) only.
 
 Before you publish anything, propose the set in an issue (**Image Update or Addition**
 template). If the owner accepts it, it joins the active sets in a pull request here.
-The owner adds an accepted set's first version with
-`npm run add-image-set -- <package>@<version> --name "<Display Name>"`; later versions arrive
-through the `image-set-update` workflow.
+
+### Adding an image set
+
+The owner adds an accepted set once its first version is on npm, in one pull request:
+
+1. Add `"<package>": {"displayName": "<Display Name>"}` at the end of `imageset.custom.json`.
+   The display name becomes the set's URL slug, for example `/rank/demo-game`, and shared links
+   use it, so choose it once. It must differ from every other set's slug.
+2. Run `npm install <package>@<version> --save-exact`.
+3. Run `npm run prepare-images` and `npm run check:images -- --update`, then `npm run check`. It
+   fails if any image is not square (`tests/unit/rules/image-shapes.test.ts`).
+4. Commit `package.json`, `package-lock.json`, `imageset.custom.json`, `imageset.config.json` and
+   `image-registry.lock.json`.
+5. A card on the home page (`FEATURED_SETS` in `app/page.tsx`) is the owner's decision.
+
+Later versions arrive as pull requests from the `image-set-update` workflow. The workflow takes
+only sets already on the active list, so the first version is always added by hand.
 
 ## Reporting Issues
 

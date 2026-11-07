@@ -26,22 +26,6 @@ export function tagSlug(tag) {
 }
 
 /**
- * The URL form of a set's display name in /rank/<set>/<tag>. A copy of slugify in lib/utils.ts,
- * because scripts cannot import TypeScript; tests/unit/scripts/lib/image-sets.test.ts checks
- * that the two agree. The rank page (findRankSet in lib/rankRoute.ts) opens the set whose
- * package name is the segment, else the first set whose display name has this URL form.
- */
-export function setSlug(displayName) {
-  return String(displayName)
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w-]+/g, '')
-    .replace(/--+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '');
-}
-
-/**
  * The PNG copies that link previews load (app/api/og/route.tsx draws each item as a 64 x 64 px
  * tile, object-cover) are made at twice that size: the shorter side becomes 128 px, the aspect
  * ratio stays, and a smaller image is never enlarged. Full-size copies (legacy images reach 4

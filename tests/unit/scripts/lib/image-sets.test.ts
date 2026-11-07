@@ -14,11 +14,10 @@ import {
   mergeConfig,
   activePackages,
   splitPackages,
-  setSlug,
   tagShape,
   tagSlug,
 } from '@/scripts/lib/image-sets.mjs';
-import {createSEOFriendlyTagSlug, slugify} from '@/lib/utils';
+import {createSEOFriendlyTagSlug} from '@/lib/utils';
 
 const repoRoot = path.resolve(__dirname, '../../../..');
 const LEGACY_SETS = ['image-set', 'image-wutheringwaves', 'image-webdev', 'image-supervive', 'image-helldivers2'];
@@ -115,15 +114,6 @@ describe('tagSlug', () => {
       expect(slugs.filter((slug) => slug === '' || slug === 'all'), name).toEqual([]);
       expect(new Set(slugs).size, name).toBe(slugs.length);
     }
-  });
-});
-
-describe('setSlug', () => {
-  it('returns the slugify result when the name is any shipped display name or an odd name', () => {
-    const names = Object.values(configPackages).map((set) => set.displayName);
-    const odd = ['', ' ', 'New Game', '  Two  Spaces  ', 'a--b', '-lead-', 'Ünïcode Näme', '日本', 'x_y', 'A.B/C', 'HELLDIVERS 2', 'tab\there', 'dash - dash', '__'];
-    expect(names).toHaveLength(7);
-    for (const name of [...names, ...odd]) expect(setSlug(name), JSON.stringify(name)).toBe(slugify(name));
   });
 });
 
