@@ -1,45 +1,36 @@
 'use client';
 
-import React, {useCallback, useSyncExternalStore} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {ReaderIcon} from "@radix-ui/react-icons";
 import {Toggle} from "@/components/ui/toggle";
-import {toast} from "sonner";
-
-/** Zen mode is the `zen-mode` class on <html>; this follows it. */
-function subscribeToZenMode(onChange: () => void) {
-  const observer = new MutationObserver(onChange);
-  observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
-  return () => observer.disconnect();
-}
-
-const isZenModeOn = () => document.documentElement.classList.contains('zen-mode');
+import {useZenMode} from "@/components/usePageState";
+import {setZenMode} from "@/components/zenMode";
 
 /**
  * The editor toolbar's Zen button (owner decision, 2026-10-28: between Add images and Share).
- * It stays visible in Zen, so Zen can be turned off again.
+ * It turns Zen on. In Zen the title row's tools hide with it, and the Zen bar's "Exit Zen" (or
+ * Escape) turns Zen off (components/ZenBar.tsx). Focus moves with it: to the Zen bar when Zen
+ * turns on with this toggle, and back here when Zen turns off from the bar.
  */
 export function ZenToggle() {
-  const isZenMode = useSyncExternalStore(subscribeToZenMode, isZenModeOn, () => false);
+  const isZenMode = useZenMode();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const wasZenMode = useRef(isZenMode);
 
-  const toggleZenMode = useCallback(() => {
-    document.documentElement.classList.toggle('zen-mode');
-    const isZenMode = isZenModeOn();
-    const zenModeMessage = isZenMode ? 'Entered Zen Mode' : 'Exited Zen Mode';
-    const zenModeData = isZenMode ? {
-      description: 'While active, buttons are hidden and adding or removing items is disabled.',
-    } : {
-      description: 'Buttons are now visible and you may add or remove items.',
-    };
-
-    toast(zenModeMessage, zenModeData);
-  }, []);
+  // Leaving Zen removes the Zen bar: focus that was in it comes back to this toggle.
+  useEffect(() => {
+    const left = wasZenMode.current && !isZenMode;
+    wasZenMode.current = isZenMode;
+    if (left && (document.activeElement === null || document.activeElement === document.body)) toggleRef.current?.focus();
+  }, [isZenMode]);
 
   return (
     <Toggle
+      ref={toggleRef}
       variant="outline"
       className="gap-2 px-4"
       pressed={isZenMode}
-      onPressedChange={toggleZenMode}
+      onPressedChange={setZenMode}
     >
       <ReaderIcon className="h-4 w-4"/>
       Zen

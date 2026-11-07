@@ -35,6 +35,23 @@ export function deviceImageKeys(tiers: readonly Tier[], isPackageItem: (id: stri
   return Array.from(keys);
 }
 
+/**
+ * What a shared link carries, for the share panel: the list's link images travel in the link (it
+ * holds their addresses), its device images do not (it holds only their ids). Counts items in
+ * every row, the Unranked row included, because the link holds every row.
+ */
+export function linkImageCounts(tiers: readonly Tier[], isPackageItem: (id: string) => boolean): {link: number; device: number} {
+  let link = 0;
+  let device = 0;
+  for (const tier of tiers) {
+    for (const item of tier.items) {
+      if (item.source === 'link') link++;
+      else if (deviceImageKey(item, isPackageItem) !== null) device++;
+    }
+  }
+  return {link, device};
+}
+
 /** A link image of the list: its normalised address and host, or null when the address breaks the rules. */
 export function linkImageOf(item: Pick<Item, 'source' | 'url'>): {url: string; host: string; domain: string} | null {
   if (item.source !== 'link') return null;

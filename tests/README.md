@@ -99,6 +99,7 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
+  | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
   | `shared-links` | golden links people shared, and their page tags |
@@ -159,6 +160,9 @@ tests/
   that answers a site address with a redirect to an outside host (or falls back with an
   outside `url`), and fetches the server makes for `/api/og` (it loads only the app's own
   images; `tests/unit/app/api/og/route.test.ts` checks that it requests no link image address).
+- **The tips are off in every test** but `tips.spec.ts`: the fixtures store tips off before
+  each page starts (`tests/support/test.ts`), so tips never cover what a test checks. A spec
+  turns them on with `test.use({tips: true})`.
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
 - **Some input cannot be simulated in every browser.** Firefox drops the files of a paste event
@@ -185,6 +189,10 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
   it stays put: an item goes before or after the item under the pointer, by the half the
   pointer is over, so following the target settles.
+- **Every tile takes a drag.** After each drop (mouse, keyboard, touch, also a cancelled drag),
+  the drop helpers check that every item tile has the role description "draggable"
+  (`expectEveryItemDraggable`). The editor renders it only while the drag library holds the
+  tile's draggable, so a tile that could not be dragged fails the test that dropped something.
 - **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
   after each key, and after the drop for focus to come back to the item or row handle.
 - **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with

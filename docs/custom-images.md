@@ -38,6 +38,8 @@ from a link, and images from the visitor's device (uploads and pasted images).
 | `lib/images/prepareImage.ts` | Converts other image formats and large photos before they are kept. |
 | `lib/images/legacyUploads.ts` | Moves uploads that older versions kept in localStorage into the store. |
 | `lib/images/localLists.ts` | Always-allowed sites and removed images, in localStorage. |
+| `lib/images/snapshotImport.ts` | Keeps the pictures of an opened Freeze Frame file in the store. |
+| `lib/images/snapshotDownload.ts` | Puts the list and its device images into a Freeze Frame download. |
 | `contexts/CustomImagesContext.tsx` | Connects all of this to the editor. |
 | `lib/security/csp.ts` | Builds the Content Security Policy header (`next.config.ts` sends it). |
 | `lib/images/messages.ts` | The messages people see when an image cannot be added. |

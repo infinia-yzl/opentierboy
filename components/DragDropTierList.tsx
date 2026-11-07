@@ -6,11 +6,16 @@ import Item from "@/models/Item";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
+import {FirstDragHint} from "@/components/EditorTips";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
-import {TierDragDrop, useTierDragDescription, useTierDragState, useTierItem, useTierItems, useTierRow} from "@/lib/dnd/react";
+import {DraggableTierItem, TierDragDrop, useTierDragDescription, useTierDragState, useTierItems, useTierRow} from "@/lib/dnd/react";
 import type {ItemMove, RowMove} from "@/lib/dnd/model";
+import {useZenMode} from "@/components/usePageState";
+import {useRankingOrder} from "@/components/useRankingOrder";
+import {itemsLeftText, queueOrder, type RankingOrder} from "@/lib/zen/queue";
+import {tileSize} from "@/lib/tileSize";
 
 /**
  * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
@@ -30,22 +35,25 @@ const TierItem = memo<{
   sourceId?: string;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
-}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => {
-  const {ref, isDragging, describedBy} = useTierItem({itemId: item.id, tierId, index});
-  return (
-    <div
-      ref={ref}
-      role="button"
-      tabIndex={0}
-      aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
-      aria-label={itemDisplayLabel(item)}
-      // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
-      className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
-    >
-      <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
-    </div>
-  );
-});
+}>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => (
+  // DraggableTierItem keys the tile by its item id: a tile never changes items (lib/dnd/react.tsx).
+  <DraggableTierItem itemId={item.id} tierId={tierId} index={index}>
+    {({ref, isDragging, describedBy, roleDescription}) => (
+      <div
+        ref={ref}
+        role="button"
+        tabIndex={0}
+        aria-roledescription={roleDescription}
+        aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
+        aria-label={itemDisplayLabel(item)}
+        // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
+        className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
+      >
+        <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
+      </div>
+    )}
+  </DraggableTierItem>
+));
 TierItem.displayName = 'TierItem';
 
 const TierItems = memo<{
@@ -160,7 +168,9 @@ TierRow.displayName = 'TierRow';
 /**
  * Unranked, the last row: a fixed tray under the rows, with no handle (owner decision,
  * 2026-10-31). Its heading reads "Unranked" until someone names it. The hints sit beside the
- * heading, and the "Add images" tile ends the items; both hide in Zen.
+ * heading, and the "Add images" tile ends the items; both hide in Zen. In Zen the heading says
+ * how many items are left ("Unranked · 6 left"), and with the ranking order In order or Shuffle
+ * the tray shows the item that is up next and the queue after it (UpNextTray).
  */
 const UnrankedTray = memo<{
   tier: Tier;
@@ -171,6 +181,21 @@ const UnrankedTray = memo<{
   addImagesTile?: React.ReactNode;
 }>(({tier, listIndex, showLabels, onSaveLabel, onDeleteItem, addImagesTile}) => {
   const tierLabel = tier.name.trim() || 'Unranked';
+  const isZenMode = useZenMode();
+  const {order, hideQueue, shuffled} = useRankingOrder();
+  if (isZenMode && order !== 'pick') {
+    return (
+      <UpNextTray
+        tier={tier}
+        tierLabel={tierLabel}
+        order={order}
+        shuffled={shuffled}
+        hideQueue={hideQueue}
+        showLabels={showLabels}
+        onDeleteItem={onDeleteItem}
+      />
+    );
+  }
   return (
     <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -181,9 +206,13 @@ const UnrankedTray = memo<{
           as="h2"
           emptyText="Unranked"
         />
+        {isZenMode && (
+          <span className="text-sm text-muted-foreground">· {itemsLeftText(tier.items.length)}</span>
+        )}
         {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
         <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
           <span>Drag to reorder.</span>
+          <FirstDragHint/>
           <span className="tooltip-mouse">Right-click on any item to delete.</span>
           <span className="tooltip-touch">Long-press on any item to delete.</span>
           <span className="tooltip-mouse">Paste an image to add it as an item.</span>
@@ -199,6 +228,76 @@ const UnrankedTray = memo<{
   );
 });
 UnrankedTray.displayName = 'UnrankedTray';
+
+/**
+ * The Unranked tray in Zen with the ranking order In order or Shuffle (owner decisions,
+ * 2026-10-28 and 2026-10-29): "Up next" with the next item, to drag into a row, then the queue
+ * of the items after it. "Hide the queue" shows the queue as blank tiles. The tray still takes
+ * items dropped on it, and the queue follows the tray: an item put back comes up again in its
+ * place (In order) or in its drawn place (Shuffle; last when it was added after the draw).
+ */
+const UpNextTray = memo<{
+  tier: Tier;
+  tierLabel: string;
+  order: RankingOrder;
+  shuffled: readonly string[];
+  hideQueue: boolean;
+  showLabels: boolean;
+  onDeleteItem: (itemId: string) => void;
+}>(({tier, tierLabel, order, shuffled, hideQueue, showLabels, onDeleteItem}) => {
+  const queueLabelId = useId();
+  const {ref, isDropTarget} = useTierItems({tierId: tier.id});
+  const places = new Map(tier.items.map((item, index) => [item.id, {item, index}]));
+  const [nextId, ...restIds] = queueOrder(tier.items.map(item => item.id), order, shuffled);
+  const next = nextId === undefined ? undefined : places.get(nextId);
+  const rest = restIds.flatMap(id => places.get(id)?.item ?? []);
+  return (
+    <section role="group" aria-label={tierLabel} className="mt-4 w-full rounded-xl bg-muted p-3">
+      <div
+        ref={ref}
+        className={`min-h-16 md:min-h-20 flex flex-wrap items-end gap-x-6 gap-y-3 ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
+      >
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-sm font-semibold">Up next</h2>
+            <span className="text-sm text-muted-foreground">{itemsLeftText(tier.items.length)}</span>
+          </div>
+          {next && (
+            <div className="relative self-start">
+              {/* The same tile as in the rows: DraggableTierItem keys it by its item, so when
+                  the item up next changes, a new tile takes its place. */}
+              <TierItem
+                item={next.item}
+                tierId={tier.id}
+                index={next.index}
+                showLabels={showLabels}
+                onDeleteItem={onDeleteItem}
+              />
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 ring-4 ring-inset ring-ring"/>
+            </div>
+          )}
+        </div>
+        {rest.length > 0 && (
+          <div className="flex min-w-0 flex-col gap-2">
+            <span id={queueLabelId} className="text-sm text-muted-foreground">{hideQueue ? 'Queue (hidden)' : 'Queue'}</span>
+            <ol aria-labelledby={queueLabelId} className="flex flex-wrap">
+              {rest.map(item => hideQueue ? (
+                <li key={item.id} aria-hidden="true" className={`${tileSize(item).className} flex items-center justify-center border-r border-muted bg-muted-foreground/15 font-heading text-3xl font-black text-muted-foreground`}>
+                  ?
+                </li>
+              ) : (
+                <li key={item.id} aria-label={itemDisplayLabel(item)}>
+                  <ItemTile {...item} showLabel={showLabels}/>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+});
+UpNextTray.displayName = 'UpNextTray';
 
 const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
   const {rowDrag, dragging} = useTierDragState();

@@ -34,10 +34,13 @@ device and is not shared with us or any third parties.
 
 - **Local storage** holds your appearance choices (Light, Dark or System mode, game colours, and the Modern or Classic
   font), the lists you opened recently and the ones you pinned ("Recently viewed"), the websites whose images you chose
-  to always load, and the ids of pictures your browser had to remove for lack of space. It can also hold pictures
+  to always load, the ids of pictures your browser had to remove for lack of space, and which tips you have seen, and
+  whether tips are off. It can also hold pictures
   that older versions of the Service saved there, until the Service can move them to IndexedDB.
 - **IndexedDB** holds the pictures you upload, paste or drop from your device, so that your lists still show them on
   your next visit.
+- **Session storage** holds the page addresses of the list versions in the current tab, so that Zen can count your
+  steps. It holds no list, and your browser removes it when you close the tab.
 
 You can remove all of this data by clearing this site's data in your browser settings.
 
