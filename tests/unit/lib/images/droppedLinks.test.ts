@@ -5,8 +5,10 @@ import {
   addressesInUriList,
   checkAddresses,
   foundNothing,
+  imageSourcesInHtml,
   linkImagesFromDrop,
   linkImagesFromPaste,
+  MAX_DROPPED_IMAGES_READ,
   MAX_DROPPED_TEXT_LENGTH,
   MAX_LINKS_PER_ADD,
   shownAddress,
@@ -67,6 +69,54 @@ describe('addressesInUriList', () => {
   it('returns no address when the list is empty or not a string', () => {
     expect(addressesInUriList('')).toEqual([]);
     expect(addressesInUriList(undefined as unknown as string)).toEqual([]);
+  });
+});
+
+describe('imageSourcesInHtml', () => {
+  it('returns the src of each img tag, in order, when the HTML has images', () => {
+    const html = '<meta charset="utf-8"><a href="https://a.org/page"><img alt="x" src="https://a.org/one.png"></a>'
+      + "<IMG SRC='https://a.org/two.png'><img\nclass=big\nsrc=https://a.org/three.png>";
+    expect(imageSourcesInHtml(html)).toEqual(['https://a.org/one.png', 'https://a.org/two.png', 'https://a.org/three.png']);
+  });
+
+  it('returns the address with its character references decoded when the src has them', () => {
+    expect(imageSourcesInHtml('<img src="https://a.org/i.png?a=1&amp;b=2&#38;c=&#x33;">')).toEqual(['https://a.org/i.png?a=1&b=2&c=3']);
+    expect(imageSourcesInHtml('<img src="https://a.org/&#0;&#x110000;&nbsp;.png">')).toEqual(['https://a.org/&#0;&#x110000;&nbsp;.png']);
+  });
+
+  it('returns no address when an attribute only ends in src or the tag is not an img', () => {
+    expect(imageSourcesInHtml('<img data-src="https://a.org/lazy.png"><image src="https://a.org/svg.png"><imgx src="https://a.org/x.png">')).toEqual([]);
+    expect(imageSourcesInHtml('<p>src="https://a.org/text.png"</p>')).toEqual([]);
+  });
+
+  it('returns an empty src as an empty string when the img has one', () => {
+    expect(imageSourcesInHtml('<img src="">')).toEqual(['']);
+  });
+
+  it('returns the script and markup as plain text when the HTML has them', () => {
+    const html = '<script>window.hacked = true</script><img src="x" onerror="window.hacked = true"><img src="javascript:alert(1)">';
+    expect(imageSourcesInHtml(html)).toEqual(['x', 'javascript:alert(1)']);
+    expect((globalThis as {hacked?: boolean}).hacked).toBeUndefined();
+    expect(checkAddresses(imageSourcesInHtml(html)).accepted).toEqual([]);
+  });
+
+  it('returns at most MAX_DROPPED_IMAGES_READ addresses when the HTML has more images', () => {
+    const html = Array.from({length: MAX_DROPPED_IMAGES_READ + 5}, (_, n) => `<img src="https://a.org/${n}.png">`).join('');
+    const sources = imageSourcesInHtml(html);
+    expect(sources).toHaveLength(MAX_DROPPED_IMAGES_READ);
+    expect(sources[0]).toBe('https://a.org/0.png');
+  });
+
+  it('returns no address when the HTML is empty, not a string or longer than MAX_DROPPED_TEXT_LENGTH', () => {
+    expect(imageSourcesInHtml('')).toEqual([]);
+    expect(imageSourcesInHtml(undefined as unknown as string)).toEqual([]);
+    expect(imageSourcesInHtml(`<img src="https://a.org/a.png">${' '.repeat(MAX_DROPPED_TEXT_LENGTH)}`)).toEqual([]);
+  });
+
+  it('returns quickly when the HTML is a long run of unclosed img tags', () => {
+    const started = performance.now();
+    expect(imageSourcesInHtml('<img '.repeat(MAX_DROPPED_TEXT_LENGTH / 5))).toEqual([]);
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 });
 

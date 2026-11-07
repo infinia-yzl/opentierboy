@@ -24,8 +24,8 @@ import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/im
 import {
   type FoundLinkImages,
   foundNothing,
+  imageSourcesInHtml,
   linkImagesFromDrop,
-  MAX_DROPPED_TEXT_LENGTH,
   MAX_LINKS_PER_ADD,
 } from '@/lib/images/droppedLinks';
 import {IMAGE_CHECK_FAILURE_MESSAGES} from '@/lib/images/messages';
@@ -512,24 +512,6 @@ function dialogOpen(): boolean {
     '[role="menu"][data-state="open"]',
     '[role="listbox"][data-state="open"]',
   ].join(', ')) !== null;
-}
-
-/** The most `<img>` addresses read from a drop's HTML. */
-const MAX_DROPPED_IMAGES_READ = 100;
-
-/**
- * The addresses of the images in a drop's HTML (an image dragged from another page). The HTML is
- * parsed in a document of its own, which runs no script and loads nothing; only the `src`
- * attributes are read, as text.
- */
-function imageSourcesInHtml(html: string): string[] {
-  if (html === '' || html.length > MAX_DROPPED_TEXT_LENGTH) return [];
-  try {
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
-    return Array.from(parsed.images).slice(0, MAX_DROPPED_IMAGES_READ).map((image) => image.getAttribute('src') ?? '');
-  } catch {
-    return [];
-  }
 }
 
 /** The link images a drop carries (lib/images/droppedLinks.ts finds and checks them). */
