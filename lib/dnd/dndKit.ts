@@ -1,6 +1,7 @@
-import {ActivationConstraint, configure, type ActivationConstraints, type Plugins} from '@dnd-kit/abstract';
+import {ActivationConstraint, configure, type ActivationConstraints, type CollisionDetector, type Plugins} from '@dnd-kit/abstract';
 import {
   Accessibility,
+  Droppable,
   Feedback,
   KeyboardSensor,
   PointerActivationConstraints,
@@ -315,4 +316,15 @@ export function moveDraggedToItsPlace(manager: DragDropManager): void {
   const current = shape.current.boundingRectangle;
   const by = {x: target.left - current.left, y: target.top - current.top};
   if (by.x || by.y) manager.actions.move({by});
+}
+
+/**
+ * dnd-kit's own collision detector, the one every droppable gets by default (pointer, then
+ * shape intersection). The app does not depend on @dnd-kit/collision, so it reads the detector
+ * from a droppable that is never registered, made once, in the browser, at the first use.
+ */
+let defaultDetector: CollisionDetector | undefined;
+export function defaultCollisionDetector(): CollisionDetector {
+  defaultDetector ??= new Droppable({id: 'otb-default-collision-probe'}, undefined).collisionDetector;
+  return defaultDetector;
 }

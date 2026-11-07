@@ -3,8 +3,8 @@
 import {useSyncExternalStore} from 'react';
 
 /**
- * Page states that every item tile follows: whether the page is scrolling, and whether zen mode
- * is on. A list can hold hundreds of tiles, so each state has one listener for the whole page
+ * Page states that every item tile follows: whether the page is scrolling, whether zen mode is
+ * on, and whether the tiles are Compact. A list can hold hundreds of tiles, so each state has one listener for the whole page
  * (a store with closures, A47), and the tiles subscribe to it. One scroll listener and one
  * MutationObserver per tile made every scroll event (and every auto-scroll step of a drag) run
  * once per tile.
@@ -81,8 +81,19 @@ function createZenModeStore() {
   });
 }
 
+/** Compact tiles: the tiles-compact class on <html> (components/useAppearance.ts, useTileSizeChoice). */
+function createCompactTilesStore() {
+  const read = () => typeof document !== 'undefined' && document.documentElement.classList.contains('tiles-compact');
+  return createPageStore(read, (changed) => {
+    const observer = new MutationObserver(changed);
+    observer.observe(document.documentElement, {attributes: true, attributeFilter: ['class']});
+    return () => observer.disconnect();
+  });
+}
+
 const scrollingStore = createScrollingStore();
 const zenModeStore = createZenModeStore();
+const compactTilesStore = createCompactTilesStore();
 const serverSnapshot = () => false;
 
 /** True while the page scrolls, and for SCROLL_QUIET_MS after the last scroll event. */
@@ -93,4 +104,9 @@ export function usePageScrolling(): boolean {
 /** True while zen mode is on (the `zen-mode` class on <html>). */
 export function useZenMode(): boolean {
   return useSyncExternalStore(zenModeStore.subscribe, zenModeStore.getSnapshot, serverSnapshot);
+}
+
+/** True while the tile size is Compact (the dense editor). */
+export function useCompactTiles(): boolean {
+  return useSyncExternalStore(compactTilesStore.subscribe, compactTilesStore.getSnapshot, serverSnapshot);
 }

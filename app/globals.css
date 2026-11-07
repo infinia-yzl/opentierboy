@@ -4,6 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant zen-mode (.zen-mode &);
+/* Compact tiles (the dense editor): the tiles-compact class on <html>, never inside a frame
+   layout (components/useTileSize.ts). */
+@custom-variant compact (.tiles-compact &:not([data-zen-stage] *));
+/* Zen's frame layouts, 16:9, 9:16 and the stream overlay: inside the frame (lib/zen/layouts.ts,
+   components/ZenStage.tsx), whose CSS variables hold every size in frame pixels. */
+@custom-variant stage ([data-zen-stage] &);
+@custom-variant stage-wide ([data-zen-stage='wide'] &);
+@custom-variant stage-tall ([data-zen-stage='tall'] &);
+@custom-variant stage-overlay ([data-zen-stage='overlay'] &);
 /* Tailwind 3 behaviour: hover styles apply on touch screens too (Tailwind 4 limits them to
    devices that can hover). */
 @custom-variant hover (&:hover);
@@ -405,4 +414,12 @@ html.zen-mode .show-in-zen {
   backdrop-filter: none;
   will-change: auto;
   transform: none;
+}
+
+/*
+ * Zen's frame layouts (components/ZenStage.tsx). The frame layout covers the window and scrolls
+ * by itself, so the page under it stays still. Unlayered, so it wins over the utilities.
+ */
+html[data-zen-layout] body {
+  overflow: hidden;
 }

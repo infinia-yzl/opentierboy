@@ -4,6 +4,17 @@ import {escapeRegExp} from '../support/regexp';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
+/** The choices of the Zen bar's Layout menu. */
+export type ZenLayoutName = 'Editor' | '16:9' | '9:16' | 'Overlay · green key';
+/** The values of the `layout` address parameter (lib/zen/layouts.ts). */
+/** The tile sizes in the Row options menu (the dense editor). */
+export type TileSizeName = 'Comfortable' | 'Compact';
+
+/** A box on screen, in CSS pixels. */
+export interface Size {
+  width: number;
+  height: number;
+}
 /** The capture methods offered under "Options" in the Image tab of the share panel. */
 export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
 /** The pictures offered under "Frame" in the Image tab of the share panel. */
@@ -1818,6 +1829,193 @@ export class TierListPage {
     return this.page.getByRole('menu');
   }
 
+  // ---- Zen layouts (16:9, 9:16, stream overlay) -----------------------------------------
+
+  /** The Zen bar's button that opens the Layout menu; its name says the layout. */
+  get layoutButton(): Locator {
+    return this.zenBar.getByRole('button', {name: /^Layout: /});
+  }
+
+  /** Opens a list, turns Zen on and chooses a layout in the Zen bar's Layout menu. */
+  async gotoInLayout(path: string, state: string | undefined, layout: ZenLayoutName) {
+    await this.goto(path, state);
+    await this.setZenMode(true);
+    if (layout !== 'Editor') await this.chooseLayout(layout);
+  }
+
+  /** Opens a page by its address as typed, for example with parameters the app does not read. */
+  async gotoAddress(address: string) {
+    await this.page.goto(address);
+    await expect(this.tiers.first()).toBeVisible();
+  }
+
+  /** Chooses a layout in the Zen bar's Layout menu. It writes no history entry. */
+  async chooseLayout(name: ZenLayoutName) {
+    await this.layoutButton.click();
+    await this.page.getByRole('menuitemradio', {name, exact: true}).click();
+    await expect(this.layoutButton).toHaveAccessibleName(`Layout: ${name}`);
+  }
+
+  /** Opens the Zen bar's Layout menu, and returns it. */
+  async openLayoutMenu(): Promise<Locator> {
+    await this.layoutButton.click();
+    return this.page.getByRole('menu');
+  }
+
+  /**
+   * Every open menu. An open menu hides the rest of the page from assistive technology, also
+   * another open menu, so this counts the hidden ones too.
+   */
+  get openMenus(): Locator {
+    return this.page.getByRole('menu', {includeHidden: true});
+  }
+
+  /**
+   * Clicks a menu button of the Zen bar while one of its menus is open, as a person can: the
+   * open menu hides the bar from assistive technology, but the bar still takes clicks.
+   */
+  async clickZenBarMenuButtonOverOpenMenu(menu: 'Ranking order' | 'Layout') {
+    const bar = this.page.getByRole('toolbar', {name: 'Zen', includeHidden: true});
+    await bar.getByRole('button', {name: new RegExp(`^${menu}: `), includeHidden: true}).click();
+  }
+
+  /** The name of the item up next (In order or Shuffle). */
+  async upNextItemName(): Promise<string> {
+    await expect(this.upNextItem).toHaveCount(1);
+    return (await this.upNextItem.getAttribute('aria-label')) ?? '';
+  }
+
+  /**
+   * Drags an item to the end of a tier with the mouse, as a person does: one press on the item,
+   * one movement to the row in small steps, one release. Unlike dragItemToTier it never presses
+   * twice: a press that starts no drag of the item (the browser's own drag of its image, for
+   * example) fails. Returns once the link is in the address bar.
+   */
+  async dragItemToTierByHand(itemName: string, tierName: string) {
+    // A press starts a drag only once the previous drop has landed. The drag library takes
+    // presses again a frame or two after the drop animation ends, when the rows drop their
+    // data-dragging mark (components/DragDropTierList.tsx, RowList). A person never presses
+    // that fast; a test can.
+    await this.dropSettled();
+    await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
+      message: 'the previous drop should have landed',
+    }).toBe(true);
+    await this.changeAndWaitForLink(async () => {
+      const item = this.item(itemName);
+      // In a creator layout the rows and the tray scroll on their own, inside a frame that stays
+      // still: the row first, then the item.
+      await this.tier(tierName).scrollIntoViewIfNeeded();
+      await item.scrollIntoViewIfNeeded();
+      const from = await centerOf(item);
+      const row = await boxOf(this.tier(tierName));
+      const mouse = this.page.mouse;
+      await mouse.move(from.x, from.y);
+      await mouse.down();
+      const to = {x: row.x + row.width - 120, y: row.y + row.height / 2};
+      await mouse.move(to.x, to.y, {steps: 20});
+      const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`);
+      // A hand never holds perfectly still: when the drag has not reached the row, the pointer
+      // moves by a pixel and back, as a person's does (still the one press). On a busy machine
+      // the drag library can miss the last move; a nudge never turns another row into this one.
+      const reached = await expect(this.dragAnnouncer).toHaveText(atRow, {timeout: 3_000}).then(() => true, () => false);
+      if (!reached) {
+        let nudge = 1;
+        await expect(async () => {
+          nudge = -nudge;
+          await mouse.move(to.x + nudge, to.y);
+          await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow, {timeout: 1_000});
+        }).toPass({timeout: 10_000});
+      }
+      await mouse.up();
+      await this.dropSettled();
+    });
+  }
+
+  /** The items of an open menu, whatever their kind (radio, check box or plain item), in order. */
+  menuItems(menu: Locator): Locator {
+    return menu.getByRole('menuitemradio').or(menu.getByRole('menuitemcheckbox')).or(menu.getByRole('menuitem'));
+  }
+
+  /** The frame of a creator layout: "Frame 16:9" (16:9 and the overlays) or "Frame 9:16". */
+  get zenFrame(): Locator {
+    return this.page.getByRole('region', {name: /^Frame /});
+  }
+
+  /** The size of an element on screen, in CSS pixels, rounded. */
+  async sizeOf(locator: Locator): Promise<Size> {
+    const box = await locator.boundingBox();
+    if (!box) throw new Error('The element is not on screen');
+    return {width: Math.round(box.width), height: Math.round(box.height)};
+  }
+
+  /**
+   * Clicks the frame's top left corner: the green key in the overlay, away from the list's panel.
+   * Waits until no tooltip is left: a closing tooltip still takes the next Escape.
+   */
+  async clickFrameCorner() {
+    const frame = await boxOf(this.zenFrame);
+    await this.page.mouse.click(frame.x + 10, frame.y + 10);
+    await expect(this.page.getByRole('tooltip')).toHaveCount(0);
+  }
+
+  /** The colour of the cover behind a creator layout's frame, as a computed CSS colour. */
+  async frameCoverColour(): Promise<string> {
+    return this.zenFrame.evaluate((frame) => getComputedStyle(frame.parentElement as Element).backgroundColor);
+  }
+
+  /**
+   * The Unranked tray scrolls (a long list in a creator layout): true when its items, or Up next
+   * and the queue, are taller than the box that scrolls them.
+   */
+  async unrankedItemsScroll(): Promise<boolean> {
+    return scrollsInside(this.unranked.getByRole('button').first());
+  }
+
+  /** The rows scroll (more rows than a creator layout's frame holds): true when they are taller than their box. */
+  async rowsScroll(): Promise<boolean> {
+    return scrollsInside(this.tiers.first());
+  }
+
+  /**
+   * True when the content of a creator layout's frame, or of the cover around it, is taller than
+   * its box: then the frame or the cover would scroll. A creator layout keeps both still (owner
+   * decision, 2026-11-01).
+   */
+  async frameOverflows(): Promise<boolean> {
+    return this.zenFrame.evaluate((frame) => [frame, frame.parentElement as HTMLElement]
+      .some((box) => box.scrollHeight > box.clientHeight + 1 || box.scrollTop > 0));
+  }
+
+  /** The name a Compact tile shows under itself, with Show Labels on. */
+  itemCaption(name: string): Locator {
+    return this.item(name).getByText(name, {exact: true});
+  }
+
+  // ---- Tile size (the dense editor) ------------------------------------------------------
+
+  /** Chooses a tile size in the Row options menu. A view setting: it writes no link. */
+  async chooseTileSize(name: TileSizeName) {
+    await this.rowOptionsButton.click();
+    const choice = this.rowOption(name);
+    // Choosing Compact turns Show Labels off, which rewrites the link in place: wait for it.
+    const turnsLabelsOff = name === 'Compact'
+      && await choice.getAttribute('aria-checked') !== 'true'
+      && await this.rowOption('Show Labels').getAttribute('aria-checked') === 'true';
+    if (turnsLabelsOff) await this.changeAndWaitForLink(() => choice.click());
+    else await choice.click();
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  /** The name tag that a Compact tile shows under itself on hover or keyboard focus. */
+  itemNameTag(name: string): Locator {
+    return this.item(name).getByRole('tooltip');
+  }
+
+  /** Moves the mouse over an item. */
+  async hoverItem(name: string) {
+    await this.item(name).hover();
+  }
+
   // ---- Notifications ---------------------------------------------------------------------
 
   /** A toast notification that contains the given text. */
@@ -1836,6 +2034,21 @@ export class TierListPage {
 }
 
 type Box = {x: number; y: number; width: number; height: number};
+
+/**
+ * True when the nearest box around an element that scrolls (overflow auto or scroll) has more
+ * content than room. False when no box around it scrolls.
+ */
+async function scrollsInside(locator: Locator): Promise<boolean> {
+  return locator.evaluate((element) => {
+    let box: HTMLElement | null = element.parentElement;
+    while (box && box !== document.body) {
+      if (/(auto|scroll)/.test(getComputedStyle(box).overflowY)) return box.scrollHeight > box.clientHeight + 1;
+      box = box.parentElement;
+    }
+    return false;
+  });
+}
 
 /** True when two boxes share some area (boxes that only touch at an edge do not). */
 function boxesOverlap(a: Box, b: Box): boolean {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, {createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState} from 'react';
-import {CollisionPriority} from '@dnd-kit/abstract';
+import {CollisionPriority, type CollisionDetector} from '@dnd-kit/abstract';
 import {
   DragDropProvider,
   useDragDropManager,
@@ -23,6 +23,7 @@ import {
   endedWithoutDrop,
   isKeyboardDrag,
   keyboardDirection,
+  defaultCollisionDetector,
   measureRows,
   moveDraggedToItsPlace,
   pauseAutoScroll,
@@ -379,6 +380,46 @@ function projectKey<T extends TierLike>(drag: Drag<T>, before: T[], event: DragM
   return from && to ? moveItem(before, from, to) : before;
 }
 
+/**
+ * The part of an element that the boxes around it show: each ancestor that clips its overflow
+ * (a box that scrolls, or hides what spills out) cuts the element's rectangle. The window does
+ * not count: a tile cut by the window's edge is not clipped here.
+ */
+function shownRect(element: Element): {top: number; right: number; bottom: number; left: number} {
+  let {top, right, bottom, left} = element.getBoundingClientRect();
+  for (let box = element.parentElement; box && box !== document.documentElement; box = box.parentElement) {
+    const {overflowX, overflowY} = getComputedStyle(box);
+    if (overflowX === 'visible' && overflowY === 'visible') continue;
+    const clip = box.getBoundingClientRect();
+    top = Math.max(top, clip.top);
+    right = Math.min(right, clip.right);
+    bottom = Math.min(bottom, clip.bottom);
+    left = Math.max(left, clip.left);
+  }
+  return {top, right, bottom, left};
+}
+
+/**
+ * A collision detector that takes no drop on a part of a droppable that a scrolling box hides.
+ * In Zen's creator layouts the Unranked tray and the rows scroll inside a frame (owner decision,
+ * 2026-11-01): a tile half scrolled out of the tray still has its whole box, which reaches over
+ * the rows above, and the pointer over a row would land in the tray. A droppable that nothing
+ * clips keeps its collisions as before.
+ */
+const shownPartCollisions: CollisionDetector = (input) => {
+  const collision = defaultCollisionDetector()(input);
+  const {element} = input.droppable as {element?: Element};
+  const pointer = input.dragOperation.position.current;
+  if (!collision || !element || !pointer) return collision;
+  const full = element.getBoundingClientRect();
+  const shown = shownRect(element);
+  const clipped = shown.top > full.top + 0.5 || shown.bottom < full.bottom - 0.5
+    || shown.left > full.left + 0.5 || shown.right < full.right - 0.5;
+  if (!clipped) return collision;
+  const overShownPart = pointer.x >= shown.left && pointer.x <= shown.right && pointer.y >= shown.top && pointer.y <= shown.bottom;
+  return overShownPart ? collision : null;
+};
+
 /** A tier row, sortable by its handle. Put `ref` on the row and `handleRef` on its handle. */
 export function useTierRow({tierId, index}: {tierId: string; index: number}) {
   const {ref, handleRef, isDragging} = useSortable({
@@ -388,6 +429,7 @@ export function useTierRow({tierId, index}: {tierId: string; index: number}) {
     type: DND_TYPES.row,
     accept: DND_TYPES.row,
     plugins: NO_SORTABLE_PLUGINS,
+    collisionDetector: shownPartCollisions,
   });
   return {ref, handleRef, isDragging};
 }
@@ -402,6 +444,7 @@ export function useTierItems({tierId}: {tierId: string}) {
     id: tierItemsDndId(tierId),
     accept: DND_TYPES.item,
     collisionPriority: CollisionPriority.Low,
+    collisionDetector: shownPartCollisions,
   });
   const {itemTargetTierId} = useContext(TierDragTargetContext);
   return {ref, isDropTarget: itemTargetTierId === tierId};
@@ -464,6 +507,7 @@ function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; i
     type: DND_TYPES.item,
     accept: DND_TYPES.item,
     plugins: NO_SORTABLE_PLUGINS,
+    collisionDetector: shownPartCollisions,
   });
   const describedBy = useContext(TierDragDescriptionContext);
   const manager = useDragDropManager();

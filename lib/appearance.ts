@@ -65,11 +65,19 @@ export function gameColourKey(packageName: string | undefined): string | undefin
   return packageName ? GAME_COLOUR_KEYS[packageName] : undefined;
 }
 
+/** The dense editor's tile size (a view setting kept in this browser): Comfortable, or Compact. */
+export type TileSizeChoice = 'comfortable' | 'compact';
+export const TILE_SIZE_STORAGE_KEY = 'otb-tile-size';
+/** On <html>: Compact tiles (48 px). Without it: Comfortable, the tiles the editor always had. */
+export const COMPACT_TILES_CLASS = 'tiles-compact';
+
 /**
- * Runs in <head> before the page paints, so the chosen font and the game colours setting show
- * from the first frame. It only reads localStorage and adds classes; it never throws.
+ * Runs in <head> before the page paints, so the chosen font, the game colours setting and the
+ * tile size show from the first frame. It only reads localStorage and adds classes; it never
+ * throws.
  */
 export const APPEARANCE_SCRIPT = `(function(){try{var d=document.documentElement;`
   + `if(localStorage.getItem('${FONT_STORAGE_KEY}')==='classic')d.classList.add('${CLASSIC_FONT_CLASS}');`
   + `if(localStorage.getItem('${GAME_COLOURS_STORAGE_KEY}')==='off')d.classList.add('${NO_GAME_COLOURS_CLASS}');`
+  + `if(localStorage.getItem('${TILE_SIZE_STORAGE_KEY}')==='compact')d.classList.add('${COMPACT_TILES_CLASS}');`
   + `}catch(e){}})();`;

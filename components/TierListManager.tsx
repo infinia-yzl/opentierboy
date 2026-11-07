@@ -15,6 +15,9 @@ import {ZenToggle} from "@/components/ZenToggle";
 import {ZenBar} from "@/components/ZenBar";
 import {setZenMode} from "@/components/zenMode";
 import {useStepLog} from "@/components/useListSteps";
+import {useActiveStage, useStageAttributes} from "@/components/useZenLayout";
+import {ZenStage} from "@/components/ZenStage";
+import {cn} from "@/lib/utils";
 import {ListTitle} from "@/components/ListTitle";
 import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
@@ -55,43 +58,67 @@ const TierListEditor: React.FC = () => {
   useStepLog();
   // Zen belongs to the editor: leaving the editor ends it, so other pages keep their header.
   useEffect(() => () => setZenMode(false, {announce: false}), []);
+  // Zen's frame layout on <html>, for the page's styles (components/useZenLayout.ts).
+  useStageAttributes();
+  const stage = useActiveStage();
 
   return (
+    // Zen's bar (Back, the step count, Forward, the ranking order, the layout and Exit Zen) in its
+    // own row above the title, or in the strip above the frame of 16:9, 9:16 and the stream
+    // overlay, which draw the same editor (ZenStage; owner decisions, 2026-11-01). First on the
+    // page, so the keyboard reaches it first.
     <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
-      <div className="w-full flex flex-col items-center">
-        {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen, in its own row
-            above the title (owner decision, 2026-11-01). First on the page, so the keyboard
-            reaches it first. */}
-        <ZenBar/>
-        {/* The title on the left and the editor's three tools on the right (owner decisions,
-            2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
-            wordmark takes their place. The title sits right above the rows; on phones the tools
-            sit above the title (2026-10-31). */}
-        <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <ListTitle title={title} onSave={setTitle}/>
-          <div role="group" aria-label="Editor tools" className="hide-in-zen flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
-            <span><ItemManager openFocusRef={openFileButtonRef}/></span>
-            <ZenToggle/>
-            <span><ShareButton title={title}/></span>
-          </div>
-          <Image src={otbLogo} alt="OpenTierBoy" height={36} className="hidden zen-mode:block h-9 w-auto self-end sm:self-center sm:shrink-0 opacity-95"/>
+    <ZenStage bar={<ZenBar/>}>
+    <div className={cn(
+      'w-full flex flex-col items-center',
+      // 16:9 and 9:16: the frame's padding, and the space between the title, rows and tray.
+      (stage === 'wide' || stage === 'tall') && 'grow px-(--stage-pad-x) py-(--stage-pad-y) gap-(--stage-gap)',
+      // The frame keeps its height: the Unranked tray takes the space left (ZenStage).
+      (stage === 'wide' || stage === 'tall') && 'min-h-0',
+      // The overlay: the list in a panel at the frame's top right (the board "Overlay · green key"),
+      // at most as tall as the frame less its margins.
+      stage === 'overlay' && 'absolute top-(--stage-pad-y) right-(--stage-pad-x) stage:w-(--stage-panel-width) max-h-[calc(var(--stage-frame-height)-2*var(--stage-pad-y))] p-(--stage-panel-pad) rounded-(--stage-panel-radius) gap-(--stage-gap) bg-background text-foreground',
+    )}>
+      {/* The title on the left and the editor's three tools on the right (owner decisions,
+          2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
+          wordmark takes their place. The title sits right above the rows; on phones the tools
+          sit above the title (2026-10-31). */}
+      <div className={stage
+        ? cn('w-full flex flex-row justify-between gap-(--stage-gap)', stage === 'tall' ? 'items-start' : 'items-end')
+        : 'w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between'}>
+        <ListTitle title={title} onSave={setTitle}/>
+        <div role="group" aria-label="Editor tools" className="hide-in-zen flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
+          <span><ItemManager openFocusRef={openFileButtonRef}/></span>
+          <ZenToggle/>
+          <span><ShareButton title={title}/></span>
         </div>
-        <LinkImageNotice/>
-        {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
-            "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
-        <div className="w-full mt-3">
-          <DragDropTierList
-            belowRows={<RowControls/>}
-            addImagesTile={<ItemManager trigger="tile"/>}
-            emptyListArea={<EmptyListDropArea/>}
-          />
-        </div>
-        <div className="w-full hide-in-zen" data-html2canvas-ignore>
-          <UrlLengthWarning urlLength={urlLength}/>
-        </div>
-        {openListDialog}
-        <DropOverlay visible={dragging && !isZenMode}/>
+        <Image
+          src={otbLogo}
+          alt="OpenTierBoy"
+          height={36}
+          className={cn(
+            'hidden zen-mode:block h-9 w-auto self-end sm:self-center sm:shrink-0 opacity-95',
+            'stage:h-(--stage-wordmark) stage:shrink-0 stage:self-auto',
+          )}
+        />
       </div>
+      <LinkImageNotice/>
+      {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
+          "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
+      <div className={stage ? cn('w-full min-h-0 flex flex-col', stage !== 'overlay' && 'grow') : 'w-full mt-3'}>
+        <DragDropTierList
+          belowRows={<RowControls/>}
+          addImagesTile={<ItemManager trigger="tile"/>}
+          emptyListArea={<EmptyListDropArea/>}
+        />
+      </div>
+      <div className="w-full hide-in-zen" data-html2canvas-ignore>
+        <UrlLengthWarning urlLength={urlLength}/>
+      </div>
+      {openListDialog}
+      <DropOverlay visible={dragging && !isZenMode}/>
+    </div>
+    </ZenStage>
     </AddImagesProvider>
   );
 };

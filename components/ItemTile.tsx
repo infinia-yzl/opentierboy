@@ -12,8 +12,9 @@ import {TrashIcon} from "@radix-ui/react-icons";
 import Item from "@/models/Item";
 import {useDeviceImage, useLinkImage} from "@/contexts/CustomImagesContext";
 import {itemDisplayLabel} from "@/lib/images/listImages";
-import {tileSize} from "@/lib/tileSize";
-import {usePageScrolling, useZenMode} from "@/components/usePageState";
+import {tileClassName, tileSize} from "@/lib/tileSize";
+import {useCompactTiles, usePageScrolling, useZenMode} from "@/components/usePageState";
+import {useActiveStage} from "@/components/useZenLayout";
 
 /**
  * A tile's picture never starts the browser's own drag (owner decision, 2026-11-01): items move
@@ -60,14 +61,23 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
   // One listener for the whole page, shared by every tile (components/usePageState.ts).
   const isZenMode = useZenMode();
   const isScrolling = usePageScrolling();
+  // Compact tiles show the name only in a tag on hover; a frame layout has its own sizes.
+  const compactTiles = useCompactTiles();
+  const stage = useActiveStage();
+  const isCompact = compactTiles && stage === null;
 
   const handleDelete = useCallback(() => onDelete(id), [id, onDelete]);
 
-  const tileContent = (
-    <div className={`relative ${size.className} overflow-hidden`}
+  const hasImage = Boolean(linkSrc || tileImageUrl);
+  // Compact tiles (the dense editor) follow Show Labels (owner decision, 2026-11-01): with
+  // labels on, a picture's name sits under the tile; with labels off, a tag shows it on hover or
+  // keyboard focus, and the tile lets the tag out of its box. A label tile shows its name inside.
+  const captioned = isCompact && showLabel && hasImage;
+  const box = (
+    <div className={`group/tile relative ${tileClassName({shape})} overflow-hidden compact:overflow-visible`}
          title={domain ? `Image from ${domain}` : undefined}
          onDragStart={preventNativeDrag}>
-      {linkSrc || tileImageUrl ? (
+      {hasImage ? (
         <>
           <div className="absolute inset-0 overflow-hidden">
             {linkSrc ? (
@@ -99,16 +109,16 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
               />
             )}
           </div>
-          {showLabel && (
+          {showLabel && !isCompact && (
             // The label background is a plain rgb() value: "Original html2canvas" (Freeze Frame)
             // cannot read the oklab() colour that Tailwind 4 writes for bg-black/30.
             <div
               className={`absolute bottom-0 left-0 right-0 bg-[rgb(0_0_0/0.3)] ${
                 isScrolling ? '' : 'tile-label-blur backdrop-blur-xs will-change-transform transform-gpu'
-              }  p-1 transition-all ease-in-out`}
+              }  p-1 stage:p-[calc(var(--stage-label)*0.25)] transition-all ease-in-out compact:hidden`}
             >
               <span
-                className="text-[9px] leading-tight text-white block mb-0.5 text-center"
+                className="text-[9px] stage:text-(length:--stage-label) stage:font-semibold leading-tight text-white block mb-0.5 text-center"
               >
                 {label}
               </span>
@@ -116,13 +126,28 @@ const ItemTile: React.FC<ItemTileProps> = memo(({
           )}
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full text-sm text-center break-words">
+        <div className="flex flex-col items-center justify-center h-full overflow-hidden text-sm compact:text-[9px] compact:leading-tight stage:text-(length:--stage-label) text-center break-words">
           <span>{label}</span>
           {domain && domain !== label && <span className="text-[9px] leading-tight text-muted-foreground">{domain}</span>}
         </div>
       )}
+      {isCompact && !captioned && (
+        <span
+          role="tooltip"
+          className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md group-hover/tile:block in-focus-visible:block"
+        >
+          {label}
+        </span>
+      )}
     </div>
   );
+  const tileContent = captioned ? (
+    // As wide as the tile; the name keeps to one line and ends with an ellipsis when it is longer.
+    <div className="flex w-min flex-col items-center" onDragStart={preventNativeDrag}>
+      {box}
+      <span className="mt-0.5 block w-0 min-w-full truncate text-center text-[10px] leading-tight">{label}</span>
+    </div>
+  ) : box;
 
   if (isZenMode) {
     return tileContent;

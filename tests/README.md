@@ -87,7 +87,7 @@ tests/
 
   | File | Area |
   | --- | --- |
-  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen |
+  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen; tile sizes |
   | `editor-labels` | the title, row names, label position and label visibility |
   | `editor-rows` | adding and removing rows |
   | `editor-items` | adding, removing and resetting items; unknown items |
@@ -99,6 +99,7 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
+  | `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlay (green key) |
   | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
@@ -203,6 +204,22 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   not wait for it; the long press waits until the item menu shows.
 - **Rows that wrap** are tested at the default window size: twelve tiles do not fit on one
   line.
+
+### Zen's creator layouts
+
+`tests/e2e/zen-layouts.spec.ts` opens a layout the way a person does: Zen on, then the Layout
+menu (`TierListPage.gotoInLayout`); no address opens one. A creator layout draws a frame under a
+strip that holds the Zen bar, and the two together fit the window. A frame pixel is a CSS pixel
+when the window is as wide as the frame and as high as the frame plus the strip: 1920 x 1168 for
+16:9 and the overlay (an 88 px strip), 1080 x 2024 for 9:16 (a 104 px strip). The Zen bar is
+always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item under it.
+
+No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
+Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
+the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
+into view, then the item, before it drags; when the drag has not reached the row 3 s after the
+move, it nudges the pointer by a pixel and back (still one press), as a hand does. The long-list tests use the full THE FINALS template
+(77 items) and a list of 19 rows.
 
 ### Tile shapes
 
