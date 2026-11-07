@@ -13,6 +13,23 @@ from a link, and images from the visitor's device (uploads and pasted images).
   its site when the address has no file name. A link image in a link without any label is
   named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
+- **Dropping a link or pasting an image address** (#107) adds a link image, through the same
+  checks as "From a link": the address must pass `checkLinkImageUrl`, and its image is loaded
+  once (`checkImage`) and added only when it loads. The visitor chose the image, so its site may
+  load on this page, as with "From a link" (`useLinkImageItems` in `components/useAddItems.ts`,
+  which both use). An address that is not an image (a web page, a video) adds nothing and says
+  nothing; only an image refused for its size gets a message. A drop of an image from another
+  page uses the `<img>` addresses in the drop's HTML, else its link list (`text/uri-list`), else
+  its text; a paste uses only the words that look like addresses (`https://...`, `data:`), so
+  pasted sentences do nothing. One drop or paste adds at most 20 addresses (`MAX_LINKS_PER_ADD`)
+  and reads at most 100,000 characters, and all its images are one change (one Back step). The
+  server never fetches these addresses.
+- **Zen** turns off adding items: dropped links and pasted addresses add nothing, and the drop
+  overlay does not show. Dropped and pasted picture files are added in Zen, as before.
+- **While something is dragged over the editor**, an overlay says where to drop it. An empty
+  list shows a drop area in the Unranked tray, with Template, Upload and Link. The words about
+  dropping and pasting (the overlay aside) show only with a mouse: on touch screens the drop
+  area reads "Add images here", and the tile and menu hints hide.
 - **Images from other sites**: when a list holds link images from sites that are not trusted,
   a notice lists those sites, with [Load] (for this page) and [Always allow these sites]
   (remembered in this browser). Until then, those items show as label tiles and the browser
@@ -24,8 +41,9 @@ from a link, and images from the visitor's device (uploads and pasted images).
   a label tile. When the browser cannot keep images, the editor says once that they last only
   for the tab.
 - **Freeze Frame** draws link images when their site allows it, and label tiles otherwise.
-- **Link previews** draw images from trusted sites, and label tiles for other link images and
-  for uploads.
+- **Link previews** draw only image-set pictures. Every link image (from any site, trusted or
+  not) and every upload is a label tile (owner decision, 2026-11-01). The server never fetches
+  a link image's address.
 
 | Module | What it does |
 | --- | --- |
@@ -33,6 +51,7 @@ from a link, and images from the visitor's device (uploads and pasted images).
 | `lib/images/trustedSites.ts` + `trusted-image-sites.json` | Sites whose images load without asking. |
 | `scripts/check-trusted-sites.mjs` + `scripts/tracker-list.pin.json` | Fails when a trusted site is a known tracker. |
 | `lib/images/deviceStore.ts` | Keeps images from the device in the browser (IndexedDB). |
+| `lib/images/droppedLinks.ts` | Finds and checks the image addresses in dropped or pasted text. |
 | `lib/images/imageCheck.ts` | Loads an image once to check it, and gives label-tile data. |
 | `lib/images/prepareImage.ts` | Converts other image formats and large photos before they are kept. |
 | `lib/images/legacyUploads.ts` | Moves uploads that older versions kept in localStorage into the store. |
@@ -40,7 +59,6 @@ from a link, and images from the visitor's device (uploads and pasted images).
 | `lib/images/snapshotImport.ts` | Keeps the pictures of an opened Freeze Frame file in the store. |
 | `lib/images/snapshotDownload.ts` | Puts the list and its device images into a Freeze Frame download. |
 | `contexts/CustomImagesContext.tsx` | Connects all of this to the editor. |
-| `app/api/og/link-images.ts` | Loads trusted link images for link previews, with caps. |
 | `lib/security/csp.ts` | Builds the Content Security Policy header (`next.config.ts` sends it). |
 | `lib/images/messages.ts` | The messages people see when an image cannot be added. |
 

@@ -7,7 +7,9 @@ import {TierListProvider, useTierContext} from '@/contexts/TierContext';
 import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
-import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import {useEditorDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import DropOverlay from "@/components/DropOverlay";
+import {useZenMode} from "@/components/usePageState";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ZenBar} from "@/components/ZenBar";
@@ -17,7 +19,7 @@ import {useActiveStage, useStageAttributes} from "@/components/useZenLayout";
 import {ZenStage} from "@/components/ZenStage";
 import {cn} from "@/lib/utils";
 import {ListTitle} from "@/components/ListTitle";
-import ItemManager from "@/components/ItemManager";
+import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
 import {ItemSet} from "@/models/ItemSet";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
@@ -46,9 +48,12 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
-  usePasteImages(openFiles);
-  useFileDrop(openFiles);
+  // Image addresses that someone drops or pastes: link images (#107).
+  const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
+  usePasteImages(openFiles, openLinks);
+  const dragging = useEditorDrop(openFiles, openLinks);
+  // No drop overlay in Zen, which turns off adding items.
+  const isZenMode = useZenMode();
   // The Zen bar's step count, in browsers without the Navigation API (components/useListSteps.ts).
   useStepLog();
   // Zen belongs to the editor: leaving the editor ends it, so other pages keep their header.
@@ -62,6 +67,7 @@ const TierListEditor: React.FC = () => {
     // own row above the title, or in the strip above the frame of 16:9, 9:16 and the stream
     // overlay, which draw the same editor (ZenStage; owner decisions, 2026-11-01). First on the
     // page, so the keyboard reaches it first.
+    <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
     <ZenStage bar={<ZenBar/>}>
     <div className={cn(
       'w-full flex flex-col items-center',
@@ -82,7 +88,7 @@ const TierListEditor: React.FC = () => {
         : 'w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between'}>
         <ListTitle title={title} onSave={setTitle}/>
         <div role="group" aria-label="Editor tools" className="hide-in-zen flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
-          <span><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
+          <span><ItemManager openFocusRef={openFileButtonRef}/></span>
           <ZenToggle/>
           <span><ShareButton title={title}/></span>
         </div>
@@ -102,15 +108,18 @@ const TierListEditor: React.FC = () => {
       <div className={stage ? cn('w-full min-h-0 flex flex-col', stage !== 'overlay' && 'grow') : 'w-full mt-3'}>
         <DragDropTierList
           belowRows={<RowControls/>}
-          addImagesTile={<ItemManager onOpenFiles={openFiles} trigger="tile"/>}
+          addImagesTile={<ItemManager trigger="tile"/>}
+          emptyListArea={<EmptyListDropArea/>}
         />
       </div>
       <div className="w-full hide-in-zen" data-html2canvas-ignore>
         <UrlLengthWarning urlLength={urlLength}/>
       </div>
       {openListDialog}
+      <DropOverlay visible={dragging && !isZenMode}/>
     </div>
     </ZenStage>
+    </AddImagesProvider>
   );
 };
 

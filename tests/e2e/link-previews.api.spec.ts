@@ -134,11 +134,14 @@ test.describe('link previews', () => {
       return response.body();
     }
 
-    test('returns the same preview for any untrusted address with the same label when the state parameter has a link image', async ({request}) => {
+    test('returns the same preview for any address, trusted or not, with the same label when the state parameter has a link image', async ({request}) => {
       const first = await linkImagePreview(request, [{u: 'https://images.example.org/a.png', c: 'Cat'}]);
       const second = await linkImagePreview(request, [{u: 'https://cdn.example.net/b.jpg', c: 'Cat'}]);
+      // Imgur is a trusted site, but previews draw only image-set pictures (owner decision, 2026-11-01).
+      const trusted = await linkImagePreview(request, [{u: 'https://i.imgur.com/cat.png', c: 'Cat'}]);
       expect(first.equals(defaultImage), 'preview should show the ranking').toBe(false);
       expect(first.equals(second), 'only the label is drawn').toBe(true);
+      expect(trusted.equals(first), 'a trusted-site image is a label tile too').toBe(true);
       // A link image without a label shows its site's name: another picture than with a label.
       const unlabelled = await linkImagePreview(request, [{u: 'https://images.example.org/a.png'}]);
       expect(unlabelled.equals(first)).toBe(false);

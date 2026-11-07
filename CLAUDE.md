@@ -248,9 +248,10 @@ docs/                 owner checklists and guides (releasing.md: versions and re
   site load only after the visitor chooses Load (this page) or Always allow these sites (kept
   in localStorage). Nothing may request such an image before that.
   `npm run check:trusted-sites` checks the list against the pinned Disconnect tracker list.
-- **The server never fetches a user's address**, with one exception: the OG route draws images
-  from trusted sites, with caps (`app/api/og/link-images.ts`). Every other link image and every
-  device image is a label tile. A link image address never reaches `inlineLocalImages`.
+- **The server never fetches a user's address.** Link previews (the OG route) draw only
+  image-set pictures and the placeholder (owner decision, 2026-11-01). Every link image, from
+  any site, trusted or not, and every device image is a label tile. A link image address never
+  reaches `inlineLocalImages`.
 - **Device images** (`{d, c}` items: uploads and pasted images) stay in the visitor's browser,
   in IndexedDB. `lib/images/deviceStore.ts` is the only module that may use IndexedDB (ESLint
   enforces it). The list holds only the image id (`isDeviceImageId` in `lib/state/deviceId.ts`).

@@ -159,8 +159,8 @@ tests/
   `route.fetch()`, `browser.newContext()`, `browser.newPage()`, `launch()`...) outside
   `tests/support`. Known limits, not guarded: `node:http` and `node:https` in tests, a route
   that answers a site address with a redirect to an outside host (or falls back with an
-  outside `url`), and fetches the server makes for `/api/og` (no test sends it a trusted-site
-  image).
+  outside `url`), and fetches the server makes for `/api/og` (it loads only the app's own
+  images; `tests/unit/app/api/og/route.test.ts` checks that it requests no link image address).
 - **The tips are off in every test** but `tips.spec.ts`: the fixtures store tips off before
   each page starts (`tests/support/test.ts`), so tips never cover what a test checks. A spec
   turns them on with `test.use({tips: true})`.
