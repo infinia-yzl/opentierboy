@@ -11,8 +11,9 @@
  * - activation.ts     when a press becomes a drag (mouse, touch hold, long-press menu)
  * - ids.ts            the ids dnd-kit sees
  * - dndKit.ts         dnd-kit sensors, plugins and page measurements built from the pieces above
- * - react.tsx         the React components and hooks (TierDragDrop, useTierRow, useTierItems,
- *                     useTierItem); import them from '@/lib/dnd/react' (client components)
+ * - react.tsx         the React components and hooks (TierDragDrop, DraggableTierItem,
+ *                     useTierRow, useTierItems); import them from '@/lib/dnd/react' (client
+ *                     components)
  *
  * Everything except dndKit.ts and react.tsx is pure (no React, no DOM, no dnd-kit) and can be
  * imported from its own file.

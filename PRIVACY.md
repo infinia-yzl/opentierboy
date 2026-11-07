@@ -39,6 +39,8 @@ device and is not shared with us or any third parties.
   that older versions of the Service saved there, until the Service can move them to IndexedDB.
 - **IndexedDB** holds the pictures you upload, paste or drop from your device, so that your lists still show them on
   your next visit.
+- **Session storage** holds the page addresses of the list versions in the current tab, so that Zen can count your
+  steps. It holds no list, and your browser removes it when you close the tab.
 
 You can remove all of this data by clearing this site's data in your browser settings.
 

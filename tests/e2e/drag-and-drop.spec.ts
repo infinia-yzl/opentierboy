@@ -1,6 +1,7 @@
 /** Moving items and rows: mouse drags, the keyboard, touch, and what screen readers hear. */
 import {expect, expectTierList, test} from '../support/test';
-import {rankingState, templateItemCount} from '../support/links';
+import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
+import {serveImageSite} from '../support/image-sites';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -303,6 +304,48 @@ test.describe('drag and drop', () => {
       for (const element of [tierList.item('Mauga'), tierList.rowHandle('S')]) {
         // Only Safari knows the touch callout; other browsers return nothing for it.
         await expect.poll(() => tierList.textSelectionStyle(element)).toEqual({userSelect: 'none', callout: expect.stringMatching(/^(none)?$/)});
+      }
+    });
+  });
+
+  // A tile's picture never starts the browser's own drag (components/ItemTile.tsx): items move only
+  // through the editor's drag and drop.
+  test.describe('native drags', () => {
+    test('writes no native drag, no new item and 1 history entry when the user presses an item during the drop animation', async ({
+      tierList,
+    }) => {
+      await tierList.goto(TANKS);
+      const nativeDrags = await tierList.countNativeDrags();
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
+
+      expect(await nativeDrags()).toBe(0);
+      await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in tier S,|Winston\. It stays in Unranked,)/);
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
+    });
+
+    test('writes a cancelled dragstart event when a dragstart event starts on an item image', async ({tierList}) => {
+      await tierList.goto(TANKS);
+
+      expect(await tierList.dragStartFromItemImageIsCancelled('Mauga')).toBe(true);
+    });
+
+    test('renders every tile image not draggable, in rows, up next and the queue, when the page opens in Zen with In order', async ({
+      tierList, page,
+    }) => {
+      await serveImageSite(page, 'i.imgur.com');
+      const tray = ['Winston', 'Sigma', 'Orisa'].map((name) => packageItemId('image-overwatch', name));
+      await tierList.goto(TANKS, v3State({t: 'Images', tp: 3, r: [['S', [{u: 'https://i.imgur.com/red.png', c: 'Red square'}]], ['A', []], ['B', []], ['', tray]]}));
+      await tierList.setZenMode(true);
+      await tierList.chooseRankingOrder('In order');
+
+      await expect.poll(() => tierList.itemImageHasLoaded('Red square')).toBe(true);
+      await expect(tierList.allItemImages).toHaveCount(4);
+      for (const image of await tierList.allItemImages.all()) {
+        await expect(image).toHaveAttribute('draggable', 'false');
       }
     });
   });

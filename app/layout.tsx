@@ -156,7 +156,8 @@ export default function RootLayout({
       enableSystem
       disableTransitionOnChange
     >
-      <header className="w-full border-b" data-html2canvas-ignore>
+      {/* Zen in the editor hides the header (owner decision, 2026-10-28). */}
+      <header className="w-full border-b hide-in-zen" data-html2canvas-ignore>
         <div className="max-w-(--breakpoint-lg) zen-mode:max-w-(--breakpoint-2xl) mx-auto px-4 transition-all duration-75 ease-in-out">
           <div className="flex flex-row py-4 justify-between items-center">
             <div className="flex flex-row items-center space-x-6">

@@ -189,6 +189,10 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
   it stays put: an item goes before or after the item under the pointer, by the half the
   pointer is over, so following the target settles.
+- **Every tile takes a drag.** After each drop (mouse, keyboard, touch, also a cancelled drag),
+  the drop helpers check that every item tile has the role description "draggable"
+  (`expectEveryItemDraggable`). The editor renders it only while the drag library holds the
+  tile's draggable, so a tile that could not be dragged fails the test that dropped something.
 - **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
   after each key, and after the drop for focus to come back to the item or row handle.
 - **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with

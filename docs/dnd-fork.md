@@ -295,7 +295,10 @@ Decisions in the adapter:
   drag starts; a browser that opens a context menu earlier on a long press (Chrome on Android)
   also stops the drag. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as
   before. These numbers are constants in `activation.ts` for a test on a real phone. Items and
-  row handles turn off text selection and the iOS touch callout (CSS).
+  row handles turn off text selection and the iOS touch callout (CSS). A tile's picture never
+  starts the browser's own drag (`components/ItemTile.tsx`: `draggable={false}`,
+  `-webkit-user-drag: none`, and a `dragstart` handler that cancels the event), also during a
+  drop animation, when a press starts no drag of the editor.
 - **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before, for
   pointer drops. dnd-kit skips it when the user prefers reduced motion. Keyboard drops have no
   animation (each arrow key already put the element on its place), so focus comes back to the
@@ -333,9 +336,13 @@ useTierRow({tierId, index}): {ref, handleRef, isDragging}
 // (low collision priority). isDropTarget: the dragged item would land in this row.
 useTierItems({tierId}): {ref, isDropTarget}
 
-// An item tile, sortable inside and between rows. describedBy: the keyboard instructions,
-// for aria-describedby.
-useTierItem({itemId, tierId, index}): {ref, isDragging, isDropping, describedBy}
+// An item tile, sortable inside and between rows: the only way to make one. It keys the tile
+// by its item id, so a tile never changes items. describedBy: the keyboard instructions, for
+// aria-describedby. roleDescription: "draggable" while the tile can start a drag, for
+// aria-roledescription.
+<DraggableTierItem itemId={item.id} tierId={tier.id} index={index}>
+  {({ref, isDragging, isDropping, describedBy, roleDescription}) => <div ref={ref} .../>}
+</DraggableTierItem>
 
 // describedBy for row handles: the keyboard instructions. It never changes during a drag.
 useTierDragDescription(): string
@@ -343,6 +350,19 @@ useTierDragDescription(): string
 // rowDrag: true during a row drag. dragging: true during any drag.
 useTierDragState(): {rowDrag, dragging}
 ```
+
+**A tile never changes its item.** dnd-kit keeps its draggables by id. In Zen the item up next
+was once one tile whose item changed after each drop: its draggable was renamed to the new item
+while the dropped item's new tile registered the old id, and dnd-kit then dropped the renamed
+one. The tile took no more drags, and a press on its picture started the browser's own image
+drag (fixed in 176120b). So `DraggableTierItem` keys the tile by its item id itself, and the hook
+behind it (`useTierItem`) is not exported. As a backstop, the hook throws a `TypeError` when a
+later render passes another item id (`assertSameTileItem` in `ids.ts`).
+`tests/unit/rules/dnd-item-tiles.test.ts` checks this wiring. The tile renders
+`aria-roledescription="draggable"` only while dnd-kit holds its draggable, and the page object's
+drop helpers check after every drop that every item tile has it
+(`TierListPage.expectEveryItemDraggable`), so any test that drops something fails on a tile that
+cannot be dragged.
 
 The drag state sits in two React contexts: the instructions (`describedBy`, read by every
 tile) never change, and the drop target and drag flags (read only by rows and the row list)
@@ -354,9 +374,10 @@ moving, so the preview trailed the pointer.
 
 `components/DragDropTierList.tsx` and `components/RowHandle.tsx` use these. They keep the
 accessible names: a row is a `group` named by its label, an item a `button` named by its
-label, a handle a `button` named `Move tier <label>`. dnd-kit adds `aria-roledescription`
-and `aria-pressed`; the editor sets `role`, `tabIndex` and `aria-describedby` itself, so the
-server-rendered page has them too.
+label, a handle a `button` named `Move tier <label>`. dnd-kit adds `aria-pressed` and the row
+handles' `aria-roledescription`; the editor sets `role`, `tabIndex` and `aria-describedby` itself,
+so the server-rendered page has them too. Item tiles render their `aria-roledescription` from
+`DraggableTierItem` (see above).
 
 ### Wiring checklist (done)
 

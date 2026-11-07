@@ -152,6 +152,29 @@ export class TierListPage {
     return this.main.getByRole('button', {name, exact: true});
   }
 
+  /**
+   * Every item tile in the rows and the Unranked tray (in Zen, the item up next). The queue
+   * after the item up next is a list of pictures, not items to drag.
+   */
+  get allItems(): Locator {
+    return this.itemsIn(this.tiers);
+  }
+
+  /**
+   * Checks that every item tile can start a drag. A tile has the role description "draggable"
+   * only while the drag library has its draggable (lib/dnd/react.tsx, DraggableTierItem), so
+   * a tile that would take no drag, where a press starts the browser's own image drag, has
+   * none. The drop helpers call this after every drop, so any test that drops something
+   * fails on such a tile.
+   */
+  async expectEveryItemDraggable() {
+    await expect.poll(() => this.allItems.evaluateAll((items) => items
+      .filter((item) => item.getAttribute('aria-roledescription') !== 'draggable')
+      .map((item) => item.getAttribute('aria-label'))), {
+      message: 'every item tile should take a drag (role description "draggable")',
+    }).toEqual([]);
+  }
+
   /** An item's image. An item without an image (a label tile) has none. */
   itemImage(name: string): Locator {
     return this.item(name).getByRole('img');
@@ -316,6 +339,15 @@ export class TierListPage {
     await expect(this.page, 'the shareable link should update').not.toHaveURL(before);
   }
 
+  /**
+   * Runs a drop that changes the list, waits for the new link, and checks again that every
+   * item tile can start a drag: the list on screen has its final tiles once the link is written.
+   */
+  private async dropAndWaitForLink(drop: () => Promise<void>) {
+    await this.changeAndWaitForLink(drop);
+    await this.expectEveryItemDraggable();
+  }
+
   // ---- Ranking -----------------------------------------------------------------------------
 
   /**
@@ -334,13 +366,73 @@ export class TierListPage {
 
   /** Drags an item with the mouse and drops it at the end of a tier. */
   async dragItemToTier(itemName: string, tierName: string) {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       // Drop in the free space at the end of the row, left of the row handle.
       this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
         x: box.x + box.width - 120,
         y: box.y + box.height / 2,
       })),
     );
+  }
+
+  /**
+   * Drags an item with the mouse to the end of a tier and, right after the release (while the
+   * drop still animates), presses another item and moves the mouse a little, as someone ranking
+   * fast does, then releases it there. A press during the drop animation starts no drag of the
+   * editor (tests/README.md, "Drag and drop"). Returns once the drop animation has ended.
+   */
+  async dragItemToTierThenPressItem(itemName: string, tierName: string, pressedName: string) {
+    const pressed = this.item(pressedName);
+    await this.dropAndWaitForLink(() =>
+      this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
+        x: box.x + box.width - 120,
+        y: box.y + box.height / 2,
+      }), {
+        afterRelease: async () => {
+          const from = await centerOf(pressed);
+          const mouse = this.page.mouse;
+          await mouse.move(from.x, from.y);
+          await mouse.down();
+          // Past the 5 px that start a mouse drag, and still on the pressed item.
+          await mouse.move(from.x + 12, from.y + 6, {steps: 4});
+          await mouse.up();
+        },
+      }),
+    );
+  }
+
+  /**
+   * Starts counting the drags the browser itself starts from now on: dragstart events that no
+   * handler cancelled (a native drag, for example of an image). Returns a function that reads
+   * the count. The listener sits on the window, so it reads each event after the page's own
+   * handlers.
+   */
+  async countNativeDrags(): Promise<() => Promise<number>> {
+    await this.page.evaluate(() => {
+      const counted = window as unknown as {nativeDrags: number};
+      counted.nativeDrags = 0;
+      window.addEventListener('dragstart', (event) => {
+        if (!event.defaultPrevented) counted.nativeDrags += 1;
+      });
+    });
+    return () => this.page.evaluate(() => (window as unknown as {nativeDrags: number}).nativeDrags);
+  }
+
+  /**
+   * Sends a dragstart event from an item's image, as the browser does when a native drag of
+   * the picture begins. Returns true when the page cancelled it (no native drag).
+   */
+  async dragStartFromItemImageIsCancelled(itemName: string): Promise<boolean> {
+    return this.itemImage(itemName).evaluate((image) => {
+      const event = new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()});
+      image.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  }
+
+  /** The images of every tile in the rows and the Unranked tray, the item up next and the queue included. */
+  get allItemImages(): Locator {
+    return this.tiers.getByRole('img');
   }
 
   /**
@@ -373,6 +465,7 @@ export class TierListPage {
     await keyboard.press('Escape');
     await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(itemName);
+    await this.expectEveryItemDraggable();
   }
 
   /**
@@ -392,7 +485,7 @@ export class TierListPage {
    * follows the target item until it stays put.
    */
   async dragItemNextTo(itemName: string, targetItemName: string, side: 'before' | 'after') {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       this.dragWithMouse(this.item(itemName), this.item(targetItemName), (box) => ({
         x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
         y: box.y + box.height / 2,
@@ -408,7 +501,7 @@ export class TierListPage {
 
   /** Drags a whole row by its handle and drops it on the position of another row. */
   async dragTierOnto(tierName: string, targetTierName: string) {
-    await this.changeAndWaitForLink(() =>
+    await this.dropAndWaitForLink(() =>
       this.dragWithMouse(this.rowHandle(tierName), this.rowHandle(targetTierName), centerOfBox),
     );
   }
@@ -429,7 +522,7 @@ export class TierListPage {
    * The page auto-scrolls while the pointer is near the top or bottom of the window. The
    * helper keeps moving the pointer to the same page point until the scrolling stops.
    */
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false} = {}) {
+  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
@@ -477,7 +570,9 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     }
     await mouse.up();
+    await afterRelease?.();
     await this.dropSettled();
+    await this.expectEveryItemDraggable();
   }
 
   /**
@@ -513,7 +608,7 @@ export class TierListPage {
    */
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
     const move = () => this.moveWithKeyboard(this.item(itemName), keys, itemName);
-    await (waitForLink ? this.changeAndWaitForLink(move) : move());
+    await (waitForLink ? this.dropAndWaitForLink(move) : move());
   }
 
   /**
@@ -522,14 +617,14 @@ export class TierListPage {
    */
   async moveItemWithKeyboardAndListen(itemName: string, keys: string[]): Promise<string[]> {
     const heard: string[] = [];
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.item(itemName), keys, itemName, heard));
     return heard;
   }
 
   /** Moves a whole row with the keyboard, using its row handle. */
   async moveTierWithKeyboard(tierName: string, keys: string[]) {
     // The labels stay in place, so the moved row's handle has the name of its new position.
-    await this.changeAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
   }
 
   private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
@@ -554,6 +649,7 @@ export class TierListPage {
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
       message: 'focus should come back to what was moved',
     }).toMatch(typeof focusAfter === 'string' ? new RegExp(`^${escapeRegExp(focusAfter)}$`) : focusAfter);
+    await this.expectEveryItemDraggable();
   }
 
   // ---- Touch (Chromium only: touch events through the Chrome DevTools Protocol) --------------
@@ -564,7 +660,7 @@ export class TierListPage {
    * wait for it. The drag starts after a 250 ms hold (lib/dnd/activation.ts).
    */
   async touchDragItemToTier(itemName: string, tierName: string) {
-    await this.changeAndWaitForLink(async () => {
+    await this.dropAndWaitForLink(async () => {
       const touch = await this.touchscreen();
       const item = this.item(itemName);
       await item.scrollIntoViewIfNeeded();
@@ -584,6 +680,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
       await touch('touchEnd', null, start + 0.7);
       await this.dropSettled();
+      await this.expectEveryItemDraggable();
     });
   }
 
@@ -1487,9 +1584,132 @@ export class TierListPage {
 
   // ---- Zen mode --------------------------------------------------------------------------
 
+  /** The Zen bar at the top centre: Back, the step count, Forward, Ranking order, Exit Zen. */
+  get zenBar(): Locator {
+    return this.page.getByRole('toolbar', {name: 'Zen'});
+  }
+
+  zenBarButton(name: 'Back' | 'Forward' | 'Exit Zen'): Locator {
+    return this.zenBar.getByRole('button', {name, exact: true});
+  }
+
+  /** The Zen bar's step count, such as "7 / 13". */
+  get zenStepCount(): Locator {
+    return this.zenBar.getByRole('status');
+  }
+
+  /** The Zen bar's button that opens the Ranking order menu; its name says the order. */
+  get rankingOrderButton(): Locator {
+    return this.zenBar.getByRole('button', {name: /^Ranking order: /});
+  }
+
+  /** The OpenTierBoy wordmark that Zen shows in place of the editor tools. */
+  get zenWordmark(): Locator {
+    return this.main.getByRole('img', {name: 'OpenTierBoy'});
+  }
+
+  /** In Zen with In order or Shuffle: the item up next, the one item of the Unranked tray to drag. */
+  get upNextItem(): Locator {
+    return this.unranked.getByRole('button');
+  }
+
+  /** In Zen with In order or Shuffle: the queue after the item up next ("Queue" or "Queue (hidden)"). */
+  queue(name: 'Queue' | 'Queue (hidden)' = 'Queue'): Locator {
+    return this.unranked.getByRole('list', {name, exact: true});
+  }
+
+  /** The items in the queue, in order, each named after its item. */
+  get queueItems(): Locator {
+    return this.queue().getByRole('listitem');
+  }
+
+  /**
+   * Turns Zen on with the Zen toggle in the title row, or off with the Zen bar's "Exit Zen"
+   * (the toggle hides in Zen, with the other tools).
+   */
   async setZenMode(on: boolean) {
-    await this.zenModeToggle.click();
-    await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', String(on));
+    if (on) {
+      await this.zenModeToggle.click();
+      await expect(this.zenBar).toBeVisible();
+    } else {
+      await this.zenBarButton('Exit Zen').click();
+      await expect(this.zenBar).toHaveCount(0);
+      await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
+    }
+  }
+
+  /**
+   * The parts of the list that the Zen bar's box overlaps: the title ("title"), the rows and the
+   * Unranked tray (by their heading) and the items (by their label). Empty when the bar covers
+   * nothing of the list.
+   */
+  async listPartsUnderZenBar(): Promise<string[]> {
+    const bar = await this.zenBar.boundingBox();
+    if (!bar) throw new Error('The Zen bar is not on the page');
+    const title = (await this.title.count()) > 0 ? this.title : this.titleInput;
+    const parts: {name: string; locator: Locator}[] = [{name: 'title', locator: title}];
+    for (const row of await this.tiers.all()) {
+      parts.push({name: `row ${await row.getByRole('heading', {level: 2}).innerText()}`, locator: row});
+    }
+    for (const item of await this.allItems.all()) {
+      parts.push({name: `item ${await item.getAttribute('aria-label')}`, locator: item});
+    }
+    const covered: string[] = [];
+    for (const {name, locator} of parts) {
+      const box = await locator.boundingBox();
+      if (box && boxesOverlap(bar, box)) covered.push(name);
+    }
+    return covered;
+  }
+
+  /**
+   * Moves the page's clock on (the test installed it with `page.clock.install()`), then waits
+   * until the page has handled what those timers started: React renders in message tasks, which
+   * the clock does not fake, so two message round trips run after them.
+   */
+  async letTimePass(ms: number) {
+    await this.page.clock.runFor(ms);
+    await this.page.evaluate(async () => {
+      for (let round = 0; round < 2; round++) {
+        await new Promise<void>((resolve) => {
+          const channel = new MessageChannel();
+          channel.port1.onmessage = () => resolve();
+          channel.port2.postMessage(null);
+        });
+      }
+    });
+  }
+
+  /** Presses a key, such as Tab or Shift+Tab, wherever the focus is. */
+  async pressKey(key: string) {
+    await this.page.keyboard.press(key);
+  }
+
+  /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
+  async stepInZenBar(name: 'Back' | 'Forward') {
+    await this.changeAndWaitForLink(() => this.zenBarButton(name).click());
+  }
+
+  /** Chooses a ranking order in the Zen bar's menu. It writes no history entry. */
+  async chooseRankingOrder(order: 'Pick freely' | 'In order' | 'Shuffle') {
+    await this.rankingOrderButton.click();
+    await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
+    await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
+  }
+
+  /** Turns "Hide the queue" on or off in the Zen bar's menu. */
+  async setHideQueue(on: boolean) {
+    await this.rankingOrderButton.click();
+    const item = this.page.getByRole('menuitemcheckbox', {name: 'Hide the queue'});
+    await expect(item).toHaveAttribute('aria-checked', String(!on));
+    await item.click();
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  /** Opens the Zen bar's Ranking order menu, and returns it. */
+  async openRankingOrderMenu(): Promise<Locator> {
+    await this.rankingOrderButton.click();
+    return this.page.getByRole('menu');
   }
 
   // ---- Notifications ---------------------------------------------------------------------
@@ -1510,6 +1730,11 @@ export class TierListPage {
 }
 
 type Box = {x: number; y: number; width: number; height: number};
+
+/** True when two boxes share some area (boxes that only touch at an edge do not). */
+function boxesOverlap(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
 type Point = {x: number; y: number};
 
 /**

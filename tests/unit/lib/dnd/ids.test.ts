@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {itemDndId, parseDndId, rowDndId, tierItemsDndId} from '@/lib/dnd/ids';
+import {assertSameTileItem, itemDndId, parseDndId, rowDndId, tierItemsDndId} from '@/lib/dnd/ids';
 
 describe('itemDndId, rowDndId, tierItemsDndId and parseDndId', () => {
   it('returns item:, row: and tier: ids that parseDndId reads back when called with app ids', () => {
@@ -21,5 +21,17 @@ describe('itemDndId, rowDndId, tierItemsDndId and parseDndId', () => {
       expect(parseDndId(value), String(value)).toBeNull();
     }
     expect(parseDndId('item:')).toEqual({kind: 'item', id: ''});
+  });
+});
+
+describe('assertSameTileItem', () => {
+  it('returns undefined when the tile is rendered for its first item id', () => {
+    expect(assertSameTileItem('image-overwatch-ana.webp', 'image-overwatch-ana.webp')).toBeUndefined();
+  });
+
+  it('throws TypeError naming both ids when the tile is rendered for another item id', () => {
+    const change = () => assertSameTileItem('image-overwatch-ana.webp', 'image-overwatch-mauga.webp');
+    expect(change).toThrow(TypeError);
+    expect(change).toThrow(new TypeError('An item tile cannot change its item (first "image-overwatch-ana.webp", now "image-overwatch-mauga.webp"): render each tile with DraggableTierItem, which keys it by its item id.'));
   });
 });
