@@ -27,7 +27,7 @@
  *   - with --files: the image of a shipped id, or the PNG copy of a WebP image that link
  *     previews load, is missing in public/images/<package>/. The `prebuild` script passes it
  *     after prepareImages, so a lost file stops the build. `npm run check` does not: the
- *     active sets are only copied into public/images/ at build time.
+ *     image sets (active and legacy) are only copied into public/images/ at build time.
  *
  * Usage:
  *   npm run check:images                 check only
@@ -188,7 +188,7 @@ if (errors.length === 0) {
     });
     if (missing.length > 0) {
       const shown = missing.slice(0, 10).join(', ') + (missing.length > 10 ? ', ...' : '');
-      errors.push(`${missing.length} image file(s) of shipped item ids are missing in public/images/: ${shown}. Run prepareImages, or restore committed legacy images with git.`);
+      errors.push(`${missing.length} image file(s) of shipped item ids are missing in public/images/: ${shown}. Run npm ci, then prepareImages.`);
     } else {
       console.log(`Image files OK: every shipped image (and the PNG copy of each WebP image) is in public/images/.`);
     }

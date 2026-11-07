@@ -19,7 +19,7 @@ export interface ImageSetPackage {
     };
   };
   /**
-   * A legacy set is frozen (imageset.legacy.json, images committed in public/images/). Its
+   * A legacy set is frozen (imageset.legacy.json, its npm package pinned to an exact version). Its
    * /rank pages, old links and link previews keep working, but the template picker, the
    * landing page and the sitemap leave it out.
    */

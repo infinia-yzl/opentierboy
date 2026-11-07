@@ -44,7 +44,7 @@ test.describe('link previews', () => {
     }
 
     test('returns a preview drawn from the item images when the state parameter has items from every legacy set', async ({request}) => {
-      // Legacy images are committed in public/images/<package>/; the build makes the PNG copies the preview loads.
+      // The build copies the legacy images from their pinned packages and makes the PNG copies the preview loads.
       const ids = LEGACY_SETS.flatMap((set) => legacyItems(set.packageName).slice(0, 2).map((label) => packageItemId(set.packageName, label)));
       const preview = async (itemIds: string[]) => {
         const json = {title: 'Legacy sets', tiers: [{i: 'tier-s', n: 'S', t: itemIds.map((i) => ({i}))}, {i: 'uncategorized', n: '', t: []}]};

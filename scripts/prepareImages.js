@@ -2,14 +2,18 @@
  * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`)
  * and writes imageset.config.json.
  *
- * Active sets (imageset.custom.json entries without "legacy"): copies (or, in development,
- * symlinks) the images of each npm package into public/images/<package>/ and makes a PNG copy
- * of every WebP image for link previews.
+ * Every image set comes from an npm package. For each one, it copies (or, in development,
+ * symlinks) the package's images into public/images/<package>/ and makes a PNG copy of every
+ * WebP image for link previews. Nothing in public/images/ is committed.
  *
- * Legacy sets ({"legacy": true} in imageset.custom.json): frozen. Their config entries come
- * from imageset.legacy.json, and their images are committed in public/images/<package>/.
- * This script checks that every committed image is there and makes the PNG copy of every
- * WebP image next to it, as for the active sets. The PNG copies are git-ignored.
+ * Active sets (imageset.custom.json entries without "legacy") get their config entry from
+ * their package and their display data from imageset.custom.json.
+ *
+ * Legacy sets ({"legacy": true} in imageset.custom.json) are frozen. Their packages are pinned
+ * to an exact version in package.json, and their config entries are the frozen entries of
+ * imageset.legacy.json. The script builds each legacy entry from its package too, with the
+ * frozen display data, and stops when it differs from the frozen entry in any way
+ * (frozenEntryDifferences in scripts/lib/image-sets.mjs).
  *
  * The PNG copies are made at link preview size (PREVIEW_COPY_SIZE in scripts/lib/image-sets.mjs:
  * the shorter side 128 px, never enlarged), and so is a copy of the placeholder tile
@@ -18,8 +22,9 @@
  * imageset.config.json lists the sets in the order of imageset.custom.json.
  *
  * It stops with exit code 1, and leaves imageset.config.json as it was, when a package is
- * missing, has no images, or an image or its PNG copy is not in public/images/. It never
- * deletes a folder that holds committed files.
+ * missing, has no images, an image or its PNG copy is not in public/images/, or a legacy set's
+ * package builds a config entry other than its frozen one. It never deletes a folder that
+ * holds committed files.
  */
 const fs = require('fs').promises;
 const path = require('path');
@@ -257,29 +262,11 @@ function assertNotCommitted(targetDir) {
 }
 
 /**
- * Checks that every committed image of a legacy set is in public/images/<package>/, then makes
- * the PNG copy of each WebP image next to it for link previews (git-ignored, never committed).
+ * Copies (or symlinks) the images of one package into public/images/<package>/ with their PNG
+ * copies. `source` holds its display data: its imageset.custom.json entry for an active set,
+ * its frozen imageset.legacy.json entry for a legacy set.
  */
-async function prepareLegacySet(packageName, entry) {
-  const {legacyFiles} = await imageSets;
-  const dir = path.join(ROOT, 'public', 'images', packageName);
-  const stats = await fs.lstat(dir).catch(() => null);
-  if (stats?.isSymbolicLink()) {
-    throw new Error(`${relative(dir)} is a symbolic link left by an older \`npm run dev\`. Delete it, then restore the committed images: git checkout -- ${relative(dir)}`);
-  }
-  const images = entry.images.map(({filename}) => filename);
-  await verifyFiles(dir, images, `Legacy set ${packageName} (committed images; restore them with git)`);
-  for (const image of images.filter((file) => /\.webp$/i.test(file))) {
-    const pngPath = path.join(dir, image.replace(/\.webp$/i, '.png'));
-    // Remove an older copy first, so a failed conversion shows up as a missing file below.
-    await fs.rm(pngPath, {force: true});
-    await convertWebpToPng(path.join(dir, image), pngPath);
-  }
-  await verifyFiles(dir, legacyFiles(entry), `Legacy set ${packageName} (PNG copies for link previews)`);
-  console.log(`Legacy set ${packageName}: ${images.length} committed images, PNG copies made`);
-}
-
-async function processPackage(packageName, customConfig, shouldCopy) {
+async function processPackage(packageName, source, legacy, shouldCopy) {
   try {
     const sourceDir = await findImageDirectory(packageName);
     const targetDir = path.join(__dirname, '..', 'public', 'images', packageName);
@@ -324,10 +311,10 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     console.log(`Found ${images.length} images in ${packageName}`);
     await verifyFiles(targetDir, expectedFiles(images), packageName);
 
-    // Get display name from custom config or fallback to package name
-    const displayName = customConfig.packages[packageName]?.displayName || packageName;
+    const {displayFields} = await imageSets;
+    const {displayName} = displayFields(packageName, source);
 
-    return {packageName, displayName, images};
+    return {packageName, displayName, images, source, legacy};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
     console.log(`Logging contents of ${packageName} package due to error:`);
@@ -337,18 +324,38 @@ async function processPackage(packageName, customConfig, shouldCopy) {
   }
 }
 
-async function updateConfigs(packagesData, customConfig, order, legacyConfig) {
-  const {buildPackageEntry, mergeConfig} = await imageSets;
+/** The version of a package in node_modules, or "unknown". */
+async function installedVersion(packageName) {
+  try {
+    const packageJson = JSON.parse(await fs.readFile(path.join(ROOT, 'node_modules', packageName, 'package.json'), 'utf8'));
+    return typeof packageJson.version === 'string' ? packageJson.version : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function updateConfigs(packagesData, order, legacyConfig) {
+  const {buildPackageEntry, frozenEntryDifferences, mergeConfig} = await imageSets;
   const activeEntries = {};
-  for (const {packageName, displayName, images} of packagesData) {
+  const changedLegacySets = [];
+  for (const {packageName, displayName, images, source, legacy} of packagesData) {
     const metadata = await callPackageFunction(packageName, 'getImageMetadata');
-    activeEntries[packageName] = buildPackageEntry({
-      packageName,
-      displayName,
-      images,
-      metadata,
-      custom: customConfig.packages[packageName],
-    });
+    const entry = buildPackageEntry({packageName, displayName, images, metadata, custom: source});
+    if (!legacy) {
+      activeEntries[packageName] = entry;
+      continue;
+    }
+    // A legacy set's entry is its frozen one. The pinned package must still build exactly that.
+    const differences = frozenEntryDifferences(packageName, entry, legacyConfig[packageName]);
+    if (differences.length > 0) {
+      const shown = differences.slice(0, 10).map((line) => `  ${line}`).join('\n') + (differences.length > 10 ? `\n  ... ${differences.length - 10} more` : '');
+      changedLegacySets.push(`${packageName}@${await installedVersion(packageName)} builds a config entry that differs from its frozen entry in imageset.legacy.json:\n${shown}`);
+    } else {
+      console.log(`Legacy set ${packageName}: the package builds its frozen config entry`);
+    }
+  }
+  if (changedLegacySets.length > 0) {
+    throw new Error(`${changedLegacySets.join('\n')}\nLegacy sets never change: install the exact version they shipped with (npm ci).`);
   }
 
   const config = mergeConfig(order, activeEntries, legacyConfig);
@@ -376,22 +383,22 @@ async function main() {
   const isProduction = process.argv.includes('--copy') || process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
-  const {splitPackages, legacyEntry} = await imageSets;
+  const {splitPackages} = await imageSets;
   const customConfig = await getCustomConfig();
   const legacyConfig = await getLegacyConfig();
-  const {order, active, legacy} = splitPackages(customConfig, legacyConfig);
+  const {order, legacy} = splitPackages(customConfig, legacyConfig);
+  const isLegacy = (pkg) => legacy.includes(pkg);
+  const sourceOf = (pkg) => (isLegacy(pkg) ? legacyConfig[pkg] : customConfig.packages[pkg]);
 
   await preparePlaceholderPreview();
-  for (const packageName of legacy) {
-    await prepareLegacySet(packageName, legacyEntry(packageName, legacyConfig[packageName]));
-  }
 
-  const results = await Promise.allSettled(active.map(pkg => processPackage(pkg, customConfig, isProduction)));
-  const failed = active.filter((pkg, index) => results[index].status === 'rejected');
+  // One path for every set: active and legacy sets are copied from node_modules alike.
+  const results = await Promise.allSettled(order.map(pkg => processPackage(pkg, sourceOf(pkg), isLegacy(pkg), isProduction)));
+  const failed = order.filter((pkg, index) => results[index].status === 'rejected');
   if (failed.length > 0) {
     throw new Error(`Could not prepare ${failed.join(', ')} (see the errors above).`);
   }
-  await updateConfigs(results.map(result => result.value), customConfig, order, legacyConfig);
+  await updateConfigs(results.map(result => result.value), order, legacyConfig);
 }
 
 main().catch((error) => {

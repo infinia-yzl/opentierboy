@@ -36,9 +36,9 @@ the preview route loads item images from `http://localhost:3000` outside Vercel.
 The tests run against the production build, not the dev server. Rebuild after every change
 to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
 `public/`, `imageset.config.json`, `imageset.custom.json` and the config files
-(`next.config.ts`, `postcss.config.mjs`). `npm run build` copies the
-active image sets into `public/images/` before every build (the `prebuild` script). The
-legacy image sets are committed there already.
+(`next.config.ts`, `postcss.config.mjs`). `npm run build` copies every
+image set, legacy sets included, from `node_modules` into `public/images/` before every build
+(the `prebuild` script), so run `npm ci` after a change to `package-lock.json`.
 
 `npx playwright install` downloads the browsers once per machine. If the browsers are already
 installed in a shared folder (for example in a container image), set

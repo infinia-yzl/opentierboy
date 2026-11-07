@@ -7,9 +7,10 @@ import customConfig from '@/imageset.custom.json';
 import legacyConfig from '@/imageset.legacy.json';
 import {
   buildPackageEntry,
+  displayFields,
+  frozenEntryDifferences,
   imageShape,
   legacyEntry,
-  legacyFiles,
   mergeConfig,
   activePackages,
   splitPackages,
@@ -63,38 +64,39 @@ describe('image sets in this repository', () => {
     for (const name of ACTIVE_SETS) expect(configPackages[name], name).not.toHaveProperty('legacy');
   });
 
-  it('returns exactly the WebP images of each legacy set when git ls-files lists public/images/<set>', () => {
+  it('returns no committed file when git ls-files lists public/images', () => {
+    // Every set, legacy sets included, is copied from its npm package at build time.
+    expect(committedFilesUnder('public/images')).toEqual([]);
+  });
+
+  it('returns every image and PNG copy of each legacy set when git check-ignore reads their paths', () => {
     for (const name of LEGACY_SETS) {
-      const dir = path.join(repoRoot, 'public/images', name);
-      expect(fs.lstatSync(dir).isDirectory(), `${dir} is a folder`).toBe(true);
-      const images = legacyPackages[name].images.map(({filename}) => filename);
-      expect(committedFilesUnder(`public/images/${name}`), name).toEqual([...images].sort());
-      expect(images.every((image) => image.endsWith('.webp')), `${name} has only WebP images`).toBe(true);
+      const files = legacyPackages[name].images.flatMap(({filename}) => [filename, filename.replace(/\.webp$/i, '.png')])
+        .map((file) => `public/images/${name}/${file}`);
+      expect(gitIgnored(files), name).toEqual([...files].sort());
     }
   });
 
-  it('returns only the PNG copies of the legacy images when git check-ignore reads their paths', () => {
+  it('returns no difference from frozenEntryDifferences when the installed package of each legacy set builds its entry', async () => {
     for (const name of LEGACY_SETS) {
-      const files: string[] = legacyFiles(legacyPackages[name]).map((file: string) => `public/images/${name}/${file}`);
-      const ignored = gitIgnored(files);
-      expect(ignored, name).toEqual(files.filter((file) => file.endsWith('.png')).sort());
-      expect(ignored.length, name).toBe(legacyPackages[name].images.length);
+      const frozen = legacyPackages[name];
+      const imageSet = await import(/* @vite-ignore */ name);
+      const images = await imageSet.getImageList(path.join(repoRoot, 'node_modules', name, 'public/images'));
+      const built = buildPackageEntry({
+        packageName: name,
+        displayName: displayFields(name, frozen).displayName,
+        images,
+        metadata: await imageSet.getImageMetadata(),
+        custom: frozen,
+      });
+      expect(frozenEntryDifferences(name, built, frozen), name).toEqual([]);
     }
   });
 
-  it('returns the RIFF and WEBP headers when each committed legacy image is read', () => {
-    for (const name of LEGACY_SETS) {
-      for (const {filename} of legacyPackages[name].images) {
-        const bytes = fs.readFileSync(path.join(repoRoot, 'public/images', name, filename));
-        expect(bytes.toString('latin1', 0, 4) + bytes.toString('latin1', 8, 12), filename).toBe('RIFFWEBP');
-      }
-    }
-  });
-
-  it('returns only the active image-* packages when the dependencies in package.json are read', () => {
+  it('returns the sets of imageset.custom.json and no other image-* package when package.json dependencies are read', () => {
     const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
     const imageDependencies = Object.keys({...packageJson.dependencies, ...packageJson.devDependencies}).filter((name) => name.startsWith('image-'));
-    expect(imageDependencies.sort()).toEqual([...ACTIVE_SETS].sort());
+    expect(imageDependencies.sort()).toEqual([...ACTIVE_SETS, ...LEGACY_SETS].sort());
   });
 });
 
@@ -146,7 +148,7 @@ describe('scripts/lib/image-sets.mjs', () => {
     expect(activePackages(null)).toEqual([]);
   });
 
-  describe('legacyEntry and legacyFiles', () => {
+  describe('legacyEntry', () => {
     it('returns legacy as the last key from legacyEntry when the entry has other keys', () => {
       const result = legacyEntry('image-old', {...entry('Old'), legacy: true, backgroundImage: '/x.webp'});
       expect(Object.keys(result)).toEqual(['displayName', 'images', 'tags', 'backgroundImage', 'legacy']);
@@ -159,10 +161,47 @@ describe('scripts/lib/image-sets.mjs', () => {
     ])('throws from legacyEntry when the entry has %s', (_name, value, message) => {
       expect(() => legacyEntry('image-old', value)).toThrow(message);
     });
+  });
 
-    it('returns each file and a PNG copy of each WebP file from legacyFiles when the images mix WebP and PNG', () => {
-      expect(legacyFiles({images: [{filename: 'a.webp'}, {filename: 'sub/B.WEBP'}, {filename: 'c.png'}]}))
-        .toEqual(['a.webp', 'a.png', 'sub/B.WEBP', 'sub/B.png', 'c.png']);
+  describe('frozenEntryDifferences', () => {
+    const frozen = {
+      displayName: 'Old',
+      images: [{filename: 'a.webp', label: 'A', tags: ['t']}, {filename: 'b.webp', label: 'B', tags: ['t']}],
+      tags: {t: {title: 'T', description: 'All', category: 'general'}},
+      backgroundImage: '/old.webp',
+      legacy: true,
+    };
+    const built = () => {
+      const copy = JSON.parse(JSON.stringify(frozen));
+      delete copy.legacy;
+      return copy;
+    };
+
+    it('returns [] when the built entry equals the frozen entry without its legacy key', () => {
+      expect(frozenEntryDifferences('image-old', built(), frozen)).toEqual([]);
+    });
+
+    it.each([
+      ['a changed label', (entry: typeof frozen) => { entry.images[1].label = 'Bee'; }, 'image-old: image "b.webp" is {"filename":"b.webp","label":"Bee","tags":["t"]} instead of {"filename":"b.webp","label":"B","tags":["t"]}'],
+      ['a removed image', (entry: typeof frozen) => { entry.images.pop(); }, 'image-old: image "b.webp" is missing'],
+      ['a new image', (entry: typeof frozen) => { entry.images.push({filename: 'c.webp', label: 'C', tags: []}); }, 'image-old: image "c.webp" is new'],
+      ['images in another order', (entry: typeof frozen) => { entry.images.reverse(); }, 'image-old: the images are in a different order'],
+      ['a new tag', (entry: typeof frozen) => { Object.assign(entry.tags, {u: {title: 'U', description: 'U', category: 'general'}}); }, 'image-old: tag "u" is new'],
+      ['a changed display name', (entry: typeof frozen) => { entry.displayName = 'New'; }, 'image-old: displayName is "New" instead of "Old"'],
+      ['a missing background image', (entry: Partial<typeof frozen>) => { delete entry.backgroundImage; }, 'image-old: backgroundImage is nothing instead of "/old.webp"'],
+    ])('returns the difference when the built entry has %s', (_name, change, difference) => {
+      const entry = built();
+      change(entry);
+      expect(frozenEntryDifferences('image-old', entry, frozen)).toEqual([difference]);
+    });
+
+    it('returns "the keys are in a different order" when only the key order differs', () => {
+      const {displayName, images, tags, backgroundImage} = built();
+      expect(frozenEntryDifferences('image-old', {images, displayName, tags, backgroundImage}, frozen)).toEqual(['image-old: the keys are in a different order']);
+    });
+
+    it('throws from legacyEntry when the frozen entry has no images', () => {
+      expect(() => frozenEntryDifferences('image-old', built(), {...frozen, images: []})).toThrow('has no images');
     });
   });
 
