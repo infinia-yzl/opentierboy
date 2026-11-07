@@ -32,7 +32,7 @@ export default async function Page(props: { params: Promise<{ slug: string }> })
       </Breadcrumb>
       <BlogPost slug={params.slug}/>
       <section className="py-20">
-        <Card className="bg-primary text-primary-foreground p-4">
+        <Card className="bg-foreground text-background p-4">
           <CardHeader>
             <CardTitle className="text-2xl md:text-4xl font-bold text-center font-heading">
               Got something to say?

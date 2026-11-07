@@ -114,9 +114,12 @@ describe('imageSourcesInHtml', () => {
   });
 
   it('returns quickly when the HTML is a long run of unclosed img tags', () => {
-    const started = performance.now();
-    expect(imageSourcesInHtml('<img '.repeat(MAX_DROPPED_TEXT_LENGTH / 5))).toEqual([]);
-    expect(performance.now() - started).toBeLessThan(1000);
+    // Each took 0.2 to 1.4 s with a pattern whose search for src crossed into the next tags.
+    for (const tag of ['<img ', '<img src', '<img a=1 ', '<img src=']) {
+      const started = performance.now();
+      imageSourcesInHtml(tag.repeat(Math.floor(MAX_DROPPED_TEXT_LENGTH / tag.length)));
+      expect(performance.now() - started, tag).toBeLessThan(100);
+    }
   });
 });
 

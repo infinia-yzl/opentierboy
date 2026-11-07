@@ -22,10 +22,10 @@ const FEATURED_SETS = {
 // update drops that item, the button takes the template's first item (lib/templateButtons.ts).
 const FEATURED_PREVIEWS: Record<string, Record<string, string>> = {
   "image-reachthefinals": {
-    all: "image-reachthefinals-Sledgehammer_Rank_1.webp",
+    all: "image-reachthefinals-Frag_Grenade_Rank_1.webp",
     light: "image-reachthefinals-Dagger_Rank_1.webp",
-    medium: "image-reachthefinals-Defibrillator_Rank_1.webp",
-    heavy: "image-reachthefinals-Mesh_Shield_Rank_1.webp",
+    medium: "image-reachthefinals-AKM_Rank_1.webp",
+    heavy: "image-reachthefinals-Sledgehammer_Rank_1.webp",
   },
   "image-overwatch": {
     h_all: "image-overwatch-tra.webp",
