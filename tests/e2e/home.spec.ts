@@ -56,7 +56,7 @@ test.describe('home', () => {
     await expect(site.ownListCard).toContainText('Images start a new list. A Freeze Frame reopens as an editable list.');
   });
 
-  test('renders the two buttons of Your own list in line with the first two template buttons when the landing page opens on a wide screen', async ({site}) => {
+  test('renders the buttons of Your own list in line with the first two template buttons when the page opens on a wide screen', async ({site}) => {
     await site.gotoHome();
 
     const finals = templateItemCount('image-reachthefinals');
