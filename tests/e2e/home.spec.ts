@@ -56,6 +56,22 @@ test.describe('home', () => {
     await expect(site.ownListCard).toContainText('Images start a new list. A Freeze Frame reopens as an editable list.');
   });
 
+  test('renders the two buttons of Your own list in line with the first two template buttons when the landing page opens on a wide screen', async ({site}) => {
+    await site.gotoHome();
+
+    const finals = templateItemCount('image-reachthefinals');
+    const light = templateItemCount('image-reachthefinals', 'light');
+    const rows = [
+      [site.ownListCard.getByRole('link', {name: 'Create Blank List'}), site.templateButton('THE FINALS', `All Items, ${countOf(finals).words}`)],
+      [site.ownListCard.getByRole('button', {name: 'Open a Freeze Frame'}), site.templateButton('THE FINALS', `Light Build, ${countOf(light).words}`)],
+    ] as const;
+    for (const [own, template] of rows) {
+      const [ownBox, templateBox] = [await own.boundingBox(), await template.boundingBox()];
+      expect(ownBox && templateBox && {top: Math.round(ownBox.y), height: Math.round(ownBox.height)})
+        .toEqual(templateBox && {top: Math.round(templateBox.y), height: Math.round(templateBox.height)});
+    }
+  });
+
   test('renders no drop area when the landing page opens on a phone', {tag: '@mobile'}, async ({site, isMobile}) => {
     test.skip(!isMobile, 'The drop area is hidden on phones only.');
     await site.gotoHome();
@@ -80,6 +96,10 @@ test.describe('home', () => {
       await expect.poll(() => site.imageHasLoaded(picture), {message: `the picture of ${title} loads`}).toBe(true);
     }
     await expect(site.templateButton('THE FINALS', `All Items, ${countOf(templateItemCount('image-reachthefinals')).words}`).getByRole('img'))
+      .toHaveAccessibleName('FRAG GRENADE');
+    await expect(site.templateButton('THE FINALS', `Medium Build, ${countOf(templateItemCount('image-reachthefinals', 'medium')).words}`).getByRole('img'))
+      .toHaveAccessibleName('AKM');
+    await expect(site.templateButton('THE FINALS', `Heavy Build, ${countOf(templateItemCount('image-reachthefinals', 'heavy')).words}`).getByRole('img'))
       .toHaveAccessibleName('SLEDGEHAMMER');
     await expect(site.templateButton('OVERWATCH', `Tank, ${countOf(templateItemCount('image-overwatch', 'tank')).words}`).getByRole('img'))
       .toHaveAccessibleName('Reinhardt');
