@@ -7,21 +7,16 @@ const BASE_URL = 'https://opentierboy.com';
 const LOGO = `${BASE_URL}/brand/otb-logo-wide.png`;
 const v3 = (json: unknown) => `3.${LZString.compressToEncodedURIComponent(JSON.stringify(json))}`;
 
-/** Loaders that record every address they are given and answer with a marked data URL. */
+/** A loader that records every address it is given and answers with a marked data URL. */
 function recordingLoaders() {
   const local: string[] = [];
-  const links: string[] = [];
   const loaders: PreviewImageLoaders = {
     inlineLocal: async (urls) => {
       local.push(...urls);
       return (url) => `data:local,${url}`;
     },
-    inlineTrustedLinks: async (urls) => {
-      links.push(...urls);
-      return (url) => (url?.startsWith('https://i.imgur.com/') ? `data:link,${url}` : undefined);
-    },
   };
-  return {local, links, loaders};
+  return {local, loaders};
 }
 
 /** A list that mixes every kind of item, and link addresses a server must never fetch. */
@@ -43,13 +38,13 @@ const MIXED_LIST = v3({
 });
 
 describe('listPreviewCard', () => {
-  it('writes app assets to inlineLocal and link image URLs to inlineTrustedLinks when the list mixes item kinds', async () => {
+  it('writes only app assets to inlineLocal and returns label tiles for link and device images when the list mixes item kinds', async () => {
     const tierCortex = createTierCortex({baseUrl: BASE_URL});
     const list = tierCortex.decodeTierStateFromURL(MIXED_LIST);
     expect(list?.tiers.flatMap((tier) => tier.items.map((item) => item.content)))
       .toEqual(['Mauga', 'Trusted', 'Untrusted', 'From a device', 'Local address', 'Unknown id']);
 
-    const {local, links, loaders} = recordingLoaders();
+    const {local, loaders} = recordingLoaders();
     const {card, logoSrc} = await listPreviewCard(list!, tierCortex, {logoUrl: LOGO, maxTiles: 96}, loaders);
 
     // The server loads only its own assets: the logo, the image-set picture, and the
@@ -59,17 +54,16 @@ describe('listPreviewCard', () => {
       `${BASE_URL}/images/image-overwatch/mau.png`,
       `${BASE_URL}/placeholder-image.preview.png`,
     ]);
-    // Every link address goes to the trusted-site loader, and to nothing else.
-    expect(links).toEqual(['https://i.imgur.com/trusted.png', 'https://images.example.org/untrusted.png', 'https://localhost/secret.png']);
 
-    // Every image the card draws came from a loader; the rest are label tiles.
+    // Every image the card draws came from the loader. Link images, also from a trusted site
+    // such as Imgur, and device images are label tiles (owner decision, 2026-11-01).
     expect(logoSrc).toBe(`data:local,${LOGO}`);
     const tiles = card.rows.flatMap((row) => row.tiles);
     expect(tiles.map((tile) => tile.label)).toEqual(['Mauga', 'Trusted', 'Untrusted', 'From a device', 'Local address', 'Unknown id']);
     for (const tile of tiles) {
-      if (tile.src !== undefined) expect(tile.src, tile.label).toMatch(/^data:(local|link),/);
+      if (tile.src !== undefined) expect(tile.src, tile.label).toMatch(/^data:local,/);
     }
-    expect(tiles.filter((tile) => tile.src !== undefined).map((tile) => tile.label)).toEqual(['Mauga', 'Trusted', 'Unknown id']);
+    expect(tiles.filter((tile) => tile.src !== undefined).map((tile) => tile.label)).toEqual(['Mauga', 'Unknown id']);
   });
 
   it('returns at most maxTiles tiles, with 1 inlineLocal URL per tile, when the list has more items than maxTiles', async () => {
