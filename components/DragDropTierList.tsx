@@ -6,6 +6,7 @@ import Item from "@/models/Item";
 import EditableLabel from '../components/EditableLabel';
 import RowHandle from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
+import {FirstDragHint} from "@/components/EditorTips";
 import {getTierGradient} from "@/lib/utils";
 import {findItemToDelete} from "@/lib/tierListReducer";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
@@ -235,6 +236,7 @@ const UnrankedTray = memo<{
         {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
         <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
           <span>Drag to reorder.</span>
+          <FirstDragHint/>
           <span className="tooltip-mouse">Right-click on any item to delete.</span>
           <span className="tooltip-touch">Long-press on any item to delete.</span>
           <span className="tooltip-mouse">Paste an image to add it as an item.</span>
