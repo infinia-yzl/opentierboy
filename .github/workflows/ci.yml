@@ -1,7 +1,7 @@
 name: CI
 
 # Branch protection requires the checks named "checks" and "e2e (chromium)".
-# See docs/setup-checklist.md.
+# See docs/maintainers/repository-settings.md.
 
 on:
   pull_request:
@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix:
         # Only "e2e (chromium)" is a required check for now. Make Firefox and WebKit
-        # required once they are green here (docs/setup-checklist.md).
+        # required once they are green here (docs/maintainers/repository-settings.md).
         project: [chromium, firefox, webkit]
         include:
           - project: chromium

@@ -35,7 +35,7 @@ function expectSameState(actual: CanonicalState | null, expected: CanonicalState
   expect(actual, message).toEqual(expected);
 }
 
-/** The example in docs/link-format-v3.md. */
+/** The example in docs/reference/link-format.md. */
 const EXAMPLE_JSON =
   '{"t":"My picks 🎮","tp":5,"lp":"top","r":[' +
   '["S",["image-overwatch-ana.webp",{"u":"https://i.imgur.com/abc123.png","c":"Wrecking Ball"}]],' +
@@ -73,7 +73,7 @@ function list(overrides: Partial<EncodableState> = {}): EncodableState {
 }
 
 describe('encodeV3 and decodeState', () => {
-  it('returns EXAMPLE_STATE from decodeState, and the same bytes from encodeV3, when given the docs/link-format-v3.md example', () => {
+  it('returns EXAMPLE_STATE from decodeState, and the same bytes from encodeV3, when given the link-format.md example', () => {
     expect(decodeState(v3(EXAMPLE_JSON))).toEqual(EXAMPLE_STATE);
     expect(encodeV3(EXAMPLE_STATE)).toBe(v3(EXAMPLE_JSON));
   });

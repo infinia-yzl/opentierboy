@@ -4,7 +4,7 @@ import {configDefaults, defineConfig} from 'vitest/config';
 /**
  * Unit tests live in tests/unit and end in .test.ts. Playwright specs (tests/e2e, *.spec.ts)
  * are not unit tests: Vitest never collects them. Neither are the upstream tests of the
- * vendored libraries in packages/ (they need Bun; see docs/dnd-fork.md).
+ * vendored libraries in packages/ (they need Bun; see docs/reference/drag-and-drop.md).
  */
 export default defineConfig({
   resolve: {

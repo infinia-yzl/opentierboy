@@ -1,5 +1,7 @@
 # Versions and releases
 
+For the owner: how to choose the version, how releases happen, and how to roll back.
+
 OpenTierBoy uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (owner decision,
 2026-10-31). Every merge into `main` deploys to production (Vercel). The version is a name for what
 is live, so the site does not show it.

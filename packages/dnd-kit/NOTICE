@@ -25,5 +25,5 @@ react.json) and the repository LICENSE.
 Licence: MIT. Copyright (c) 2021, Claudéric Demers. See LICENSE here and in every package
 folder. The licence must stay with the code.
 
-Changes made for OpenTierBoy are listed in docs/dnd-fork.md (section "Local changes") in
+Changes made for OpenTierBoy are listed in docs/reference/drag-and-drop.md (section "Local changes") in
 the OpenTierBoy repository, together with how to update from upstream.

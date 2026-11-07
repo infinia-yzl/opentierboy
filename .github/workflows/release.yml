@@ -1,7 +1,7 @@
 name: Release
 
 # Tags each new version once it is live, and creates its GitHub release (owner decision,
-# 2026-10-31; docs/releasing.md). The version is the one in package.json. A pull request into
+# 2026-10-31; docs/maintainers/releasing.md). The version is the one in package.json. A pull request into
 # main that should ship raises it; a deployment whose version already has a tag does nothing.
 #
 # Trigger: Vercel sends repository_dispatch "vercel.deployment.success" after each successful

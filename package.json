@@ -25,7 +25,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:unit": "vitest run",
     "check": "tsc --noEmit -p . && eslint . && vitest run && npm run check:images && npm run check:trusted-sites && npm run check:fixtures",
-    "bench:drag": "node scripts/bench-drag.mjs"
+    "bench:drag": "node scripts/bench-drag.mjs",
+    "record:gifs": "node scripts/record-gifs.mjs"
   },
   "dependencies": {
     "@dnd-kit/abstract": "0.5.1",

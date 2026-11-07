@@ -5,7 +5,7 @@ description: This document outlines the terms for using OpenTierBoy. By accessin
 
 # OpenTierBoy Terms of Service
 
-**Effective Date: [the 2.0.0 release date, set at the cutover]**
+**Effective Date: 1 November 2026**
 
 Welcome to OpenTierBoy. These Terms of Service ("Terms") govern your access and use of our website located
 at [https://opentierboy.com](https://opentierboy.com) (collectively or individually "Service") operated by Isaac Yong ("
@@ -66,6 +66,35 @@ use the Service in any way that could damage the Service or the general business
 - You will not collect any personal information about other users or intimidate, threaten, stalk, or otherwise harass
   other users of the Service.
 
+## Acceptable Use
+
+You must not use the Service to make, show or share tier lists, titles, labels or images that:
+
+- are illegal in Malaysia or where you are;
+- sexualise minors, or show sexual content of people without their consent;
+- promote violence, terrorism, self-harm, or hatred against people because of who they are;
+- harass or threaten anyone, or expose anyone's private information;
+- infringe anyone's copyright or trademark;
+- suggest that OpenTierBoy made, approved or supports them.
+
+Tier lists, titles, labels and images belong to the people who make them. OpenTierBoy does not make, review or endorse
+them, even when they appear next to our name or logo, for example in a link preview or in a Freeze Frame picture.
+
+## Reporting Abuse
+
+If you find a tier list or a link that breaks these Terms, email [dev@infinia.space](mailto:dev@infinia.space) with the
+link and a short description of the problem. Tier lists live in their links, and we store none of them, so we cannot
+delete a tier list. We can remove a website from our list of trusted image sites, so that its images no longer load
+without asking, and we can take other steps that the law requires.
+
+## Trademarks
+
+The OpenTierBoy name, logo and wordmark belong to Isaac Yong. The AGPL 3.0 license covers the code of the Service. It
+gives no right to use the OpenTierBoy name, logo or wordmark. If you run a fork or a copy of OpenTierBoy, give it your
+own name and logo, and do not suggest that it is OpenTierBoy or that we support it. You may use the name to say,
+truthfully, that your project is based on OpenTierBoy. See
+[TRADEMARKS.md](https://github.com/infinia-yzl/opentierboy/blob/main/TRADEMARKS.md) for details.
+
 ## Content Ownership
 
 All content, including but not limited to text, images, code, and interactive features, provided by Isaac Yong on the
@@ -91,7 +120,8 @@ at [dev@infinia.space](mailto:dev@infinia.space).
 ## License
 
 Our Service is licensed under the AGPL 3.0 License. You are free to use, modify, and distribute the software under the
-terms of this license. Any modifications or derivative works must also be licensed under AGPL 3.0.
+terms of this license. Any modifications or derivative works must also be licensed under AGPL 3.0. The license does
+not cover the OpenTierBoy name, logo or wordmark (see Trademarks).
 
 ## AI-Assisted Development
 

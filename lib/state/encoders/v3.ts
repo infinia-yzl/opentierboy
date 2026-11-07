@@ -21,7 +21,7 @@ interface V3Json {
 }
 
 /**
- * Writes the v3 link value `3.<payload>` for a list (docs/link-format-v3.md).
+ * Writes the v3 link value `3.<payload>` for a list (docs/reference/link-format.md).
  *
  * Deterministic: the same list always gives the same text. Every field that holds its default
  * is left out: an empty title, the 'custom' row template, labels on the left, labels shown,

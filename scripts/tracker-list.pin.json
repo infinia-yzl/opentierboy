@@ -1,5 +1,5 @@
 {
-  "$comment": "The tracker list that scripts/check-trusted-sites.mjs checks trusted-image-sites.json against. The repository holds no copy of the list: the check downloads this exact file at this exact commit into .cache/tracker-list/ and verifies its SHA-256. The list's licence (CC BY-NC-SA 4.0) does not fit inside this AGPL repository. To update, see docs/custom-images.md.",
+  "$comment": "The tracker list that scripts/check-trusted-sites.mjs checks trusted-image-sites.json against. The repository holds no copy of the list: the check downloads this exact file at this exact commit into .cache/tracker-list/ and verifies its SHA-256. The list's licence (CC BY-NC-SA 4.0) does not fit inside this AGPL repository. To update, see docs/reference/images.md.",
   "name": "Disconnect tracking protection list",
   "repository": "https://github.com/disconnectme/disconnect-tracking-protection.git",
   "commit": "a277cd6e9d47f71837a45dace832da73ca261e48",
