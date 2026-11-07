@@ -25,6 +25,21 @@ test.describe('drag and drop', () => {
       await expect(tierList.itemIn(tierList.unranked, 'Mauga')).toHaveCount(0);
     });
 
+    test.describe('in the window size of the first report', () => {
+      // At this size the page scrolls a few pixels during the drag, as when the bug was seen
+      // (2026-11-07): the item landed in row A.
+      test.use({viewport: {width: 1200, height: 880}});
+
+      test('renders the item in row S when the user sweeps it up from Unranked into the left part of row S', async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await tierList.dragItemToTierStartInOneSweep('D.Va', 'S');
+
+        await expect(tierList.itemsIn('S')).toHaveText(['D.Va']);
+        await expect(tierList.itemsIn('A')).toHaveCount(0);
+      });
+    });
+
     test('renders the item in row B only when the user drags it from row S to row B', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 

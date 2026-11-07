@@ -1,6 +1,6 @@
 'use client';
 
-import React, {createContext, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {CollisionPriority, type CollisionDetector} from '@dnd-kit/abstract';
 import {
   DragDropProvider,
@@ -420,6 +420,35 @@ const shownPartCollisions: CollisionDetector = (input) => {
   return overShownPart ? collision : null;
 };
 
+/** Marks the item area of a row (useTierItems), for itemCollisions. */
+const ITEM_AREA_ATTRIBUTE = 'data-dnd-item-area';
+
+/** True when the point lies in the box. */
+function holds(box: {top: number; right: number; bottom: number; left: number}, point: {x: number; y: number}): boolean {
+  return point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom;
+}
+
+/**
+ * The collision detector of an item tile: shownPartCollisions, but an item never takes the drop
+ * while the pointer is over the item area of another row. The dragged tile's own place moves
+ * from row to row as the editor previews the drop (the row the pointer passed last), and
+ * dnd-kit's detector compares the tile's whole shape: dragged up through row A into the left
+ * part of an empty row S, the item kept its place in row A, under the pointer's x, and landed
+ * there (seen 2026-11-07). With this rule the row under the pointer takes it. Over a row's
+ * label or between rows, the collision stays as dnd-kit finds it.
+ */
+const itemCollisions: CollisionDetector = (input) => {
+  const collision = shownPartCollisions(input);
+  const {element} = input.droppable as {element?: Element};
+  const pointer = input.dragOperation.position.current;
+  if (!collision || !element || !pointer) return collision;
+  const ownArea = element.closest(`[${ITEM_AREA_ATTRIBUTE}]`);
+  if (!ownArea || holds(shownRect(ownArea), pointer)) return collision;
+  const areas = element.ownerDocument.querySelectorAll(`[${ITEM_AREA_ATTRIBUTE}]`);
+  const overAnotherArea = Array.from(areas).some((area) => area !== ownArea && holds(shownRect(area), pointer));
+  return overAnotherArea ? null : collision;
+};
+
 /** A tier row, sortable by its handle. Put `ref` on the row and `handleRef` on its handle. */
 export function useTierRow({tierId, index}: {tierId: string; index: number}) {
   const {ref, handleRef, isDragging} = useSortable({
@@ -440,12 +469,17 @@ export function useTierRow({tierId, index}: {tierId: string; index: number}) {
  * item would land in this row.
  */
 export function useTierItems({tierId}: {tierId: string}) {
-  const {ref} = useDroppable({
+  const {ref: droppableRef} = useDroppable({
     id: tierItemsDndId(tierId),
     accept: DND_TYPES.item,
     collisionPriority: CollisionPriority.Low,
     collisionDetector: shownPartCollisions,
   });
+  // The mark that itemCollisions looks for.
+  const ref = useCallback((element: Element | null) => {
+    element?.setAttribute(ITEM_AREA_ATTRIBUTE, '');
+    droppableRef(element);
+  }, [droppableRef]);
   const {itemTargetTierId} = useContext(TierDragTargetContext);
   return {ref, isDropTarget: itemTargetTierId === tierId};
 }
@@ -507,7 +541,7 @@ function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; i
     type: DND_TYPES.item,
     accept: DND_TYPES.item,
     plugins: NO_SORTABLE_PLUGINS,
-    collisionDetector: shownPartCollisions,
+    collisionDetector: itemCollisions,
   });
   const describedBy = useContext(TierDragDescriptionContext);
   const manager = useDragDropManager();

@@ -390,6 +390,34 @@ export class TierListPage {
   }
 
   /**
+   * Drags an item with the mouse in one straight sweep, in small steps, from Unranked to the
+   * left part of a row: the press, a small move down and right that starts the drag, then the
+   * sweep. On the way up the editor shows the item in each row the pointer crosses. Returns
+   * once the link is in the address bar.
+   */
+  async dragItemToTierStartInOneSweep(itemName: string, tierName: string) {
+    await this.dropSettled();
+    await this.changeAndWaitForLink(async () => {
+      const item = this.item(itemName);
+      await item.scrollIntoViewIfNeeded();
+      const from = await centerOf(item);
+      const row = await boxOf(this.tier(tierName));
+      const mouse = this.page.mouse;
+      await mouse.move(from.x, from.y);
+      await mouse.down();
+      await mouse.move(from.x + 10, from.y + 10, {steps: 4});
+      await expect(this.dragAnnouncer).toHaveText(/^Picked up /);
+      await mouse.move(row.x + 150, row.y + row.height / 2, {steps: 16});
+      // The drop target follows the pointer within a few frames. A wrong row stays wrong.
+      await expect(this.dragAnnouncer).toHaveText(/ moves to tier /);
+      await this.scrollPositionAfterFrames();
+      await mouse.up();
+      await this.dropSettled();
+    });
+    await this.expectEveryItemDraggable();
+  }
+
+  /**
    * Drags an item with the mouse to the end of a tier and, right after the release (while the
    * drop still animates), presses another item and moves the mouse a little, as someone ranking
    * fast does, then releases it there. A press during the drop animation starts no drag of the
