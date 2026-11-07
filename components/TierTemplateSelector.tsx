@@ -19,6 +19,8 @@ import {useTierContext} from '@/contexts/TierContext';
 import {LabelPosition, TierTemplate, tierTemplates} from "@/models/Tier";
 import {canAddTier, canRemoveTier} from "@/lib/dnd/moves";
 import {tierLabel} from "@/lib/dnd/labels";
+import {useTileSizeChoice} from "@/components/useAppearance";
+import type {TileSizeChoice} from "@/lib/appearance";
 
 const TierTemplateSelector: React.FC = () => {
   const {
@@ -30,6 +32,8 @@ const TierTemplateSelector: React.FC = () => {
     onTemplateChange,
     removeTier,
   } = useTierContext();
+
+  const [tileSize, setTileSize] = useTileSizeChoice();
 
   const rowCount = `${tiers.length - 1}rows`;
 
@@ -46,6 +50,14 @@ const TierTemplateSelector: React.FC = () => {
     if ((visibility === 'show' && !showLabels) || (visibility === 'hide' && showLabels)) {
       toggleLabels();
     }
+  };
+
+  // Choosing Compact turns Show Labels off (owner decision, 2026-11-01); the user can turn it
+  // back on, and Compact tiles then show their names under them. Show Labels is a label setting:
+  // it rewrites the link in place, with no new history entry (A3).
+  const handleTileSizeChange = (choice: TileSizeChoice) => {
+    if (choice === 'compact' && tileSize !== 'compact' && showLabels) toggleLabels();
+    setTileSize(choice);
   };
 
   return (
@@ -94,6 +106,14 @@ const TierTemplateSelector: React.FC = () => {
         <DropdownMenuRadioGroup value={showLabels ? 'show' : 'hide'} onValueChange={handleLabelVisibilityChange}>
           <DropdownMenuRadioItem value="show">Show Labels</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="hide">Hide Labels</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        {/* The dense editor (owner decision, 2026-10-31): a view setting of this browser, never
+            part of the link (components/useAppearance.ts). Compact tiles follow Show Labels. */}
+        <DropdownMenuSeparator/>
+        <DropdownMenuLabel>Tile Size</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={tileSize} onValueChange={(value) => handleTileSizeChange(value as TileSizeChoice)}>
+          <DropdownMenuRadioItem value="comfortable">Comfortable</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>

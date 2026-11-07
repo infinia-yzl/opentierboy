@@ -36,9 +36,9 @@ the preview route loads item images from `http://localhost:3000` outside Vercel.
 The tests run against the production build, not the dev server. Rebuild after every change
 to what the build reads: `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`,
 `public/`, `imageset.config.json`, `imageset.custom.json` and the config files
-(`next.config.ts`, `postcss.config.mjs`). `npm run build` copies the
-active image sets into `public/images/` before every build (the `prebuild` script). The
-legacy image sets are committed there already.
+(`next.config.ts`, `postcss.config.mjs`). `npm run build` copies every
+image set, legacy sets included, from `node_modules` into `public/images/` before every build
+(the `prebuild` script), so run `npm ci` after a change to `package-lock.json`.
 
 `npx playwright install` downloads the browsers once per machine. If the browsers are already
 installed in a shared folder (for example in a container image), set
@@ -87,7 +87,7 @@ tests/
 
   | File | Area |
   | --- | --- |
-  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen |
+  | `editor-layout` | the title row, the tools, the rows and the Unranked tray on screen; tile sizes |
   | `editor-labels` | the title, row names, label position and label visibility |
   | `editor-rows` | adding and removing rows |
   | `editor-items` | adding, removing and resetting items; unknown items |
@@ -99,6 +99,8 @@ tests/
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
+  | `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlay (green key) |
+  | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
   | `shared-links` | golden links people shared, and their page tags |
@@ -157,8 +159,11 @@ tests/
   `route.fetch()`, `browser.newContext()`, `browser.newPage()`, `launch()`...) outside
   `tests/support`. Known limits, not guarded: `node:http` and `node:https` in tests, a route
   that answers a site address with a redirect to an outside host (or falls back with an
-  outside `url`), and fetches the server makes for `/api/og` (no test sends it a trusted-site
-  image).
+  outside `url`), and fetches the server makes for `/api/og` (it loads only the app's own
+  images; `tests/unit/app/api/og/route.test.ts` checks that it requests no link image address).
+- **The tips are off in every test** but `tips.spec.ts`: the fixtures store tips off before
+  each page starts (`tests/support/test.ts`), so tips never cover what a test checks. A spec
+  turns them on with `test.use({tips: true})`.
 - **Tag read-only journeys that make sense on phones with `@mobile`.** Mouse drags and
   right-clicks do not apply to touch screens.
 - **Some input cannot be simulated in every browser.** Firefox drops the files of a paste event
@@ -185,6 +190,10 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
   it stays put: an item goes before or after the item under the pointer, by the half the
   pointer is over, so following the target settles.
+- **Every tile takes a drag.** After each drop (mouse, keyboard, touch, also a cancelled drag),
+  the drop helpers check that every item tile has the role description "draggable"
+  (`expectEveryItemDraggable`). The editor renders it only while the drag library holds the
+  tile's draggable, so a tile that could not be dragged fails the test that dropped something.
 - **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
   after each key, and after the drop for focus to come back to the item or row handle.
 - **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with
@@ -195,6 +204,22 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   not wait for it; the long press waits until the item menu shows.
 - **Rows that wrap** are tested at the default window size: twelve tiles do not fit on one
   line.
+
+### Zen's creator layouts
+
+`tests/e2e/zen-layouts.spec.ts` opens a layout the way a person does: Zen on, then the Layout
+menu (`TierListPage.gotoInLayout`); no address opens one. A creator layout draws a frame under a
+strip that holds the Zen bar, and the two together fit the window. A frame pixel is a CSS pixel
+when the window is as wide as the frame and as high as the frame plus the strip: 1920 x 1168 for
+16:9 and the overlay (an 88 px strip), 1080 x 2024 for 9:16 (a 104 px strip). The Zen bar is
+always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item under it.
+
+No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
+Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
+the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
+into view, then the item, before it drags; when the drag has not reached the row 3 s after the
+move, it nudges the pointer by a pixel and back (still one press), as a hand does. The long-list tests use the full THE FINALS template
+(77 items) and a list of 19 rows.
 
 ### Tile shapes
 

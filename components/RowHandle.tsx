@@ -21,9 +21,11 @@ const RowHandle: React.FC<RowHandleProps> = ({handleRef, describedBy, label}) =>
       tabIndex={0}
       aria-describedby={describedBy || undefined}
       aria-label={label ? `Move tier ${label}` : 'Move tier'}
-      className="w-10 shrink-0 self-stretch flex items-center justify-center border-l border-black/10 dark:border-white/10 cursor-grab select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      // Rows move in every layout (owner decision, 2026-11-01): in Zen 16:9, 9:16 and the overlay
+      // the handle takes the frame's size (lib/zen/layouts.ts).
+      className="w-10 stage:w-(--stage-handle) shrink-0 self-stretch flex items-center justify-center border-l border-black/10 dark:border-white/10 cursor-grab select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <DragHandleDots2Icon aria-hidden="true" className="h-4 w-4"/>
+      <DragHandleDots2Icon aria-hidden="true" className="h-4 w-4 stage:size-(--stage-handle-icon)"/>
     </div>
   );
 };

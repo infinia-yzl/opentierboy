@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {TILE_SIZES, tileSize} from '@/lib/tileSize';
+import {COMPACT_TILE_CLASSES, STAGE_TILE_CLASSES, TILE_SIZES, tileClassName, tileSize} from '@/lib/tileSize';
 import {ITEM_SHAPES} from '@/models/Item';
 
 /** Tile sizes by shape (lib/tileSize.ts, used by components/ItemTile.tsx). */
@@ -36,5 +36,37 @@ describe('TILE_SIZES and tileSize', () => {
     expect(tileSize({shape: 'portrait'})).toBe(TILE_SIZES.portrait);
     expect(tileSize({})).toBe(TILE_SIZES.square);
     expect(tileSize({shape: 'hexagon' as never})).toBe(TILE_SIZES.square);
+  });
+});
+
+describe('COMPACT_TILE_CLASSES', () => {
+  it('returns a height of 48 px and the canvas ratio when each compact shape class is measured', () => {
+    const ratios = {square: 1, landscape: 384 / 216, portrait: 216 / 288};
+    for (const shape of ITEM_SHAPES) {
+      const size = (axis: 'w' | 'h') => {
+        const match = COMPACT_TILE_CLASSES[shape].match(new RegExp(`compact:${axis}-(\\d+)`));
+        if (!match) throw new Error(`No compact:${axis}- class for ${shape}`);
+        return Number(match[1]) * 4;
+      };
+      expect(size('h'), shape).toBe(48);
+      expect(size('w') / size('h'), shape).toBeCloseTo(ratios[shape], 1);
+    }
+  });
+});
+
+describe('STAGE_TILE_CLASSES', () => {
+  it('returns the frame tile height for every shape when the classes are read', () => {
+    for (const shape of ITEM_SHAPES) {
+      expect(STAGE_TILE_CLASSES[shape], shape).toContain('stage:h-(--stage-tile)');
+    }
+  });
+});
+
+describe('tileClassName', () => {
+  it('returns the editor, compact and frame classes of the shape when the item has one', () => {
+    expect(tileClassName({shape: 'landscape'})).toBe(
+      `${TILE_SIZES.landscape.className} ${COMPACT_TILE_CLASSES.landscape} ${STAGE_TILE_CLASSES.landscape}`,
+    );
+    expect(tileClassName({})).toContain(TILE_SIZES.square.className);
   });
 });

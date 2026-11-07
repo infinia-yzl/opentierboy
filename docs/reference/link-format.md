@@ -285,9 +285,10 @@ out of links.
   (`legacy-<id>` when the id breaks the device id rule, A42). So the item keeps one id on
   screen across Back and Forward between legacy and v3 versions of a list, and toast Undo never
   adds it twice. Its image is kept in the device image store under that same id.
-- Link previews (`/api/og`) draw link images from trusted sites (with caps), and label tiles for
-  other link images and for device images. Link image addresses never reach the local image
-  inliner (A8, A36).
+- Link previews (`/api/og`) draw only image-set pictures: label tiles for every link image
+  (from any site, trusted or not) and every device image (owner decision, 2026-11-01). The
+  server never fetches a link image's address, and it never reaches the local image inliner
+  (A8, A36).
 - `decodeTierStateFromURL` gives a row with a repeated tier id its own id (A38). Hand-made links
   can also hold empty ids, which v3 refuses: an empty tier id gets a new id (`tier~1`, ...) and
   an empty item id gets one too (`item~1`, ..., keeping its label, written as `{"i", "c"}`). So a

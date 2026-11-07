@@ -33,11 +33,14 @@ The Service keeps some data in your browser, on your device, so that it works as
 device and is not shared with us or any third parties.
 
 - **Local storage** holds your appearance choices (Light, Dark or System mode, game colours, and the Modern or Classic
-  font), the lists you opened recently and the ones you pinned ("Recently viewed"), the websites whose images you chose
-  to always load, and the ids of pictures your browser had to remove for lack of space. It can also hold pictures
+  font), the tile size you chose in the editor (Comfortable or Compact), the lists you opened recently and the ones you
+  pinned ("Recently viewed"), the websites whose images you chose to always load, the ids of pictures your browser had to
+  remove for lack of space, and which tips you have seen, and whether tips are off. It can also hold pictures
   that older versions of the Service saved there, until the Service can move them to IndexedDB.
 - **IndexedDB** holds the pictures you upload, paste or drop from your device, so that your lists still show them on
   your next visit.
+- **Session storage** holds the page addresses of the list versions in the current tab, so that Zen can count your
+  steps. It holds no list, and your browser removes it when you close the tab.
 
 You can remove all of this data by clearing this site's data in your browser settings.
 
@@ -72,8 +75,8 @@ follows:
    websites on our trusted list load at once; images from any other website load only after you allow them. The website
    that hosts an image can see your browser's request, as with any image on the web, and its own privacy policy applies.
 4. **Link previews**: When a link to a list is shared in a chat or on a social network, our server draws a preview
-   picture of the list. To draw it, our server fetches the images that come from websites on our trusted list. It never
-   fetches images from any other website, and it never receives your device pictures, which appear as label tiles.
+   picture of the list. It draws only pictures from our own image sets. It never fetches images from other websites,
+   and it never receives your device pictures: both appear as label tiles.
 5. **Responsibility**: You are responsible for the content of the images you add. We do not monitor or moderate them.
 6. **Removal**: We do not store your pictures on our servers, so we cannot remove them. You can remove them from your
    device by clearing this site's data in your browser settings. Images from other websites stay on those websites.

@@ -2,7 +2,6 @@ import {ImageResponse} from 'next/og';
 import {createTierCortex} from '@/lib/TierCortex';
 import {getOgTierGradient} from '@/lib/linkPreview';
 import {inlineLocalImages} from './local-images';
-import {inlineTrustedLinkImages} from './link-images';
 import {listPreviewCard} from './list-preview';
 import {MAX_LABEL_LENGTH, MAX_TITLE_LENGTH, shorten} from '@/lib/text';
 import {itemDisplayLabel} from '@/lib/images/listImages';
@@ -149,7 +148,7 @@ export async function GET(request: Request) {
   const {card, logoSrc} = await listPreviewCard(decodedState, tierCortex, {
     logoUrl: tierCortex.getAssetUrl(LOGO),
     maxTiles: MAX_TILES,
-  }, {inlineLocal: inlineLocalImages, inlineTrustedLinks: inlineTrustedLinkImages});
+  }, {inlineLocal: inlineLocalImages});
 
   return new ImageResponse(
     <ListCard card={card} logoSrc={logoSrc} fontFamily={FONT_FAMILY}/>,

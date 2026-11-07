@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {modeOf, showsDark} from '@/lib/appearance';
+import {APPEARANCE_SCRIPT, COMPACT_TILES_CLASS, modeOf, showsDark, TILE_SIZE_STORAGE_KEY} from '@/lib/appearance';
 
 describe('modeOf', () => {
   it('returns light, dark or system when the theme is a retired theme or undefined', () => {
@@ -26,5 +26,38 @@ describe('showsDark', () => {
     expect(showsDark('system', 'dark')).toBe(true);
     expect(showsDark('system', 'light')).toBe(false);
     expect(showsDark(undefined, undefined)).toBe(false);
+  });
+});
+
+/** Runs the head script against a fake page: its <html> and local storage. */
+function runHeadScript({storage = {}}: {storage?: Record<string, string>}) {
+  const classes = new Set<string>();
+  const attributes = new Map<string, string>();
+  const documentElement = {
+    classList: {add: (name: string) => classes.add(name)},
+    setAttribute: (name: string, value: string) => attributes.set(name, value),
+  };
+  const run = new Function('document', 'localStorage', APPEARANCE_SCRIPT);
+  run({documentElement}, {getItem: (key: string) => storage[key] ?? null});
+  return {classes: [...classes].sort(), attributes: Object.fromEntries(attributes)};
+}
+
+describe('APPEARANCE_SCRIPT', () => {
+  it('writes the class tiles-compact when local storage says Compact', () => {
+    expect(runHeadScript({storage: {[TILE_SIZE_STORAGE_KEY]: 'compact'}}).classes).toEqual([COMPACT_TILES_CLASS]);
+    expect(runHeadScript({}).classes).toEqual([]);
+  });
+
+  // Owner decision, 2026-11-01: no address opens a Zen layout.
+  it('writes no Zen class or attribute when the script runs, whatever the address', () => {
+    expect(APPEARANCE_SCRIPT).not.toContain('location');
+    expect(APPEARANCE_SCRIPT).not.toContain('zen');
+    expect(runHeadScript({})).toEqual({classes: [], attributes: {}});
+  });
+
+  it('writes nothing and throws nothing when local storage throws', () => {
+    const run = new Function('document', 'localStorage', APPEARANCE_SCRIPT);
+    const throwing = {getItem: () => { throw new Error('denied'); }};
+    expect(() => run({documentElement: {classList: {add: () => {}}, setAttribute: () => {}}}, throwing)).not.toThrow();
   });
 });

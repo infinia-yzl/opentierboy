@@ -7,22 +7,21 @@ import type Item from '@/models/Item';
 import type Tier from '@/models/Tier';
 
 /**
- * The image loaders the preview uses: inlineLocalImages (local-images.ts) for the app's own
- * assets, and inlineTrustedLinkImages (link-images.ts) for link images on trusted sites. The
- * route passes the real ones; unit tests pass recording ones.
+ * The image loader the preview uses: inlineLocal (inlineLocalImages in local-images.ts) for the
+ * app's own assets. The route passes the real one; unit tests pass a recording one.
  */
 export interface PreviewImageLoaders {
   inlineLocal: (urls: string[]) => Promise<(url: string) => string>;
-  inlineTrustedLinks: (urls: readonly string[]) => Promise<(url: string | undefined) => string | undefined>;
 }
 
 /**
  * The list card of a shared list's preview, with the source of every image it draws.
  *
- * Only image URLs that TierCortex builds for the app's own assets go to `inlineLocal`. Link
- * images and device images have none (getOgSafeItem): link image addresses never reach it (A8,
- * A36). Link image addresses go to `inlineTrustedLinks`, which loads only trusted sites, with
- * caps. Any other link image, and every device image, is a label tile.
+ * Link previews draw only the app's own pictures (owner decision, 2026-11-01): image-set
+ * pictures, and the placeholder for an id that no image set knows. Link images (from any site,
+ * trusted or not) and device images have no image URL (getOgSafeItem), so they are label tiles,
+ * and the server never fetches a user's address (A8, A36). Only image URLs that TierCortex
+ * builds for the app's own assets go to `inlineLocal`.
  */
 export async function listPreviewCard(
   list: {title?: string; tiers: Tier[]},
@@ -52,24 +51,13 @@ export async function listPreviewCard(
   const itemImageUrls = drawnItems
     .map((item) => tierCortex.getOgSafeItem(item).imageUrl)
     .filter((url): url is string => url !== undefined);
-  const linkImageUrls = drawnItems
-    .filter((item) => item.source === 'link' && item.url !== undefined)
-    .map((item) => item.url as string);
-  const [imageSrc, linkImageSrc] = await Promise.all([
-    loaders.inlineLocal([logoUrl, ...itemImageUrls]),
-    loaders.inlineTrustedLinks(linkImageUrls),
-  ]);
+  const imageSrc = await loaders.inlineLocal([logoUrl, ...itemImageUrls]);
 
   const card = {
     ...draft,
-    rows: draft.rows.map((row, rowIndex) => ({
+    rows: draft.rows.map((row) => ({
       ...row,
-      tiles: row.tiles.map((tile, tileIndex) => {
-        const item = ranked[rowIndex].items[tileIndex];
-        const linkSrc = item.source === 'link' ? linkImageSrc(item.url) : undefined;
-        const src = linkSrc ?? (tile.src ? imageSrc(tile.src) : undefined);
-        return {...tile, src};
-      }),
+      tiles: row.tiles.map((tile) => ({...tile, src: tile.src ? imageSrc(tile.src) : undefined})),
     })),
   };
   return {card, logoSrc: imageSrc(logoUrl)};

@@ -19,6 +19,14 @@ updates:
       # registry update would replace the fork with a second copy and break drag and drop.
       # Update it by hand instead (docs/reference/drag-and-drop.md, "Updating from upstream").
       - dependency-name: "@dnd-kit/*"
+      # The legacy image sets are frozen: each is pinned to the exact version it shipped with
+      # (imageset.legacy.json holds its frozen config). Never update them.
+      # tests/unit/rules/legacy-set-pins.test.ts checks this list.
+      - dependency-name: "image-set"
+      - dependency-name: "image-wutheringwaves"
+      - dependency-name: "image-webdev"
+      - dependency-name: "image-supervive"
+      - dependency-name: "image-helldivers2"
     # Wait 7 days after a release before proposing it. Most malicious releases are caught
     # and pulled within days.
     # The image-* packages are the owner's own, so they skip the wait.
@@ -29,7 +37,8 @@ updates:
     # One open pull request per group.
     open-pull-requests-limit: 2
     groups:
-      # Listed first: a package goes into the first group that matches it.
+      # Listed first: a package goes into the first group that matches it. The legacy sets
+      # match the pattern too, but the ignore list above keeps them out.
       image-sets:
         patterns:
           - "image-*"

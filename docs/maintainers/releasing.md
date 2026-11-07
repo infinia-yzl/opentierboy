@@ -40,6 +40,11 @@ an older version, use its tag: the tag names the commit, and Vercel lists its de
 
 ## 2.0.0, the UI revamp
 
-The revamp is built on `epic/ui-revamp`; PR #202 brings it into `main`. The site before it is the
-`1.0.0` release (tag `1.0.0` at `bf2ff6e`, created by hand on 2026-10-31), so the 2.0.0 release
-notes start from it. The workflow releases `2.0.0` once Vercel deploys the merge.
+The revamp is built on `epic/ui-revamp`; PR #202 brings it into `main` as one squash commit
+(owner decision, 2026-11-04). The site before it is the `1.0.0` release (tag `1.0.0` at
+`bf2ff6e`, created by hand on 2026-10-31), so the 2.0.0 release notes start from it. The workflow releases `2.0.0` once Vercel deploys the merge.
+
+The five legacy image sets ship from the same npm versions as in `1.0.0` (`image-set@2.1.0`,
+`image-wutheringwaves@1.1.1`, `image-webdev@1.0.1`, `image-supervive@1.2.0`,
+`image-helldivers2@4.1.0`), now pinned exactly. Their item ids, images and link previews do not
+change.

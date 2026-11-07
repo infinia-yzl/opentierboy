@@ -87,9 +87,10 @@ GitHub: **Settings → Advanced Security** (left sidebar, in the Security sectio
    The weekly OSV-Scanner run only reports. The pull request scan fails when a pull
    request adds a new known vulnerability.
 8. Dependabot version updates (`.github/dependabot.yml`) run weekly. The `image-sets`
-   group (all `image-*` packages) also runs weekly: Dependabot cannot give one group its
-   own daily schedule. The main path for image set updates is the image-set-update
-   workflow, which opens a pull request when a new version is published
+   group (the `image-*` packages of the active sets) also runs weekly: Dependabot cannot give
+   one group its own daily schedule. The legacy image sets are on the ignore list: they stay
+   at the exact version they shipped with. The main path for image set updates is the
+   image-set-update workflow, which opens a pull request when a new version is published
    (section 8). Dependabot is the fallback.
 
 ## 4. Claude review on pull requests
@@ -195,6 +196,8 @@ that branch and opens the pull request.
    (for example `image-overwatch`) and the exact version (for example `1.3.0`). It accepts
    only the sets in `imageset.custom.json` that are not legacy, plain `x.y.z` versions, and
    never a downgrade.
+6. A new image set's first version can not come through the workflow, which takes only sets
+   already on the active list. Add it by hand (CONTRIBUTING.md, "Adding an image set").
 
 ## 9. Landscape and portrait images: your decision
 

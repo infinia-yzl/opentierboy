@@ -4,6 +4,15 @@
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant zen-mode (.zen-mode &);
+/* Compact tiles (the dense editor): the tiles-compact class on <html>, never inside a frame
+   layout (components/useTileSize.ts). */
+@custom-variant compact (.tiles-compact &:not([data-zen-stage] *));
+/* Zen's frame layouts, 16:9, 9:16 and the stream overlay: inside the frame (lib/zen/layouts.ts,
+   components/ZenStage.tsx), whose CSS variables hold every size in frame pixels. */
+@custom-variant stage ([data-zen-stage] &);
+@custom-variant stage-wide ([data-zen-stage='wide'] &);
+@custom-variant stage-tall ([data-zen-stage='tall'] &);
+@custom-variant stage-overlay ([data-zen-stage='overlay'] &);
 /* Tailwind 3 behaviour: hover styles apply on touch screens too (Tailwind 4 limits them to
    devices that can hover). */
 @custom-variant hover (&:hover);
@@ -238,6 +247,27 @@
   }
 
   /*
+    The landing page's image-set cards: each title takes its game's colour (the primary colours
+    above), unless game colours are off (HomeFinal board). components/PackageCard.tsx reads
+    --game-title.
+  */
+  html:not(.no-game-colours) [data-game-card='overwatch'] {
+    --game-title: 17.5 88.3% 40.4%;
+  }
+
+  html.dark:not(.no-game-colours) [data-game-card='overwatch'] {
+    --game-title: 27 96% 61%;
+  }
+
+  html:not(.no-game-colours) [data-game-card='the-finals'] {
+    --game-title: 0 73.7% 41.8%;
+  }
+
+  html.dark:not(.no-game-colours) [data-game-card='the-finals'] {
+    --game-title: 0 90.6% 70.8%;
+  }
+
+  /*
     Fonts (owner decisions, 2026-10-28): Modern by default, Classic on request. next/font puts
     the three families' variables on <html> (app/layout.tsx).
   */
@@ -384,4 +414,12 @@ html.zen-mode .show-in-zen {
   backdrop-filter: none;
   will-change: auto;
   transform: none;
+}
+
+/*
+ * Zen's frame layouts (components/ZenStage.tsx). The frame layout covers the window and scrolls
+ * by itself, so the page under it stays still. Unlayered, so it wins over the utilities.
+ */
+html[data-zen-layout] body {
+  overflow: hidden;
 }

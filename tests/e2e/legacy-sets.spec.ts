@@ -2,8 +2,8 @@ import {expect, test} from '../support/test';
 import {LEGACY_SETS, legacyItems, packageItemId, rawState} from '../support/links';
 
 /**
- * Legacy image sets are frozen in the repository (imageset.legacy.json, images in
- * public/images/<package>/). They are hidden from the template picker, the landing page and
+ * Legacy image sets are frozen (imageset.legacy.json, npm packages pinned to an exact
+ * version). They are hidden from the template picker, the landing page and
  * the sitemap, but their pages, old links and previews keep working.
  */
 test.describe('legacy sets', () => {
@@ -83,7 +83,7 @@ test.describe('legacy sets', () => {
     test('renders cards and links for the active sets and no legacy set when the landing page opens', {tag: '@mobile'}, async ({site}) => {
       await site.gotoHome();
 
-      await expect(site.cardTitles).toHaveText(['THE FINALS', 'OVERWATCH', 'Others']);
+      await expect(site.cardTitles).toHaveText(['THE FINALS', 'OVERWATCH', 'Your own list']);
       const targets = await site.linkTargets();
       expect(targets).toContain('/rank/the-finals/all');
       expect(targets).toContain('/rank/overwatch/tank');
