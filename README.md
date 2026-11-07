@@ -75,7 +75,7 @@
     <td width="50%" valign="top">
       <b>Appearance</b><br>
       Light, Dark or System, each game's colours, and a Modern or Classic font.<br>
-      <img src="docs/media/appearance.gif" alt="Switching to Dark mode, Game colours and the Classic font">
+      <img src="docs/media/appearance.gif" alt="Switching to Dark mode, then to the Classic font">
     </td>
     <td width="50%" valign="top">
       <b>Zen</b><br>
