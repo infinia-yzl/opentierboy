@@ -78,7 +78,9 @@ const FormItem = React.forwardRef<
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      {/* Tailwind 3's space-y-2: the gap goes above every child after the first. Tailwind 4's
+          space-y-2 puts it below the label, which is inline, so the gap would disappear. */}
+      <div ref={ref} className={cn("*:not-first:mt-2", className)} {...props} />
     </FormItemContext.Provider>
   )
 })

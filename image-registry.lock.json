@@ -1,0 +1,2152 @@
+{
+  "image-set-hero1.webp": {
+    "package": "image-set",
+    "filename": "hero1.webp",
+    "label": "Super Handsome Blonde Hero"
+  },
+  "image-set-hero2.webp": {
+    "package": "image-set",
+    "filename": "hero2.webp",
+    "label": "Handsome Hero"
+  },
+  "image-set-hero3.webp": {
+    "package": "image-set",
+    "filename": "hero3.webp",
+    "label": "hero3.webp"
+  },
+  "image-set-mecha/mecha1.webp": {
+    "package": "image-set",
+    "filename": "mecha/mecha1.webp",
+    "label": "Flying Mecha"
+  },
+  "image-set-mecha/mecha2.webp": {
+    "package": "image-set",
+    "filename": "mecha/mecha2.webp",
+    "label": "mecha/mecha2.webp"
+  },
+  "image-reachthefinals-50_Akimbo_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "50_Akimbo_Rank_1.webp",
+    "label": ".50 AKIMBO"
+  },
+  "image-reachthefinals-93R_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "93R_Rank_1.webp",
+    "label": "93R"
+  },
+  "image-reachthefinals-AKM_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "AKM_Rank_1.webp",
+    "label": "AKM"
+  },
+  "image-reachthefinals-APS_Turret_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "APS_Turret_Rank_1.webp",
+    "label": "APS TURRET"
+  },
+  "image-reachthefinals-ARN-220_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "ARN-220_Rank_1.webp",
+    "label": "ARN-220"
+  },
+  "image-reachthefinals-Anti-Gravity_Cube_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Anti-Gravity_Cube_Rank_1.webp",
+    "label": "ANTI-GRAVITY CUBE"
+  },
+  "image-reachthefinals-Barricade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Barricade_Rank_1.webp",
+    "label": "BARRICADE"
+  },
+  "image-reachthefinals-Breach_Charge_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Breach_Charge_Rank_1.webp",
+    "label": "BREACH CHARGE"
+  },
+  "image-reachthefinals-C4_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "C4_Rank_1.webp",
+    "label": "C4"
+  },
+  "image-reachthefinals-CB-01_Repeater_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "CB-01_Repeater_Rank_1.webp",
+    "label": "CB-01 Repeater"
+  },
+  "image-reachthefinals-CL-40_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "CL-40_Rank_1.webp",
+    "label": "CL-40"
+  },
+  "image-reachthefinals-Cerberus_12GA_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Cerberus_12GA_Rank_1.webp",
+    "label": "CERBERUS 12GA"
+  },
+  "image-reachthefinals-Charge_N_Slam_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Charge_N_Slam_Rank_1.webp",
+    "label": "CHARGE 'N' SLAM"
+  },
+  "image-reachthefinals-Cloaking_Device_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Cloaking_Device_Rank_1.webp",
+    "label": "CLOAKING DEVICE"
+  },
+  "image-reachthefinals-Dagger_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Dagger_Rank_1.webp",
+    "label": "DAGGER"
+  },
+  "image-reachthefinals-Data_Reshaper_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Data_Reshaper_Rank_1.webp",
+    "label": "DATA RESHAPER"
+  },
+  "image-reachthefinals-Defibrillator_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Defibrillator_Rank_1.webp",
+    "label": "DEFIBRILLATOR"
+  },
+  "image-reachthefinals-Dematerializer_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Dematerializer_Rank_1.webp",
+    "label": "DEMATERIALIZER"
+  },
+  "image-reachthefinals-Dome_Shield_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Dome_Shield_Rank_1.webp",
+    "label": "DOME SHIELD"
+  },
+  "image-reachthefinals-Dual_Blades_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Dual_Blades_Rank_1.webp",
+    "label": "DUAL BLADES"
+  },
+  "image-reachthefinals-Evasive_Dash_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Evasive_Dash_Rank_1.webp",
+    "label": "EVASIVE DASH"
+  },
+  "image-reachthefinals-Explosive_Mine_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Explosive_Mine_Rank_1.webp",
+    "label": "EXPLOSIVE MINE"
+  },
+  "image-reachthefinals-FAMAS_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "FAMAS_Rank_1.webp",
+    "label": "FAMAS"
+  },
+  "image-reachthefinals-FCAR_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "FCAR_Rank_1.webp",
+    "label": "FCAR"
+  },
+  "image-reachthefinals-Flamethrower_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Flamethrower_Rank_1.webp",
+    "label": "FLAMETHROWER"
+  },
+  "image-reachthefinals-Flashbang_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Flashbang_Rank_1.webp",
+    "label": "FLASHBANG"
+  },
+  "image-reachthefinals-Frag_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Frag_Grenade_Rank_1.webp",
+    "label": "FRAG GRENADE"
+  },
+  "image-reachthefinals-Gas_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Gas_Grenade_Rank_1.webp",
+    "label": "GAS GRENADE"
+  },
+  "image-reachthefinals-Gas_Mine_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Gas_Mine_Rank_1.webp",
+    "label": "GAS MINE"
+  },
+  "image-reachthefinals-Gateway_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Gateway_Rank_1.webp",
+    "label": "GATEWAY"
+  },
+  "image-reachthefinals-Glitch_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Glitch_Grenade_Rank_1.webp",
+    "label": "GLITCH GRENADE"
+  },
+  "image-reachthefinals-Glitch_Trap_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Glitch_Trap_Rank_1.webp",
+    "label": "GLITCH TRAP"
+  },
+  "image-reachthefinals-Goo_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Goo_Grenade_Rank_1.webp",
+    "label": "GOO GRENADE"
+  },
+  "image-reachthefinals-Goo_Gun_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Goo_Gun_Rank_1.webp",
+    "label": "GOO GUN"
+  },
+  "image-reachthefinals-Grappling_Hook_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Grappling_Hook_Rank_1.webp",
+    "label": "GRAPPLING HOOK"
+  },
+  "image-reachthefinals-Gravity_Vortex_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Gravity_Vortex_Rank_1.webp",
+    "label": "GRAVITY VORTEX"
+  },
+  "image-reachthefinals-Guardian_Turret_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Guardian_Turret_Rank_1.webp",
+    "label": "GUARDIAN TURRET"
+  },
+  "image-reachthefinals-Healing_Beam_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Healing_Beam_Rank_1.webp",
+    "label": "HEALING BEAM"
+  },
+  "image-reachthefinals-Jump_Pad_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Jump_Pad_Rank_1.webp",
+    "label": "JUMP PAD"
+  },
+  "image-reachthefinals-KS-23_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "KS-23_Rank_1.webp",
+    "label": "KS-23"
+  },
+  "image-reachthefinals-LH1_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "LH1_Rank_1.webp",
+    "label": "LH1"
+  },
+  "image-reachthefinals-Lewis_Gun_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Lewis_Gun_Rank_1.webp",
+    "label": "LEWIS GUN"
+  },
+  "image-reachthefinals-Lockbolt_Launcher_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Lockbolt_Launcher_Rank_1.webp",
+    "label": "LOCKBOLT LAUNCHER"
+  },
+  "image-reachthefinals-M11_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "M11_Rank_1.webp",
+    "label": "M11"
+  },
+  "image-reachthefinals-M134_Minigun_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "M134_Minigun_Rank_1.webp",
+    "label": "M134 Minigun"
+  },
+  "image-reachthefinals-M26_Matter_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "M26_Matter_Rank_1.webp",
+    "label": "M26 MATTER"
+  },
+  "image-reachthefinals-M60_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "M60_Rank_1.webp",
+    "label": "M60"
+  },
+  "image-reachthefinals-MGL32_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "MGL32_Rank_1.webp",
+    "label": "MGL32"
+  },
+  "image-reachthefinals-Mesh_Shield_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Mesh_Shield_Rank_1.webp",
+    "label": "MESH SHIELD"
+  },
+  "image-reachthefinals-Model_1887_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Model_1887_Rank_1.webp",
+    "label": "MODEL 1887"
+  },
+  "image-reachthefinals-Motion_Sensor_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Motion_Sensor_Rank_1.webp",
+    "label": "MOTION SENSOR"
+  },
+  "image-reachthefinals-Pike-556_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Pike-556_Rank_1.webp",
+    "label": "PIKE-556"
+  },
+  "image-reachthefinals-Pyro_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Pyro_Grenade_Rank_1.webp",
+    "label": "PYRO GRENADE"
+  },
+  "image-reachthefinals-Pyro_Mine_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Pyro_Mine_Rank_1.webp",
+    "label": "PYRO MINE"
+  },
+  "image-reachthefinals-RPG-7_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "RPG-7_Rank_1.webp",
+    "label": "RPG-7"
+  },
+  "image-reachthefinals-R_.357_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "R_.357_Rank_1.webp",
+    "label": "R .357"
+  },
+  "image-reachthefinals-Recurve_Bow_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Recurve_Bow_Rank_1.webp",
+    "label": "RECURVE BOW"
+  },
+  "image-reachthefinals-Riot_Shield_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Riot_Shield_Rank_1.webp",
+    "label": "RIOT SHIELD"
+  },
+  "image-reachthefinals-SA1216_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "SA1216_Rank_1.webp",
+    "label": "SA1216"
+  },
+  "image-reachthefinals-SH1900_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "SH1900_Rank_1.webp",
+    "label": "SH1900"
+  },
+  "image-reachthefinals-SR-84_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "SR-84_Rank_1.webp",
+    "label": "SR-84"
+  },
+  "image-reachthefinals-ShAK-50_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "ShAK-50_Rank_1.webp",
+    "label": "ShAK-50"
+  },
+  "image-reachthefinals-Sledgehammer_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Sledgehammer_Rank_1.webp",
+    "label": "SLEDGEHAMMER"
+  },
+  "image-reachthefinals-Smoke_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Smoke_Grenade_Rank_1.webp",
+    "label": "SMOKE GRENADE"
+  },
+  "image-reachthefinals-Sonar_Grenade_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Sonar_Grenade_Rank_1.webp",
+    "label": "SONAR GRENADE"
+  },
+  "image-reachthefinals-Spear_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Spear_Rank_1.webp",
+    "label": "SPEAR"
+  },
+  "image-reachthefinals-Stun_Gun_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Stun_Gun_Rank_1.webp",
+    "label": "STUN GUN"
+  },
+  "image-reachthefinals-Sword_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Sword_Rank_1.webp",
+    "label": "SWORD"
+  },
+  "image-reachthefinals-Thermal_Bore_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Thermal_Bore_Rank_1.webp",
+    "label": "THERMAL BORE"
+  },
+  "image-reachthefinals-Thermal_Vision_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Thermal_Vision_Rank_1.webp",
+    "label": "THERMAL VISION"
+  },
+  "image-reachthefinals-Throwing_Knives_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Throwing_Knives_Rank_1.webp",
+    "label": "THROWING KNIVES"
+  },
+  "image-reachthefinals-Tracking_Dart_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Tracking_Dart_Rank_1.webp",
+    "label": "TRACKING DART"
+  },
+  "image-reachthefinals-V9S_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "V9S_Rank_1.webp",
+    "label": "V9S"
+  },
+  "image-reachthefinals-Vanishing_Bomb_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Vanishing_Bomb_Rank_1.webp",
+    "label": "VANSHING BOMB"
+  },
+  "image-reachthefinals-Winch_Claw_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Winch_Claw_Rank_1.webp",
+    "label": "WINCH CLAW"
+  },
+  "image-reachthefinals-XP-54_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "XP-54_Rank_1.webp",
+    "label": "XP-54"
+  },
+  "image-reachthefinals-Zipline_Rank_1.webp": {
+    "package": "image-reachthefinals",
+    "filename": "Zipline_Rank_1.webp",
+    "label": "ZIPLINE"
+  },
+  "image-wutheringwaves-c/aa.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/aa.webp",
+    "label": "Aalto"
+  },
+  "image-wutheringwaves-c/bz.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/bz.webp",
+    "label": "Baizhi"
+  },
+  "image-wutheringwaves-c/cc.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/cc.webp",
+    "label": "Calcharo"
+  },
+  "image-wutheringwaves-c/cl.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/cl.webp",
+    "label": "Changli"
+  },
+  "image-wutheringwaves-c/cx.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/cx.webp",
+    "label": "Chixia"
+  },
+  "image-wutheringwaves-c/dj.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/dj.webp",
+    "label": "Danjin"
+  },
+  "image-wutheringwaves-c/ec.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/ec.webp",
+    "label": "Encore"
+  },
+  "image-wutheringwaves-c/js.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/js.webp",
+    "label": "Jinshi"
+  },
+  "image-wutheringwaves-c/jx.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/jx.webp",
+    "label": "Jianxin"
+  },
+  "image-wutheringwaves-c/jy.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/jy.webp",
+    "label": "Jiyan"
+  },
+  "image-wutheringwaves-c/ly.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/ly.webp",
+    "label": "Lingyang"
+  },
+  "image-wutheringwaves-c/mf.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/mf.webp",
+    "label": "Mortefi"
+  },
+  "image-wutheringwaves-c/rm-h.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/rm-h.webp",
+    "label": "Rover Havoc"
+  },
+  "image-wutheringwaves-c/rm-s.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/rm-s.webp",
+    "label": "Rover Spectro"
+  },
+  "image-wutheringwaves-c/sh.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/sh.webp",
+    "label": "Sanhua"
+  },
+  "image-wutheringwaves-c/sk.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/sk.webp",
+    "label": "The Shorekeeper"
+  },
+  "image-wutheringwaves-c/vr.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/vr.webp",
+    "label": "Verina"
+  },
+  "image-wutheringwaves-c/xy.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/xy.webp",
+    "label": "Xiangli Yao"
+  },
+  "image-wutheringwaves-c/yh.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/yh.webp",
+    "label": "Youhu"
+  },
+  "image-wutheringwaves-c/yl.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/yl.webp",
+    "label": "Yinlin"
+  },
+  "image-wutheringwaves-c/yw.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/yw.webp",
+    "label": "Yuanwu"
+  },
+  "image-wutheringwaves-c/yy.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/yy.webp",
+    "label": "Yangyang"
+  },
+  "image-wutheringwaves-c/zz.webp": {
+    "package": "image-wutheringwaves",
+    "filename": "c/zz.webp",
+    "label": "Zhezhi"
+  },
+  "image-overwatch-ana.webp": {
+    "package": "image-overwatch",
+    "filename": "ana.webp",
+    "label": "Ana"
+  },
+  "image-overwatch-ash.webp": {
+    "package": "image-overwatch",
+    "filename": "ash.webp",
+    "label": "Ashe"
+  },
+  "image-overwatch-bal.webp": {
+    "package": "image-overwatch",
+    "filename": "bal.webp",
+    "label": "Wrecking Ball"
+  },
+  "image-overwatch-bap.webp": {
+    "package": "image-overwatch",
+    "filename": "bap.webp",
+    "label": "Baptiste"
+  },
+  "image-overwatch-bas.webp": {
+    "package": "image-overwatch",
+    "filename": "bas.webp",
+    "label": "Bastion"
+  },
+  "image-overwatch-brg.webp": {
+    "package": "image-overwatch",
+    "filename": "brg.webp",
+    "label": "Brigitte"
+  },
+  "image-overwatch-dfs.webp": {
+    "package": "image-overwatch",
+    "filename": "dfs.webp",
+    "label": "Doomfist"
+  },
+  "image-overwatch-dva.webp": {
+    "package": "image-overwatch",
+    "filename": "dva.webp",
+    "label": "D.Va"
+  },
+  "image-overwatch-ech.webp": {
+    "package": "image-overwatch",
+    "filename": "ech.webp",
+    "label": "Echo"
+  },
+  "image-overwatch-gen.webp": {
+    "package": "image-overwatch",
+    "filename": "gen.webp",
+    "label": "Genji"
+  },
+  "image-overwatch-han.webp": {
+    "package": "image-overwatch",
+    "filename": "han.webp",
+    "label": "Hanzo"
+  },
+  "image-overwatch-hog.webp": {
+    "package": "image-overwatch",
+    "filename": "hog.webp",
+    "label": "Roadhog"
+  },
+  "image-overwatch-hzd.webp": {
+    "package": "image-overwatch",
+    "filename": "hzd.webp",
+    "label": "Hazard"
+  },
+  "image-overwatch-ill.webp": {
+    "package": "image-overwatch",
+    "filename": "ill.webp",
+    "label": "Illari"
+  },
+  "image-overwatch-jqn.webp": {
+    "package": "image-overwatch",
+    "filename": "jqn.webp",
+    "label": "Junker Queen"
+  },
+  "image-overwatch-jun.webp": {
+    "package": "image-overwatch",
+    "filename": "jun.webp",
+    "label": "Juno"
+  },
+  "image-overwatch-kir.webp": {
+    "package": "image-overwatch",
+    "filename": "kir.webp",
+    "label": "Kiriko"
+  },
+  "image-overwatch-luc.webp": {
+    "package": "image-overwatch",
+    "filename": "luc.webp",
+    "label": "Lucio"
+  },
+  "image-overwatch-mau.webp": {
+    "package": "image-overwatch",
+    "filename": "mau.webp",
+    "label": "Mauga"
+  },
+  "image-overwatch-mcr.webp": {
+    "package": "image-overwatch",
+    "filename": "mcr.webp",
+    "label": "Cassidy"
+  },
+  "image-overwatch-mei.webp": {
+    "package": "image-overwatch",
+    "filename": "mei.webp",
+    "label": "Mei"
+  },
+  "image-overwatch-mer.webp": {
+    "package": "image-overwatch",
+    "filename": "mer.webp",
+    "label": "Mercy"
+  },
+  "image-overwatch-moi.webp": {
+    "package": "image-overwatch",
+    "filename": "moi.webp",
+    "label": "Moira"
+  },
+  "image-overwatch-ori.webp": {
+    "package": "image-overwatch",
+    "filename": "ori.webp",
+    "label": "Orisa"
+  },
+  "image-overwatch-pha.webp": {
+    "package": "image-overwatch",
+    "filename": "pha.webp",
+    "label": "Pharah"
+  },
+  "image-overwatch-ram.webp": {
+    "package": "image-overwatch",
+    "filename": "ram.webp",
+    "label": "Ramattra"
+  },
+  "image-overwatch-rat.webp": {
+    "package": "image-overwatch",
+    "filename": "rat.webp",
+    "label": "Junkrat"
+  },
+  "image-overwatch-rea.webp": {
+    "package": "image-overwatch",
+    "filename": "rea.webp",
+    "label": "Reaper"
+  },
+  "image-overwatch-rei.webp": {
+    "package": "image-overwatch",
+    "filename": "rei.webp",
+    "label": "Reinhardt"
+  },
+  "image-overwatch-s76.webp": {
+    "package": "image-overwatch",
+    "filename": "s76.webp",
+    "label": "Soldier: 76"
+  },
+  "image-overwatch-sig.webp": {
+    "package": "image-overwatch",
+    "filename": "sig.webp",
+    "label": "Sigma"
+  },
+  "image-overwatch-soj.webp": {
+    "package": "image-overwatch",
+    "filename": "soj.webp",
+    "label": "Sojourn"
+  },
+  "image-overwatch-som.webp": {
+    "package": "image-overwatch",
+    "filename": "som.webp",
+    "label": "Sombra"
+  },
+  "image-overwatch-sym.webp": {
+    "package": "image-overwatch",
+    "filename": "sym.webp",
+    "label": "Symmetra"
+  },
+  "image-overwatch-tob.webp": {
+    "package": "image-overwatch",
+    "filename": "tob.webp",
+    "label": "Torbjörn"
+  },
+  "image-overwatch-tra.webp": {
+    "package": "image-overwatch",
+    "filename": "tra.webp",
+    "label": "Tracer"
+  },
+  "image-overwatch-ven.webp": {
+    "package": "image-overwatch",
+    "filename": "ven.webp",
+    "label": "Venture"
+  },
+  "image-overwatch-wdw.webp": {
+    "package": "image-overwatch",
+    "filename": "wdw.webp",
+    "label": "Widowmaker"
+  },
+  "image-overwatch-wea.webp": {
+    "package": "image-overwatch",
+    "filename": "wea.webp",
+    "label": "Lifeweaver"
+  },
+  "image-overwatch-win.webp": {
+    "package": "image-overwatch",
+    "filename": "win.webp",
+    "label": "Winston"
+  },
+  "image-overwatch-zar.webp": {
+    "package": "image-overwatch",
+    "filename": "zar.webp",
+    "label": "Zarya"
+  },
+  "image-overwatch-zen.webp": {
+    "package": "image-overwatch",
+    "filename": "zen.webp",
+    "label": "Zenyatta"
+  },
+  "image-webdev-be/actionhero.webp": {
+    "package": "image-webdev",
+    "filename": "be/actionhero.webp",
+    "label": "ActionHero"
+  },
+  "image-webdev-be/adonis.webp": {
+    "package": "image-webdev",
+    "filename": "be/adonis.webp",
+    "label": "AdonisJS"
+  },
+  "image-webdev-be/cassandra.webp": {
+    "package": "image-webdev",
+    "filename": "be/cassandra.webp",
+    "label": "Apache Cassandra"
+  },
+  "image-webdev-be/couchdb.webp": {
+    "package": "image-webdev",
+    "filename": "be/couchdb.webp",
+    "label": "CouchDB"
+  },
+  "image-webdev-be/django.webp": {
+    "package": "image-webdev",
+    "filename": "be/django.webp",
+    "label": "Django"
+  },
+  "image-webdev-be/dotnet.webp": {
+    "package": "image-webdev",
+    "filename": "be/dotnet.webp",
+    "label": ".NET"
+  },
+  "image-webdev-be/express.webp": {
+    "package": "image-webdev",
+    "filename": "be/express.webp",
+    "label": "Express.js"
+  },
+  "image-webdev-be/fastify.webp": {
+    "package": "image-webdev",
+    "filename": "be/fastify.webp",
+    "label": "Fastify"
+  },
+  "image-webdev-be/feathers.webp": {
+    "package": "image-webdev",
+    "filename": "be/feathers.webp",
+    "label": "Feathers"
+  },
+  "image-webdev-be/hapi.webp": {
+    "package": "image-webdev",
+    "filename": "be/hapi.webp",
+    "label": "Hapi"
+  },
+  "image-webdev-be/hono.webp": {
+    "package": "image-webdev",
+    "filename": "be/hono.webp",
+    "label": "Hono"
+  },
+  "image-webdev-be/koa.webp": {
+    "package": "image-webdev",
+    "filename": "be/koa.webp",
+    "label": "Koa"
+  },
+  "image-webdev-be/laravel.webp": {
+    "package": "image-webdev",
+    "filename": "be/laravel.webp",
+    "label": "Laravel"
+  },
+  "image-webdev-be/leveldb.webp": {
+    "package": "image-webdev",
+    "filename": "be/leveldb.webp",
+    "label": "LevelDB"
+  },
+  "image-webdev-be/loopback.webp": {
+    "package": "image-webdev",
+    "filename": "be/loopback.webp",
+    "label": "LoopBack"
+  },
+  "image-webdev-be/mariadb.webp": {
+    "package": "image-webdev",
+    "filename": "be/mariadb.webp",
+    "label": "MariaDB"
+  },
+  "image-webdev-be/moleculer.webp": {
+    "package": "image-webdev",
+    "filename": "be/moleculer.webp",
+    "label": "Moleculer"
+  },
+  "image-webdev-be/mongodb.webp": {
+    "package": "image-webdev",
+    "filename": "be/mongodb.webp",
+    "label": "MongoDB"
+  },
+  "image-webdev-be/mssql.webp": {
+    "package": "image-webdev",
+    "filename": "be/mssql.webp",
+    "label": "Microsoft SQL Server"
+  },
+  "image-webdev-be/mysql.webp": {
+    "package": "image-webdev",
+    "filename": "be/mysql.webp",
+    "label": "MySQL"
+  },
+  "image-webdev-be/nest.webp": {
+    "package": "image-webdev",
+    "filename": "be/nest.webp",
+    "label": "NestJS"
+  },
+  "image-webdev-be/pgsql.webp": {
+    "package": "image-webdev",
+    "filename": "be/pgsql.webp",
+    "label": "PostgreSQL"
+  },
+  "image-webdev-be/rails.webp": {
+    "package": "image-webdev",
+    "filename": "be/rails.webp",
+    "label": "Ruby on Rails"
+  },
+  "image-webdev-be/redis.webp": {
+    "package": "image-webdev",
+    "filename": "be/redis.webp",
+    "label": "Redis"
+  },
+  "image-webdev-be/restify.webp": {
+    "package": "image-webdev",
+    "filename": "be/restify.webp",
+    "label": "Restify"
+  },
+  "image-webdev-be/sails.webp": {
+    "package": "image-webdev",
+    "filename": "be/sails.webp",
+    "label": "Sails.js"
+  },
+  "image-webdev-be/spring.webp": {
+    "package": "image-webdev",
+    "filename": "be/spring.webp",
+    "label": "Spring"
+  },
+  "image-webdev-fe/alpine.webp": {
+    "package": "image-webdev",
+    "filename": "fe/alpine.webp",
+    "label": "Alpine.js"
+  },
+  "image-webdev-fe/angular.webp": {
+    "package": "image-webdev",
+    "filename": "fe/angular.webp",
+    "label": "Angular"
+  },
+  "image-webdev-fe/astro.webp": {
+    "package": "image-webdev",
+    "filename": "fe/astro.webp",
+    "label": "Astro"
+  },
+  "image-webdev-fe/aurelia.webp": {
+    "package": "image-webdev",
+    "filename": "fe/aurelia.webp",
+    "label": "Aurelia"
+  },
+  "image-webdev-fe/cyclejs.webp": {
+    "package": "image-webdev",
+    "filename": "fe/cyclejs.webp",
+    "label": "Cycle.js"
+  },
+  "image-webdev-fe/ember.webp": {
+    "package": "image-webdev",
+    "filename": "fe/ember.webp",
+    "label": "Ember.js"
+  },
+  "image-webdev-fe/foundation.webp": {
+    "package": "image-webdev",
+    "filename": "fe/foundation.webp",
+    "label": "Foundation"
+  },
+  "image-webdev-fe/framework7.webp": {
+    "package": "image-webdev",
+    "filename": "fe/framework7.webp",
+    "label": "Framework7"
+  },
+  "image-webdev-fe/gatsby.webp": {
+    "package": "image-webdev",
+    "filename": "fe/gatsby.webp",
+    "label": "Gatsby"
+  },
+  "image-webdev-fe/htmx.webp": {
+    "package": "image-webdev",
+    "filename": "fe/htmx.webp",
+    "label": "HTMX"
+  },
+  "image-webdev-fe/ionic.webp": {
+    "package": "image-webdev",
+    "filename": "fe/ionic.webp",
+    "label": "Ionic"
+  },
+  "image-webdev-fe/jquery.webp": {
+    "package": "image-webdev",
+    "filename": "fe/jquery.webp",
+    "label": "JQuery"
+  },
+  "image-webdev-fe/lit.webp": {
+    "package": "image-webdev",
+    "filename": "fe/lit.webp",
+    "label": "Lit"
+  },
+  "image-webdev-fe/marko.webp": {
+    "package": "image-webdev",
+    "filename": "fe/marko.webp",
+    "label": "Marko"
+  },
+  "image-webdev-fe/mithril.webp": {
+    "package": "image-webdev",
+    "filename": "fe/mithril.webp",
+    "label": "Mithril"
+  },
+  "image-webdev-fe/nextjs.webp": {
+    "package": "image-webdev",
+    "filename": "fe/nextjs.webp",
+    "label": "Next.js"
+  },
+  "image-webdev-fe/nuxt.webp": {
+    "package": "image-webdev",
+    "filename": "fe/nuxt.webp",
+    "label": "Nuxt.js"
+  },
+  "image-webdev-fe/preact.webp": {
+    "package": "image-webdev",
+    "filename": "fe/preact.webp",
+    "label": "Preact"
+  },
+  "image-webdev-fe/quasar.webp": {
+    "package": "image-webdev",
+    "filename": "fe/quasar.webp",
+    "label": "Quasar"
+  },
+  "image-webdev-fe/qwik.webp": {
+    "package": "image-webdev",
+    "filename": "fe/qwik.webp",
+    "label": "Qwik"
+  },
+  "image-webdev-fe/react.webp": {
+    "package": "image-webdev",
+    "filename": "fe/react.webp",
+    "label": "React"
+  },
+  "image-webdev-fe/remix.webp": {
+    "package": "image-webdev",
+    "filename": "fe/remix.webp",
+    "label": "Remix"
+  },
+  "image-webdev-fe/riot.webp": {
+    "package": "image-webdev",
+    "filename": "fe/riot.webp",
+    "label": "Riot.js"
+  },
+  "image-webdev-fe/semantic.webp": {
+    "package": "image-webdev",
+    "filename": "fe/semantic.webp",
+    "label": "Semantic UI"
+  },
+  "image-webdev-fe/solidjs.webp": {
+    "package": "image-webdev",
+    "filename": "fe/solidjs.webp",
+    "label": "Solid.js"
+  },
+  "image-webdev-fe/stencil.webp": {
+    "package": "image-webdev",
+    "filename": "fe/stencil.webp",
+    "label": "Stencil"
+  },
+  "image-webdev-fe/stimulus.webp": {
+    "package": "image-webdev",
+    "filename": "fe/stimulus.webp",
+    "label": "Stimulus"
+  },
+  "image-webdev-fe/svelte.webp": {
+    "package": "image-webdev",
+    "filename": "fe/svelte.webp",
+    "label": "Svelte"
+  },
+  "image-webdev-fe/vue.webp": {
+    "package": "image-webdev",
+    "filename": "fe/vue.webp",
+    "label": "Vue.js"
+  },
+  "image-webdev-meteor.webp": {
+    "package": "image-webdev",
+    "filename": "meteor.webp",
+    "label": "Meteor"
+  },
+  "image-webdev-total.webp": {
+    "package": "image-webdev",
+    "filename": "total.webp",
+    "label": "Total.js"
+  },
+  "image-supervive-bee.webp": {
+    "package": "image-supervive",
+    "filename": "bee.webp",
+    "label": "BEEBO"
+  },
+  "image-supervive-brl.webp": {
+    "package": "image-supervive",
+    "filename": "brl.webp",
+    "label": "BRALL"
+  },
+  "image-supervive-bsh.webp": {
+    "package": "image-supervive",
+    "filename": "bsh.webp",
+    "label": "BISHOP"
+  },
+  "image-supervive-c/e_astrike.webp": {
+    "package": "image-supervive",
+    "filename": "c/e_astrike.webp",
+    "label": "AIRSTRIKE"
+  },
+  "image-supervive-c/e_heart.webp": {
+    "package": "image-supervive",
+    "filename": "c/e_heart.webp",
+    "label": "GNARLED HEART"
+  },
+  "image-supervive-c/e_life.webp": {
+    "package": "image-supervive",
+    "filename": "c/e_life.webp",
+    "label": "ORB OF LIFE"
+  },
+  "image-supervive-c/e_res.webp": {
+    "package": "image-supervive",
+    "filename": "c/e_res.webp",
+    "label": "RESPAWN BEACON"
+  },
+  "image-supervive-c/e_rev.webp": {
+    "package": "image-supervive",
+    "filename": "c/e_rev.webp",
+    "label": "TEAM REVIVE"
+  },
+  "image-supervive-cls.webp": {
+    "package": "image-supervive",
+    "filename": "cls.webp",
+    "label": "CELESTE"
+  },
+  "image-supervive-ena.webp": {
+    "package": "image-supervive",
+    "filename": "ena.webp",
+    "label": "ELLUNA"
+  },
+  "image-supervive-eq/eq_glide.webp": {
+    "package": "image-supervive",
+    "filename": "eq/eq_glide.webp",
+    "label": "GLIDE BOOTS"
+  },
+  "image-supervive-eq/eq_reap.webp": {
+    "package": "image-supervive",
+    "filename": "eq/eq_reap.webp",
+    "label": "ENDLESS REAPER"
+  },
+  "image-supervive-eq/eq_soul.webp": {
+    "package": "image-supervive",
+    "filename": "eq/eq_soul.webp",
+    "label": "THE SOULSTEALER"
+  },
+  "image-supervive-flx.webp": {
+    "package": "image-supervive",
+    "filename": "flx.webp",
+    "label": "FELIX"
+  },
+  "image-supervive-gst.webp": {
+    "package": "image-supervive",
+    "filename": "gst.webp",
+    "label": "GHOST"
+  },
+  "image-supervive-hsn.webp": {
+    "package": "image-supervive",
+    "filename": "hsn.webp",
+    "label": "HUDSON"
+  },
+  "image-supervive-jin.webp": {
+    "package": "image-supervive",
+    "filename": "jin.webp",
+    "label": "JIN"
+  },
+  "image-supervive-jul.webp": {
+    "package": "image-supervive",
+    "filename": "jul.webp",
+    "label": "JOULE"
+  },
+  "image-supervive-kpn.webp": {
+    "package": "image-supervive",
+    "filename": "kpn.webp",
+    "label": "KINGPIN"
+  },
+  "image-supervive-myt.webp": {
+    "package": "image-supervive",
+    "filename": "myt.webp",
+    "label": "MYTH"
+  },
+  "image-supervive-oat.webp": {
+    "package": "image-supervive",
+    "filename": "oat.webp",
+    "label": "OATH"
+  },
+  "image-supervive-p/a1_ahaste.webp": {
+    "package": "image-supervive",
+    "filename": "p/a1_ahaste.webp",
+    "label": "ABILITY HASTE RUNE"
+  },
+  "image-supervive-p/a1_mana.webp": {
+    "package": "image-supervive",
+    "filename": "p/a1_mana.webp",
+    "label": "MANA RUNE"
+  },
+  "image-supervive-p/a1_move.webp": {
+    "package": "image-supervive",
+    "filename": "p/a1_move.webp",
+    "label": "MOVEMENT RUNE"
+  },
+  "image-supervive-p/a1_vamp.webp": {
+    "package": "image-supervive",
+    "filename": "p/a1_vamp.webp",
+    "label": "OMNIVAMP RUNE"
+  },
+  "image-supervive-p/a2_axe.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_axe.webp",
+    "label": "THROWING AXE"
+  },
+  "image-supervive-p/a2_ball.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_ball.webp",
+    "label": "CAPTURE BALL"
+  },
+  "image-supervive-p/a2_burn.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_burn.webp",
+    "label": "BURNING CORE"
+  },
+  "image-supervive-p/a2_cloud.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_cloud.webp",
+    "label": "MANA CLOUD"
+  },
+  "image-supervive-p/a2_eplat.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_eplat.webp",
+    "label": "EMERGENCY PLATFORM"
+  },
+  "image-supervive-p/a2_fish.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_fish.webp",
+    "label": "FISHING POLE"
+  },
+  "image-supervive-p/a2_forest.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_forest.webp",
+    "label": "FRIEND OF THE FOREST"
+  },
+  "image-supervive-p/a2_ghil.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_ghil.webp",
+    "label": "GHILLIE SUIT"
+  },
+  "image-supervive-p/a2_insta.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_insta.webp",
+    "label": "INSTANT VIVE"
+  },
+  "image-supervive-p/a2_jam.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_jam.webp",
+    "label": "JAMMER"
+  },
+  "image-supervive-p/a2_money.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_money.webp",
+    "label": "MONEY TREE SEEDS"
+  },
+  "image-supervive-p/a2_scuba.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_scuba.webp",
+    "label": "SCUBA GEAR"
+  },
+  "image-supervive-p/a2_thumb.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_thumb.webp",
+    "label": "GREEN THUMB"
+  },
+  "image-supervive-p/a2_tree.webp": {
+    "package": "image-supervive",
+    "filename": "p/a2_tree.webp",
+    "label": "TREE COSTUME"
+  },
+  "image-supervive-p/a3_barrier.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_barrier.webp",
+    "label": "DELICATE BARRIER"
+  },
+  "image-supervive-p/a3_battery.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_battery.webp",
+    "label": "DELICATE MANA BATTERY"
+  },
+  "image-supervive-p/a3_blood.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_blood.webp",
+    "label": "BLOOD STONE"
+  },
+  "image-supervive-p/a3_boar.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_boar.webp",
+    "label": "BRUSH BOAR"
+  },
+  "image-supervive-p/a3_bush.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_bush.webp",
+    "label": "BRUSHWHACKER"
+  },
+  "image-supervive-p/a3_chonk.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_chonk.webp",
+    "label": "THE CHONKER"
+  },
+  "image-supervive-p/a3_cook.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_cook.webp",
+    "label": "LITTLE COOK"
+  },
+  "image-supervive-p/a3_field.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_field.webp",
+    "label": "ANTI-MOBILITY FIELD"
+  },
+  "image-supervive-p/a3_fist.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_fist.webp",
+    "label": "IRON FIST"
+  },
+  "image-supervive-p/a3_laser.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_laser.webp",
+    "label": "REMOTE LASER"
+  },
+  "image-supervive-p/a3_miss.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_miss.webp",
+    "label": "HOMING MISSILE"
+  },
+  "image-supervive-p/a3_mortar.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_mortar.webp",
+    "label": "MORTAR"
+  },
+  "image-supervive-p/a3_prison.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_prison.webp",
+    "label": "TREE PRISON"
+  },
+  "image-supervive-p/a3_rally.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_rally.webp",
+    "label": "RALLY"
+  },
+  "image-supervive-p/a3_regen.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_regen.webp",
+    "label": "REGENERATIVE ARMOR"
+  },
+  "image-supervive-p/a3_spy.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_spy.webp",
+    "label": "RAVEN SPY"
+  },
+  "image-supervive-p/a3_touchm.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_touchm.webp",
+    "label": "TOUCH OF MANA"
+  },
+  "image-supervive-p/a3_touchs.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_touchs.webp",
+    "label": "TOUCH OF SPEED"
+  },
+  "image-supervive-p/a3_turt.webp": {
+    "package": "image-supervive",
+    "filename": "p/a3_turt.webp",
+    "label": "RESCUE TURTLE"
+  },
+  "image-supervive-p/a4_berry.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_berry.webp",
+    "label": "BERRY EATER"
+  },
+  "image-supervive-p/a4_blast.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_blast.webp",
+    "label": "AIRBLAST"
+  },
+  "image-supervive-p/a4_boost.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_boost.webp",
+    "label": "GLIDER JET"
+  },
+  "image-supervive-p/a4_bungee.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_bungee.webp",
+    "label": "BUNGEE SHOT"
+  },
+  "image-supervive-p/a4_chonkc.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_chonkc.webp",
+    "label": "CHONKER CANNON"
+  },
+  "image-supervive-p/a4_cloak.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_cloak.webp",
+    "label": "STEALTH CLOAK"
+  },
+  "image-supervive-p/a4_fix.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_fix.webp",
+    "label": "FIXER"
+  },
+  "image-supervive-p/a4_ga.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_ga.webp",
+    "label": "GUARDIAN ANGEL"
+  },
+  "image-supervive-p/a4_hook.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_hook.webp",
+    "label": "GRAPPLING HOOK"
+  },
+  "image-supervive-p/a4_hover.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_hover.webp",
+    "label": "HOVER WINGS"
+  },
+  "image-supervive-p/a4_hpack.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_hpack.webp",
+    "label": "HEALTH PACKS"
+  },
+  "image-supervive-p/a4_nuke.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_nuke.webp",
+    "label": "TACTICAL NUKE"
+  },
+  "image-supervive-p/a4_rob.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_rob.webp",
+    "label": "ROBBER RACCOON"
+  },
+  "image-supervive-p/a4_spec.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_spec.webp",
+    "label": "ABYSS SPECIALIST"
+  },
+  "image-supervive-p/a4_tele.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_tele.webp",
+    "label": "TWO-WAY TELEPORTER"
+  },
+  "image-supervive-p/a4_touchl.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_touchl.webp",
+    "label": "TOUCH OF LIFE"
+  },
+  "image-supervive-p/a4_wall.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_wall.webp",
+    "label": "SAND WALL"
+  },
+  "image-supervive-p/a4_xray.webp": {
+    "package": "image-supervive",
+    "filename": "p/a4_xray.webp",
+    "label": "DELICATE X-RAY GOGGLES"
+  },
+  "image-supervive-p/e_blink.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_blink.webp",
+    "label": "BLINKSTONE"
+  },
+  "image-supervive-p/e_brain.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_brain.webp",
+    "label": "BUBBA'S BRAIN"
+  },
+  "image-supervive-p/e_disg.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_disg.webp",
+    "label": "DELICATE DISGUISE"
+  },
+  "image-supervive-p/e_eye.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_eye.webp",
+    "label": "ABYSSAL EYE"
+  },
+  "image-supervive-p/e_fang.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_fang.webp",
+    "label": "ABYSSAL FANG"
+  },
+  "image-supervive-p/e_fate.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_fate.webp",
+    "label": "FATE REWINDER"
+  },
+  "image-supervive-p/e_frog.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_frog.webp",
+    "label": "TEAM FROG JUMP"
+  },
+  "image-supervive-p/e_gaa.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_gaa.webp",
+    "label": "GUARDIAN ARCHANGEL"
+  },
+  "image-supervive-p/e_icarus.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_icarus.webp",
+    "label": "ICARUS GLIDE"
+  },
+  "image-supervive-p/e_mnuke.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_mnuke.webp",
+    "label": "MEGA CLUSTER NUKE"
+  },
+  "image-supervive-p/e_rep.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_rep.webp",
+    "label": "REPLICATOR"
+  },
+  "image-supervive-p/e_scale.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_scale.webp",
+    "label": "ABYSSAL SCALE"
+  },
+  "image-supervive-p/e_shred.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_shred.webp",
+    "label": "ARMOR SHREDDER"
+  },
+  "image-supervive-p/e_shuf.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_shuf.webp",
+    "label": "POWER SHUFFLER"
+  },
+  "image-supervive-p/e_vac.webp": {
+    "package": "image-supervive",
+    "filename": "p/e_vac.webp",
+    "label": "MAGNETIC VACUUM"
+  },
+  "image-supervive-shk.webp": {
+    "package": "image-supervive",
+    "filename": "shk.webp",
+    "label": "SHRIKE"
+  },
+  "image-supervive-shv.webp": {
+    "package": "image-supervive",
+    "filename": "shv.webp",
+    "label": "SHIV"
+  },
+  "image-supervive-vod.webp": {
+    "package": "image-supervive",
+    "filename": "vod.webp",
+    "label": "VOID"
+  },
+  "image-supervive-zep.webp": {
+    "package": "image-supervive",
+    "filename": "zep.webp",
+    "label": "ZEPH"
+  },
+  "image-helldivers2-ac8autocannon.webp": {
+    "package": "image-helldivers2",
+    "filename": "ac8autocannon.webp",
+    "label": "AC-8 Autocannon"
+  },
+  "image-helldivers2-ad334guarddog.webp": {
+    "package": "image-helldivers2",
+    "filename": "ad334guarddog.webp",
+    "label": "AX/AR-23 \"Guard Dog\""
+  },
+  "image-helldivers2-antipersonnelminefield.webp": {
+    "package": "image-helldivers2",
+    "filename": "antipersonnelminefield.webp",
+    "label": "Anti-Personnel Mines"
+  },
+  "image-helldivers2-antitankmines.webp": {
+    "package": "image-helldivers2",
+    "filename": "antitankmines.webp",
+    "label": "Anti-Tank Mines"
+  },
+  "image-helldivers2-apw1antimaterielrifle.webp": {
+    "package": "image-helldivers2",
+    "filename": "apw1antimaterielrifle.webp",
+    "label": "Anti-Materiel Rifle"
+  },
+  "image-helldivers2-ar23aliberatorcarbine.webp": {
+    "package": "image-helldivers2",
+    "filename": "ar23aliberatorcarbine.webp",
+    "label": "Liberator Carbine"
+  },
+  "image-helldivers2-ar23cliberatorconcussive.webp": {
+    "package": "image-helldivers2",
+    "filename": "ar23cliberatorconcussive.webp",
+    "label": "Liberator Concussive"
+  },
+  "image-helldivers2-ar23liberator.webp": {
+    "package": "image-helldivers2",
+    "filename": "ar23liberator.webp",
+    "label": "Liberator"
+  },
+  "image-helldivers2-ar23pliberatorpenetrator.webp": {
+    "package": "image-helldivers2",
+    "filename": "ar23pliberatorpenetrator.webp",
+    "label": "Liberator Penetrator"
+  },
+  "image-helldivers2-ar61tenderizer.webp": {
+    "package": "image-helldivers2",
+    "filename": "ar61tenderizer.webp",
+    "label": "Tenderizer"
+  },
+  "image-helldivers2-arc12blitzer.webp": {
+    "package": "image-helldivers2",
+    "filename": "arc12blitzer.webp",
+    "label": "Blitzer"
+  },
+  "image-helldivers2-arc3arcthrower.webp": {
+    "package": "image-helldivers2",
+    "filename": "arc3arcthrower.webp",
+    "label": "Arc Thrower"
+  },
+  "image-helldivers2-armedresupplypods.webp": {
+    "package": "image-helldivers2",
+    "filename": "armedresupplypods.webp",
+    "label": "Armed Resupply Pods"
+  },
+  "image-helldivers2-autocannonsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "autocannonsentry.webp",
+    "label": "Autocannon Sentry"
+  },
+  "image-helldivers2-axlas5guarddogrover.webp": {
+    "package": "image-helldivers2",
+    "filename": "axlas5guarddogrover.webp",
+    "label": "AX/LAS-5 \"Guard Dog\" Rover"
+  },
+  "image-helldivers2-axtx13guarddogdogbreath.webp": {
+    "package": "image-helldivers2",
+    "filename": "axtx13guarddogdogbreath.webp",
+    "label": "AX/TX-13 \"Guard Dog\" Dog Breath"
+  },
+  "image-helldivers2-b1supplypack.webp": {
+    "package": "image-helldivers2",
+    "filename": "b1supplypack.webp",
+    "label": "Supply Pack"
+  },
+  "image-helldivers2-br14adjudicator.webp": {
+    "package": "image-helldivers2",
+    "filename": "br14adjudicator.webp",
+    "label": "Adjudicator"
+  },
+  "image-helldivers2-cb9explodingcrossbow.webp": {
+    "package": "image-helldivers2",
+    "filename": "cb9explodingcrossbow.webp",
+    "label": "Exploding Crossbow"
+  },
+  "image-helldivers2-cqc19stunlance.webp": {
+    "package": "image-helldivers2",
+    "filename": "cqc19stunlance.webp",
+    "label": "Stun Lance"
+  },
+  "image-helldivers2-cqc30stunbaton.webp": {
+    "package": "image-helldivers2",
+    "filename": "cqc30stunbaton.webp",
+    "label": "Stun Baton"
+  },
+  "image-helldivers2-deadsprint.webp": {
+    "package": "image-helldivers2",
+    "filename": "deadsprint.webp",
+    "label": "Dead Sprint"
+  },
+  "image-helldivers2-eagle110mmrocketpods.webp": {
+    "package": "image-helldivers2",
+    "filename": "eagle110mmrocketpods.webp",
+    "label": "110mm Rocket Pods"
+  },
+  "image-helldivers2-eagle500kgbomb.webp": {
+    "package": "image-helldivers2",
+    "filename": "eagle500kgbomb.webp",
+    "label": "500kg Bomb"
+  },
+  "image-helldivers2-eagleairstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "eagleairstrike.webp",
+    "label": "Airstrike"
+  },
+  "image-helldivers2-eagleclusterbomb.webp": {
+    "package": "image-helldivers2",
+    "filename": "eagleclusterbomb.webp",
+    "label": "Cluster Bomb"
+  },
+  "image-helldivers2-eaglenapalmstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "eaglenapalmstrike.webp",
+    "label": "Napalm Strike"
+  },
+  "image-helldivers2-eaglesmokestrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "eaglesmokestrike.webp",
+    "label": "Smoke Strike"
+  },
+  "image-helldivers2-eaglestrafingrun.webp": {
+    "package": "image-helldivers2",
+    "filename": "eaglestrafingrun.webp",
+    "label": "Strafing Run"
+  },
+  "image-helldivers2-eat12antitankemplacement.webp": {
+    "package": "image-helldivers2",
+    "filename": "eat12antitankemplacement.webp",
+    "label": "Anti-Tank Emplacement"
+  },
+  "image-helldivers2-eat17expendableantitank.webp": {
+    "package": "image-helldivers2",
+    "filename": "eat17expendableantitank.webp",
+    "label": "Expendable Anti-Tank"
+  },
+  "image-helldivers2-emsmortarsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "emsmortarsentry.webp",
+    "label": "Mortar Sentry"
+  },
+  "image-helldivers2-exo45patriotexosuit.webp": {
+    "package": "image-helldivers2",
+    "filename": "exo45patriotexosuit.webp",
+    "label": "Patriot Exosuit"
+  },
+  "image-helldivers2-exo49emancipatorexosuit.webp": {
+    "package": "image-helldivers2",
+    "filename": "exo49emancipatorexosuit.webp",
+    "label": "Emancipator Exosuit"
+  },
+  "image-helldivers2-experimentalinfusion.webp": {
+    "package": "image-helldivers2",
+    "filename": "experimentalinfusion.webp",
+    "label": "Experimential Infusion"
+  },
+  "image-helldivers2-expertextractionpilot.webp": {
+    "package": "image-helldivers2",
+    "filename": "expertextractionpilot.webp",
+    "label": "Expert Extraction Pilot"
+  },
+  "image-helldivers2-faf14spear.webp": {
+    "package": "image-helldivers2",
+    "filename": "faf14spear.webp",
+    "label": "Spear"
+  },
+  "image-helldivers2-fastreconvehicle.webp": {
+    "package": "image-helldivers2",
+    "filename": "fastreconvehicle.webp",
+    "label": "Fast Recon Vehicle"
+  },
+  "image-helldivers2-firebombhellpods.webp": {
+    "package": "image-helldivers2",
+    "filename": "firebombhellpods.webp",
+    "label": "Firebomb Hellpods"
+  },
+  "image-helldivers2-flam40flamethrower.webp": {
+    "package": "image-helldivers2",
+    "filename": "flam40flamethrower.webp",
+    "label": "Flamethrower"
+  },
+  "image-helldivers2-flam66torcher.webp": {
+    "package": "image-helldivers2",
+    "filename": "flam66torcher.webp",
+    "label": "Torcher"
+  },
+  "image-helldivers2-flamesentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "flamesentry.webp",
+    "label": "Flame Sentry"
+  },
+  "image-helldivers2-flexiblereinforcementbudget.webp": {
+    "package": "image-helldivers2",
+    "filename": "flexiblereinforcementbudget.webp",
+    "label": "Flexible Reinforcement Budget"
+  },
+  "image-helldivers2-g10incendiarygrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g10incendiarygrenade.webp",
+    "label": "Incendiary Grenade"
+  },
+  "image-helldivers2-g123thermitegrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g123thermitegrenade.webp",
+    "label": "Thermite"
+  },
+  "image-helldivers2-g12highexplosivegrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g12highexplosivegrenade.webp",
+    "label": "High Explosive"
+  },
+  "image-helldivers2-g13incendiaryimpact.webp": {
+    "package": "image-helldivers2",
+    "filename": "g13incendiaryimpact.webp",
+    "label": "Incendiary Impact"
+  },
+  "image-helldivers2-g16impactgrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g16impactgrenade.webp",
+    "label": "Impact"
+  },
+  "image-helldivers2-g23stungrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g23stungrenade.webp",
+    "label": "Stun"
+  },
+  "image-helldivers2-g3smokegrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g3smokegrenade.webp",
+    "label": "Smoke"
+  },
+  "image-helldivers2-g4gasgrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g4gasgrenade.webp",
+    "label": "Gas"
+  },
+  "image-helldivers2-g6fraggrenade.webp": {
+    "package": "image-helldivers2",
+    "filename": "g6fraggrenade.webp",
+    "label": "Frag"
+  },
+  "image-helldivers2-gatlingsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "gatlingsentry.webp",
+    "label": "Gatling Sentry"
+  },
+  "image-helldivers2-gl21grenadelauncher.webp": {
+    "package": "image-helldivers2",
+    "filename": "gl21grenadelauncher.webp",
+    "label": "Grenade Launcher"
+  },
+  "image-helldivers2-gp31grenadepistol.webp": {
+    "package": "image-helldivers2",
+    "filename": "gp31grenadepistol.webp",
+    "label": "Grenade Pistol"
+  },
+  "image-helldivers2-gr8recoillessrifle.webp": {
+    "package": "image-helldivers2",
+    "filename": "gr8recoillessrifle.webp",
+    "label": "Recoilless Rifle"
+  },
+  "image-helldivers2-hellpodspaceoptimization.webp": {
+    "package": "image-helldivers2",
+    "filename": "hellpodspaceoptimization.webp",
+    "label": "Hellpod Space Optimization"
+  },
+  "image-helldivers2-hmgemplacement.webp": {
+    "package": "image-helldivers2",
+    "filename": "hmgemplacement.webp",
+    "label": "HMG Emplacement"
+  },
+  "image-helldivers2-incendiarymines.webp": {
+    "package": "image-helldivers2",
+    "filename": "incendiarymines.webp",
+    "label": "Incendiary Mines"
+  },
+  "image-helldivers2-increasedreinforcementbudget.webp": {
+    "package": "image-helldivers2",
+    "filename": "increasedreinforcementbudget.webp",
+    "label": "Increased Reinforcement Budget"
+  },
+  "image-helldivers2-jar5dominator.webp": {
+    "package": "image-helldivers2",
+    "filename": "jar5dominator.webp",
+    "label": "Dominator"
+  },
+  "image-helldivers2-k2throwingknife.webp": {
+    "package": "image-helldivers2",
+    "filename": "k2throwingknife.webp",
+    "label": "Throwing Knife"
+  },
+  "image-helldivers2-las16sickle.webp": {
+    "package": "image-helldivers2",
+    "filename": "las16sickle.webp",
+    "label": "Sickle"
+  },
+  "image-helldivers2-las5scythe.webp": {
+    "package": "image-helldivers2",
+    "filename": "las5scythe.webp",
+    "label": "Scythe"
+  },
+  "image-helldivers2-las7dagger.webp": {
+    "package": "image-helldivers2",
+    "filename": "las7dagger.webp",
+    "label": "Dagger"
+  },
+  "image-helldivers2-las98lasercannon.webp": {
+    "package": "image-helldivers2",
+    "filename": "las98lasercannon.webp",
+    "label": "Laser Cannon"
+  },
+  "image-helldivers2-las99quasarcannon.webp": {
+    "package": "image-helldivers2",
+    "filename": "las99quasarcannon.webp",
+    "label": "Quasar Cannon"
+  },
+  "image-helldivers2-lift850jumppack.webp": {
+    "package": "image-helldivers2",
+    "filename": "lift850jumppack.webp",
+    "label": "Jump Pack"
+  },
+  "image-helldivers2-localizationconfusion.webp": {
+    "package": "image-helldivers2",
+    "filename": "localizationconfusion.webp",
+    "label": "Localization Confusion"
+  },
+  "image-helldivers2-m105stalwart.webp": {
+    "package": "image-helldivers2",
+    "filename": "m105stalwart.webp",
+    "label": "Stalwart"
+  },
+  "image-helldivers2-machinegunsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "machinegunsentry.webp",
+    "label": "Machinegun Sentry"
+  },
+  "image-helldivers2-mg206heavymachinegun.webp": {
+    "package": "image-helldivers2",
+    "filename": "mg206heavymachinegun.webp",
+    "label": "Heavy Machinegun"
+  },
+  "image-helldivers2-mg43machinegun.webp": {
+    "package": "image-helldivers2",
+    "filename": "mg43machinegun.webp",
+    "label": "Machinegun"
+  },
+  "image-helldivers2-mls4xcommandorocketlauncher.webp": {
+    "package": "image-helldivers2",
+    "filename": "mls4xcommandorocketlauncher.webp",
+    "label": "Commando"
+  },
+  "image-helldivers2-mortarsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "mortarsentry.webp",
+    "label": "Mortar Sentry"
+  },
+  "image-helldivers2-motivationalshocks.webp": {
+    "package": "image-helldivers2",
+    "filename": "motivationalshocks.webp",
+    "label": "Motivational Shocks"
+  },
+  "image-helldivers2-mp98knight.webp": {
+    "package": "image-helldivers2",
+    "filename": "mp98knight.webp",
+    "label": "Knight"
+  },
+  "image-helldivers2-muscleenhancement.webp": {
+    "package": "image-helldivers2",
+    "filename": "muscleenhancement.webp",
+    "label": "Muscle Enhancement"
+  },
+  "image-helldivers2-orbital120mmhebarrage.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbital120mmhebarrage.webp",
+    "label": "120mm HE Barrage"
+  },
+  "image-helldivers2-orbital380mmhebarrage.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbital380mmhebarrage.webp",
+    "label": "380mm HE Barrage"
+  },
+  "image-helldivers2-orbitalairburststrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalairburststrike.webp",
+    "label": "Airburst Strike"
+  },
+  "image-helldivers2-orbitalemsstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalemsstrike.webp",
+    "label": "EMS Strike"
+  },
+  "image-helldivers2-orbitalgasstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalgasstrike.webp",
+    "label": "Gas Strike"
+  },
+  "image-helldivers2-orbitalgatlingbarrage.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalgatlingbarrage.webp",
+    "label": "Gatling Barrage"
+  },
+  "image-helldivers2-orbitallaser.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitallaser.webp",
+    "label": "Orbital Laser"
+  },
+  "image-helldivers2-orbitalnapalmbarrage.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalnapalmbarrage.webp",
+    "label": "Napalm Barrage"
+  },
+  "image-helldivers2-orbitalprecisionstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalprecisionstrike.webp",
+    "label": "Precision Strike"
+  },
+  "image-helldivers2-orbitalrailcannonstrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalrailcannonstrike.webp",
+    "label": "Railcannon Strike"
+  },
+  "image-helldivers2-orbitalsmokestrike.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalsmokestrike.webp",
+    "label": "Smoke Strike"
+  },
+  "image-helldivers2-orbitalwalkingbarrage.webp": {
+    "package": "image-helldivers2",
+    "filename": "orbitalwalkingbarrage.webp",
+    "label": "Walking Barrage"
+  },
+  "image-helldivers2-p113verdict.webp": {
+    "package": "image-helldivers2",
+    "filename": "p113verdict.webp",
+    "label": "Verdict"
+  },
+  "image-helldivers2-p11stimpistol.webp": {
+    "package": "image-helldivers2",
+    "filename": "p11stimpistol.webp",
+    "label": "Stim Pistol"
+  },
+  "image-helldivers2-p19redeemer.webp": {
+    "package": "image-helldivers2",
+    "filename": "p19redeemer.webp",
+    "label": "Redeemer"
+  },
+  "image-helldivers2-p2peacemaker.webp": {
+    "package": "image-helldivers2",
+    "filename": "p2peacemaker.webp",
+    "label": "Peacemaker"
+  },
+  "image-helldivers2-p4senator.webp": {
+    "package": "image-helldivers2",
+    "filename": "p4senator.webp",
+    "label": "Senator"
+  },
+  "image-helldivers2-p72crisper.webp": {
+    "package": "image-helldivers2",
+    "filename": "p72crisper.webp",
+    "label": "Crisper"
+  },
+  "image-helldivers2-plas101purifier.webp": {
+    "package": "image-helldivers2",
+    "filename": "plas101purifier.webp",
+    "label": "Purifier"
+  },
+  "image-helldivers2-plas15loyalist.webp": {
+    "package": "image-helldivers2",
+    "filename": "plas15loyalist.webp",
+    "label": "Loyalist"
+  },
+  "image-helldivers2-plas1scorcher.webp": {
+    "package": "image-helldivers2",
+    "filename": "plas1scorcher.webp",
+    "label": "Scorcher"
+  },
+  "image-helldivers2-plas39acceleratorrifle.webp": {
+    "package": "image-helldivers2",
+    "filename": "plas39acceleratorrifle.webp",
+    "label": "Accelerator Rifle"
+  },
+  "image-helldivers2-r2124constitution.webp": {
+    "package": "image-helldivers2",
+    "filename": "r2124constitution.webp",
+    "label": "Constitution"
+  },
+  "image-helldivers2-r36eruptor.webp": {
+    "package": "image-helldivers2",
+    "filename": "r36eruptor.webp",
+    "label": "Eruptor"
+  },
+  "image-helldivers2-r63csdiligencecountersniper.webp": {
+    "package": "image-helldivers2",
+    "filename": "r63csdiligencecountersniper.webp",
+    "label": "Diligence Counter-Sniper"
+  },
+  "image-helldivers2-r63diligence.webp": {
+    "package": "image-helldivers2",
+    "filename": "r63diligence.webp",
+    "label": "Diligence"
+  },
+  "image-helldivers2-rl77airburstrocketlauncher.webp": {
+    "package": "image-helldivers2",
+    "filename": "rl77airburstrocketlauncher.webp",
+    "label": "Airburst Rocket Launcher"
+  },
+  "image-helldivers2-rocketsentry.webp": {
+    "package": "image-helldivers2",
+    "filename": "rocketsentry.webp",
+    "label": "Rocket Sentry"
+  },
+  "image-helldivers2-rs422railgun.webp": {
+    "package": "image-helldivers2",
+    "filename": "rs422railgun.webp",
+    "label": "Railgun"
+  },
+  "image-helldivers2-sg20halt.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg20halt.webp",
+    "label": "Halt"
+  },
+  "image-helldivers2-sg225breaker.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg225breaker.webp",
+    "label": "Breaker"
+  },
+  "image-helldivers2-sg225iebreakerincendiary.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg225iebreakerincendiary.webp",
+    "label": "Breaker Incendiary"
+  },
+  "image-helldivers2-sg225spbreakerspraynpray.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg225spbreakerspraynpray.webp",
+    "label": "Breaker Spray n Pray"
+  },
+  "image-helldivers2-sg22bushwhacker.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg22bushwhacker.webp",
+    "label": "Bushwhacker"
+  },
+  "image-helldivers2-sg451cookout.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg451cookout.webp",
+    "label": "Cookout"
+  },
+  "image-helldivers2-sg8ppunisherplasma.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg8ppunisherplasma.webp",
+    "label": "Punisher Plasma"
+  },
+  "image-helldivers2-sg8punisher.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg8punisher.webp",
+    "label": "Punisher"
+  },
+  "image-helldivers2-sg8sslugger.webp": {
+    "package": "image-helldivers2",
+    "filename": "sg8sslugger.webp",
+    "label": "Slugger"
+  },
+  "image-helldivers2-sh20ballisticshieldbackpack.webp": {
+    "package": "image-helldivers2",
+    "filename": "sh20ballisticshieldbackpack.webp",
+    "label": "Ballistic Shield"
+  },
+  "image-helldivers2-sh20shieldgeneratorpack.webp": {
+    "package": "image-helldivers2",
+    "filename": "sh20shieldgeneratorpack.webp",
+    "label": "Shield Generator Pack"
+  },
+  "image-helldivers2-sh51directionalshield.webp": {
+    "package": "image-helldivers2",
+    "filename": "sh51directionalshield.webp",
+    "label": "Directional Shield"
+  },
+  "image-helldivers2-shieldgeneratorrelay.webp": {
+    "package": "image-helldivers2",
+    "filename": "shieldgeneratorrelay.webp",
+    "label": "Shield Relay"
+  },
+  "image-helldivers2-smg32reprimand.webp": {
+    "package": "image-helldivers2",
+    "filename": "smg32reprimand.webp",
+    "label": "Reprimand"
+  },
+  "image-helldivers2-smg37defender.webp": {
+    "package": "image-helldivers2",
+    "filename": "smg37defender.webp",
+    "label": "Defender"
+  },
+  "image-helldivers2-smg72pummeler.webp": {
+    "package": "image-helldivers2",
+    "filename": "smg72pummeler.webp",
+    "label": "Pummeler"
+  },
+  "image-helldivers2-sta11smg.webp": {
+    "package": "image-helldivers2",
+    "filename": "sta11smg.webp",
+    "label": "StA-11 SMG"
+  },
+  "image-helldivers2-sta52assaultrifle.webp": {
+    "package": "image-helldivers2",
+    "filename": "sta52assaultrifle.webp",
+    "label": "StA-52 Assault Rifle"
+  },
+  "image-helldivers2-staminaenhancement.webp": {
+    "package": "image-helldivers2",
+    "filename": "staminaenhancement.webp",
+    "label": "Stamina Enhancement"
+  },
+  "image-helldivers2-teslatower.webp": {
+    "package": "image-helldivers2",
+    "filename": "teslatower.webp",
+    "label": "Tesla Tower"
+  },
+  "image-helldivers2-tx41sterilizer.webp": {
+    "package": "image-helldivers2",
+    "filename": "tx41sterilizer.webp",
+    "label": "Sterilizer"
+  },
+  "image-helldivers2-uavrecon.webp": {
+    "package": "image-helldivers2",
+    "filename": "uavrecon.webp",
+    "label": "UAV Recon"
+  },
+  "image-helldivers2-vitalityenhancement.webp": {
+    "package": "image-helldivers2",
+    "filename": "vitalityenhancement.webp",
+    "label": "Vitality Enhancement"
+  }
+}

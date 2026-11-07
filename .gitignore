@@ -9,6 +9,9 @@
 # testing
 /coverage
 
+# downloads made by checks (scripts/check-trusted-sites.mjs)
+/.cache/
+
 # next.js
 /.next/
 /out/
@@ -35,11 +38,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Ignore all symlinks in public/images
+# public/images: scripts/prepareImages.js copies or symlinks every image set here from its npm
+# package, with the PNG copies for link previews. Nothing in it is committed.
 public/images/*
 !public/images/.gitkeep
-.prepare-images-lock
+# The preview-size copy of the placeholder tile (scripts/prepareImages.js).
+/public/placeholder-image.preview.png
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Build tools of the dnd-kit fork (node packages/dnd-kit/build.mjs --keep-tools)
+/packages/dnd-kit/node_modules/

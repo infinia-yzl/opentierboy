@@ -121,7 +121,7 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
       <div className="flex flex-col">
         {pages.length > 1 && (
           <div className="flex items-center px-1 pt-1">
-            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2 flex-shrink-0">
+            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2 shrink-0">
               <ChevronLeftIcon className="h-6 w-6"/>
             </Button>
             {renderBreadcrumbs()}
@@ -132,7 +132,7 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
           value={search}
           onValueChange={setSearch}
           onKeyDown={handleKeyDown}
-          className="flex flex-grow"
+          className="flex grow"
         />
         <div className="text-[10px] text-muted-foreground px-4 pt-1 pb-2 tooltip-mouse">
           Press Escape to close. Backspace to go back while typing.

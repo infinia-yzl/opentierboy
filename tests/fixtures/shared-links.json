@@ -1,0 +1,1275 @@
+[
+  {
+    "id": "link-001",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v0",
+    "path": "/rank/overwatch/h-all",
+    "state": "NobwRAlmBcYC4QKYCcC0BnMAaMA7GYAyodvDKJARALYCGA5oqgPYBuKA7rXAMYAWqOgFcAdB0QAjAA6keBALK0h9WmAC WcFFg0GTNp279UHCLjGSZOObADqZ9HGb4NWqnUYt2yLrwEATVloLaVkCABERADVVV0odD31vX2M ZnoQqzAbMAAlZlp-NPp1TXjIRK9DPwwIDPFQ6wJCOrpStwS9Kp8jAQAvWmRMsNgALUGAT1iy7Qqugx6aiVopYabYACEVhEdEdvLdTwWUgQBrCCGGrJyAaQuIU Z1AF042YQUDEwcfFgSHDg5A6cyOyV6qAgABtIWtsgQAJLQwZQN7ueZgmpSPjBK4jMAABWxyFofH2s0OSWqxjgxNhOQAKsSeCgyWjQVSBAArITmXHrMAAKR5T1RnXZi2M7F5ljxUUQuDgQmQe1FIMpEoE4hxMv5ABkIAAzRBa7wvVUfNCqH4EACCpEB0Ao5Mqx3BxOodIIuVodDgNOmwIp3ROqE5AEdpY04bAhbhTigAAQARSEiHlrLF6pD-gN6E9sHCzGY1ANEEcGbVwfByxhfOjYFsyp451w9ATW2hFaDrpq6GYnPzRH7zCVLhmbKz4MQ-EHAFF CLx5mqzVqDxLjr6wBhWjodAQfwTLsujHGXd8Qc29B8FWvJfwJBofykX5gDb2oEHE8ckz DiD x-GYDg6HjZBj3RH8JGQepNxyDZkDqCA-RVe9u1Pfp5UHUZ5SmP0Ay-SCNVQSEhB4QddTIiBF0Db9iNoXBtSjHIbUYs17wtVAJBfAgtw-R1aKIkN0AAdgANkHQhmEhfxH2gBNxIg8UQ2oZgIEHeQ1OJJTJyWXdBy2RxqLHQTlPBahEHUuscnkSydJXYxmEQwcAHlEPQAjnSEt1LMHXJLNwIl-EBNQ72BTi5GtAt KdCcHIECyN2YhQUB4I9VXQn9iTgQdY1ObL7J7YxlSY64vUQFYWQyujhOLSTi2gzy4qKgQnAkQd6SciROQAN QEzCLMmpGEjMrYAAcXlTkUTC8pOINHjYAAMRi0zdNSBjBwACQYvoaMG9aBHQCYPWs5oTos-12OBHkeG4RB6CciA kQZ8orAGLXmeIA",
+    "expected": {
+      "title": "OVERWATCH - All Heroes",
+      "tiers": [
+        {
+          "name": "SS",
+          "items": [
+            "Mauga",
+            "Winston",
+            "D.Va",
+            "Roadhog",
+            "Sigma",
+            "Zarya",
+            "Baptiste",
+            "Kiriko"
+          ]
+        },
+        {
+          "name": "S",
+          "items": [
+            "Illari",
+            "Pharah",
+            "Tracer",
+            "Juno",
+            "Venture",
+            "Lifeweaver"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "Ramattra",
+            "Junker Queen",
+            "Doomfist",
+            "Wrecking Ball",
+            "Sojourn",
+            "Echo",
+            "Cassidy",
+            "Ashe"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "Widowmaker",
+            "Brigitte",
+            "Zenyatta",
+            "Lucio",
+            "Ana"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "Soldier: 76",
+            "Moira",
+            "Bastion",
+            "Mei",
+            "Orisa",
+            "Reinhardt"
+          ]
+        },
+        {
+          "name": "D",
+          "items": [
+            "Mercy",
+            "Junkrat",
+            "Reaper",
+            "Sombra",
+            "Torbjörn",
+            "Genji"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "Hanzo",
+            "Symmetra"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-002",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/light",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsADQAK2AKwAWAPoAlRoQDWygIwA6AO5QARgAcQAXzxoMEJq3ade-ISPGSAsjp1qN2-UZmltY0tvZsHNx8AsKiEtgAogBujHAQSVDKACKpPL5auoYm5lY2dHYsEU7RrnGSJAD2ojDKAOIcogAmmeoFAcXBZQyVjlEuse7YAGIwLG0djN35-kVBpaHl4aPOMW7x7YympmIizMoAEg0N2r0rgSUAuuu0mLDYjOREGACCn5QoQwqDkiO1qkxIYAAroQ2tDloV7oMNsNgdVxntJAA1DQQOA8U7KABCDXoxnh-TWIReQKqY12dWwrROYF48ygXR6fgRA2eYRGIJqE32jDAUAMjAAnuTViUqXzUXSwfEADLnHy3bmUwFbAXohmYgCcJGliN5m35aPpkwAKgIYEwxESGhwTTy5eaFaChZJrbMuJoCTkYGBXVrkTTtoKMdgAMJiBqMAOEM5ZKBJCBcTl9GWWJ7u144YyfYh0Ql-Kjai2K73YQkC5QxniMGCsUOyyueqMMmQSmANNkcttI6k6y1KyStVIDxZZu48vNDSBvLjFjAx8sA8Oj6vRg0AZlUQ7NKNpXujJHo10y7XZM6P Yjuqt yu06WGopj2PS5wglXdCmDdqBHKszwZKYxFyYwNDOD8c2PR8xxrW1YAdZRMVxCAmiPBdkWhLgRSgZhnQgAAvKBOn-EAgI7U8u3BVRsAADhUODTQfbcwPBNUDQABl4 9aMjPUbR4PsDAJABpQh0igOBBK3UD6PiVQoC4SEYAyJ0DAUkDOxE ISAMZ1Ol0 U6IMyQcmYVgWjY cLAeCgIDAMQoAwa1zgSAACKYAEkADlvmVEhvJIPdvOwbzlT81pzmtbzvjEMRsFUBpoW6GBLCAA",
+    "expected": {
+      "title": "THE FINALS S3 - LIGHT All-Rounder",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "XP-54",
+            "M11",
+            "EVASIVE DASH",
+            "SONAR GRENADE",
+            "FRAG GRENADE",
+            "GRAPPLING HOOK"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "STUN GUN",
+            "VANSHING BOMB",
+            "GLITCH GRENADE",
+            "GATEWAY",
+            "LH1",
+            "V9S",
+            "THERMAL BORE",
+            "TRACKING DART",
+            "CLOAKING DEVICE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "BREACH CHARGE",
+            "PYRO GRENADE",
+            "GAS GRENADE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "93R",
+            "SMOKE GRENADE",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "FLASHBANG",
+            "THERMAL VISION"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "SR-84",
+            "SH1900",
+            "THROWING KNIVES",
+            "RECURVE BOW",
+            "SWORD",
+            "DAGGER"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-003",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/light",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsAFR4wA9gHcRzAPoBpQhABuUOCoBKjQgGsVARgB0CqACMADiAC eNBghNW7Tr35CR4yQBRLUY4bSgVABFQngMjU0treycXGjcPNg5uPgFhUQlsEjlRGBUAcQ5RABMIwxNzK1sHZ1c6dxZM7xy-fMkSMABXQnKhuPrEppTWhg6vbN88gOwANSMIOB5lFQAhOXobMYTG5McAXRa0ukhYbEZyIgwAQXvKFGn2zyyfXP8C-SguAMYDodopDg0ks1UrQZp8ugtfpIAGIwFjlSqMGrgiYnaHpWZfbqLAplMQQMC8dFQaq1eIQyYXGEfTrzH69aQCGBMMSgjjY45Q94ZObfHpLKSorjGLbRGBgfmQqaXWEs0XEyRlRhgKAKRgATwVDPOeKuWGwNnuxDo2xeVCFBPhbKWFUYdjsZMIqgAEnI5KY6kdFYz8XDWWKCgBhMRyRjSz1RKBaCBcWnjAVKpnCwkI9nbQkqCM8RgwViG3H20NqxHYAAKevkVJpZcFyuZIqJ1c1egq1MxqcDRuDppuXEtGAjtrerazjvDfXofoiPabAfp5enDrD6uwZV9jb7zacxum1xwgjHdCRk omc3VfZSLEMRsRlUq5xLdvlY77JksG5KjLOsEDFIeZxDiAQxcFqUDMHIMAQAAXlAVQXiA14VqqP5LCQCjwVUYEmiq7Y5ks0TMKwpTvumEFttmToFCQ jYAAHAALIRmEkQxfRemYACcAAMgmcRu36kQUAAaNbYAArBx1FBkRdGztuACyZhmKJX5YRJkgADJ8dpIa6TxKz8SQxltDOW7VvxADM hgecpwUOSYhQBgUheoEAAESIAJIAHKPPpJC SQ9m dgvn6QFZRelIvk1vIABWAKQB5ThAA",
+    "expected": {
+      "title": "THE FINALS S3 - LIGHT Projectile",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "THROWING KNIVES",
+            "EVASIVE DASH",
+            "SONAR GRENADE",
+            "STUN GUN",
+            "VANSHING BOMB"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "RECURVE BOW",
+            "FRAG GRENADE",
+            "GLITCH GRENADE",
+            "THERMAL BORE",
+            "TRACKING DART",
+            "GATEWAY"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "GRAPPLING HOOK",
+            "CLOAKING DEVICE",
+            "BREACH CHARGE",
+            "PYRO GRENADE",
+            "GAS GRENADE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "SMOKE GRENADE",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "FLASHBANG",
+            "THERMAL VISION"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "SWORD",
+            "DAGGER",
+            "SR-84",
+            "SH1900",
+            "XP-54",
+            "M11",
+            "LH1",
+            "V9S",
+            "93R"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-004",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/light",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsJAErYAHABYA tMaEA1koCMAOgDuUAEYAHEAF88aDBCat2nXvyEjxkgOIxGx42JHMlABIA9kGaqhra kamFlZ0NixsHNx8AsKiEtgAwmJBjOp SgAiUABuEFxQKmqaugYm5pY01rZJDqnOGZIkQaIwSh5QogAmVeG1UQ2xzfGt9ilO6a5SYACuhAPr1RF10Y1xDInzjmkumW6MYFB6jACe2xP1MQC607SYsNiM5EQYAII-SgoA4JOzJE6dZYAMU8-kGIzGNUiT32M0OYPaizO7l8YF4Aw4CIeyL2bxaR3BHSWmQAoqVGHAIKUqkUGTxibspk13qC2gtTl1sAAVAQwJhiJQAISCHA5kxi3PJGP5kMyQs8XAKhH8rJgYDlKLMr0VdEgn0MP2IdElgKoILmlKxgoAamoIHAeIVpfRDAbSSb0XyIdTJAAFW4wIIEoaMUZ rn2imYgXLC5waNE8YkhNo3nHKnYqT0UJVeGxxE7eWonkO5Oq9whDPl MKxPK4OFgAyAS0LerSqDBcF0igXFWMGZUqCej7RrJpqw2C4lowWVtwNztZVIewkspSiyPEYMFYs4DecdKcyULEbMMan8Wc5L3nHxwghXdCh6 oNaT28LEVYHFJRnXdCBelnY0DnWLhLigZgZQgAAvKBhk-EAfzbQcnWWEgewATgABiIs9sPzXC1R4SM9EKABpQgmSgdMnyrV8LzrHcSD0GVhjIzd-w7QVWWYVh lYw1zy3ITlgADVDbAAFZlAk-1yMvetsAAWS0XtVJzP92yHZZnQIkh MMnCr0kAiAGZpCgo0KAgMAxCgDAhQCGkAAIoQASQAOT TsSG8khbO87BvM7Py3ACIUwsY4xYHMIA",
+    "expected": {
+      "title": "THE FINALS S3 - LIGHT Sniper",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "SR-84",
+            "GRAPPLING HOOK",
+            "CLOAKING DEVICE",
+            "SONAR GRENADE",
+            "STUN GUN",
+            "GATEWAY"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "FRAG GRENADE",
+            "GLITCH GRENADE",
+            "EVASIVE DASH",
+            "THERMAL BORE",
+            "TRACKING DART"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "VANSHING BOMB",
+            "PYRO GRENADE",
+            "GAS GRENADE",
+            "SMOKE GRENADE",
+            "GOO GRENADE",
+            "LH1",
+            "RECURVE BOW"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "BREACH CHARGE",
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "THERMAL VISION"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "SH1900",
+            "THROWING KNIVES",
+            "SWORD",
+            "DAGGER",
+            "XP-54",
+            "M11",
+            "V9S",
+            "93R"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-005",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/light",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsJAO4B7GABMA gCVGhANZKAjADppUAEYAHEAF88aDBCat2nXvyEjxkkgAltATgAMP1epaegYm5pY01rZsHNx8AsKiEtgAogBujHAQqVBKACIZPAGaOvpGphZWdDYs0Q5xzolusqIwSgDiHKIKOWrFwWVhlQw19rFOCa5SYACuhO2zRUGloRURVVGjjvEuSW2MYFDSjACeiyUh5eG0w3YxWw2TAGrqEHA8IsxKAEKy9IZn-RWAF1VtdILBsIxyEQMABBaGUFBDaq3OrjHaSADCYlkjA0HzyUFSEC4PUC5wGoMiIzu9QmSQAYjAWO1OoxugDlpdkRtaejGtg2mIIGBeKyoF0yX0uYM1jdamNtgKvrSlJieIwYKxORdZdcUQr7vTJAAVAQwJhib7yKVLXVU9Y0tFKyYm5lcfGET75GBgHWUq7U1GKh5JM0wWTSAkAaUIWSgcH9wIdmAhhmhxDoXwRVB5TpDxsFzOMxmFXqU7lksi0vTtAbzwaNGOwAAVjhHxZKk9y5QbNnTm3tEx0JezbRSVoHHY2BwKSPRqzkR13axOe-rec7Q5I2lXO2Pu YQVPUzguBmMJic0je5uC838sxWK1V4D10HDbPJgyxAVDOpPlfGUUz7PkXTDc1LSUR5XggZpDzMY8hnBHBBAvOhtCkHhZDAAACFscIlSBxGvagN3zJs5xUbAAA4ABYEKQuVZi4fYoGYeQIAALygBR0JAUiG0-flJgADRbbAAFYGKA 0T1ArdCwAWW0bQEPku9KKeLwSHUoT xEpIvAAZhUPTbwor8kgAGU8czyJnQzJBUKAuGmGBsmtaRGMQigRTEKAMBNdxklwhkAEkADlYWskhcJIYzcOwXDrPCtp3BNXClKgALArMIA",
+    "expected": {
+      "title": "THE FINALS S3 - LIGHT Melee",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "SWORD",
+            "SH1900",
+            "EVASIVE DASH",
+            "SONAR GRENADE",
+            "STUN GUN",
+            "GATEWAY",
+            "VANSHING BOMB"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "CLOAKING DEVICE",
+            "FRAG GRENADE",
+            "GLITCH GRENADE",
+            "BREACH CHARGE",
+            "THERMAL BORE",
+            "TRACKING DART",
+            "THROWING KNIVES"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "GRAPPLING HOOK",
+            "PYRO GRENADE",
+            "GAS GRENADE",
+            "SMOKE GRENADE",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "DAGGER",
+            "FLASHBANG",
+            "THERMAL VISION"
+          ]
+        },
+        {
+          "name": "1-Shot Potential",
+          "items": [
+            "SR-84"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "XP-54",
+            "M11",
+            "V9S",
+            "93R",
+            "LH1",
+            "RECURVE BOW"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-006",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/medium",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsAQQDSAWQD6AJUaEA1goCMAOgDuUAEYAHEAF88aDBCat2nXvyEjxkgGIBhKUuWqNO-cZmFjRWNmwc3HwCwqIS2AASnGIizAoAQpz0PupaeoYm5pZ01izh9lFOsZIA4gCujDAAJhCqCgAqtTAcYNl eYGFIcVhdpGOMS7YAFK19EYKAAqMjb25AQXBtAylow7RznHVyWC87TCM8yo5-vlBRdu2EXuVkwBaEEbJhFCrNwMAuoMtpBYNhGOQiBgpBDKCh7iVHuVxgc3OdUtUOKJGj8rn11nchg8ymN9lVsAARJwGGAQMRiRhgAD2MF -Q28JGTwqEzi3m0AGYAKwAdlZ KBoR2XORZLkjOxYi0AA4laLcWtbhLhlKkaTJgBRAAen0ZcAgADcfnIRDjfBqBptJYiSS84pSmGBYC1kgAvWBizWO7XO548yRSBYkdqdboBgFazCggwQ4h0NIwqgcnUusPYVxSORSKPqv7swkI4mhlHYaqMOAKa3fONlrYV3bc6sLACeMEZCgxUCxtuubIJrc5utdNTr-cxy2HeMDWZDHbJ1UZfYHQ bZkBQcTOC4KYw7gzcPLE5z1fcABlsAAWAAMO4TbelerdDMYyigcB4F39EtR1MPd7hBHBBGPOhXDPahx2zKsyVcek-wMVRUiA8VQMJWpCC4BkoGYZkID9RooJAWDl0rVdJnJepFTSelsXrTClwvBCaN5CBGR6EgeGgMQVlY N-goCAwDEKAMDaeJ9QAAlcABJAA5KQbxIOSSH5OTsDkuR9XJRSAFU5DkqQ6WwJRGVw7EYDMIA",
+    "expected": {
+      "title": "THE FINALS S3 - MEDIUM All-Rounder",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "AKM",
+            "FCAR",
+            "HEALING BEAM",
+            "GUARDIAN TURRET",
+            "JUMP PAD",
+            "GLITCH TRAP",
+            "ZIPLINE"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "FRAG GRENADE",
+            "DEFIBRILLATOR",
+            "R .357",
+            "MODEL 1887",
+            "EXPLOSIVE MINE",
+            "DEMATERIALIZER",
+            "APS TURRET"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "FAMAS",
+            "GAS MINE",
+            "PYRO GRENADE",
+            "GAS GRENADE",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "CL-40",
+            "DATA RESHAPER"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "DUAL BLADES",
+            "RIOT SHIELD"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-007",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/medium",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsAJQD6AOgDMAVgDsMqY0IBrGQEY5AdygAjAA4gAvnjQYITVu069 QkeMkAJTmJHMZAIU56dU0dfSMzS2saW3s2Dm4 AWFRCWwAEVdjGAgxMUYwAHsYEO09QxNzKxs6OxZ4pyTXVMkAKQBXelMZAAVGABNSsIrI6pjauMdElxT3bAAtCFMfQigh8oiq6NoGeqnnZLc09PbxAPz qDh18Mqomt2HBIPmuYBBHpIZABV2mA4wDcRlsHnUno0ZkdJABZQqXMR6AAciLUGjKt1GAF0xjtILBsMZyEQMG8iZQUKDJs8mrM0lIIIVASQeNAxIM0cNNvdxo8GtNDi1sABxHxgXg-GCMbocjZ3HGxPbUyGCgCiAA9loU4BAAG5raEiNYyjEgnlgvkvWmSIWMa4G1ZArnyiaKiECuY9ACeMEKMiFHFEl0dcu2CvB-NeaRt139UEDRtCstGoZd4ctUOFhV9sfjwaxzsw K4ROIdH8ZKolNdEat2AAwgAZbAAFgADHnTTtzfsaRmAGJvaFvL7G4HcrtUt2RyTpAqMdRXHhS2AdyzYlOFnCCEsYOsVilmyc1-v5OA8YyaPyjp3rh54nCMHd0ABqsE9AAJmFn u-jO0wO nqFO076MAGADkAGMO vwwGAYhQPu1ATtW6aCm8ADS0KrgW3ZKu6aR9nWbyyNeIZVmmvaCkKpwwP0ECaD8fwAjhG54VOtaZEwYCwAxPgAF4rmRyYURaVFzH2kp DmAwJuiY4WLePLtIQXAFFAX45IJ-RPiASHYpiFAQPBiF0N8Hgqu fYAJIAHJvA2JDviQCjvtg77Qiq6TWQAqtCMF-CZlhAA",
+    "expected": {
+      "title": "THE FINALS S3 - MEDIUM Turtle",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "R .357",
+            "HEALING BEAM",
+            "DEFIBRILLATOR",
+            "JUMP PAD",
+            "ZIPLINE",
+            "DUAL BLADES",
+            "APS TURRET",
+            "MODEL 1887"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "RIOT SHIELD",
+            "GLITCH TRAP",
+            "EXPLOSIVE MINE",
+            "GAS MINE",
+            "PYRO GRENADE",
+            "GAS GRENADE",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "CL-40",
+            "FAMAS",
+            "DATA RESHAPER"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "Very good but you aren't a Turtle",
+          "items": [
+            "AKM",
+            "FCAR",
+            "GUARDIAN TURRET",
+            "DEMATERIALIZER",
+            "FRAG GRENADE"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-008",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/heavy",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsAWQBsABgD6AJUaEA1goCMAOgDuUAEYAHEAF88aDBCat2nXvyEjxkgMI9GMVgoByCkmKM9MqqGjr6xmYWNFY2bBzcfALCohLYACIA9vRQ-jzQYgAmIepaeoYmpgC65pZ0kLDYjOREGACCLZQodQws8fZJTqmSADJQuhBwCgDiAK6EJWHlkbUxdNZ9domOKS7YSgAK09gA7ItlEZXRtL22CQ7JzmlSUHA8eQXFKqXhFVE9GzuAx2T0kACFPDAIFxGIVct8lpd-mtbv1to9htJMpBMgsSFBCHBMjBzr8VtdYpt7oNdmkAGIwFgzDiiOGk5ZXAFxLYPIZ7NqESDYaaMgBuEDAAE8FK5ZgZ4aELn9qqsbg0cAYWsQ6GDOlQuVTgRi9iQ2poAEyaGTspGqylA9F8tIAdREvBlgV0NuVFPW3OpIMxAGkSNhzQBmb3kg0O3m0yQHSUwTIKKQiBU-DnIm6AtFx0HYVwAFijlRqvswjS4Wowrj13RRuZ5NIL00yKbmCwRSujjf9RqdkjbHZZsIziJ9MbzLcx00YUxFBLHpez9ungb2ieTzKXbO7ZLLdvqWGwghrdDp9eoOf7jvj0mmI3D5pXR9RzY3aQCUEKrA89ByEl9yzN8mwDY16UCHJ GTfQgMVA9Vz9Q07wLEgjE4eDM1tCswIHe86UCN4DFUZhX3LHp5hhMAoGYYkIAALx-c8QCvGoqgoCUxCgDAABUAAkAFEAAI6QASR8NoRhIYSSHDYTsGEoS2gANQATWEtoxDEfZMnmOEYDMIA",
+    "expected": {
+      "title": "THE FINALS S3 - HEAVY All-Rounder",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "M60",
+            "CHARGE 'N' SLAM",
+            "DOME SHIELD"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "LEWIS GUN",
+            "RPG-7",
+            "MESH SHIELD",
+            "BARRICADE",
+            "MOTION SENSOR",
+            "FRAG GRENADE",
+            "ANTI-GRAVITY CUBE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "SA1216",
+            "WINCH CLAW",
+            "KS-23",
+            "PYRO MINE",
+            "C4"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "GOO GUN",
+            "GOO GRENADE",
+            "GAS GRENADE",
+            "PYRO GRENADE"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "MGL32",
+            "SLEDGEHAMMER",
+            "FLAMETHROWER",
+            "SPEAR",
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-009",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/heavy",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsJAIIBGAEyyAbAH0ASo0IBrFbIB0AdygAjAA4gAvnjQYITVu069 QkeMkBZKHB4qSPaDEAE3VNHX0jM0trGlt7Ng5uPgFhUQlsAHURXhUAYTFGA1DtXUMTcysbOjsWBKdk1zTJXJ5GGFYVADk-Avpi8LKoytjq Mckl1T3bAARAHt6KD8AqGD 0siKgF1h2kxYbEZyIgxpY8oUKoZa8ecUt3SAcTm5lUeAV0J1iPLoq5qHIk7o1pmoAAqPbAAdm gwqMT2ALqE3uTWwACE2jAIFxGEElhoSj8hgi4jcgQ0pukPHNIHMviQoIQ4HMYLDNn8RtdAfVJg9JAAxGAsN4cUT49m-XZknkokHpaSESDYR7CgBuEDAAE88u9jASwhspTtSXRIAdjMdiHR0ecqP8xhS WiANIkbDyADMkpJDvJvNR0zBWpgrw8IgNRLhnMRjoD8uaABYfdtpWasNguFaMLk7ZcuUjbpT SqXqKmXjIwMOWnucjgVTJI9GHBy Kq0bfQW43LG9hg6G25WU5YTVdzThBNm6AK89RY-7eyWBQUfMZNMwRxYx1zPriwFBmKyIAAvKBBacgOd 2UNkseR4AGU98i3prrRed0xIYnPrFa9CLGyhLVlK76Fk6gbpCujCLPwoZGMBhrEvCN71sWaIkKYnBIVGNbgT2d5oh4SgAAxvmhn5QZIj5QAYECth8XwgZ2qZbBQmq-hgAAqAASACiAAEAoAJKdNIj4kIJJCeoJ2CCQJ0gAGoAJrSXIihKIJuQAIq5hYQA",
+    "expected": {
+      "title": "THE FINALS S3 - HEAVY SA1216 CQC",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "SA1216",
+            "MESH SHIELD",
+            "WINCH CLAW",
+            "CHARGE 'N' SLAM",
+            "DOME SHIELD"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "GOO GUN",
+            "RPG-7",
+            "BARRICADE",
+            "MOTION SENSOR",
+            "FRAG GRENADE",
+            "ANTI-GRAVITY CUBE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "KS-23",
+            "PYRO MINE",
+            "C4"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "GOO GRENADE",
+            "GAS GRENADE",
+            "PYRO GRENADE"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "MGL32",
+            "SLEDGEHAMMER",
+            "FLAMETHROWER",
+            "SPEAR",
+            "M60",
+            "LEWIS GUN"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-010",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/the-finals/heavy",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNjFIwMYAWYPUAGYRCjADZxsAdRG8A gGExjAO5yASo0IBrOQEYAdCqgAjAA4gAvnjQYITVu069 QkeMkARAPb0ockh5oMQATDS1dQ2NzKxsaOwc2Dm4 AWFRCWwAIUYYGAguRhD-TR19I1MLa1s6exYk51S3DMl1AAUAcWwAdnCyqMqrAF1q LpIWGxGciIMAEEZyhQahnqnFNd0j2wSMSgQ1h5Gej8YPsiKmNHaVcdklzT3TJIzTjPSi iquJu6u8bNk9JCQ5noAEx6ABs53KX1iKz DQ2jxa2AAst5IN5CAEoIQ4N53hFYYNrgk1vcmltMgAxGAsOQdDiiYowgZXH7k-7I5rbOaESDYJmMABuEDAAE9FABXEwlYnsqojTnjLDYEwzYh0LKLKgIxLrB682nKPz8GDeYxE-qXb76ikAlHbADSJGwYIAzGzbfCxrckUbqZI2hKLXI0SJ5Ta4WTagbKYDUQoACzemMq-2GqlAoXebyM5lFKOfUnKlYTHBcTUYBS65Z xFZxPbDqMOAFvFFtOkjONhNOzIhsNMzusj4kjn27mBnNoyEABm7k4b8cdxskABkoCoIO2OtKcePFcNY5hJoJq3QaXXqL9Vzyg9gaco4DwTFpmEu7SuHQ-Zx0Nw9MEvxPDMD0KMAoGYQkIAAL32S8QBvKcA2zVEOjzRkDxA08 zXR80SgV8AiCKBQhw3t7xnJMjhgVg5AAOQCU0cJGIYKHFPYMAAFQACQAUQAAhpABJBi5g3EhBJID1BOwQSBLmAA1ABNQSZEIXhBKUVRtIARVrSwgA",
+    "expected": {
+      "title": "THE FINALS S3 - HEAVY Winch Claw CQC",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "WINCH CLAW",
+            "DOME SHIELD",
+            "BARRICADE",
+            "RPG-7"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "SLEDGEHAMMER",
+            "SPEAR",
+            "SA1216",
+            "MOTION SENSOR",
+            "FRAG GRENADE",
+            "ANTI-GRAVITY CUBE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "FLAMETHROWER",
+            "KS-23",
+            "PYRO MINE",
+            "C4",
+            "GOO GRENADE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "GAS GRENADE",
+            "PYRO GRENADE",
+            "M60",
+            "LEWIS GUN"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "FLASHBANG",
+            "MGL32"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "GOO GUN",
+            "MESH SHIELD",
+            "CHARGE 'N' SLAM"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-011",
+    "source": "tests/tierlist.spec.ts screenshot suite (2024)",
+    "format": "v2",
+    "path": "/rank/wuthering-waves/c-all",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lNgO4CuYAFrBIWbtGANyhxsAYwD0AGwCeAOnZQARgAcQAXzxoMEJqw7c MAUNHip0mPWw9lazTr10DLNl179BwsRJlJWUcNbV0afUNPEx8Lf2sAKwAPEOdw2gYPY28zX0sA6QSlFVCXCLco7NNzPysZBLhUsNdMoy9qvPiZERgmsoz3NpjcuLrpJOKnZvLW6Jya-Ot5YJLnAF1 jEhYbEZyIgwAQX3KFBbBuY7RgoAvG770yKz22NqCyUkH88qXkbfrKCfVbTAY-YYLLrSegAMy MwuVVeixkcAcwM2FWe4M6YwAJgk htHnRtjhVPtiHQAEInKjfLHzHEFWy4OGghlXf4yVT3dHE2aIv7I6SSFLooktUlSCkYADCtLO8LBjOu1kYjDZTyGKq50nk7E1mO1nOF8kmpQlMyl0JldAAYgrkJaMpxCJJGGAoMwAPZmG5QXG2kCO nGpGQuAAa0NAt ELG8jRUy0GzWFAgYFkUAwAHUAKoAFQAEgBRABKAEkAHIAcQABDnDgA1EskOvYOuHWSyOtl8Tewge30ILRAA",
+    "expected": {
+      "title": "WUTHERING WAVES - All Resonators",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "Lingyang",
+            "Rover Havoc",
+            "Changli",
+            "Jianxin",
+            "Jiyan",
+            "Jinshi",
+            "Verina",
+            "Xiangli Yao",
+            "Yinlin"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "Zhezhi",
+            "Calcharo",
+            "Encore",
+            "Mortefi",
+            "Sanhua",
+            "Danjin"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "Rover Spectro",
+            "Baizhi",
+            "Chixia"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "Aalto",
+            "Yuanwu",
+            "Yangyang"
+          ]
+        },
+        {
+          "name": "F",
+          "items": []
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "The Shorekeeper",
+            "Youhu"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-012",
+    "source": "Blog articles in articles/*.md",
+    "format": "v1",
+    "path": "/rank/overwatch/h-all",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAygATICyUYAhgLogFhKojqLsC2tA5lNgD2AN1gB3WmADGAC2xcpMAHRioAIwAOTEFIwBhWnDgQAJgE8QAXzxoMEHvyGiYE6XKiyV6rQV2cAorKCVjbsdg4CIuKSstgaMrRemtp IAAKCTC0MiG2nPZ8kc6usRAANmVJPjoYAJIVtDDolvTWeZiw2LTaxJwAghQA4jBQkozMrO0FjlEuMXI8AK5VKRiUtIu83W1h RFO0W64ELwrvqQnPLm73IUHc0diEIRnNZwA6s9wYILEOxy3GbFeZdOAyV6pPpgqDXAHTIqHWJgLIQjAAFSyUlgsPCd1mJTktEIiVUyXO-WJOL2eOBRwA1hBlKTqqkANKMiB04Itf4YSCdNQ9DAAIQA1ENBIITONwJMbvD7gTsGpaJVmasPiMpAzCLwyMLVWUqYCEQ9YqIXurySAAGpQQhgRYjY0K-EglUaVGcA0aSDfGG86lAxFyMqLKRekAAGXDEG5rVCAP5OCMQu9FAAYs8oDKWCgpvs3UcTMISd4NSAACJKG3bRO44NmuQAKwAjpby9aAFKLQh02BkACKiyg9pdhdpsSyXEjACVaDwwMi6wWaSHsCMIHOoM9MiYWIGTYqQTJBKcrW8QLPBLQTKfeOO103sPwO2TL4N7c3mvWg6alVwO6RtQP6ro2SpwAA7AAbJGJCCGUJhYIgZAwY 4EgnAggzheqTwVwahZOh-6YWYOGdpeJBkYBy7EceRw-GokZooIMBqM2ABvMB-L R5FrEYgmGIkafCYghiDw-YwHR-FyIR54UakwpNLwEBLgGvGupOciqGW76pFGEAAGZQLpzgydp8iCFuuFrNZRE8rxvZSJIUC8KxEAAF5QCYaYgHoFAAHIQLIUBkAA9GQlZQBo9omHAZC-GQUjYRouZynCE7riYRlwJGlaSlwRkQN8Fnrp5jSRgAWo0ZgrvKWXPiqeW2d6hiQL8ZXPgkb4shgAASRKedymmNUqWRgJGPZ9hNXXjaM260LF0mHlp65Yc2cGCM2ghOjxYEkUcgFMopaywFIFirWNILeb1FZVfadVLtsCbtMm2C6AQvRVhQLGbDI6X5g1T5Kh5kYAPJNHAL2Hu9vlfRgGbaHmyCvTc71GX5yOsK09DMGpZQwpwyDg 8ABM9BkKyjSDgA5Al859s8vAJUZrFkCQoxYYQZAAIy82Q2BkFm8BgGQaTzFYQA",
+    "expected": {
+      "title": "[OW2] KarQ's Rankings for Season 11 - First Patch",
+      "tiers": [
+        {
+          "name": "S [Meta]",
+          "items": [
+            "Cassidy",
+            "Echo",
+            "Pharah",
+            "Illari"
+          ]
+        },
+        {
+          "name": "A [Great]",
+          "items": [
+            "Mauga",
+            "Sigma",
+            "Winston",
+            "Ashe",
+            "Tracer",
+            "Ana",
+            "Kiriko"
+          ]
+        },
+        {
+          "name": "B+ [Good]",
+          "items": [
+            "Wrecking Ball",
+            "Venture",
+            "Baptiste",
+            "Lucio"
+          ]
+        },
+        {
+          "name": "B [Fine]",
+          "items": [
+            "D.Va",
+            "Junker Queen",
+            "Ramattra",
+            "Reinhardt",
+            "Roadhog",
+            "Genji",
+            "Mei",
+            "Soldier: 76",
+            "Sombra",
+            "Symmetra",
+            "Torbjörn",
+            "Widowmaker",
+            "Brigitte",
+            "Lifeweaver",
+            "Moira"
+          ]
+        },
+        {
+          "name": "C [Niche / Depends on comp]",
+          "items": [
+            "Doomfist",
+            "Zarya",
+            "Bastion",
+            "Hanzo",
+            "Junkrat",
+            "Reaper",
+            "Sojourn",
+            "Mercy",
+            "Zenyatta"
+          ]
+        },
+        {
+          "name": "D [Tough]",
+          "items": [
+            "Orisa"
+          ]
+        },
+        {
+          "name": "F",
+          "items": []
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-013",
+    "source": "Blog articles in articles/*.md",
+    "format": "v1",
+    "path": "/rank/overwatch/h-all",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAygATICyUYAhgLogFhKojqLsC2tA5lNgD2AN1gB3WmADGAC2wATYbQB0YqACMADkxBSMAEWUA1WiAC eNBgg9 Q0TAnS5UWao3aCezgFFZg80t2a1sBEXFJWWxaQhU1LR1vEABBWPN6CytOSFhonWJOZIoAcRgoSUZmVizuPjCHJyiYWi53BK8MACUWyTBmwJqbOvsI51wIXjbPXVIJngHgziG7cMdIuTEIQinEjAB1LbgwQWJMxdqVhvXouBkdjsLbqAWOC-rRqL64j13OABVmlJYC8QsNVo05OpaJp7jNOAAhaGQI7PM6vZbvNZjCAAGxxsKSAEk8bQYOgzBkgq8cjh1PkMPCANQlQSCeSVcDVc4YkZYppQCAEroCwgyUnyFho0GXD6Q2j4 LTJJ7MpSADWW14ZEReJBS1CvIh2C4UhgQs4AGFaHA4BB5ABPPVvQ3XLgC80gajkqnSzFGzRij0ABTFzRkTp54Ou6hgk0VvxA8LJvAgYDAqJ9 rBVzGGrN8YeIAA0hAyWqAlKszK XIcQBXKQegAyDYgFcpNRpuHwRAZFAAYlsoByWChBgao2MAFYAR22BbhIAAUnXCGrYGQAIp1qBQU6Z52TqJwQStBdJEinmOmSuHnPH 1nn6FkiPt1fCMT 9yY7qD1-QQYHUKcADeYH3cds1lbBRHnZ9FyMPcwDrMpPygmtsDEeQxA9A55EEMQeHXGA0OrI0uEEQVzwwShKP6Clby7eR6QRbAKAAeTVWh7QgW4Ry5dEv2g QADM4A9fRWS4ETeMlA9I2-bAAC9SQ9AAtUl7RveShIwtRvnaRcmwgESoH0hxSL9a4lL3dS9y0tMbw7c5VykSQoF4QCIBs5iCAKEALQoAA5CBZCgMgAHoyH0KBND3eQ4DIE4yCkU9NH4sduV08jaDrD1KFy3htMgsjrhkQQ43gpJOkEWh5HK3hLJdMYoXE6iEWtSATiao85H4ODDKSYo9ynb0SqssYxQGpUMAACRiJSKx09CjTKAyZs4TpyjikjbwU6C4AAdgANg9S8cXkLBEDIE6esUt18yqmjYCkR0GIPLs9D8gwKAAuteBkDK2EElbri8j12LJOBiqy0GxmaMAPRXNcEbug7BCnM6McEFDTmc6ksGwESWJAHRR2QDJ6GYVMcWeThkHYvYACZ6DIItSU3AByRLujXTVEpEwCyBIcoT0IMgAEYJbINiyEoO1sBF61urMIA",
+    "expected": {
+      "title": "[OW2] KarQ's Rankings for Season 11 -  Mid-Season",
+      "tiers": [
+        {
+          "name": "S [Meta]",
+          "items": [
+            "D.Va",
+            "Echo",
+            "Ana"
+          ]
+        },
+        {
+          "name": "A [Great]",
+          "items": [
+            "Ramattra",
+            "Sigma",
+            "Winston",
+            "Ashe",
+            "Tracer",
+            "Baptiste",
+            "Illari"
+          ]
+        },
+        {
+          "name": "B+ [Good]",
+          "items": [
+            "Reinhardt",
+            "Wrecking Ball",
+            "Cassidy",
+            "Mei",
+            "Pharah",
+            "Brigitte",
+            "Kiriko",
+            "Lucio"
+          ]
+        },
+        {
+          "name": "B [Fine]",
+          "items": [
+            "Junker Queen",
+            "Sombra",
+            "Symmetra",
+            "Torbjörn",
+            "Venture",
+            "Widowmaker",
+            "Moira"
+          ]
+        },
+        {
+          "name": "B- [Okayish]",
+          "items": [
+            "Doomfist",
+            "Zarya",
+            "Lifeweaver",
+            "Zenyatta"
+          ]
+        },
+        {
+          "name": "C [Niche / Depends on comp]",
+          "items": [
+            "Mauga",
+            "Roadhog",
+            "Bastion",
+            "Genji",
+            "Hanzo",
+            "Reaper",
+            "Soldier: 76",
+            "Mercy"
+          ]
+        },
+        {
+          "name": "D [Tough]",
+          "items": [
+            "Orisa",
+            "Junkrat",
+            "Sojourn"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-014",
+    "source": "Blog articles in articles/*.md",
+    "format": "v2",
+    "path": "/rank/supervive/hunter",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lLgK4AOsAbhD2yiFGAOgDuUAEacQAXzxoMEJqw7cYfAbgAWAa3FSZ8xXWUs2cLr35ttcQgelyFNJSotWNN7MzhhHRgC6xq50kLDYjOREGACC0ZQoJgzmatZaAGYANgAeAc7JZqqW6ppsAF5QnPkhtCnFnmXYAMZZcDUudUUepd4AVuxZNcGdGOE4ktHEdABCCVSF7mleWvQAnv4STrVuqSXpbLqcDltGo6ZL ytsknDawzthWC1TGADC80mh9T0H2AD2jE2hgK326yyakhgQ1OchGyXG2AyrzoADFPtQupdGt4eP8ACYdRZ7HFaO48Ilg7G9LR9CAnEGyeHfdiEZpAqDMf4wCCVfEokAY4KBCgQMBZKCkACqAAUAKIAJQAagBJJVygAE2A1AAlWWBYHANRluRqZnKAOIqgBy1sVZFkQA",
+    "expected": {
+      "title": "SUPERVIVE - Hunters for BEGINNERS",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "ELLUNA",
+            "SHRIKE",
+            "HUDSON",
+            "GHOST"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "FELIX",
+            "ZEPH",
+            "CELESTE",
+            "JOULE"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "MYTH",
+            "KINGPIN",
+            "BISHOP"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "OATH",
+            "BRALL"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "VOID",
+            "SHIV",
+            "JIN"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-015",
+    "source": "Blog articles in articles/*.md",
+    "format": "v2",
+    "path": "/rank/supervive/hunter",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiAWEqiOojQLYCGA5lLgK4AOsAbhD2x4B7ACYA6AO5QARpxABfPGgwQmrDtxh8B2aXAAWkmXMXK6qlmzhde-NkMZgjshUpoq1Vm1rvYAVuwANs4mbrQMlhq2OtIwwVIu8gC6pu50kLDYjOREGACCOZQoZhHq1prabABeUJwhriUWZd6V2ADGgXD1qeFNXhW AGaBAB7dYR6R5dFsANachN0pE lYujnEdABChVSNnlE On4Qiwmh 1MtvgY845fNAzoGs-dppf0z2PQAnk7nDXefUOrWYcH xgUyxKGRwbQ2GAAwrtikCDtMjmx9HAzpDkj0MLDsIMEXQAGIo6i9dHXHRQQiMJYEujsQhtRxQZhCGAQGoiUkgSkpJIUCBgQJQUgAVQACgBRABKADUAJJKuUAAmwGoAEqywLA4BrBtyNQAVBUATR1eQVABEyPIgA",
+    "expected": {
+      "title": "SUPERVIVE - Hunters for TRYHARDS",
+      "tiers": [
+        {
+          "name": "S",
+          "items": [
+            "VOID",
+            "BISHOP",
+            "OATH",
+            "JOULE",
+            "BRALL"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "ZEPH",
+            "CELESTE",
+            "FELIX",
+            "KINGPIN"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "JIN",
+            "SHIV",
+            "SHRIKE",
+            "MYTH",
+            "GHOST"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "HUDSON"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "ELLUNA"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-016",
+    "source": "Blog articles in articles/*.md",
+    "format": "v2",
+    "path": "/rank/the-finals/all",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAyiSAWEqiOorQLYCGA5lNjFEwMYAWYvKADMIhJgBs42AIIBpALIB9AEpNCAa0UBGAHQB3KACMADiAC eNBgjM2HLnwHDREqQDEAwtOUq1m3QYm5pa01rbsnDz8giJiktgAGgAK2ACsACy Gtr6RqYWVvQ2rBEO0c5x7jCsigDinGIAJlBZ-rlBBaFF4fZRTrGu2B68TDBsigByiiTiTAytOYH5IXSMJb2OMS7x8lpaCwF5wYVrdpGbFYO14hBgfIoAKtXGB 3LJ8VnZf3bUgDqonuHlmeleS3MAF1OqtILBcPgiKQKOBqB8eudygN4iRpFoAExaABsYKO0LC6wxP0q2HkhIADCSOityV8 ltqQApACuDBeSSYjUZ7y6p1KbMu8QAIgB7BgtEi8aDiQWqbKHJloinfdmDACiADcmHAIPqWpKjbwhccRZ8xRcsVIABJcG6EFiKABCXHmqra4LJ3S14od2FqXNGjQgakeXJgnDAVoDoo2mN 2ElzkMMAg4lmYGlMETzMDrPtadqTDAUD0TAAnkXNaXU9TlElatgAOwNm3o7USqQPXgwaV6UTu2SEE1QODd1a2lNUwYkR1aACcdIZvsWpOLycpOux0rEhfqUCaLS36uFc97wbTAC0IMZXRe-NuNT2g2XqR7RtnuAKr5qm81o3l zaDAAamoEBwIqbqerKhiJlCu6wjgTDIsQ9DSMiVAoI2doQTs0rNOI2gABwUV2l4gUm877v22A DoADMqQ0W V6gSyRGLlKUDMFW2YSBAABesCzrxC4HlIkGriQUklnxskyEkikPLG8ZKXufYhvI06WgqSoqlxdG7gxelpsC0pMOoY6KBm oQNwQF juhEyUx9RMMYz4OY60rSpotH hZt7foMAAyK46ZZd7Utctz3Ke55xRFxEDoIMDMORHoFm577XtJjEhiQyjYBRmShR5n5NvxUjKFA3CxqaiGgjVH5gfVqlPDw9kIeaMAJp1xXKV5ZV6AWpnAWFnmlWmMxQI0bAjAwcqFqNPHjQt1LyNKkBHtMZ5wAW6XgQ12BJLWw51A0gHnT1THSIQkChtUzlgPWHhcoYhXcfRGWXSQYBcoQdRg49KlMSQxhcJtZn qhJzodghhYRgHp4aidXQyGbjSPI0iKVtgMXapUXVrBEPg6T4Xk0xuoAB7PtKxptfIoj-eZ81WdSHhRdg6SbojtXdXjabmmATAqIZvmSXTvMJYMbizHKAjDgYCOzWLJV84MHjVaLXV68r8S1EFNNQxN5aW6lD2K7jNvUrIJDYHirHW7tgzXbdnOENzSNJqj3AY-QHjYwRTve-Eq6sT4jvi87gwehiijDKM4yJ6bkVSuGeWzM0M7Zzt vm0aij 4Huul2bjUQAd0yKlAype2XUgVjO9vNG3dfYCQDDBS03fVx0yMiqjjRhyAkqRzQScx1I5osGw2vuSbte51lsC5YokGwQ3tPG-k48wlg2BCNPbhz0rW80rUUWsXivd36rFqGGo7qk6fGBgwBVYsALOJZa0855QghJQW44goAYAeI6XUAACNwABJCY0gookAQSQViCDsAIOkLmBByCqwMAQGYIAA",
+    "expected": {
+      "title": "THE FINALS S3 - All Items",
+      "tiers": [
+        {
+          "name": "SS",
+          "items": [
+            "AKM",
+            "FCAR",
+            "XP-54",
+            "FRAG GRENADE",
+            "CHARGE 'N' SLAM",
+            "M11",
+            "GLITCH TRAP",
+            "WINCH CLAW"
+          ]
+        },
+        {
+          "name": "S",
+          "items": [
+            "SA1216",
+            "M60",
+            "JUMP PAD",
+            "DOME SHIELD",
+            "EVASIVE DASH",
+            "HEALING BEAM",
+            "GUARDIAN TURRET",
+            "DEFIBRILLATOR",
+            "GATEWAY",
+            "RPG-7",
+            "THROWING KNIVES",
+            "SH1900",
+            "SONAR GRENADE",
+            "ZIPLINE",
+            "BARRICADE",
+            "VANSHING BOMB"
+          ]
+        },
+        {
+          "name": "A",
+          "items": [
+            "MODEL 1887",
+            "R .357",
+            "DEMATERIALIZER",
+            "V9S",
+            "APS TURRET",
+            "MESH SHIELD",
+            "CLOAKING DEVICE",
+            "GRAPPLING HOOK",
+            "LH1",
+            "GLITCH GRENADE",
+            "THERMAL BORE",
+            "SR-84",
+            "RECURVE BOW",
+            "TRACKING DART",
+            "SWORD",
+            "SLEDGEHAMMER",
+            "MOTION SENSOR",
+            "PYRO GRENADE",
+            "ANTI-GRAVITY CUBE",
+            "STUN GUN",
+            "SPEAR"
+          ]
+        },
+        {
+          "name": "B",
+          "items": [
+            "FAMAS",
+            "LEWIS GUN",
+            "EXPLOSIVE MINE",
+            "CL-40",
+            "DATA RESHAPER",
+            "FLAMETHROWER",
+            "C4",
+            "GOO GUN",
+            "GOO GRENADE",
+            "KS-23",
+            "PYRO MINE"
+          ]
+        },
+        {
+          "name": "C",
+          "items": [
+            "93R",
+            "BREACH CHARGE",
+            "DUAL BLADES",
+            "GAS MINE",
+            "RIOT SHIELD",
+            "GAS GRENADE",
+            "SMOKE GRENADE"
+          ]
+        },
+        {
+          "name": "D",
+          "items": [
+            "DAGGER",
+            "THERMAL VISION"
+          ]
+        },
+        {
+          "name": "F",
+          "items": [
+            "MGL32",
+            "FLASHBANG"
+          ]
+        },
+        {
+          "name": "Unranked",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "link-017",
+    "source": "tests/opengraph.spec.ts (OG link, page path assumed /rank/overwatch/h-all)",
+    "format": "v1",
+    "path": "/rank/overwatch/h-all",
+    "state": "N4IgLglgpgTgziAXAbVBJ5owLQIDQgB2GAygATICyUYAhgLogFhKojqLsC2tA5lNgD2AN1gB3WmADGAC2xcpMAHRioAIwAOTEFIwBhWnDgQAJgE8QAXzxoMEHvyGiYE6XKiyV6rQV2cAorKCVjbsdg4CIuKSstgaMrRemtp IAAKCTC0MiG2nPZ8kc6usRAANmVJPjoYAJIVtDDolvTWeZiw2LTaxJwAghQA4jBQkozMrO0FjlEuMXI8AK5VKRiUtIu83W1h RFO0W64ELwrvqQnPLm73IUHc0diEIRnNZwA6s9wYILEOxy3GbFeZdOAyV6pPpgqDXAHTIqHWJgLIQjAAFSyUlgsPCd1mJTktEIiVUyXO-WJOL2eOBRwA1hBlKTqqkANKMiB04Itf4YSCdNQ9DAAIQA1ENBIITONwJMbvD7gTsGpaJVmasPiMpAzCLwyMLVWUqYCEQ9YqIXurySAAGpQQhgRYjY0K-EglUaVGcA0aSDfGG86lAxFyMqLKRekAAGXDEG5rVCAP5OCMQu9FAAYs8oDKWCgpvs3UcTMISd4NSAACJKG3bRO44NmuQAKwAjpby9aAFKLQh02BkACKiyg9pdhdpsSyXEjACVaDwwMi6wWaSHsCMIHOoM9MiYWIGTYqQTJBKcrW8QLPBLQTKfeOO103sPwO2TL4N7c3mvWg6alVwO6RtQP6ro2SpwAA7AAbJGJCCGUJhYIgZAwY 4EgnAggzheqTwVwahZOh-6YWYOGdpeJBkYBy7EceRw-GokZooIMBqM2ABvMB-L R5FrEYgmGIkafCYghiDw-YwHR-FyIR54UakwpNLwEBLgGvGupOciqGW76pFGEAAGZQLpzgydp8iCFuuFrNZRE8rxvZSJIUC8KxEAAF5QCYaYgHoFAAHIQLIUBkAA9GQlZQBo9omHAZC-GQUjYRouZynCE7riYRlwJGlaSlwRkQN8Fnrp5jSRgAWo0ZgrvKWXPiqeW2d6hiQL8ZXPgkb4shgAASRKedymmNUqWRgJGPZ9hNXXjaM260LF0mHlp65Yc2cGCM2ghOjxYEkUcgFMopaywFIFirWNILeb1FZVfadVLtsCbtMm2C6AQvRVhQLGbDI6X5g1T5Kh5kYAPJNHAL2Hu9vlfRgGbaHmyCvTc71GX5yMZQ2h2xM2vZTb28YtMwallDCnDg 8ABMZDYGQrKNIOZCUKY2AkKMWGEGQACMvNWEAA",
+    "expected": {
+      "title": "OW2 - KarQ Mid-Season 11",
+      "tiers": [
+        {
+          "name": "S [Meta]",
+          "items": [
+            "Cassidy",
+            "Echo",
+            "Pharah",
+            "Illari"
+          ]
+        },
+        {
+          "name": "A [Great]",
+          "items": [
+            "Mauga",
+            "Sigma",
+            "Winston",
+            "Ashe",
+            "Tracer",
+            "Ana",
+            "Kiriko"
+          ]
+        },
+        {
+          "name": "B+ [Good]",
+          "items": [
+            "Wrecking Ball",
+            "Venture",
+            "Baptiste",
+            "Lucio"
+          ]
+        },
+        {
+          "name": "B [Fine]",
+          "items": [
+            "D.Va",
+            "Junker Queen",
+            "Ramattra",
+            "Reinhardt",
+            "Roadhog",
+            "Genji",
+            "Mei",
+            "Soldier: 76",
+            "Sombra",
+            "Symmetra",
+            "Torbjörn",
+            "Widowmaker",
+            "Brigitte",
+            "Lifeweaver",
+            "Moira"
+          ]
+        },
+        {
+          "name": "C [Niche / Depends on comp]",
+          "items": [
+            "Doomfist",
+            "Zarya",
+            "Bastion",
+            "Hanzo",
+            "Junkrat",
+            "Reaper",
+            "Sojourn",
+            "Mercy",
+            "Zenyatta"
+          ]
+        },
+        {
+          "name": "D [Tough]",
+          "items": [
+            "Orisa"
+          ]
+        },
+        {
+          "name": "F",
+          "items": []
+        },
+        {
+          "name": "Unranked",
+          "items": [
+            "Juno"
+          ]
+        }
+      ]
+    }
+  }
+]

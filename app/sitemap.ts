@@ -1,5 +1,5 @@
 import {MetadataRoute} from 'next'
-import imagesetConfig from "@/imageset.config.json";
+import {visibleImageSets} from "@/lib/imageSets";
 import {slugify} from "@/lib/utils";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -21,8 +21,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 1,
   }))
 
-  // Generate dynamic routes based on imagesetConfig
-  const dynamicRoutes = Object.entries(imagesetConfig.packages).flatMap(([packageName, packageData]) => {
+  // Generate dynamic routes for the image sets (legacy sets are left out, lib/imageSets.ts)
+  const dynamicRoutes = visibleImageSets().flatMap(([packageName, packageData]) => {
     const displayNameSlug = slugify(packageData.displayName);
 
     // Generate routes for both packageName and displayName
