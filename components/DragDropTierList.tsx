@@ -179,7 +179,9 @@ const UnrankedTray = memo<{
   onSaveLabel: (index: number, newText: string) => void;
   onDeleteItem: (itemId: string) => void;
   addImagesTile?: React.ReactNode;
-}>(({tier, listIndex, showLabels, onSaveLabel, onDeleteItem, addImagesTile}) => {
+  /** In place of the items and the hints when the whole list is empty: the drop area. */
+  emptyListArea?: React.ReactNode;
+}>(({tier, listIndex, showLabels, onSaveLabel, onDeleteItem, addImagesTile, emptyListArea}) => {
   const tierLabel = tier.name.trim() || 'Unranked';
   const isZenMode = useZenMode();
   const {order, hideQueue, shuffled} = useRankingOrder();
@@ -210,20 +212,24 @@ const UnrankedTray = memo<{
           <span className="text-sm text-muted-foreground">· {itemsLeftText(tier.items.length)}</span>
         )}
         {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
-        <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
+        {!emptyListArea && <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
           <span>Drag to reorder.</span>
           <FirstDragHint/>
           <span className="tooltip-mouse">Right-click on any item to delete.</span>
           <span className="tooltip-touch">Long-press on any item to delete.</span>
           <span className="tooltip-mouse">Paste an image to add it as an item.</span>
-        </p>
+        </p>}
       </div>
-      <TierItems
-        tier={tier}
-        showLabels={showLabels}
-        onDeleteItem={onDeleteItem}
-        trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
-      />
+      {emptyListArea ? (
+        <div className="hide-in-zen" data-html2canvas-ignore>{emptyListArea}</div>
+      ) : (
+        <TierItems
+          tier={tier}
+          showLabels={showLabels}
+          onDeleteItem={onDeleteItem}
+          trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
+        />
+      )}
     </section>
   );
 });
@@ -319,10 +325,17 @@ interface DragDropTierListProps {
   belowRows?: React.ReactNode;
   /** The tray's "Add images" tile (ItemManager with the tile trigger). */
   addImagesTile?: React.ReactNode;
+  /**
+   * An empty list's drop area (EmptyListDropArea, owner decision 2026-10-31). It takes the place
+   * of the tray's items, hints and tile while no row holds an item.
+   */
+  emptyListArea?: React.ReactNode;
 }
 
-const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImagesTile}) => {
+const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImagesTile, emptyListArea}) => {
   const {tiers, labelPosition, showLabels, moveItem, moveTier, renameTier, deleteItem, restoreItem} = useTierContext();
+
+  const listIsEmpty = tiers.every((tier) => tier.items.length === 0);
 
   const handleItemMove = useCallback((move: ItemMove) => moveItem(move.from, move.to), [moveItem]);
   const listIndexOf = useMemo(() => new Map(tiers.map((tier, index) => [tier.id, index])), [tiers]);
@@ -393,6 +406,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImages
                 onSaveLabel={renameTier}
                 onDeleteItem={handleDeleteItem}
                 addImagesTile={addImagesTile}
+                emptyListArea={listIsEmpty ? emptyListArea : undefined}
               />
             )}
           </>

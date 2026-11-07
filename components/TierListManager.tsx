@@ -7,14 +7,16 @@ import {TierListProvider, useTierContext} from '@/contexts/TierContext';
 import {CustomImagesProvider} from '@/contexts/CustomImagesContext';
 import LinkImageNotice from "@/components/LinkImageNotice";
 import {usePasteImages} from "@/components/usePasteImages";
-import {useFileDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import {useEditorDrop, useSnapshotFiles} from "@/components/useSnapshotFiles";
+import DropOverlay from "@/components/DropOverlay";
+import {useZenMode} from "@/components/usePageState";
 import {RowControls} from "@/components/TierTemplateSelector";
 import {ZenToggle} from "@/components/ZenToggle";
 import {ZenBar} from "@/components/ZenBar";
 import {setZenMode} from "@/components/zenMode";
 import {useStepLog} from "@/components/useListSteps";
 import {ListTitle} from "@/components/ListTitle";
-import ItemManager from "@/components/ItemManager";
+import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
 import ShareButton from "@/components/ShareButton";
 import {ItemSet} from "@/models/ItemSet";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
@@ -43,47 +45,54 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initia
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
   // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  const {openFiles, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
-  usePasteImages(openFiles);
-  useFileDrop(openFiles);
+  // Image addresses that someone drops or pastes: link images (#107).
+  const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
+  usePasteImages(openFiles, openLinks);
+  const dragging = useEditorDrop(openFiles, openLinks);
+  // No drop overlay in Zen, which turns off adding items.
+  const isZenMode = useZenMode();
   // The Zen bar's step count, in browsers without the Navigation API (components/useListSteps.ts).
   useStepLog();
   // Zen belongs to the editor: leaving the editor ends it, so other pages keep their header.
   useEffect(() => () => setZenMode(false, {announce: false}), []);
 
   return (
-    <div className="w-full flex flex-col items-center">
-      {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen, in its own row
-          above the title (owner decision, 2026-11-01). First on the page, so the keyboard
-          reaches it first. */}
-      <ZenBar/>
-      {/* The title on the left and the editor's three tools on the right (owner decisions,
-          2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
-          wordmark takes their place. The title sits right above the rows; on phones the tools
-          sit above the title (2026-10-31). */}
-      <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <ListTitle title={title} onSave={setTitle}/>
-        <div role="group" aria-label="Editor tools" className="hide-in-zen flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
-          <span><ItemManager onOpenFiles={openFiles} openFocusRef={openFileButtonRef}/></span>
-          <ZenToggle/>
-          <span><ShareButton title={title}/></span>
+    <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
+      <div className="w-full flex flex-col items-center">
+        {/* Zen's bar: Back, the step count, Forward, the ranking order and Exit Zen, in its own row
+            above the title (owner decision, 2026-11-01). First on the page, so the keyboard
+            reaches it first. */}
+        <ZenBar/>
+        {/* The title on the left and the editor's three tools on the right (owner decisions,
+            2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
+            wordmark takes their place. The title sits right above the rows; on phones the tools
+            sit above the title (2026-10-31). */}
+        <div className="w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <ListTitle title={title} onSave={setTitle}/>
+          <div role="group" aria-label="Editor tools" className="hide-in-zen flex flex-wrap gap-2 sm:flex-nowrap sm:shrink-0" id="settings" data-html2canvas-ignore>
+            <span><ItemManager openFocusRef={openFileButtonRef}/></span>
+            <ZenToggle/>
+            <span><ShareButton title={title}/></span>
+          </div>
+          <Image src={otbLogo} alt="OpenTierBoy" height={36} className="hidden zen-mode:block h-9 w-auto self-end sm:self-center sm:shrink-0 opacity-95"/>
         </div>
-        <Image src={otbLogo} alt="OpenTierBoy" height={36} className="hidden zen-mode:block h-9 w-auto self-end sm:self-center sm:shrink-0 opacity-95"/>
+        <LinkImageNotice/>
+        {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
+            "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
+        <div className="w-full mt-3">
+          <DragDropTierList
+            belowRows={<RowControls/>}
+            addImagesTile={<ItemManager trigger="tile"/>}
+            emptyListArea={<EmptyListDropArea/>}
+          />
+        </div>
+        <div className="w-full hide-in-zen" data-html2canvas-ignore>
+          <UrlLengthWarning urlLength={urlLength}/>
+        </div>
+        {openListDialog}
+        <DropOverlay visible={dragging && !isZenMode}/>
       </div>
-      <LinkImageNotice/>
-      {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
-          "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
-      <div className="w-full mt-3">
-        <DragDropTierList
-          belowRows={<RowControls/>}
-          addImagesTile={<ItemManager onOpenFiles={openFiles} trigger="tile"/>}
-        />
-      </div>
-      <div className="w-full hide-in-zen" data-html2canvas-ignore>
-        <UrlLengthWarning urlLength={urlLength}/>
-      </div>
-      {openListDialog}
-    </div>
+    </AddImagesProvider>
   );
 };
 

@@ -5,7 +5,7 @@ import {Button} from "@/components/ui/button";
 import {Input} from "@/components/ui/input";
 import {Label} from "@/components/ui/label";
 import Item from "@/models/Item";
-import {useCustomImages} from "@/contexts/CustomImagesContext";
+import {useLinkImageItems} from "@/components/useAddItems";
 import {checkLinkImageUrl} from "@/lib/images/linkImage";
 import {checkImage, labelFallback} from "@/lib/images/imageCheck";
 import {IMAGE_CHECK_FAILURE_MESSAGES, LINK_IMAGE_REFUSAL_MESSAGES} from "@/lib/images/messages";
@@ -21,7 +21,7 @@ interface LinkImageCreatorProps {
  * An image that does not load can still be added: it shows as a label tile.
  */
 const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
-  const {allowHosts} = useCustomImages();
+  const linkImageItems = useLinkImageItems();
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -33,11 +33,8 @@ const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
 
   useEffect(() => () => abort.current?.abort(), []);
 
-  const add = (url: string, host: string, label: string) => {
-    // The visitor chose this site, so its images may load on this page.
-    allowHosts([host]);
-    onItemsCreate([{id: url, content: label, source: 'link', url}]);
-  };
+  // The visitor chose this site, so its images may load on this page (useLinkImageItems).
+  const add = (url: string, host: string, label: string) => onItemsCreate(linkImageItems([{url, host, label}]));
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();

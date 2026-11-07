@@ -1,6 +1,7 @@
 /** Adding, removing and resetting items in the editor, and items the image sets do not know. */
 import path from 'node:path';
 import {expect, test} from '../support/test';
+import {serveImageSite} from '../support/image-sites';
 import {FIVE_ROW_TIERS, packageItemId, rankingState, rawState, templateItemCount, v3LinkJson} from '../support/links';
 
 const TANKS = '/rank/overwatch/tank';
@@ -141,6 +142,142 @@ test.describe('editor items', () => {
 
       await expect(tierList.manageItemsButton).toBeFocused();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    });
+  });
+
+  // Where people add images (owner decision, 2026-10-31): the drop overlay, an empty list's drop
+  // area, the "drop or paste" line of the tray's tile, and the menu's "or drop" and "or paste".
+  test.describe('adding images', () => {
+    test('renders the drop overlay with its two lines when the user drags a link over the editor', async ({tierList}) => {
+      await tierList.goto(TANKS);
+      await expect(tierList.dropOverlay).toHaveCount(0);
+
+      await tierList.dragLinkOver('https://i.imgur.com/red.png');
+
+      await expect(tierList.dropOverlay).toBeVisible();
+      await expect(tierList.dropOverlayNote).toBeVisible();
+    });
+
+    test('renders no drop overlay when the user drags a link over the editor and away again', async ({tierList}) => {
+      await tierList.goto(TANKS);
+      await tierList.dragLinkOver('https://i.imgur.com/red.png');
+      await expect(tierList.dropOverlay).toBeVisible();
+
+      await tierList.dragLinkAway('https://i.imgur.com/red.png');
+
+      await expect(tierList.dropOverlay).toHaveCount(0);
+    });
+
+    test('renders the drop area with Template, Upload and Link and no tile or hints when the page opens an empty list', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto('/rank');
+
+      await expect(tierList.emptyListDropArea).toBeVisible();
+      await expect(tierList.emptyListAction('Template')).toBeVisible();
+      await expect(tierList.emptyListAction('Upload')).toBeVisible();
+      await expect(tierList.emptyListAction('Link')).toBeVisible();
+      await expect(tierList.addImagesTile).toHaveCount(0);
+      await expect(tierList.hints).toHaveCount(0);
+    });
+
+    test('renders the tile and no drop area when the page opens a list with items', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(TANKS);
+
+      await expect(tierList.addImagesTile).toBeVisible();
+      await expect(tierList.emptyListDropArea).toHaveCount(0);
+    });
+
+    // Dropping and pasting need a mouse and a keyboard: on touch screens the words about them
+    // hide, as "Paste an image to add it as an item." does (the class tooltip-mouse).
+    test.describe('mouse wording', () => {
+      test.skip(({isMobile}) => isMobile, 'The words about dropping and pasting show with a mouse.');
+
+      test('renders "drop or paste" on the tile when the page opens a list with items', async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await expect(tierList.addImagesTileHint).toBeVisible();
+      });
+
+      test('renders the heading "Drop or paste images here" when the page opens an empty list', async ({tierList}) => {
+        await tierList.goto('/rank');
+
+        await expect(tierList.emptyListDropArea).toHaveText('Drop or paste images here');
+      });
+    });
+
+    test.describe('touch wording', () => {
+      test.skip(({isMobile}) => !isMobile, 'The touch wording shows on touch screens.');
+
+      test('renders no "drop or paste" on the tile when the page opens a list with items', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await expect(tierList.addImagesTile).toBeVisible();
+        await expect(tierList.addImagesTileHint).toBeHidden();
+      });
+
+      test('renders the heading "Add images here" with Template, Upload and Link when the page opens an empty list', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto('/rank');
+
+        await expect(tierList.emptyListDropArea).toHaveText('Add images here');
+        await expect(tierList.emptyListAction('Template')).toBeVisible();
+        await expect(tierList.emptyListAction('Upload')).toBeVisible();
+        await expect(tierList.emptyListAction('Link')).toBeVisible();
+      });
+
+      test('renders no hints "or drop" and "or paste" when the user opens the Add images menu', {tag: '@mobile'}, async ({tierList}) => {
+        await tierList.goto(TANKS);
+
+        await tierList.openManageItemsMenu();
+
+        await expect(tierList.menuItem('From your device')).toBeVisible();
+        await expect(tierList.menuHint('From your device', 'or drop')).toBeHidden();
+        await expect(tierList.menuHint('From a link', 'or paste')).toBeHidden();
+        await expect(tierList.menuHint('Open a Freeze Frame…', 'or drop')).toBeHidden();
+      });
+    });
+
+    test('renders the template picker, then the items, when the user clicks Template in the drop area of an empty list', async ({tierList}) => {
+      await tierList.goto('/rank');
+
+      await tierList.emptyListAction('Template').click();
+      await expect(tierList.templatePicker.getByRole('combobox')).toBeVisible();
+      await tierList.templateOption('OVERWATCH').click();
+      await tierList.templateOption(/^Tank\b/).click();
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
+      await expect(tierList.emptyListDropArea).toHaveCount(0);
+    });
+
+    test('renders the dialog "Add New Items" when the user clicks Upload in the drop area of an empty list', async ({tierList}) => {
+      await tierList.goto('/rank');
+
+      await tierList.emptyListAction('Upload').click();
+
+      await expect(tierList.uploadDialog).toBeVisible();
+    });
+
+    test('renders focus on button "Add images" when the user adds an image with Link in the drop area of an empty list', async ({tierList, page}) => {
+      await serveImageSite(page, 'i.imgur.com');
+      await tierList.goto('/rank');
+
+      await tierList.emptyListAction('Link').click();
+      await expect(tierList.linkImageDialog).toBeVisible();
+      await tierList.addItemFromLink('https://i.imgur.com/red.png', 'Red square');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
+      // The drop area went away with the add, so focus goes to the toolbar's Add images.
+      await expect(tierList.manageItemsButton).toBeFocused();
+    });
+
+    test('renders the hints "or drop" and "or paste" on the matching items when the user opens the Add images menu', async ({tierList, isMobile}) => {
+      test.skip(isMobile, 'The hints show with a mouse.');
+      await tierList.goto(TANKS);
+
+      await tierList.openManageItemsMenu();
+
+      await expect(tierList.menuItem('From template')).toHaveText('From template');
+      await expect(tierList.menuItem('From your device')).toHaveText('From your device or drop');
+      await expect(tierList.menuItem('From a link')).toHaveText('From a link or paste');
+      await expect(tierList.menuItem('Open a Freeze Frame…')).toHaveText('Open a Freeze Frame… or drop');
     });
   });
 
