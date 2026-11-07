@@ -28,7 +28,7 @@ import {
   pauseAutoScroll,
   type AnnouncedDragReader,
 } from './dndKit';
-import {DND_TYPES, itemDndId, parseDndId, ROWS_GROUP, rowDndId, tierItemsDndId} from './ids';
+import {assertSameTileItem, DND_TYPES, itemDndId, parseDndId, ROWS_GROUP, rowDndId, tierItemsDndId} from './ids';
 import {keyboardItemTarget, keyboardRowTarget} from './keyboard';
 import type {ItemLike, ItemMove, RowMove, TierLike} from './model';
 import {findItem, moveItem} from './moves';
@@ -44,7 +44,7 @@ import {itemMoveFromPreview, moveRowInPreview, previewItemOver, previewRowOver, 
  * - useTierRow: a row, sortable by its handle.
  * - useTierItems: the item area of a row, which takes items over its free space (and when the
  *   row is empty).
- * - useTierItem: an item tile, sortable inside and between rows.
+ * - DraggableTierItem: an item tile, sortable inside and between rows, keyed by its item id.
  *
  * The list changes only on drop (history is the undo, product rule 2). During a drag the rows
  * render a preview, a copy of the list that follows the pointer or the arrow keys
@@ -53,6 +53,9 @@ import {itemMoveFromPreview, moveRowInPreview, previewItemOver, previewRowOver, 
  * onRowMove once, and only when something moved, so a drop where the drag started adds no
  * history entry.
  */
+
+/** dnd-kit's own aria-roledescription for draggables (its Accessibility plugin), which item tiles render themselves. */
+const DRAGGABLE_ROLE_DESCRIPTION = 'draggable';
 
 /** No per-sortable dnd-kit plugins: no optimistic sorting (React draws the preview) and no sortable keyboard plugin (DragMoves). */
 const NO_SORTABLE_PLUGINS: never[] = [];
@@ -404,12 +407,57 @@ export function useTierItems({tierId}: {tierId: string}) {
   return {ref, isDropTarget: itemTargetTierId === tierId};
 }
 
+/** What an item tile gets from DraggableTierItem. */
+export interface TierItemDrag {
+  /** Put it on the tile: the element that starts a drag. */
+  ref: (element: Element | null) => void;
+  isDragging: boolean;
+  isDropping: boolean;
+  /** For aria-describedby: the keyboard instructions. */
+  describedBy: string;
+  /**
+   * For aria-roledescription: "draggable" while dnd-kit has this tile's draggable, so a press
+   * starts a drag; undefined otherwise (before the first registration, and on a tile that lost
+   * its draggable, which no tile should). Tests check it on every tile after each drop.
+   */
+  roleDescription: string | undefined;
+}
+
+export interface DraggableTierItemProps {
+  itemId: string;
+  tierId: string;
+  index: number;
+  /** Renders the tile with what it needs to be dragged. */
+  children: (drag: TierItemDrag) => React.ReactNode;
+}
+
 /**
- * An item tile, sortable inside its row and between rows. Put `ref` on the tile and
- * `describedBy` in its aria-describedby (the keyboard instructions).
+ * An item tile, sortable inside its row and between rows: the only way to make one.
+ *
+ * It keys the tile by its item id itself, so a tile never changes items: when the item at this
+ * place changes (the item up next in Zen, after each drop), a new tile with a new draggable
+ * takes its place. dnd-kit keeps its draggables by id. A tile whose item changed would rename
+ * its draggable while the item's new tile (in the row it was dropped in) registers the old id:
+ * dnd-kit then drops the renamed one, and the tile takes no more drags (a press on its image
+ * started the browser's own image drag; fixed in 176120b). Callers cannot forget the key.
  */
-export function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; index: number}) {
-  const {ref, isDragging, isDropping} = useSortable({
+export function DraggableTierItem({itemId, tierId, index, children}: DraggableTierItemProps) {
+  return <TierItemSortable key={itemId} itemId={itemId} tierId={tierId} index={index} render={children}/>;
+}
+
+function TierItemSortable({itemId, tierId, index, render}: Omit<DraggableTierItemProps, 'children'> & {render: DraggableTierItemProps['children']}) {
+  return <>{render(useTierItem({itemId, tierId, index}))}</>;
+}
+
+/**
+ * The sortable of one item tile. Only DraggableTierItem calls it, keyed by the item id. As a
+ * backstop, it throws a TypeError when a later render passes another item id
+ * (assertSameTileItem), so the mistake fails at once in development and in every test.
+ */
+function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; index: number}): TierItemDrag {
+  const [firstItemId] = useState(itemId);
+  assertSameTileItem(firstItemId, itemId);
+  const {sortable, ref, isDragging, isDropping} = useSortable({
     id: itemDndId(itemId),
     index,
     group: tierItemsDndId(tierId),
@@ -418,7 +466,14 @@ export function useTierItem({itemId, tierId, index}: {itemId: string; tierId: st
     plugins: NO_SORTABLE_PLUGINS,
   });
   const describedBy = useContext(TierDragDescriptionContext);
-  return {ref, isDragging, isDropping, describedBy};
+  const manager = useDragDropManager();
+  const {draggable} = sortable;
+  // True while the manager holds this very draggable under its id, with an element to press.
+  const canDrag = useComputed(
+    () => manager?.registry.draggables.get(draggable.id) === draggable && draggable.element !== undefined && !draggable.disabled,
+    [manager, draggable],
+  );
+  return {ref, isDragging, isDropping, describedBy, roleDescription: canDrag.value ? DRAGGABLE_ROLE_DESCRIPTION : undefined};
 }
 
 /** `describedBy` for a row handle: the keyboard instructions. Never changes during a drag. */

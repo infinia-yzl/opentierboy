@@ -40,3 +40,14 @@ export function parseDndId(id: unknown): {kind: DndIdKind; id: string} | null {
   if (kind !== 'item' && kind !== 'row' && kind !== 'tier') return null;
   return {kind, id: id.slice(colon + 1)};
 }
+
+/**
+ * An item tile never changes its item (lib/dnd/react.tsx, DraggableTierItem keys each tile by
+ * its item id). Throws a TypeError, a programmer error, when a tile first made for
+ * `firstItemId` is rendered for `itemId`.
+ */
+export function assertSameTileItem(firstItemId: string, itemId: string): void {
+  if (itemId !== firstItemId) {
+    throw new TypeError(`An item tile cannot change its item (first "${firstItemId}", now "${itemId}"): render each tile with DraggableTierItem, which keys it by its item id.`);
+  }
+}

@@ -10,6 +10,15 @@ test.describe('site pages', () => {
     }
   });
 
+  test('renders the GIF section heading and its 3 headings when the user opens About', {tag: '@mobile'}, async ({site}) => {
+    await site.gotoHome();
+    await site.openFromNavigation('About');
+
+    for (const heading of ['How it works', 'Rank by dragging', 'Your own images', 'Freeze Frame']) {
+      await expect(site.heading(heading)).toBeVisible();
+    }
+  });
+
   test('renders the list title and 6 items in row S when the user opens the tier list link of a blog article', async ({site, tierList}) => {
     await site.gotoHome();
     await site.openFromNavigation('Blog');
