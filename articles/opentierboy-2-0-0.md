@@ -49,7 +49,7 @@ up.
 Images you add from the web now travel with your shared link, so your friends see them too. Images you upload stay on
 your device, and hitting "Share" shows you how many of them there are.
 
-![Opening Share on a list with one web image and one uploaded image, then copying the link](/blog/2-0-0/share-panel.gif)
+![Opening Share on a list with one web image and one uploaded image, then copying the link as Markdown](/blog/2-0-0/share-panel.gif)
 
 ## Freeze Frame magic
 
