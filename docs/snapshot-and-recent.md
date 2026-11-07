@@ -17,6 +17,17 @@ Two ways to keep lists on this device. Neither sends anything to a server.
   A line under Download says what the file carries (owner decision, 2026-10-31): "The file
   keeps your list and your own pictures. Anyone you send it to can open it here and edit the
   list."
+- **Frame** (Share, Image tab, before Capture Preview) chooses the picture: "Whole list" (the
+  default, 1200 pixels wide and as tall as the list) or a picture frame of a fixed size for posts:
+  Landscape 1200×675, Square 1080×1080 or Portrait 1080×1350 (`PICTURE_FRAMES` in
+  `lib/listCard/model.ts`). A frame has the title on top and the wordmark, "No ads, no logins, no
+  sign ups. Create yours today." and opentierboy.com at the bottom, and is drawn at exactly its
+  size. It fits the list like a link preview: tiles shrink, then long rows end in "+N", then a bar
+  counts the rows that do not fit. Its Download is the same snapshot file, so it opens as the
+  whole list.
+- **The share panel** says which images the link carries: link images travel in the link (it
+  holds their addresses); device images stay on this device, and the note points to the picture's
+  Download for them.
 - **Open a Freeze Frame…** (in the Add images menu), **dropping a file** onto the editor and
   **pasting** one open files the same way (`components/useSnapshotFiles.tsx`):
   - All three take the same files as "From your device", through the same code: a PNG, JPEG,

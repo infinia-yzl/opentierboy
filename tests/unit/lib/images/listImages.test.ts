@@ -1,7 +1,16 @@
 import {describe, expect, it} from 'vitest';
 import type Item from '@/models/Item';
 import type Tier from '@/models/Tier';
-import {deviceImageKey, deviceImageKeys, hostsAwaitingConsent, isImageHostAllowed, itemDisplayLabel, linkImageOf, pastedImageLabel} from '@/lib/images/listImages';
+import {
+  deviceImageKey,
+  deviceImageKeys,
+  hostsAwaitingConsent,
+  isImageHostAllowed,
+  itemDisplayLabel,
+  linkImageCounts,
+  linkImageOf,
+  pastedImageLabel,
+} from '@/lib/images/listImages';
 import {itemLabel} from '@/lib/dnd/labels';
 
 const isPackageItem = (id: string) => id.startsWith('image-overwatch-');
@@ -33,6 +42,22 @@ describe('deviceImageKey and deviceImageKeys', () => {
       tier('u', [{id: 'legacy-ab3c9', content: 'b', source: 'device'}, {id: 'ab3c9', content: 'b again'}]),
     ];
     expect(deviceImageKeys(tiers, isPackageItem)).toEqual(['k3j9x0a1b', 'legacy-ab3c9']);
+  });
+});
+
+describe('linkImageCounts', () => {
+  it('returns the link images and the device images of every row, Unranked included, when the list has both', () => {
+    const tiers = [
+      tier('s', [{id: 'image-overwatch-mau.webp', content: 'Mauga'}, link('https://i.imgur.com/a.png'), {id: 'k3j9x0a1b', content: 'old upload'}]),
+      tier('a', [link('https://i.imgur.com/b.png'), link('not an address')]),
+      tier('u', [{id: 'Abcdefgh12345678', content: 'pasted', source: 'device'}, {id: 'abcdefghij', content: 'gone', source: 'package'}]),
+    ];
+    expect(linkImageCounts(tiers, isPackageItem)).toEqual({link: 3, device: 2});
+  });
+
+  it('returns 0 link images and 0 device images when the list has only image-set items', () => {
+    expect(linkImageCounts([tier('s', [{id: 'image-overwatch-mau.webp', content: 'Mauga'}]), tier('u', [])], isPackageItem))
+      .toEqual({link: 0, device: 0});
   });
 });
 

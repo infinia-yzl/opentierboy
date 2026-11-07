@@ -4,7 +4,7 @@ import {useCustomImages} from '@/contexts/CustomImagesContext';
 import {deviceImageKey, itemDisplayLabel, linkImageOf} from '@/lib/images/listImages';
 import {getOgTierGradient} from '@/lib/linkPreview';
 import {MAX_LABEL_LENGTH, MAX_TITLE_LENGTH, shorten} from '@/lib/text';
-import {listCardData, type ListCardData, type ListCardTile} from '@/lib/listCard/model';
+import {listCardData, type ListCardData, type ListCardTile, type PictureFrameName} from '@/lib/listCard/model';
 import type Item from '@/models/Item';
 
 /**
@@ -12,10 +12,11 @@ import type Item from '@/models/Item';
  * shows what the tiles on screen show: the app's own images, device images that are loaded (blob:
  * URLs) and link images that passed their check. Other items are label tiles.
  *
- * Freeze Frame grows the card with the list ('auto' height, lib/listCard/fit.ts), so every item
- * shows; only a list taller than the height cap gets smaller tiles.
+ * The "Whole list" picture grows the card with the list ('auto' height, lib/listCard/fit.ts), so
+ * every item shows; only a list taller than the height cap gets smaller tiles. A picture frame
+ * (PICTURE_FRAMES) has a fixed size and fits the list into it like a link preview does.
  */
-export function useListCardData(): () => ListCardData {
+export function useListCardData(): (frame?: PictureFrameName) => ListCardData {
   const {tiers, title, tierCortex} = useTierContext();
   const {deviceStates, linkStates, isPackageItem} = useCustomImages();
 
@@ -35,13 +36,14 @@ export function useListCardData(): () => ListCardData {
     return {key: item.id, label, src: item.imageUrl};
   }, [deviceStates, linkStates, isPackageItem]);
 
-  return useCallback(() => {
+  return useCallback((frame?: PictureFrameName) => {
     const ranked = tiers.slice(0, -1); // Without the Unranked row
     return listCardData({
       title: shorten(title || 'OpenTierBoy', MAX_TITLE_LENGTH),
       setName: tierCortex.listSetName(ranked),
       rows: ranked,
       height: 'auto',
+      frame,
       background: getOgTierGradient,
       rowName: (row) => shorten(row.name, MAX_LABEL_LENGTH),
       tile: tileFor,

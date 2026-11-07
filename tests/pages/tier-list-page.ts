@@ -6,6 +6,8 @@ export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
 /** The capture methods offered under "Options" in the Image tab of the share panel. */
 export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
+/** The pictures offered under "Frame" in the Image tab of the share panel. */
+export type FreezeFrame = 'Whole list' | 'Landscape 1200×675' | 'Square 1080×1080' | 'Portrait 1080×1350';
 
 /** What a test can check about the image that "Capture Preview" made. */
 export interface CapturedImage {
@@ -1381,17 +1383,32 @@ export class TierListPage {
     return this.sharePanel.getByRole('img', {name: 'Captured tier list'});
   }
 
+  /** The "Frame" choice in the Image tab of the share panel. Open the tab first (openImageTab). */
+  get frameSelect(): Locator {
+    return this.sharePanel.getByRole('combobox', {name: 'Frame'});
+  }
+
+  /** The notes in the share panel that say which images the link carries. */
+  get linkImageNotes(): Locator {
+    return this.sharePanel.getByRole('note');
+  }
+
   /**
    * Captures the page as an image from the Image tab of the share panel ("Freeze Frame"),
-   * and waits until the app reports the result in a toast. Without a method, the app's
-   * default method is used.
+   * and waits until the app reports the result in a toast. Without a method or a frame, the
+   * app's defaults are used.
    */
-  async capturePreview(method?: CaptureMethod) {
+  async capturePreview(method?: CaptureMethod, frame?: FreezeFrame) {
     await this.openSharePanel();
     await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
+    if (frame) {
+      await this.frameSelect.click();
+      await this.page.getByRole('option', {name: frame, exact: true}).click();
+      await expect(this.frameSelect).toHaveText(frame);
+    }
     if (method) {
       await this.sharePanel.getByRole('button', {name: 'Options'}).click();
-      const methodSelect = this.sharePanel.getByRole('combobox');
+      const methodSelect = this.sharePanel.getByRole('combobox', {name: 'Capture method'});
       await methodSelect.click();
       await this.page.getByRole('option', {name: method, exact: true}).click();
       await expect(methodSelect).toHaveText(method);
