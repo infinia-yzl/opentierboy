@@ -65,73 +65,74 @@ const OwnListCard: React.FC = () => {
         </h3>
         <Separator/>
       </div>
-      <Button asChild className="w-full gap-2">
-        <Link href="/rank/">
-          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 8v8M8 12h8"/>
-          </svg>
-          Create Blank List
-        </Link>
-      </Button>
-      <Button ref={openButton} variant="outline" className="w-full gap-2" onClick={() => fileInput.current?.click()}>
-        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        </svg>
-        Open a Freeze Frame
-      </Button>
-      <input
-        ref={fileInput}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(event) => {
-          const files = Array.from(event.target.files ?? []);
-          // Clear the input, so choosing the same file again opens it again.
-          event.target.value = '';
-          open(files);
-        }}
-      />
-      <div
-        ref={dropArea}
-        className={cn(
-          'hidden grow flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-3 py-3.5 text-center transition-colors md:flex',
-          dragging ? 'border-primary bg-primary/10' : 'border-muted-foreground/40 bg-muted',
-        )}
-        onDragEnter={(event) => {
-          if (!carriesFiles(event)) return;
-          depth.current += 1;
-          setDragging(true);
-        }}
-        onDragLeave={(event) => {
-          if (!carriesFiles(event)) return;
-          depth.current = Math.max(0, depth.current - 1);
-          if (depth.current === 0) setDragging(false);
-        }}
-        onDragOver={(event) => {
-          if (!carriesFiles(event)) return;
-          event.preventDefault();
-          event.dataTransfer.dropEffect = 'copy';
-        }}
-        onDrop={(event) => {
-          if (!carriesFiles(event)) return;
-          event.preventDefault();
-          depth.current = 0;
-          setDragging(false);
-          open(Array.from(event.dataTransfer.files));
-        }}
-      >
-        <span className="flex items-center gap-1.5 text-sm font-semibold">
-          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="9" cy="9" r="2"/>
-            <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>
-          </svg>
-          Drop images or a Freeze Frame here
-        </span>
-        <span className="text-[13px] leading-snug text-muted-foreground">
-          Images start a new list. A Freeze Frame reopens as an editable list.
-        </span>
+      {/* The same rows as the template cards beside it: outline buttons, 8 px apart, with the
+          icon where their pictures sit. */}
+      <div className="flex grow flex-col gap-2">
+        <Button asChild variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3">
+          <Link href="/rank/">
+            <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 8v8M8 12h8"/>
+              </svg>
+            </span>
+            Create Blank List
+          </Link>
+        </Button>
+        <Button ref={openButton} variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3" onClick={() => fileInput.current?.click()}>
+          <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+          </span>
+          Open a Freeze Frame
+        </Button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(event) => {
+            const files = Array.from(event.target.files ?? []);
+            // Clear the input, so choosing the same file again opens it again.
+            event.target.value = '';
+            open(files);
+          }}
+        />
+        <div
+          ref={dropArea}
+          className={cn(
+            'hidden grow flex-col items-center justify-center gap-0.5 rounded-md border border-dashed px-3 py-2 text-center transition-colors md:flex',
+            dragging ? 'border-primary bg-primary/10' : 'border-muted-foreground/40 bg-muted',
+          )}
+          onDragEnter={(event) => {
+            if (!carriesFiles(event)) return;
+            depth.current += 1;
+            setDragging(true);
+          }}
+          onDragLeave={(event) => {
+            if (!carriesFiles(event)) return;
+            depth.current = Math.max(0, depth.current - 1);
+            if (depth.current === 0) setDragging(false);
+          }}
+          onDragOver={(event) => {
+            if (!carriesFiles(event)) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+          }}
+          onDrop={(event) => {
+            if (!carriesFiles(event)) return;
+            event.preventDefault();
+            depth.current = 0;
+            setDragging(false);
+            open(Array.from(event.dataTransfer.files));
+          }}
+        >
+          <span className="text-[13px] font-semibold leading-snug">Drop images or a Freeze Frame here</span>
+          <span className="text-xs leading-snug text-muted-foreground">
+            Images start a new list. A Freeze Frame reopens as an editable list.
+          </span>
+        </div>
       </div>
       {request && <HomeFileOpener request={request} returnFocusRef={openButton}/>}
     </Card>

@@ -87,8 +87,12 @@ export function addressesInText(text: string): string[] {
 /** The most `<img>` addresses read from a drop's HTML. */
 export const MAX_DROPPED_IMAGES_READ = 100;
 
-/** An `<img` tag's `src` attribute, double-quoted, single-quoted or bare. */
-const IMG_SRC = /<img\b[^>]*?\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+/**
+ * An `<img` tag's `src` attribute, double-quoted, single-quoted or bare. The search for `src`
+ * stops at the next `<`, so each `<img` is read up to the next tag at most and the time grows
+ * in line with the length (a long run of unclosed `<img` tags took over a second before).
+ */
+const IMG_SRC = /<img\b[^<>]*?\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
 
 /** The character references an address may hold in HTML: &amp; and friends, and &#…; numbers. */
 function decodeReferences(value: string): string {

@@ -90,7 +90,7 @@ const AboutPage = () => {
       </section>
 
       {/* Mission Section */}
-      <div className="relative w-screen left-1/2 right-1/2 mx-[-50vw] bg-primary text-primary-foreground">
+      <div className="relative w-screen left-1/2 right-1/2 mx-[-50vw] bg-foreground text-background">
         <section className="py-20 max-w-(--breakpoint-lg) mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-bold mb-8">Mission</h2>
           <h3 className="text-3xl md:text-4xl font-bold mb-6">A message from the founder</h3>
@@ -197,7 +197,7 @@ const AboutPage = () => {
 
       {/* Community Section */}
       <section className="py-20">
-        <Card className="bg-primary text-primary-foreground p-4">
+        <Card className="bg-foreground text-background p-4">
           <CardHeader>
             <h2 className="text-4xl md:text-5xl font-bold text-center">Build With Us!</h2>
           </CardHeader>
