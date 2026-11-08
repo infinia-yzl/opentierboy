@@ -11,7 +11,8 @@ import {Button} from "@/components/ui/button";
 import React from "react";
 import {FaDiscord} from "react-icons/fa6";
 
-export default function Page({params}: { params: { slug: string } }) {
+export default async function Page(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   return (
     <div>
       <Breadcrumb>
@@ -31,7 +32,7 @@ export default function Page({params}: { params: { slug: string } }) {
       </Breadcrumb>
       <BlogPost slug={params.slug}/>
       <section className="py-20">
-        <Card className="bg-primary text-primary-foreground p-4">
+        <Card className="bg-foreground text-background p-4">
           <CardHeader>
             <CardTitle className="text-2xl md:text-4xl font-bold text-center font-heading">
               Got something to say?

@@ -4,8 +4,13 @@ import ImageSetConfig from "@/models/ImageSet";
 import dynamic from "next/dynamic";
 import {Metadata, ResolvingMetadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
-import {redirect} from "next/navigation";
-import TierCortex from "@/lib/TierCortex";
+import {findRankSet, findRankTag} from "@/lib/rankRoute";
+import {permanentRedirect} from "next/navigation";
+import {createTierCortex} from "@/lib/TierCortex";
+import {visibleImageSets} from "@/lib/imageSets";
+import {gameColourKey} from "@/lib/appearance";
+import {GameColours} from "@/components/GameColours";
+import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 import {Skeleton} from "@/components/ui/skeleton";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
@@ -44,7 +49,8 @@ const TierListManager = dynamic(
 
 export async function generateStaticParams() {
   const params: { slug: string[] }[] = [];
-  Object.entries(typedImageSetConfig.packages).forEach(([packageName, packageData]) => {
+  // Legacy sets are left out here. Their pages still render on request (getItemSetData).
+  visibleImageSets().forEach(([packageName, packageData]) => {
     const displayNameSlug = slugify(packageData.displayName);
     // Generate params for both packageName and displayName
     [packageName, displayNameSlug].forEach(nameOrPackage => {
@@ -58,33 +64,13 @@ export async function generateStaticParams() {
   return params;
 }
 
-async function getItemSetData(nameOrPackage: string, tagSlug: string): Promise<ItemSet | null> {
-  let packageName: string | undefined;
-  let packageData: ImageSetConfig["packages"]["data"] | undefined;
+async function getItemSetData(nameOrPackage: string, tagSlug: string | undefined): Promise<ItemSet | null> {
+  const set = findRankSet(typedImageSetConfig, nameOrPackage);
+  if (!set || tagSlug === undefined) return null;
+  const {packageName, packageData} = set;
 
-  // Check if nameOrPackage is a packageName
-  if (typedImageSetConfig.packages[nameOrPackage]) {
-    packageName = nameOrPackage;
-    packageData = typedImageSetConfig.packages[nameOrPackage];
-  } else {
-    // If not, search for a matching display name
-    const entry = Object.entries(typedImageSetConfig.packages).find(([_, data]) =>
-      slugify(data.displayName) === nameOrPackage
-    );
-    if (entry) {
-      [packageName, packageData] = entry;
-    }
-  }
-
-  if (!packageName || !packageData) return null;
-
-  // Find the original tag that matches either the exact slug or the normalized version
-  const originalTag = tagSlug === 'all'
-    ? 'all'
-    : Object.keys(packageData.tags).find(tag =>
-      tag === tagSlug || createSEOFriendlyTagSlug(tag) === tagSlug
-    );
-
+  // The tag the slug names: the exact tag or its URL form (lib/rankRoute.ts).
+  const originalTag = findRankTag(packageData, tagSlug);
   if (!originalTag) return null;
 
   const images = originalTag === 'all'
@@ -102,14 +88,13 @@ async function getItemSetData(nameOrPackage: string, tagSlug: string): Promise<I
 
 
 type Props = {
-  params: { slug?: string[] }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ slug?: string[] }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export async function generateMetadata(
-  {params, searchParams}: Props,
-  parent: ResolvingMetadata
-): Promise<Metadata> {
+export async function generateMetadata(props: Props, parent: ResolvingMetadata): Promise<Metadata> {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const [nameOrPackage, tagName] = params.slug || [];
   const itemSet = nameOrPackage && tagName ? await getItemSetData(nameOrPackage, tagName) : null;
 
@@ -118,12 +103,15 @@ export async function generateMetadata(
 
   // Decode the state and extract the title if available
   if (initialState) {
-    const tierCortex = new TierCortex();
+    const tierCortex = createTierCortex();
     const decodedState = tierCortex.decodeTierStateFromURL(initialState);
     if (decodedState && decodedState.title) {
       title = decodedState.title;
     }
   }
+  // The title repeats in <title>, og:title, twitter:title and the JSON-LD, so a long one is
+  // shortened (A43). The editor itself still shows the whole title.
+  title = shorten(title, MAX_TITLE_LENGTH);
 
   // Generate the OG image URL
   let ogImageUrl = '/api/og';
@@ -177,35 +165,39 @@ export async function generateMetadata(
   }
 }
 
-export default async function TierListPage({
-  params,
-  searchParams
-}: {
-  params: { slug?: string[] },
-  searchParams: { [key: string]: string | string[] | undefined }
-}) {
+export default async function TierListPage(
+  props: {
+    params: Promise<{ slug?: string[] }>,
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const [nameOrPackage, tagSlug] = params.slug || [];
+  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
-  // If no slug is provided, render an empty tier list
+  // If no slug is provided, render an empty tier list, or the list of its link. The editor
+  // starts with the link, so the link's label settings apply (opened fresh, A3).
   if (!nameOrPackage) {
     return (
       <div className="flex flex-col items-center justify-center">
         <TierListManager
           initialItemSet={undefined}
-          initialState={undefined}
+          initialState={initialState}
           title="Custom Tier List"
         />
       </div>
     );
   }
 
-  // Only normalize and redirect if both nameOrPackage and tagSlug are present
+  // Only normalize and redirect if both nameOrPackage and tagSlug are present. proxy.ts answers
+  // these paths with a 308 before the page renders; this is the fallback.
   if (nameOrPackage && tagSlug) {
     const normalizedTagSlug = createSEOFriendlyTagSlug(tagSlug);
     if (normalizedTagSlug !== tagSlug) {
       const searchParamsString = new URLSearchParams(searchParams as Record<string, string>).toString();
       const redirectUrl = `/rank/${nameOrPackage}/${normalizedTagSlug}${searchParamsString ? `?${searchParamsString}` : ''}`;
-      redirect(redirectUrl);
+      permanentRedirect(redirectUrl);
     }
   }
 
@@ -214,10 +206,10 @@ export default async function TierListPage({
   const title = itemSet
     ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}`
     : 'Custom Tier List';
-  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
   return (
     <div className="flex flex-col items-center justify-center">
+      <GameColours gameKey={gameColourKey(itemSet?.packageName)}/>
       <TierListManager
         initialItemSet={itemSet ?? undefined}
         initialState={initialState}

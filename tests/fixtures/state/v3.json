@@ -1,0 +1,2698 @@
+[
+  {
+    "id": "v3-template-as-opened",
+    "format": "v3",
+    "description": "The 5-row template as a template page opens it: every image-set item unranked (two in a subfolder), no title, default layout. Every tier id sits at its template position, so no row writes its id.",
+    "state": "3.N4IgLgDiBcCsA0IBOMDaqQGUT1QXT1xAEEd9CMAhMgogYRopADFGiyQBLAWwEMBzAKYBaAM6CwwgBaCkAewCMAOgDuggEZREPASPGSZ8gEyqNWrnyFiJ02XIDMpzTgu7rk7oIDGU3gHpPH15lNWdtSz0bQN8A718TUKgCPABfIA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "5rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": []
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": []
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-set-hero1.webp"}, {"id": "image-set-hero2.webp"}, {"id": "image-set-hero3.webp"},
+            {"id": "image-set-mecha/mecha1.webp"}, {"id": "image-set-mecha/mecha2.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-ranked-unicode-title",
+    "format": "v3",
+    "description": "7-row Overwatch ranking with an empty D tier and a title with curly quotes, an apostrophe, a ZWJ family emoji, a flag, CJK, Hangul, Arabic and a backslash.",
+    "state": "3.N4IgLiBcIPIG4FMBOB3AhmAxgCwAQCZdAcAgGUBGMwXAJdAUAlwBUB7JAIwCsA3pAOwHIBnXIF4NwBS7uAA4BLTAGtBQwBY7gWAIhgSx2Vgcx2VgMx3APBuAn3d2A-3dwAKQKemgGnNAeVEB6QDqrgW1rALaO3AomCBGMEC0YIAowQORgAJS4ADrBjLYgADTg4lAA7NFIUADaySAkJFFpkgC2aADmCAC0jIioGDhFeQCuAHQoCCyx0bkFxaXI6FjYRSiS3PWNzSCthSVlXZUAJnBog00gALqLkWmZqyN5Yx3l3UVgjCzzw6PtExU9aNxzDQvLGwCCWZtt450XRWj82MdRL9vnPYsNAAG1+LS2Z3eQLQ4l+9zSACFnqc3rtKsD+PCVmkAMIoyFoyY9FhIfLg-5Q9E9fgATxy2I2ABEsgiQAAxAmvHbEopIBA3IZLHEgLkA6GVBA4CmonkfQoDW4nQlyvbYK7YxYAXyAA",
+    "expected": {
+      "version": 3,
+      "title": "Overwatch 2 “S11” — Torbjörn's 🔨 picks 👨‍👩‍👧‍👦🇲🇾 (日本語/한국어/مرحبا) \\o/",
+      "rowTemplate": "7rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-ss",
+          "name": "SS",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}, {"id": "image-overwatch-win.webp"},
+            {"id": "image-overwatch-dva.webp"}
+          ]
+        },
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-overwatch-tob.webp"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "image-overwatch-ash.webp"}, {"id": "image-overwatch-bal.webp"},
+            {"id": "image-overwatch-bap.webp"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "image-overwatch-bas.webp"}
+          ]
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": [
+            {"id": "image-overwatch-brg.webp"}, {"id": "image-overwatch-sym.webp"}
+          ]
+        },
+        {
+          "id": "tier-d",
+          "name": "D",
+          "items": []
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": [
+            {"id": "image-overwatch-rea.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-ech.webp"}, {"id": "image-overwatch-gen.webp"},
+            {"id": "image-overwatch-han.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-reordered-renamed-rows",
+    "format": "v3",
+    "description": "A 5-row list whose rows were dragged into a new order (the tier ids moved with the items, the labels stayed) and then renamed: emoji, double quotes, an empty label, Arabic, HTML-like text. Only the rows whose id left its template position write it.",
+    "state": "3.N4IgLiBcICoBIFEAEAxAkgOQIIBkDKSgKARIDkOAlgOYAWYJSAZEgDohwCmAhgG4CerSAEYBXcgBsAJgGcQAGnAAHKAFZ5AJygBtTeHLs1AWgDGckAHEA8lhhJAvBuAEHbk7yAW06V2BtVyO1q7ADNyADtOMSkDLAAFPAB9GGE1bzBYgCVOYIBrWIBGADoAd3ZBJXlXd09vTl8wfyDQ8INlAAZYrEzXQQB7NIzs-KKSkABdYdkdAFlyCRYQLszWJxByjy8fP0CQsIiATgBmVN6s3MLipVHx3X0DANMnC50wPUMZeUBRMEAhMEAKMEAJMEARMCWK0q61qmwaESwAGkJkd+qchg8roZBKYAIsZCQAL6QAB5BAA+bqSHEAegJjCQRi6gLcqyqNTqW0aWFSGAMACZ2a10scBmcRmMdDSKmtqht6ttIsEngYzGoeOQwLxYgBhYSCdiwk6Dc6jAC+QA",
+    "expected": {
+      "version": 3,
+      "title": "THE FINALS — 'Light' & \"Heavy\" builds",
+      "rowTemplate": "5rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-c",
+          "name": "GOAT 🐐",
+          "items": [
+            {"id": "image-reachthefinals-APS_Turret_Rank_1.webp"},
+            {"id": "image-reachthefinals-50_Akimbo_Rank_1.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "Mid \"ok\"",
+          "items": [
+            {"id": "image-reachthefinals-93R_Rank_1.webp"}
+          ]
+        },
+        {
+          "id": "tier-f",
+          "name": "",
+          "items": []
+        },
+        {
+          "id": "tier-s",
+          "name": "مقبول",
+          "items": [
+            {"id": "image-reachthefinals-AKM_Rank_1.webp"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "Ñandú <b>bold</b> & co",
+          "items": [
+            {"id": "image-reachthefinals-ARN-220_Rank_1.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-reachthefinals-Anti-Gravity_Cube_Rank_1.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-3rows-empty",
+    "format": "v3",
+    "description": "A 3-row list with no items and no title.",
+    "state": "3.N4IgLgDiBcDMA0IBOMDaqQGUT1QXT1xAEEd9CMAhMgomggXyA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": []
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-custom-template",
+    "format": "v3",
+    "description": "The custom row template (no tp): every row writes its id, also ids that match a template, and ids that no template has.",
+    "state": "3.N4IgLiBcIMIK4GcwHsC2ACATsg7gkANCJlANqngCWAppgLT5ECyiY6ADgDYCGAnoRUqpuAc2p1kAN1o5uYAMYALOgGtKmAHQ5qAI3YgAugYIUwNegEYA7AGYADA8dPCIJnx3UBIIaPFSZckp0AFZwAHZauvpEPmIS0piyCsqccPKReobGpuZ03C4AMnK0AkYmVLR01vZOThYuAHLUCV6xfglJQajUlBn6ZRTh8sUiyJiUAF7UACYurcJx-omByt2a2plGBgC+QA",
+    "expected": {
+      "version": 3,
+      "title": "Custom rows",
+      "rowTemplate": "custom",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "Must play",
+          "items": [
+            {"id": "image-overwatch-kir.webp"}
+          ]
+        },
+        {
+          "id": "tier-1730000000000",
+          "name": "Maybe",
+          "items": [
+            {"id": "image-overwatch-jun.webp"}, {"id": "image-overwatch-luc.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "Later",
+          "items": []
+        },
+        {
+          "id": "tier-1730000000001",
+          "name": "Never",
+          "items": [
+            {"id": "image-overwatch-mei.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-mer.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-every-item-kind",
+    "format": "v3",
+    "description": "Every item kind: image-set ids (nested filenames, several sets), link images (trusted and other hosts, a query string and fragment, a Unicode host, percent-encoding, one without a label) and device images (legacy-style and UUID-style local ids, one without a label). Labels with quotes, a backslash, a ZWJ emoji and a flag.",
+    "state": "3.N4IgLiBcILIJYA8CmATABHAtgQwOZIGcQAacABygFZSAnKAbXpAGUSms8kBaApMLzEgDGAC2wB6QaOwBGAHQB3JACMKxUAFcoIEWDBkCkceLAikAMzgA7bABsCiuAGs44jvgLiJ2ZeIAycLi6cmRWuCQgQtoBQRAAvuogKNpOAMwAVgCcCAAMssoRUdCYAJ5oQthgaAAUAEwAlCBxALrNxEwAgmwg7twKGqZINNa4CtgAboRcQl7Yiipqmtq6+obGcHJYuBo0ckIA9pheykIytaly6WRIuAD8CAC8MgBkJQ+1AMTmNHiF2gA6IAAjhp9mBUIC0P9-mhlNghE4CLZsAQRE1Wu0QAAhNhLaArAxGcSAaPlABIMckAYwyAToZABMM4kA3K6AeYUQmE-tAADtWAD3QgAbygAJdoQC8G4BGHcAsATCwAmO01EsloKlzLVlAAOU7cTIoAAs2C4WqQADZlFwVdgAOxCLgyFC1JCKnWUZQGqKkIogQA8G4An3fdgD-d9FtJgAYVxIC0+L0hOMQhQVjkKCQ2BQtn2CMcLnEZho+wApLUcjZBPNVP7MQAxEPy4EqhRmw00SjxDFMbq9LhmWy2FBwSY0Ai1LiJ1KpLXbbA0FAofa4IuLUPLCNrcRIBDYTBkWxIPaHcRWMFcMA0DQEcEoOS4ODmNkgMGZtAifbH-3NOJAA",
+    "expected": {
+      "version": 3,
+      "title": "Mixed images",
+      "rowTemplate": "5rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-set-mecha/mecha1.webp"},
+            {"kind": "link", "id": "https://thefinals.wiki/images/a/ab/Light.png", "url": "https://thefinals.wiki/images/a/ab/Light.png", "content": "Light"},
+            {"kind": "device", "id": "k3j9x0a1b", "content": "my cat (2)"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "image-wutheringwaves-c/aa.webp"},
+            {"kind": "link", "id": "https://i.imgur.com/abc123.jpeg?x=1&y=2#frag", "url": "https://i.imgur.com/abc123.jpeg?x=1&y=2#frag", "content": "\"quoted\" \\ backslash"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"kind": "link", "id": "https://例え.テスト/画像.png", "url": "https://例え.テスト/画像.png", "content": "Ünïcödé 🐱‍👤"},
+            {"kind": "device", "id": "3f2b8c1e-9d4a-4e6b-8a7c-1d2e3f4a5b6c", "content": "🇲🇾"}
+          ]
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": [
+            {"kind": "link", "id": "https://cdn.deadlock.wiki/hero%20name.webp", "url": "https://cdn.deadlock.wiki/hero%20name.webp", "content": ""}
+          ]
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": [
+            {"kind": "device", "id": "q8w7e6r5t", "content": ""}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-helldivers2-ad334guarddog.webp"},
+            {"kind": "link", "id": "https://example.com/not-trusted.gif", "url": "https://example.com/not-trusted.gif", "content": "other host"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-labels-right-hidden",
+    "format": "v3",
+    "description": "Tier labels on the right and item labels hidden.",
+    "state": "3.N4IgLgDiBcCsA0IA2VogE4EsDmALMIiAzkjAGYCGSRApoujANqMgDKhLmAthdjQLQB7AG410AdwpgAxrn48ArgDpxNAEZQAupvgsAgh226QAIUM6WAYXPGAYjZYcQ3XgJFjJMueMwA7Fepa2gC+QA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "5rows",
+      "labelPosition": "right",
+      "showLabels": false,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": []
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-win.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-labels-top-shown",
+    "format": "v3",
+    "description": "Tier labels on top, item labels shown, 7 rows.",
+    "state": "3.N4IgLiBcICoPYAcAEAbAhgIwKYoM4gBpwEoB2IlE6MRQkAJygG0mQBlNw1gSwFs0A5lgC0cAG5Z6AdzRgAxgAthaAHZoAdFKwYSAXV0FWnQ-sMgAgl1OsAQlYOsAwvbMARF6wBiHkPd0BfIA",
+    "expected": {
+      "version": 3,
+      "title": "Top labels",
+      "rowTemplate": "7rows",
+      "labelPosition": "top",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-ss",
+          "name": "SS",
+          "items": [
+            {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": []
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": []
+        },
+        {
+          "id": "tier-d",
+          "name": "D",
+          "items": []
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-labels-left-hidden",
+    "format": "v3",
+    "description": "Tier labels on the left (the default, left out) and item labels hidden, 3 rows.",
+    "state": "3.N4IgLgDiBcDMA0IDOAbGAzAhipBTRATjANrEgDKI8ZAlgLaYDmuAtAPYBuuBA7pmAGMAFiwAmHTADoeuAEZQAuguogAglWJKVAIQ1ayepQF8gA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": false,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-overwatch-dva.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-whitespace-and-empty-rows",
+    "format": "v3",
+    "description": "A title made of spaces (kept, because it is not empty), tier labels that keep spaces, a line break and a tab, an emptied label, and empty rows.",
+    "state": "3.N4IgLiBcIARyAacAHKBmJAnKBtHsYBnZAQwGMBTAE3gRwF166QAbASwDsKAdDgI0wUSAa25gwJPohygqUECQAMfAIxkATFTQVEIMvIl8xACwqCQAX0bNp1-NJBsAtiQDmFALSmWLKmwBuZoTqHuQAHCQArmAA9mQkHBwxHAB0AO4UfKiM9BZAA",
+    "expected": {
+      "version": 3,
+      "title": "   ",
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "  spaced  ",
+          "items": []
+        },
+        {
+          "id": "tier-a",
+          "name": "line\nbreak\ttab",
+          "items": [
+            {"kind": "device", "id": "a0b1c2d3e", "content": "tab\there"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-helldivers2-ac8autocannon.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-rows-beyond-template",
+    "format": "v3",
+    "description": "The 5-row template with one row added (a manual tier): the added row and every row below the template's last position write their id.",
+    "state": "3.N4IgLgDiBcCsA0IBOMDaqQGUT1QXT1xAEEd9CMAhMgogYRopADFGiwBLAUyQFoBzHCADiZEBwC2AQ35deAewBuPAO5SwAYwAWvCVw4A6FVwBGUWhgCuAOw3qu-eUg4AvLgBMhYyTLlLV6tq6PEam5gQAvkA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "5rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": []
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": []
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": []
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": []
+        },
+        {
+          "id": "tier-g",
+          "name": "G",
+          "items": [
+            {"id": "image-overwatch-mei.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-mer.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-duplicates-kept",
+    "format": "v3",
+    "description": "The same image-set item twice and the same link image twice (with different labels): the decoder keeps duplicates; removing them is the app's job.",
+    "state": "3.N4IgLgDiBcDMA0IBOMDaqQGUTwwSwFsBDAcwFMBaAewDcykB3IsAYwAsKiA7IgOgbIAjKIkKlKtek1YdufAcJABdJbhABBHKlABXGCDZhIAZ2gB6MzogAbKkQAm-PAGtCZe3j5UkJMwA9eCC4SHBAWfSouMhAAX3hdfUMTc0sbO0cGFzcPLx9-QODQ8OhwBipYlTUAIS1KjFqVGKA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-overwatch-ana.webp"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"kind": "link", "id": "https://upload.wikimedia.org/x.png", "url": "https://upload.wikimedia.org/x.png", "content": "one"},
+            {"kind": "link", "id": "https://upload.wikimedia.org/x.png", "url": "https://upload.wikimedia.org/x.png", "content": "two"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-all-items-every-package",
+    "format": "v3",
+    "description": "Every item of all seven packages at bf2ff6e (430 items) spread over the 7-row template: the same list as generated.json v2-all-items-every-package, for link length comparisons.",
+    "state": "3.N4IgLiBcIKIG4FMBOBPMALAlgOwOYAJAeDcFh9-ACgBYBmABn0zAQFsBnAShABpwAHKAdm5IoAbREgAyhK7jMTAIa4EAWhYIwy9MgD2ARgB0AdwQAjPtzmKVSBPIDG6DAgBmOeQBsWygIIAFCQD6ACoArkg2YAEASvLYANYBBsZmXCCWSso29o5artgeXgDCyCbIISyJAEwA4t7RsQlJpuZpChlZDk55BcoAIiEeAQBC7vIAJggVMfGJRs2p6da2nblunsrV8hXVNvkT9TNNKRZtS9lda1478nAMKAEAatpIjAAeB41zx61Wmcs5LkuygAsrpdB9ZskWos-udVvl1r5MHEVABWVEANghR2hp1hK0BCK8EgAEroAJw0GjYr6434dAHddYSQzPMY0qELPEMi5E5QADV8ylRFA58xOv0MIScSBwuEMN0myjsAHoEHZaVzJdKtLK8ArEF5VSx0JqJRkpTK5QalaqAF52s0-DLaRBIBVgBzKMZweROmGu5Aer0AKxC2H9eMD7vknvQymemEjv2jwfjLG0IeTLrdaeUhhw2ZUyQmcGUpRVY20YGw6iL+dMpfLCBV7gQiHcYxM9ZL7ebKp4uBYAEd3D3G33nC2tmAkNpxyYm1OVZhtNhMBrOebixOy8vhwMWPIkAuly2WGA5CF3OV6ywQjxkLdEMq1QEZ7KUXeH0-MC+EMOarDgEWQ8N+j5IM+KhMGg4G-i+PAqvIlQBCYYQRluzoqPeEFQcoiHIQETBrggKBwZBf4qARVCoeUpqYTCOHwVRSE0TwsoZhh4pYaoP4UQhSGiiYowXuReEEaK6DRmJlH4YJASvEg8hkQxeJMfxLEIAEuDyH6qm-OpeEmnE9ZaO4naUUgLCVMo8g8IYuixJeCiMLKCDuLKzhtqZ7kWW61m2UgTAIGMNg4Tw7goDw2hjCwPnmWMlkBXYw52LQF7hiYsZrvFfnIAFti4G2F5KXkuBIOGuWJf5NnOPIzi6BQLCPseVVJTZuC6JUVAykwDAIOVCB7AgbU1coOlgO4cpqNgs4qdxMJmXlVk2SGx6olWfX5GAzyjflNnuNodgeJgdqxqu2B2GuzjlBde0rcoTA8OSAAccTrrgjj3QFzwmAwHgicg302TwFI2BMzBA-pGRLdV+2ZJUXUUFd2AXgw0p3dDKiw+1qi4JUlSoiYWQoieWOaL5cMPSalQ0Fl5mYGjdgmpg7ldvYcQ8BzwOqGA8iopUWxHtes6YF5I2cgAupLnDiNIss8WoGi6tolT1jy8I9N4UQAHLKAT1LTJ85Ma4SPSFOgx5KAEOsBBIoxMGK3wwqbTJePAWyUQEvRbOgTt0u0-y8j0mwVMCOBaUbkILdyQea+s1QDEgiWxMEYQRP7WqB3CZvrKCVCiuHH3hpn274oyQK+Cgc4BDsQ3jJHDTR87sc527ygSFEygvaKUc4lnZwEu3QS6go7jDM8jeHOrce514ABamARRHpc8ZaurWoqRoqiGcXk+vyCb4ar4sCZ5OprGXqxHpMcprml-xuq9G3zmQYP8ocSYGTL8qBfcb4Zbesf8vQZiYEA++-8zrfxbpKXc-YECvHYpMPeP8GyLj7BWQ62geBZTsGfVBvYywViUpgTwp5JzTjCO5TAN8YEWjgcuEMB5kDzToTudBe4WzDgLPgthaCzwqhYB2RgMkXyqi0loY8YBREqAAkBAIGZrwyITLGZRBEUJ2EOiEMYaikIoRYHYEIWVdHyBog4NcvCA7YT4uJViIEAasKsbxXCskJKoW0NoUS5NDKuPkugLmeDdFaWEjgSxA9nHMTklpDcx5bzeJsbJE0cAebHm6idUoSkdpIGOkgP6tYUnSiOrEbAa4ZpzR5hMcYzU9TSPJjjMatgwBdScv9eIzAIr2EhrNHmdUSrqjXIgLAmiJaoPqfDTqlQsCfQQRFTxlFBrDR5kVRGCyG6jHDA4KGozKa4ziJUDAc4Cx4HemLEZfCxkPSYLoGgqILweAVC8HmTByjDKGpbS6XTanbISrjX6-13D5C5u4JgWVwhWB5jwSoLU7DMHkKTHmSAqAYjKDwLJPMWD40JqzYmthSY4BhdgFOqB0XoFpizNmShayZOeAEsJZcLkBTuVteQbzYgwuCt0qWMtxDeBkIrdQFM5xUBnm3IE3hZqYA2EpW4YB7iFCMVPY2qDXZAkKIdOFcpvbtg3Iq5uTiVV8hgIgw6LAvZF11f3MuBqQ6xgQAqe4fcRVDyBCSWwU08DDFsI7R1JtZ7t2BJULEwJYyuVXi7P1ldq7aACOasNrdnV8gkOgbwABpYUhsm6Wp4ta9YI9kBj0eIzC6cbtRWn1FvV8ukew6kPuW4+qoQyvGrWW+UFbVRwGgU44B8ZfbgLfv-SlfaYz-xvJuVB3bMjyDAefCBICUDTvHbO+MdohrkKIS2Xpl5nCOPCYQ-sChZTjG7PvOBxCQqMzXcoZcdgUDDN3pe5cU0vl8L3cuDoz6nGvpbHAEIZynE+LEW+KaU5lFeSbfElxAl5DgnkJbC8f7wkAZYoRBAHSP2IYSVBlCGAQggpMWYjxdLFaYeQzRGwg6IORLcWhPACAENlyQ3JeQopsAhC-JRjSUTUIkK4nwxjiEtJMFY+x1BjG4AxRSUgbqmjMAZOytktchiWCmsQCk14IlUS4CTmMKs5VpJ1J2Q0xQbYwQ0CYEwOceD1DRVijzRpuh+AzKGmMeQwlbASr5vEHpX9TDaBBUtGzKDzmGfGboKg+LnM0NQHIAJ6H6UhYergHgVBdCrImDwRmO0xwGZ+WNESugMSmrwd5HLy0AoKAcBHLTqMhrlNK1TH6uT-ldTM0wLQoKlJKB5n8vm7gkF2CLaU0WIngu5fhjwJq9c0X1dxkgDEVBmaJSmpSmFV1wyuRYOuCC6LMW3JwSTfK7FlLYCOzu+LY3qboFRLoRKNg7CXjXAULAbMeaMBYKMHaxhO0gGlgrIYfLGICuCg4eQKpgeWyzeG0VfIhjHllMdfYPrlURr5D7XASgkAluzgmnoAAxbwwJvCBCR3wnNVwn0OFrrsBuWPB4Vz5AAKVwzwAIvhxi0-LsHPOGIM3T19dDnoURfDVGUPwDnZOO5tjGEoS25nkDi5Rz0EehzNUpvXIaDnB89StvrSqEwjp941u1zabeIYztryN0fW0KpXjm4DEu8sHgh15nec79+CgQhu--pkr3XodrHoIae6c92Loq0vRWKcsZdRBc-UHsH2g2yGLbN9sue6z1o23Q+lszAMlZ7B8eOI84T0cKvS2GwfVwOB5L8FRgu0ON4XESBSYyihxxeI5B5D4IFD5BMShVwJpe8BFnHR-DARXAvfr740xCieB27UiRpjopzHxDHXxhfbi5wB7Xx3rjiUMVBKb2BSfL4V1H++WVmyqSqBTTk9N8-DXL+vDAK8MLWnjw6e0LgXTOKo92eMwgVEKkOIXAEwPzLfJxBlGyZgFgYiF4Y8MpYlGbMaLyKdCgGgFAmvdAQ5LZUbC-caArGLewMANLejHiSA8aJAF6O7bQUhYqFgTyEre-XGDTAxNALQJ5fGGgDESROAedbIKrSqJA+GHrDwKgF6VrdrOHcFIQh6EQjyeQUhY6bAEpVGYbUgxaBLAKHgfgSoOwDibbGQgKObKgJbTAFbdQvEcgjFAmNCE0QwS2KzFPMgzQmyclTsSlZAeTGwUYOfX4cg5-CgXQeDWUKaFdb7X7cQQoAHNSIHJ+UHcHZCJ1enHoIYBkAIC2K2C1JIrnLwH2PmaISYS2CCBXAXdYXHQobWEonHBOCnP2IIJSFnEnfVRXdYFNCQfWGiJo8JCXYEaoAAGSoBQi6KtRaK8CiACH0CoFRDF2GOzVGI7mIhRCp3rkR0zWyPji8HqI5k1R9heE10tzrWtzsFX0-QOJ12t0imbQ3kOO3hQGfj4QnSyjPweIdyklwF93jCYD0I+NhB+NnFoVjxLwrHGDXAvWLybArCKKTHBIwRbGIjwBinAN3TjyPFIRj2RJL2XGcG0HDBcwe140BIET6gOVITz1lGrEvR2l62UUbxsGSWP2xk2xMS70DEH2xLCjb0YnXzsQ61ZicK5J32ojH0y1Hx2hCAcAXW3yo3kk0W0DhRMVFGanVAP1IgsIMm5K0gMQ8DVJhhcNsjsBenkEKSUJUMk26mXlvxpSGnUGpX5MsL1JMCCIfAiiim5kMKgP-wUKsjULs1eG0AoFRC5lFmrAQU8RCAYB6QdgxAxCyU2TtL8L1PxioAyjwGpwmB5gCximak6WwWclOnOhyndOUBEn4Bc3RxwIgL1KYFwGoAqywFrGq26ya16y9LQm9JKmRB1Oxj1LkJgO0BRA7JG0rIuy0PyxoF0B4DCDFj5IRXcH4H4FbLCBKiOhREmiNMul1B2wDN0Cun7JxM5PtJHNcOrMGJsHYksEJR5gGA7X6QJJ+25RAF6GiPpHmMAICG8E-hBWjVmKh2qKKF7jWP5z-L6EBGJloPkyqOSLKIdnUCwO0C+0gpyI2A8WWOGkQo2OUD6LJHQrnhBEKLtme07BwvbiiHVDCEQAnkMGIqBAkEe0xzrjQp-PjSgq8AeHJGJ0AoITOJN1fE0SuNrXOO3iYGcH4uNzbRVBQGy0XX7S9CynRLLgnXQDtB0RnRks+IQGhOkuHS9BsE0peLUuUEQDvNTzj2OmU1iFCgBIxIhJbCkhKXDzhOU1HAcsEXPLwDz2cCUmClZCQDiH4Dz1rCf3vRhM4UEVhQlROIwx31KC7IiU400Xkvb0iRDELAZKY3BF9CekH0+lJLSqFKyjAFcl8IyH4zsUBnjJKu5OnzFIcESoFOlOY2FMrylM4zcUYEYJatsS0jqncryrfBNHBhSTGCoALjf2Tl00kwxF0EYEJUPjCJ5mJkanGDDESmOjv1wIf2UEKkTxvGCNALwyLNDIoHJHCoGyDMnj9PvAjKLIwMmFq0QKYLGlwGTMWIGjTNivIPQGrPaVGHZVqx5hElenKpNMLMevhiYE8AoFeCunMwsueBXPUHWQ3IrPCXILkOgMHI+p7ObPuQ8E-jwA62kLBoeg6RYF0FREOhQBOi8WJqMIRrAAQOKu7KPLxheh4EnPXBNGQFJoUHRRPNLJcGcxRvOzwJlROllVZQ+Q5XQwiJAFx2fOxxYuUHJCoHGKYpfNKKKCGGUHHIKJalDXVsVqQt6FhVchoVCPl0NrpyQtxxEnQCyg9Sts5wwuqBQsTmwGor5D6LtUZlrhLidp6JinckSBehehmM4tJ3mKiFXEiCTVZiIoDvmIkBakx0Ts1uUAeFiEZnrNwAnhBX2JbR4tVDsGatOMLvEqCk0FEqt1uMMB+OJneNUu0vjFoJ+OCgqt-gdxYH4AxB+MMDGDrpCv7DWwcC7BcsLyspMqBLhJQBHCkpfQYWnD6wjjzwmhYBMCZv4QoRVFYyfzzwzCmjGGCtEwX2Jnnv-QX3rmUTDHPqioapQnkFeFitKsIhwDuVH2Eg8RUpPsFLsT6mU1FLCAPPVN-sap0gVKHxxIcFvoYw1LH1tQPxNBCBEqLJaQgk4lrGBQjnH07EkzsC6hCTAHmqLLsBMBOuNRijlD0M8XXvgr-yKnriBVYB9MOsQUPmlpOmwBulNVBo2txnFleFk2Tw0q4eeD+tmjQmlzrCLJrJ0gxXep5gi0JSi3nQjjqsPLwMBvJAPC2GPBBuMucJZtgL5isnus3rRpxvcDkcxohTBCoDdFWuAd1JZtJqCKumyU3KLKsgoAJhISscENptcNwDZvDGzuFsMbwJgNwB0MnLl2T01FloVutowtTWBE9vNj6OUDQPSfWF6D8y0jjrZhya8Fx061QppzTuAuuHZvdVzpJEI2KcwpXNAPcEiD6PXLjMaeBGrGLQkCGgzFTojuaPTokG8C6gK0aYkDABLndsaYAHV8U-Y1V5AqKnatca7Xwj7q6bjXxK71HS1rjBLXwUBN6J0xhnB9nX5m7lAmEDH7cDLiI9Ku0u6zC+7bAXKj7YhcAi8q8bLWxjxFQYG1449awaaF7MTpw8BrxWoh7lxHAmBS7rLt6kEiD96ZqBsgX6rOMTAB80q5EAJtJD7n6F9OY7n59QGUJ6ZMXyX76Ag1pJSL7QGaJQCYWf6GqaJjHWXOqp8hJkAHruWoNJJCMIGFRzID9PLP8D9fRIqRbNqWlPM4gtpm9UHskqA9GDl4LwmNCWaUp8HyQUzRgPl6HipXqbHWGII3h-iQ81wMtDonHma8DOoaAlGiUUASClkMRPLFB3Wiz8Usg1BQoRH2TxGwBJGlB7WKYWbgMwAXpACwwnpaUnkenfR8SnsVzLmHXNq5CJpanCausizQYgjnIMsLwE8IURIqByR7AYVk8vCxYOrhzInODLZWmdsXplMbxyyO7I3Im+YwQomEnpYABfIAA",
+    "expected": {
+      "version": 3,
+      "title": "Everything 🌍 (430 items)",
+      "rowTemplate": "7rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-ss",
+          "name": "SS",
+          "items": [
+            {"id": "image-set-hero1.webp"}, {"id": "image-reachthefinals-APS_Turret_Rank_1.webp"},
+            {"id": "image-reachthefinals-Cerberus_12GA_Rank_1.webp"},
+            {"id": "image-reachthefinals-Dual_Blades_Rank_1.webp"},
+            {"id": "image-reachthefinals-Gas_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-Gravity_Vortex_Rank_1.webp"},
+            {"id": "image-reachthefinals-M11_Rank_1.webp"}, {"id": "image-reachthefinals-Pike-556_Rank_1.webp"},
+            {"id": "image-reachthefinals-SH1900_Rank_1.webp"}, {"id": "image-reachthefinals-Sword_Rank_1.webp"},
+            {"id": "image-reachthefinals-XP-54_Rank_1.webp"}, {"id": "image-wutheringwaves-c/ec.webp"},
+            {"id": "image-wutheringwaves-c/sh.webp"}, {"id": "image-wutheringwaves-c/zz.webp"},
+            {"id": "image-overwatch-dva.webp"}, {"id": "image-overwatch-jun.webp"},
+            {"id": "image-overwatch-ori.webp"}, {"id": "image-overwatch-soj.webp"},
+            {"id": "image-overwatch-win.webp"}, {"id": "image-webdev-be/dotnet.webp"},
+            {"id": "image-webdev-be/leveldb.webp"}, {"id": "image-webdev-be/pgsql.webp"},
+            {"id": "image-webdev-fe/astro.webp"}, {"id": "image-webdev-fe/ionic.webp"},
+            {"id": "image-webdev-fe/quasar.webp"}, {"id": "image-webdev-fe/stimulus.webp"},
+            {"id": "image-supervive-c/e_astrike.webp"}, {"id": "image-supervive-eq/eq_reap.webp"},
+            {"id": "image-supervive-myt.webp"}, {"id": "image-supervive-p/a2_burn.webp"},
+            {"id": "image-supervive-p/a2_money.webp"}, {"id": "image-supervive-p/a3_bush.webp"},
+            {"id": "image-supervive-p/a3_prison.webp"}, {"id": "image-supervive-p/a4_blast.webp"},
+            {"id": "image-supervive-p/a4_hover.webp"}, {"id": "image-supervive-p/a4_xray.webp"},
+            {"id": "image-supervive-p/e_gaa.webp"}, {"id": "image-supervive-shk.webp"},
+            {"id": "image-helldivers2-apw1antimaterielrifle.webp"},
+            {"id": "image-helldivers2-armedresupplypods.webp"}, {"id": "image-helldivers2-cqc30stunbaton.webp"},
+            {"id": "image-helldivers2-eaglestrafingrun.webp"}, {"id": "image-helldivers2-faf14spear.webp"},
+            {"id": "image-helldivers2-g123thermitegrenade.webp"}, {"id": "image-helldivers2-gatlingsentry.webp"},
+            {"id": "image-helldivers2-jar5dominator.webp"},
+            {"id": "image-helldivers2-localizationconfusion.webp"}, {"id": "image-helldivers2-mp98knight.webp"},
+            {"id": "image-helldivers2-orbitallaser.webp"}, {"id": "image-helldivers2-p19redeemer.webp"},
+            {"id": "image-helldivers2-r2124constitution.webp"}, {"id": "image-helldivers2-sg225breaker.webp"},
+            {"id": "image-helldivers2-sh20ballisticshieldbackpack.webp"},
+            {"id": "image-helldivers2-sta52assaultrifle.webp"}
+          ]
+        },
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-set-hero2.webp"}, {"id": "image-reachthefinals-ARN-220_Rank_1.webp"},
+            {"id": "image-reachthefinals-Charge_N_Slam_Rank_1.webp"},
+            {"id": "image-reachthefinals-Evasive_Dash_Rank_1.webp"},
+            {"id": "image-reachthefinals-Gas_Mine_Rank_1.webp"},
+            {"id": "image-reachthefinals-Guardian_Turret_Rank_1.webp"},
+            {"id": "image-reachthefinals-M134_Minigun_Rank_1.webp"},
+            {"id": "image-reachthefinals-Pyro_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-SR-84_Rank_1.webp"},
+            {"id": "image-reachthefinals-Thermal_Bore_Rank_1.webp"},
+            {"id": "image-reachthefinals-Zipline_Rank_1.webp"}, {"id": "image-wutheringwaves-c/js.webp"},
+            {"id": "image-wutheringwaves-c/sk.webp"}, {"id": "image-overwatch-ana.webp"},
+            {"id": "image-overwatch-ech.webp"}, {"id": "image-overwatch-kir.webp"},
+            {"id": "image-overwatch-pha.webp"}, {"id": "image-overwatch-som.webp"},
+            {"id": "image-overwatch-zar.webp"}, {"id": "image-webdev-be/express.webp"},
+            {"id": "image-webdev-be/loopback.webp"}, {"id": "image-webdev-be/rails.webp"},
+            {"id": "image-webdev-fe/aurelia.webp"}, {"id": "image-webdev-fe/jquery.webp"},
+            {"id": "image-webdev-fe/qwik.webp"}, {"id": "image-webdev-fe/svelte.webp"},
+            {"id": "image-supervive-c/e_heart.webp"}, {"id": "image-supervive-eq/eq_soul.webp"},
+            {"id": "image-supervive-oat.webp"}, {"id": "image-supervive-p/a2_cloud.webp"},
+            {"id": "image-supervive-p/a2_scuba.webp"}, {"id": "image-supervive-p/a3_chonk.webp"},
+            {"id": "image-supervive-p/a3_rally.webp"}, {"id": "image-supervive-p/a4_boost.webp"},
+            {"id": "image-supervive-p/a4_hpack.webp"}, {"id": "image-supervive-p/e_blink.webp"},
+            {"id": "image-supervive-p/e_icarus.webp"}, {"id": "image-supervive-shv.webp"},
+            {"id": "image-helldivers2-ar23aliberatorcarbine.webp"},
+            {"id": "image-helldivers2-autocannonsentry.webp"}, {"id": "image-helldivers2-deadsprint.webp"},
+            {"id": "image-helldivers2-eat12antitankemplacement.webp"},
+            {"id": "image-helldivers2-fastreconvehicle.webp"},
+            {"id": "image-helldivers2-g12highexplosivegrenade.webp"},
+            {"id": "image-helldivers2-gl21grenadelauncher.webp"},
+            {"id": "image-helldivers2-k2throwingknife.webp"}, {"id": "image-helldivers2-m105stalwart.webp"},
+            {"id": "image-helldivers2-muscleenhancement.webp"},
+            {"id": "image-helldivers2-orbitalnapalmbarrage.webp"}, {"id": "image-helldivers2-p2peacemaker.webp"},
+            {"id": "image-helldivers2-r36eruptor.webp"},
+            {"id": "image-helldivers2-sg225iebreakerincendiary.webp"},
+            {"id": "image-helldivers2-sh20shieldgeneratorpack.webp"},
+            {"id": "image-helldivers2-staminaenhancement.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "image-set-hero3.webp"}, {"id": "image-reachthefinals-Anti-Gravity_Cube_Rank_1.webp"},
+            {"id": "image-reachthefinals-Cloaking_Device_Rank_1.webp"},
+            {"id": "image-reachthefinals-Explosive_Mine_Rank_1.webp"},
+            {"id": "image-reachthefinals-Gateway_Rank_1.webp"},
+            {"id": "image-reachthefinals-Healing_Beam_Rank_1.webp"},
+            {"id": "image-reachthefinals-M26_Matter_Rank_1.webp"},
+            {"id": "image-reachthefinals-Pyro_Mine_Rank_1.webp"},
+            {"id": "image-reachthefinals-ShAK-50_Rank_1.webp"},
+            {"id": "image-reachthefinals-Thermal_Vision_Rank_1.webp"}, {"id": "image-wutheringwaves-c/aa.webp"},
+            {"id": "image-wutheringwaves-c/jx.webp"}, {"id": "image-wutheringwaves-c/vr.webp"},
+            {"id": "image-overwatch-ash.webp"}, {"id": "image-overwatch-gen.webp"},
+            {"id": "image-overwatch-luc.webp"}, {"id": "image-overwatch-ram.webp"},
+            {"id": "image-overwatch-sym.webp"}, {"id": "image-overwatch-zen.webp"},
+            {"id": "image-webdev-be/fastify.webp"}, {"id": "image-webdev-be/mariadb.webp"},
+            {"id": "image-webdev-be/redis.webp"}, {"id": "image-webdev-fe/cyclejs.webp"},
+            {"id": "image-webdev-fe/lit.webp"}, {"id": "image-webdev-fe/react.webp"},
+            {"id": "image-webdev-fe/vue.webp"}, {"id": "image-supervive-c/e_life.webp"},
+            {"id": "image-supervive-flx.webp"}, {"id": "image-supervive-p/a1_ahaste.webp"},
+            {"id": "image-supervive-p/a2_eplat.webp"}, {"id": "image-supervive-p/a2_thumb.webp"},
+            {"id": "image-supervive-p/a3_cook.webp"}, {"id": "image-supervive-p/a3_regen.webp"},
+            {"id": "image-supervive-p/a4_bungee.webp"}, {"id": "image-supervive-p/a4_nuke.webp"},
+            {"id": "image-supervive-p/e_brain.webp"}, {"id": "image-supervive-p/e_mnuke.webp"},
+            {"id": "image-supervive-vod.webp"}, {"id": "image-helldivers2-ar23cliberatorconcussive.webp"},
+            {"id": "image-helldivers2-axlas5guarddogrover.webp"},
+            {"id": "image-helldivers2-eagle110mmrocketpods.webp"},
+            {"id": "image-helldivers2-eat17expendableantitank.webp"},
+            {"id": "image-helldivers2-firebombhellpods.webp"},
+            {"id": "image-helldivers2-g13incendiaryimpact.webp"},
+            {"id": "image-helldivers2-gp31grenadepistol.webp"}, {"id": "image-helldivers2-las16sickle.webp"},
+            {"id": "image-helldivers2-machinegunsentry.webp"},
+            {"id": "image-helldivers2-orbital120mmhebarrage.webp"},
+            {"id": "image-helldivers2-orbitalprecisionstrike.webp"}, {"id": "image-helldivers2-p4senator.webp"},
+            {"id": "image-helldivers2-r63csdiligencecountersniper.webp"},
+            {"id": "image-helldivers2-sg225spbreakerspraynpray.webp"},
+            {"id": "image-helldivers2-sh51directionalshield.webp"}, {"id": "image-helldivers2-teslatower.webp"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "image-set-mecha/mecha1.webp"}, {"id": "image-reachthefinals-Barricade_Rank_1.webp"},
+            {"id": "image-reachthefinals-Dagger_Rank_1.webp"}, {"id": "image-reachthefinals-FAMAS_Rank_1.webp"},
+            {"id": "image-reachthefinals-Glitch_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-Jump_Pad_Rank_1.webp"}, {"id": "image-reachthefinals-M60_Rank_1.webp"},
+            {"id": "image-reachthefinals-RPG-7_Rank_1.webp"},
+            {"id": "image-reachthefinals-Sledgehammer_Rank_1.webp"},
+            {"id": "image-reachthefinals-Throwing_Knives_Rank_1.webp"}, {"id": "image-wutheringwaves-c/bz.webp"},
+            {"id": "image-wutheringwaves-c/jy.webp"}, {"id": "image-wutheringwaves-c/xy.webp"},
+            {"id": "image-overwatch-bal.webp"}, {"id": "image-overwatch-han.webp"},
+            {"id": "image-overwatch-mau.webp"}, {"id": "image-overwatch-rat.webp"},
+            {"id": "image-overwatch-tob.webp"}, {"id": "image-webdev-be/actionhero.webp"},
+            {"id": "image-webdev-be/feathers.webp"}, {"id": "image-webdev-be/moleculer.webp"},
+            {"id": "image-webdev-be/restify.webp"}, {"id": "image-webdev-fe/ember.webp"},
+            {"id": "image-webdev-fe/marko.webp"}, {"id": "image-webdev-fe/remix.webp"},
+            {"id": "image-webdev-meteor.webp"}, {"id": "image-supervive-c/e_res.webp"},
+            {"id": "image-supervive-gst.webp"}, {"id": "image-supervive-p/a1_mana.webp"},
+            {"id": "image-supervive-p/a2_fish.webp"}, {"id": "image-supervive-p/a2_tree.webp"},
+            {"id": "image-supervive-p/a3_field.webp"}, {"id": "image-supervive-p/a3_spy.webp"},
+            {"id": "image-supervive-p/a4_chonkc.webp"}, {"id": "image-supervive-p/a4_rob.webp"},
+            {"id": "image-supervive-p/e_disg.webp"}, {"id": "image-supervive-p/e_rep.webp"},
+            {"id": "image-supervive-zep.webp"}, {"id": "image-helldivers2-ar23liberator.webp"},
+            {"id": "image-helldivers2-axtx13guarddogdogbreath.webp"},
+            {"id": "image-helldivers2-eagle500kgbomb.webp"}, {"id": "image-helldivers2-emsmortarsentry.webp"},
+            {"id": "image-helldivers2-flam40flamethrower.webp"},
+            {"id": "image-helldivers2-g16impactgrenade.webp"},
+            {"id": "image-helldivers2-gr8recoillessrifle.webp"}, {"id": "image-helldivers2-las5scythe.webp"},
+            {"id": "image-helldivers2-mg206heavymachinegun.webp"},
+            {"id": "image-helldivers2-orbital380mmhebarrage.webp"},
+            {"id": "image-helldivers2-orbitalrailcannonstrike.webp"},
+            {"id": "image-helldivers2-p72crisper.webp"}, {"id": "image-helldivers2-r63diligence.webp"},
+            {"id": "image-helldivers2-sg22bushwhacker.webp"},
+            {"id": "image-helldivers2-shieldgeneratorrelay.webp"},
+            {"id": "image-helldivers2-tx41sterilizer.webp"}
+          ]
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": [
+            {"id": "image-set-mecha/mecha2.webp"}, {"id": "image-reachthefinals-Breach_Charge_Rank_1.webp"},
+            {"id": "image-reachthefinals-Data_Reshaper_Rank_1.webp"},
+            {"id": "image-reachthefinals-FCAR_Rank_1.webp"},
+            {"id": "image-reachthefinals-Glitch_Trap_Rank_1.webp"},
+            {"id": "image-reachthefinals-KS-23_Rank_1.webp"}, {"id": "image-reachthefinals-MGL32_Rank_1.webp"},
+            {"id": "image-reachthefinals-R_.357_Rank_1.webp"},
+            {"id": "image-reachthefinals-Smoke_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-Tracking_Dart_Rank_1.webp"}, {"id": "image-wutheringwaves-c/cc.webp"},
+            {"id": "image-wutheringwaves-c/ly.webp"}, {"id": "image-wutheringwaves-c/yh.webp"},
+            {"id": "image-overwatch-bap.webp"}, {"id": "image-overwatch-hog.webp"},
+            {"id": "image-overwatch-mcr.webp"}, {"id": "image-overwatch-rea.webp"},
+            {"id": "image-overwatch-tra.webp"}, {"id": "image-webdev-be/adonis.webp"},
+            {"id": "image-webdev-be/hapi.webp"}, {"id": "image-webdev-be/mongodb.webp"},
+            {"id": "image-webdev-be/sails.webp"}, {"id": "image-webdev-fe/foundation.webp"},
+            {"id": "image-webdev-fe/mithril.webp"}, {"id": "image-webdev-fe/riot.webp"},
+            {"id": "image-webdev-total.webp"}, {"id": "image-supervive-c/e_rev.webp"},
+            {"id": "image-supervive-hsn.webp"}, {"id": "image-supervive-p/a1_move.webp"},
+            {"id": "image-supervive-p/a2_forest.webp"}, {"id": "image-supervive-p/a3_barrier.webp"},
+            {"id": "image-supervive-p/a3_fist.webp"}, {"id": "image-supervive-p/a3_touchm.webp"},
+            {"id": "image-supervive-p/a4_cloak.webp"}, {"id": "image-supervive-p/a4_spec.webp"},
+            {"id": "image-supervive-p/e_eye.webp"}, {"id": "image-supervive-p/e_scale.webp"},
+            {"id": "image-helldivers2-ac8autocannon.webp"},
+            {"id": "image-helldivers2-ar23pliberatorpenetrator.webp"},
+            {"id": "image-helldivers2-b1supplypack.webp"}, {"id": "image-helldivers2-eagleairstrike.webp"},
+            {"id": "image-helldivers2-exo45patriotexosuit.webp"}, {"id": "image-helldivers2-flam66torcher.webp"},
+            {"id": "image-helldivers2-g23stungrenade.webp"},
+            {"id": "image-helldivers2-hellpodspaceoptimization.webp"},
+            {"id": "image-helldivers2-las7dagger.webp"}, {"id": "image-helldivers2-mg43machinegun.webp"},
+            {"id": "image-helldivers2-orbitalairburststrike.webp"},
+            {"id": "image-helldivers2-orbitalsmokestrike.webp"},
+            {"id": "image-helldivers2-plas101purifier.webp"},
+            {"id": "image-helldivers2-rl77airburstrocketlauncher.webp"},
+            {"id": "image-helldivers2-sg451cookout.webp"}, {"id": "image-helldivers2-smg32reprimand.webp"},
+            {"id": "image-helldivers2-uavrecon.webp"}
+          ]
+        },
+        {
+          "id": "tier-d",
+          "name": "D",
+          "items": [
+            {"id": "image-reachthefinals-50_Akimbo_Rank_1.webp"}, {"id": "image-reachthefinals-C4_Rank_1.webp"},
+            {"id": "image-reachthefinals-Defibrillator_Rank_1.webp"},
+            {"id": "image-reachthefinals-Flamethrower_Rank_1.webp"},
+            {"id": "image-reachthefinals-Goo_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-LH1_Rank_1.webp"},
+            {"id": "image-reachthefinals-Mesh_Shield_Rank_1.webp"},
+            {"id": "image-reachthefinals-Recurve_Bow_Rank_1.webp"},
+            {"id": "image-reachthefinals-Sonar_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-V9S_Rank_1.webp"}, {"id": "image-wutheringwaves-c/cl.webp"},
+            {"id": "image-wutheringwaves-c/mf.webp"}, {"id": "image-wutheringwaves-c/yl.webp"},
+            {"id": "image-overwatch-bas.webp"}, {"id": "image-overwatch-hzd.webp"},
+            {"id": "image-overwatch-mei.webp"}, {"id": "image-overwatch-rei.webp"},
+            {"id": "image-overwatch-ven.webp"}, {"id": "image-webdev-be/cassandra.webp"},
+            {"id": "image-webdev-be/hono.webp"}, {"id": "image-webdev-be/mssql.webp"},
+            {"id": "image-webdev-be/spring.webp"}, {"id": "image-webdev-fe/framework7.webp"},
+            {"id": "image-webdev-fe/nextjs.webp"}, {"id": "image-webdev-fe/semantic.webp"},
+            {"id": "image-supervive-bee.webp"}, {"id": "image-supervive-cls.webp"},
+            {"id": "image-supervive-jin.webp"}, {"id": "image-supervive-p/a1_vamp.webp"},
+            {"id": "image-supervive-p/a2_ghil.webp"}, {"id": "image-supervive-p/a3_battery.webp"},
+            {"id": "image-supervive-p/a3_laser.webp"}, {"id": "image-supervive-p/a3_touchs.webp"},
+            {"id": "image-supervive-p/a4_fix.webp"}, {"id": "image-supervive-p/a4_tele.webp"},
+            {"id": "image-supervive-p/e_fang.webp"}, {"id": "image-supervive-p/e_shred.webp"},
+            {"id": "image-helldivers2-ad334guarddog.webp"}, {"id": "image-helldivers2-ar61tenderizer.webp"},
+            {"id": "image-helldivers2-br14adjudicator.webp"}, {"id": "image-helldivers2-eagleclusterbomb.webp"},
+            {"id": "image-helldivers2-exo49emancipatorexosuit.webp"},
+            {"id": "image-helldivers2-flamesentry.webp"}, {"id": "image-helldivers2-g3smokegrenade.webp"},
+            {"id": "image-helldivers2-hmgemplacement.webp"}, {"id": "image-helldivers2-las98lasercannon.webp"},
+            {"id": "image-helldivers2-mls4xcommandorocketlauncher.webp"},
+            {"id": "image-helldivers2-orbitalemsstrike.webp"},
+            {"id": "image-helldivers2-orbitalwalkingbarrage.webp"},
+            {"id": "image-helldivers2-plas15loyalist.webp"}, {"id": "image-helldivers2-rocketsentry.webp"},
+            {"id": "image-helldivers2-sg8ppunisherplasma.webp"}, {"id": "image-helldivers2-smg37defender.webp"},
+            {"id": "image-helldivers2-vitalityenhancement.webp"}
+          ]
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": [
+            {"id": "image-reachthefinals-93R_Rank_1.webp"},
+            {"id": "image-reachthefinals-CB-01_Repeater_Rank_1.webp"},
+            {"id": "image-reachthefinals-Dematerializer_Rank_1.webp"},
+            {"id": "image-reachthefinals-Flashbang_Rank_1.webp"},
+            {"id": "image-reachthefinals-Goo_Gun_Rank_1.webp"},
+            {"id": "image-reachthefinals-Lewis_Gun_Rank_1.webp"},
+            {"id": "image-reachthefinals-Model_1887_Rank_1.webp"},
+            {"id": "image-reachthefinals-Riot_Shield_Rank_1.webp"},
+            {"id": "image-reachthefinals-Spear_Rank_1.webp"},
+            {"id": "image-reachthefinals-Vanishing_Bomb_Rank_1.webp"}, {"id": "image-wutheringwaves-c/cx.webp"},
+            {"id": "image-wutheringwaves-c/rm-h.webp"}, {"id": "image-wutheringwaves-c/yw.webp"},
+            {"id": "image-overwatch-brg.webp"}, {"id": "image-overwatch-ill.webp"},
+            {"id": "image-overwatch-mer.webp"}, {"id": "image-overwatch-s76.webp"},
+            {"id": "image-overwatch-wdw.webp"}, {"id": "image-webdev-be/couchdb.webp"},
+            {"id": "image-webdev-be/koa.webp"}, {"id": "image-webdev-be/mysql.webp"},
+            {"id": "image-webdev-fe/alpine.webp"}, {"id": "image-webdev-fe/gatsby.webp"},
+            {"id": "image-webdev-fe/nuxt.webp"}, {"id": "image-webdev-fe/solidjs.webp"},
+            {"id": "image-supervive-brl.webp"}, {"id": "image-supervive-ena.webp"},
+            {"id": "image-supervive-jul.webp"}, {"id": "image-supervive-p/a2_axe.webp"},
+            {"id": "image-supervive-p/a2_insta.webp"}, {"id": "image-supervive-p/a3_blood.webp"},
+            {"id": "image-supervive-p/a3_miss.webp"}, {"id": "image-supervive-p/a3_turt.webp"},
+            {"id": "image-supervive-p/a4_ga.webp"}, {"id": "image-supervive-p/a4_touchl.webp"},
+            {"id": "image-supervive-p/e_fate.webp"}, {"id": "image-supervive-p/e_shuf.webp"},
+            {"id": "image-helldivers2-antipersonnelminefield.webp"},
+            {"id": "image-helldivers2-arc12blitzer.webp"}, {"id": "image-helldivers2-cb9explodingcrossbow.webp"},
+            {"id": "image-helldivers2-eaglenapalmstrike.webp"},
+            {"id": "image-helldivers2-experimentalinfusion.webp"},
+            {"id": "image-helldivers2-flexiblereinforcementbudget.webp"},
+            {"id": "image-helldivers2-g4gasgrenade.webp"}, {"id": "image-helldivers2-incendiarymines.webp"},
+            {"id": "image-helldivers2-las99quasarcannon.webp"}, {"id": "image-helldivers2-mortarsentry.webp"},
+            {"id": "image-helldivers2-orbitalgasstrike.webp"}, {"id": "image-helldivers2-p113verdict.webp"},
+            {"id": "image-helldivers2-plas1scorcher.webp"}, {"id": "image-helldivers2-rs422railgun.webp"},
+            {"id": "image-helldivers2-sg8punisher.webp"}, {"id": "image-helldivers2-smg72pummeler.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-reachthefinals-AKM_Rank_1.webp"}, {"id": "image-reachthefinals-CL-40_Rank_1.webp"},
+            {"id": "image-reachthefinals-Dome_Shield_Rank_1.webp"},
+            {"id": "image-reachthefinals-Frag_Grenade_Rank_1.webp"},
+            {"id": "image-reachthefinals-Grappling_Hook_Rank_1.webp"},
+            {"id": "image-reachthefinals-Lockbolt_Launcher_Rank_1.webp"},
+            {"id": "image-reachthefinals-Motion_Sensor_Rank_1.webp"},
+            {"id": "image-reachthefinals-SA1216_Rank_1.webp"},
+            {"id": "image-reachthefinals-Stun_Gun_Rank_1.webp"},
+            {"id": "image-reachthefinals-Winch_Claw_Rank_1.webp"}, {"id": "image-wutheringwaves-c/dj.webp"},
+            {"id": "image-wutheringwaves-c/rm-s.webp"}, {"id": "image-wutheringwaves-c/yy.webp"},
+            {"id": "image-overwatch-dfs.webp"}, {"id": "image-overwatch-jqn.webp"},
+            {"id": "image-overwatch-moi.webp"}, {"id": "image-overwatch-sig.webp"},
+            {"id": "image-overwatch-wea.webp"}, {"id": "image-webdev-be/django.webp"},
+            {"id": "image-webdev-be/laravel.webp"}, {"id": "image-webdev-be/nest.webp"},
+            {"id": "image-webdev-fe/angular.webp"}, {"id": "image-webdev-fe/htmx.webp"},
+            {"id": "image-webdev-fe/preact.webp"}, {"id": "image-webdev-fe/stencil.webp"},
+            {"id": "image-supervive-bsh.webp"}, {"id": "image-supervive-eq/eq_glide.webp"},
+            {"id": "image-supervive-kpn.webp"}, {"id": "image-supervive-p/a2_ball.webp"},
+            {"id": "image-supervive-p/a2_jam.webp"}, {"id": "image-supervive-p/a3_boar.webp"},
+            {"id": "image-supervive-p/a3_mortar.webp"}, {"id": "image-supervive-p/a4_berry.webp"},
+            {"id": "image-supervive-p/a4_hook.webp"}, {"id": "image-supervive-p/a4_wall.webp"},
+            {"id": "image-supervive-p/e_frog.webp"}, {"id": "image-supervive-p/e_vac.webp"},
+            {"id": "image-helldivers2-antitankmines.webp"}, {"id": "image-helldivers2-arc3arcthrower.webp"},
+            {"id": "image-helldivers2-cqc19stunlance.webp"}, {"id": "image-helldivers2-eaglesmokestrike.webp"},
+            {"id": "image-helldivers2-expertextractionpilot.webp"},
+            {"id": "image-helldivers2-g10incendiarygrenade.webp"},
+            {"id": "image-helldivers2-g6fraggrenade.webp"},
+            {"id": "image-helldivers2-increasedreinforcementbudget.webp"},
+            {"id": "image-helldivers2-lift850jumppack.webp"},
+            {"id": "image-helldivers2-motivationalshocks.webp"},
+            {"id": "image-helldivers2-orbitalgatlingbarrage.webp"},
+            {"id": "image-helldivers2-p11stimpistol.webp"},
+            {"id": "image-helldivers2-plas39acceleratorrifle.webp"}, {"id": "image-helldivers2-sg20halt.webp"},
+            {"id": "image-helldivers2-sg8sslugger.webp"}, {"id": "image-helldivers2-sta11smg.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-typical-20-items",
+    "format": "v3",
+    "description": "A typical list: 20 Overwatch heroes in the 5-row template with a short title, most of them ranked. Used for link length comparisons.",
+    "state": "3.N4IgLiBcILIJ4AIDyA3ApgJwO4EMwGMALBAJgTBwDsBrAZwQDIFaBXABzYHsMxaQAacGygBWQRigBtSSADKAmQEsAtjgDmaALSd02PEU1UcAOixoARsMEr1WnZlwFCm6ooymLVkDY3bdjg1UWD0sQAF0w-hkAQQVvVV97PSdNcxw2EK8fO399Z3MMNUyBeNs-BzzNLEVKYusEnIqUgBMUEzNQiKiQACE47PLkg0UAGxG60sTclJGWfAmBpIDnZUwFhsHlzQwcZWKumQBhfo2lyow0RXWys5TaRSKOrNPpgwAvHHcn8MiZADETjdXs5CG9mtcpk0DNwrt8DiBAZChitOLDPCVFsDNAArACOtW+9SBUOc2JYBPRRKRWzeaApnQiAF8gA",
+    "expected": {
+      "version": 3,
+      "title": "My Overwatch 2 tanks & supports",
+      "rowTemplate": "5rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-overwatch-ana.webp"}, {"id": "image-overwatch-kir.webp"},
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "image-overwatch-bap.webp"}, {"id": "image-overwatch-brg.webp"},
+            {"id": "image-overwatch-win.webp"}, {"id": "image-overwatch-dva.webp"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "image-overwatch-ill.webp"}, {"id": "image-overwatch-luc.webp"},
+            {"id": "image-overwatch-mer.webp"}, {"id": "image-overwatch-ram.webp"}
+          ]
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": [
+            {"id": "image-overwatch-rei.webp"}, {"id": "image-overwatch-sig.webp"},
+            {"id": "image-overwatch-zar.webp"}
+          ]
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": [
+            {"id": "image-overwatch-hzd.webp"}, {"id": "image-overwatch-ori.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-moi.webp"}, {"id": "image-overwatch-jqn.webp"},
+            {"id": "image-overwatch-jun.webp"}, {"id": "image-overwatch-zen.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-long-strings",
+    "format": "v3",
+    "description": "Long strings: v3 has no cap on string lengths (A43). A title of 2,000 UTF-16 code units (1,000 emoji), a tier name, tier id, item id and labels of 1,000, a device image id of 64 (the most the device id rule allows), and a link image address of 4,000 characters.",
+    "state": "3.N4IgLiBcKLwbgAe-RDlNS9bMe13P96EHFGknlmUXVW0312MPNOsvtucfde8-99BA4UNEjxYyROlTZM+XMULlS1SvVrNG7Vt079ewweNHTzEABoQAJygBtO+ACWAU2sBaAB7efvv-4DAoOCQ0LDwiMio6JjYuPiExKTklNS09IzMrOyc3Lz8gsKi4pLSv0sQADkAQwBbFwACADsW1rb2js6u7p7evv6BwaHhkdGx8YnJqemZ2bn5hcWl5ZXVtfWNza3tnd299stHJ1rqgHMXdwBXJoBrJoB7AHcm9wAHd4-Pr++f37--gGAoHAkGgsHgiGQqHQmGwuHwhGIpHIlGotHojGYrHYnG4vH4gm4yygS5QEAACzAYFeAGdIAB6emXV4AG3u1QAJgA6R5OG7HFwcpzVLn3aynem8-mvQXC+kAY3utVq9yaNPp1U1Wu1Ot1ev1BsNRuNJtNZvNFstVutNttdvtDsdTudLtdbvdHs9Xu9Pt9fv9AcDQeDIdDYfDEcjUejMdjcfjCcTSeTKdTafTGczWezOdzefzBcLReLJdLZfLFcrVerNdrdfrHq5ryapwq8rJABlqgAjFwshoswdD4cj0dj8cTydT6cz2dz+cLxdL5cr1dr9cbzdb7c73d7-cHw9H48n09n88Xy9X6-DkAAXwsoA5ZI5LgAbk55RcOT-f3--wBgFAcBIE-m2ZIAJdQdBMGwXB8EIYhSHIShqFoehGGYVh2E4bheH4QRhFEcRJGkWR5EUZRVHUTRtF0fRDGMUxzEsUh94ALrsRYjjXPK1RgC4pxik4ABegoVIcnHsXeQA",
+    "expected": {
+      "version": 3,
+      "title": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "rowTemplate": "custom",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "name": "Name nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+          "items": [
+            {"id": "image-unknown-pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"},
+            {"kind": "link", "id": "https://upload.wikimedia.org/wikipedia/commons/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png", "url": "https://upload.wikimedia.org/wikipedia/commons/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png", "content": "Label llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"},
+            {"kind": "device", "id": "device-ddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "content": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-limit-rows",
+    "format": "v3",
+    "description": "100 rows (the cap), custom template, one item in every tenth row.",
+    "state": "3.N4IgTiBcDa0gLgSwKZgLQEYQBoRe3IgLYCGA5smgPYBuqA7ifAMYAWapArgHT3IBGABxABdEQQQp0AJhwhZBMRKSo0AZjkbF4uCvQAWOYe3KpaAKxzLJ3WYBschzcmqA7HPfO9aABxy-XmYAnHIhgaoYAAxyUTjQSrYR+Hj4hKQU1HRgjCzsXLwCwgku6BgKeArxOiWYWnhaVaYRxnjGjYml1njW7TUYTnhOvd4Ynniew2YYAXgBkxFheGHzMtG40msraNLJO3EgxOSUtAxMbBwkPHxCotXe0uUPccX3ddINL2bSLd-Pd19daQ9T6qaQDMF-JoyMbSCYgmQzaRzeHbRbSZYotRrEBYyEddTJNSpA7pY5ZHLnfLXIr-VRqcr0vE1NR1FlM7xqFqc9lmNRdPk8ukDNRDTFjNRw2noNQzGWC6WLNQYqVofTYtXy1XJfTEw4ZE7ZM55S4FG4o-TlC2a-R1G3Wlr6Nrmrr6YEq-QDD3Wsb6SVQ1UzfTI92LfTK-3mbGRzXmZKx-Z6smnXIXK6FW4R8rmSoo8x1PMxlrmJ0q8xdMsxgbmUWlsbmP348wzJsxxbmcP4uzYruauzJPsJ0mZZOUk3UjOd8p2HMqux1Oe9lp2Ev+uxdNe9gZ2GursZ2Bs1OwzI+9xZ2Ds1VzYq+a1zJO+Do7Dw0pqnplGucqf291VwfFWuC0gG3l0rhuv6rgDJBt5jK4B7eK4MyIbeiyuBe3g+NimGaj4yS4Y++rkkaqamjS-o+OUFE4XUPj-uRLQ+Cu+I+F0LE4QMPg7sxYw+PBZg+DMAk4YsPjocE2JBJsKJBMkMkEUmL6jmmZoqkE5RqZqQR1FpmktEETE1EEXRGZpAxBFxhljEEfGqEEMx2ZpixBBenAAHbMEwyBkFQYCIAAXsgAAmcjyc+FLsCQrkkKRtwiAAvkAA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "custom",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-1",
+          "name": "1",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-2",
+          "name": "2",
+          "items": []
+        },
+        {
+          "id": "tier-3",
+          "name": "3",
+          "items": []
+        },
+        {
+          "id": "tier-4",
+          "name": "4",
+          "items": []
+        },
+        {
+          "id": "tier-5",
+          "name": "5",
+          "items": []
+        },
+        {
+          "id": "tier-6",
+          "name": "6",
+          "items": []
+        },
+        {
+          "id": "tier-7",
+          "name": "7",
+          "items": []
+        },
+        {
+          "id": "tier-8",
+          "name": "8",
+          "items": []
+        },
+        {
+          "id": "tier-9",
+          "name": "9",
+          "items": []
+        },
+        {
+          "id": "tier-10",
+          "name": "10",
+          "items": []
+        },
+        {
+          "id": "tier-11",
+          "name": "11",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-12",
+          "name": "12",
+          "items": []
+        },
+        {
+          "id": "tier-13",
+          "name": "13",
+          "items": []
+        },
+        {
+          "id": "tier-14",
+          "name": "14",
+          "items": []
+        },
+        {
+          "id": "tier-15",
+          "name": "15",
+          "items": []
+        },
+        {
+          "id": "tier-16",
+          "name": "16",
+          "items": []
+        },
+        {
+          "id": "tier-17",
+          "name": "17",
+          "items": []
+        },
+        {
+          "id": "tier-18",
+          "name": "18",
+          "items": []
+        },
+        {
+          "id": "tier-19",
+          "name": "19",
+          "items": []
+        },
+        {
+          "id": "tier-20",
+          "name": "20",
+          "items": []
+        },
+        {
+          "id": "tier-21",
+          "name": "21",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-22",
+          "name": "22",
+          "items": []
+        },
+        {
+          "id": "tier-23",
+          "name": "23",
+          "items": []
+        },
+        {
+          "id": "tier-24",
+          "name": "24",
+          "items": []
+        },
+        {
+          "id": "tier-25",
+          "name": "25",
+          "items": []
+        },
+        {
+          "id": "tier-26",
+          "name": "26",
+          "items": []
+        },
+        {
+          "id": "tier-27",
+          "name": "27",
+          "items": []
+        },
+        {
+          "id": "tier-28",
+          "name": "28",
+          "items": []
+        },
+        {
+          "id": "tier-29",
+          "name": "29",
+          "items": []
+        },
+        {
+          "id": "tier-30",
+          "name": "30",
+          "items": []
+        },
+        {
+          "id": "tier-31",
+          "name": "31",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-32",
+          "name": "32",
+          "items": []
+        },
+        {
+          "id": "tier-33",
+          "name": "33",
+          "items": []
+        },
+        {
+          "id": "tier-34",
+          "name": "34",
+          "items": []
+        },
+        {
+          "id": "tier-35",
+          "name": "35",
+          "items": []
+        },
+        {
+          "id": "tier-36",
+          "name": "36",
+          "items": []
+        },
+        {
+          "id": "tier-37",
+          "name": "37",
+          "items": []
+        },
+        {
+          "id": "tier-38",
+          "name": "38",
+          "items": []
+        },
+        {
+          "id": "tier-39",
+          "name": "39",
+          "items": []
+        },
+        {
+          "id": "tier-40",
+          "name": "40",
+          "items": []
+        },
+        {
+          "id": "tier-41",
+          "name": "41",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-42",
+          "name": "42",
+          "items": []
+        },
+        {
+          "id": "tier-43",
+          "name": "43",
+          "items": []
+        },
+        {
+          "id": "tier-44",
+          "name": "44",
+          "items": []
+        },
+        {
+          "id": "tier-45",
+          "name": "45",
+          "items": []
+        },
+        {
+          "id": "tier-46",
+          "name": "46",
+          "items": []
+        },
+        {
+          "id": "tier-47",
+          "name": "47",
+          "items": []
+        },
+        {
+          "id": "tier-48",
+          "name": "48",
+          "items": []
+        },
+        {
+          "id": "tier-49",
+          "name": "49",
+          "items": []
+        },
+        {
+          "id": "tier-50",
+          "name": "50",
+          "items": []
+        },
+        {
+          "id": "tier-51",
+          "name": "51",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-52",
+          "name": "52",
+          "items": []
+        },
+        {
+          "id": "tier-53",
+          "name": "53",
+          "items": []
+        },
+        {
+          "id": "tier-54",
+          "name": "54",
+          "items": []
+        },
+        {
+          "id": "tier-55",
+          "name": "55",
+          "items": []
+        },
+        {
+          "id": "tier-56",
+          "name": "56",
+          "items": []
+        },
+        {
+          "id": "tier-57",
+          "name": "57",
+          "items": []
+        },
+        {
+          "id": "tier-58",
+          "name": "58",
+          "items": []
+        },
+        {
+          "id": "tier-59",
+          "name": "59",
+          "items": []
+        },
+        {
+          "id": "tier-60",
+          "name": "60",
+          "items": []
+        },
+        {
+          "id": "tier-61",
+          "name": "61",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-62",
+          "name": "62",
+          "items": []
+        },
+        {
+          "id": "tier-63",
+          "name": "63",
+          "items": []
+        },
+        {
+          "id": "tier-64",
+          "name": "64",
+          "items": []
+        },
+        {
+          "id": "tier-65",
+          "name": "65",
+          "items": []
+        },
+        {
+          "id": "tier-66",
+          "name": "66",
+          "items": []
+        },
+        {
+          "id": "tier-67",
+          "name": "67",
+          "items": []
+        },
+        {
+          "id": "tier-68",
+          "name": "68",
+          "items": []
+        },
+        {
+          "id": "tier-69",
+          "name": "69",
+          "items": []
+        },
+        {
+          "id": "tier-70",
+          "name": "70",
+          "items": []
+        },
+        {
+          "id": "tier-71",
+          "name": "71",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-72",
+          "name": "72",
+          "items": []
+        },
+        {
+          "id": "tier-73",
+          "name": "73",
+          "items": []
+        },
+        {
+          "id": "tier-74",
+          "name": "74",
+          "items": []
+        },
+        {
+          "id": "tier-75",
+          "name": "75",
+          "items": []
+        },
+        {
+          "id": "tier-76",
+          "name": "76",
+          "items": []
+        },
+        {
+          "id": "tier-77",
+          "name": "77",
+          "items": []
+        },
+        {
+          "id": "tier-78",
+          "name": "78",
+          "items": []
+        },
+        {
+          "id": "tier-79",
+          "name": "79",
+          "items": []
+        },
+        {
+          "id": "tier-80",
+          "name": "80",
+          "items": []
+        },
+        {
+          "id": "tier-81",
+          "name": "81",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-82",
+          "name": "82",
+          "items": []
+        },
+        {
+          "id": "tier-83",
+          "name": "83",
+          "items": []
+        },
+        {
+          "id": "tier-84",
+          "name": "84",
+          "items": []
+        },
+        {
+          "id": "tier-85",
+          "name": "85",
+          "items": []
+        },
+        {
+          "id": "tier-86",
+          "name": "86",
+          "items": []
+        },
+        {
+          "id": "tier-87",
+          "name": "87",
+          "items": []
+        },
+        {
+          "id": "tier-88",
+          "name": "88",
+          "items": []
+        },
+        {
+          "id": "tier-89",
+          "name": "89",
+          "items": []
+        },
+        {
+          "id": "tier-90",
+          "name": "90",
+          "items": []
+        },
+        {
+          "id": "tier-91",
+          "name": "91",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        },
+        {
+          "id": "tier-92",
+          "name": "92",
+          "items": []
+        },
+        {
+          "id": "tier-93",
+          "name": "93",
+          "items": []
+        },
+        {
+          "id": "tier-94",
+          "name": "94",
+          "items": []
+        },
+        {
+          "id": "tier-95",
+          "name": "95",
+          "items": []
+        },
+        {
+          "id": "tier-96",
+          "name": "96",
+          "items": []
+        },
+        {
+          "id": "tier-97",
+          "name": "97",
+          "items": []
+        },
+        {
+          "id": "tier-98",
+          "name": "98",
+          "items": []
+        },
+        {
+          "id": "tier-99",
+          "name": "99",
+          "items": []
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-ana.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-limit-items",
+    "format": "v3",
+    "description": "5,000 items (the cap) over the 7-row template: short item ids (the item count is what this entry checks), every tenth item a device image.",
+    "state": "3.N4IgLgDiBcDsA0IBOMDaqQGVMnhghriIYicUWZRdfKACYwh0CmAbgJYDGzAtAAwgAvqRrkR4sZKq0mjFh278hE6VNGqS9OWy68BwtSvXHxW6Ex2L9Rm4bubZ5+bqUGNJ+zTMWFe5Z9t3U0cfF2sAiKDvZyt-IMiTaMs-Nw94qJCYlMC03JkGJ2TXHJKApN9ihNLpcrC4vKqxWtjU6oaHAtCWtp6mzKLw9PavforB4Z7m7Mah4M6sytmZ3CnFiarV8d7ZzfrtvN3W5ZLD-cnRuqOlnYvu443b6euJ0-ub+YG9t8THtbOy35bb42V7Pc4fMZfMEAiGXf7vbSQq7rDKwu7QhGFJHwg6AqEon5op4Ek545E4uaIuHAmFU9Ek2lY6kY3FEv40mpkimMrrE7mctlAlkgrkcwl0vliylM+n8kaC-Fy-IS9nCwyghmolVCzXy7WKqUapV9BXkw2itVamWSy1662q3XS3kOpVGhIAXXdeCwuAIjvVvwAjAbbcr7cGzaHVhHjQKVTGpQG2QnQ0n4yHHdGMxSs5HM0Hs8Dc7G7c6U-64+HC8Li4nK2XqyTa6n6wtyyWww28zmC92i72Oyb032awO66W242zs2KxOiu3x53JyOm2OW3OKgv10v51PjjOOwfF0ftyfZzvN3uwWfXWvz0Oqyvp3fDy-j2-Tx-zzfzcmry8v1vP8n33QDf2HQcOggxcHy7SCVjAqNEPzYD4IvFwt2-ZCe1QmCoMfNCfyQ3Dt1g5dCOw-sSPvfC4LwhDqLaT1vQAQV9ej0MUAAmf9wRVHiQOvX4BIotkRI41ZxNI2iFikmiGP43iHjEpTMWdOTXxUwSAK00TFO0vj7Q099dIk4TVNZfS9KMizSVM6SFJsgzlKssz7PkzjeGMz93M01yHM8nhvKw3yTP8jzJNsnlZKiq11Ni8UnOs+LnLUmLUsspK3PCvysoCyKMrsnKwryiLzMK6KimCoDip82qQvqmrStylLkvStqqoSkVQrq5qSta7K+t6gb8vKjqKmq8Choa6ampGsqepm+aWvawblo9L0MAAIXY0a2QAZi6tN7UOiq4oWU7xpcS61ouo7WyKG69pVJ6Fpe+6N2uj6nTus7EudV6Vse76yOBv7uve8HjoBkGZLBq7FEB-rfoR3gkeGlHbvhrGKnRpbMeek7YccmGoYe3HicCvG5oJt6ibJz7Ecp1Zqam0nUZ4VniMhjmuZQnmca+hmfuxwn2cFpnhdBimpbhmXeeZ34+ZwgWxdpoH5YltHFYOnXVbp8W1dFg31eR42NaFhXZZJ02MfNs3NaNx2Tftu3naYzaQAAYV2l2KgAFj1+1A+twKQ458OtZ4SOnZcGO-bjoPnXji3FBTh3E9D1Z07dzOI6ThYc-xooi5pkuC-LrPflLtnC4rgP67zqOa+54PG7T9veBb-m26rtlu5V3v877lUB6o0fO+jyex9Hfvp-nkeh+bhfh9X5fF+Tlf17X2OO43uv98rneE734-U67rfd4vw+G5vpur6nu-T+3l+H5n6hmIwAARX3z54ABWSegCn68GARzMBUcIEPygSfUBQD4EgIAQg8ByDIGoOgeg2BSDEEwL-rgjOih8G50IZgvBpCCFwJweQ4hlCUFUPoXQxhaCGHMKYRglh7C2FYKIcXCoPCy58Oobwlw-Da5FFEa3Z0Eie5SKEQIkRcixGCI4dwxRkiFjSMHrIlRZCdEbW9AAMV-hQngAA2Se5jEGWI5tYqOtiH72KwY4v+ziTGuJoWYixXirHeJsb4ux-iHGBKccElxoS3HhI8e44RihonyNiZEmJvA4lKJcCk9RRR0kyIWFkrROTEnxOSQU1JCSfFlL8eUgJlSgnVJCbUsJ9SImNKicUjJFRcnj3tB02eKpumrjZH058AzWnZMyf+T+IBjEeNgJPGZiC5kcwWVHJZD8VlYLWX-DZJitnTNmXs+Z+zFmHOWcc1Zpz1nnM2Zc7Z1zdkHPuUch5JynlnJeRct5VyPk3K+Xcx5fznn-NeYC95wLPmgu+eC35ALoVAphSCuFYLliendIIIAA",
+    "expected": {
+      "version": 3,
+      "rowTemplate": "7rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-ss",
+          "name": "SS",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-0", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-1", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-2", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-3", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-c",
+          "name": "C",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-4", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-d",
+          "name": "D",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-5", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "tier-f",
+          "name": "F",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-6", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"kind": "device", "id": "device-7", "content": ""}, {"id": "a"}, {"id": "a"}, {"id": "a"},
+            {"id": "a"}, {"id": "a"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-unknown-ids-with-labels",
+    "format": "v3",
+    "description": "Ids that name no image-set item keep their stored label as {i, c} (A45): an id with a dot from an image set the app does not have, an id the image sets never had, and a label with quotes and emoji. Image-set items and an unknown id without a label stay plain ids.",
+    "state": "3.N4IgLiBcIDIIYCMCmAbFSAmACArgOwGs8B7AdzywEsMBnEAGnAAcoBmRgJygG1uQBlBt1CUoISgFs4AcyQBafETJ4504niQA6UkgQtGAYzEBxdUiwALJB2IgAvo0kz5xAG7XScMAYty4eOG1dFgBdEPo+AEEhETENdw45GgtKJiZMBhAjaAAdEABFHGIwTDysQF4NwEYdwFgCcsATHfswiJAAISFxKVkFQhJyPxQaYlUzIL0QJr52py63Dy8fOSkcUdCwuyA",
+    "expected": {
+      "version": 3,
+      "title": "Labelled unknown ids",
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"id": "image-unknown-gone.webp", "content": "Gone hero"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"id": "never-shipped", "content": "\"Quoted\" 🐱‍👤"}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"id": "image-unknown-also-gone.webp"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": [
+            {"id": "image-overwatch-mau.webp"}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "v3-legacy-upload-ids",
+    "format": "v3",
+    "description": "Uploads made before Phase 5c whose ids (Math.random().toString(36).slice(2, 11)) are shorter than the 8 characters the device id rule needs, written as legacy-<id> device images (A42), with and without a label; a 9-character legacy id stays as it is.",
+    "state": "3.N4IgLiBcIPIDYBMAEBXADnA9gQwQZxABpw0oBmYgJygG0aQBlIm0BKEOAUwHNsBjAJ4BabACMyfAJxEQfdgFkBSPtggBfYgEsAttm6chmAG6dKAd1V8AFiIB22AHRnOo0gF03hegEFmrdly8gkIArCBqHl4gAEJ+IGzQANZkAFaSAB4ADNgAjKIyctAAcpq2nMpW2JT8YKYEEZ70zB5uakA",
+    "expected": {
+      "version": 3,
+      "title": "Old uploads",
+      "rowTemplate": "3rows",
+      "labelPosition": "left",
+      "showLabels": true,
+      "tiers": [
+        {
+          "id": "tier-s",
+          "name": "S",
+          "items": [
+            {"kind": "device", "id": "legacy-ab3c9", "content": "My cat"}, {"id": "image-overwatch-ana.webp"}
+          ]
+        },
+        {
+          "id": "tier-a",
+          "name": "A",
+          "items": [
+            {"kind": "device", "id": "legacy-5", "content": ""}
+          ]
+        },
+        {
+          "id": "tier-b",
+          "name": "B",
+          "items": [
+            {"kind": "device", "id": "k3j9x0a1b", "content": "Nine characters"}
+          ]
+        },
+        {
+          "id": "uncategorized",
+          "name": "",
+          "items": []
+        }
+      ]
+    }
+  }
+]

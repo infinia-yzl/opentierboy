@@ -13,6 +13,32 @@ import {
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import {Metadata} from "next";
+import rankGif from "@/public/about/rank.gif";
+import imagesGif from "@/public/about/images.gif";
+import freezeFrameGif from "@/public/about/freeze-frame.gif";
+import {ShowTipsAgain} from "@/components/ShowTipsAgain";
+
+/** "How it works": the README's GIFs, one line each. */
+const HOW_IT_WORKS = [
+  {
+    title: 'Rank by dragging',
+    line: 'Drag images into the rows. The list lives in the page\'s address: share the link, and Back undoes a change.',
+    gif: rankGif,
+    alt: 'Naming a list and dragging OVERWATCH tanks into the S, A, B and C rows',
+  },
+  {
+    title: 'Your own images',
+    line: 'Upload, paste or drop pictures. They stay in this browser.',
+    gif: imagesGif,
+    alt: 'Uploading eight framework logos and ranking them',
+  },
+  {
+    title: 'Freeze Frame',
+    line: 'Capture the list as a picture and download it. The file opens again as a list.',
+    gif: freezeFrameGif,
+    alt: 'Share, Image, Capture Preview, then Download',
+  },
+] as const;
 
 const AboutPage = () => {
   return (
@@ -31,16 +57,41 @@ const AboutPage = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl md:text-3xl font-light mb-12 flex flex-col justify-center">
-          <div className="flex justify-center mb-6 max-w-[600]">
+          <div className="flex justify-center mb-6">
             <Image src={otbLogo} alt="OpenTierBoy" priority/>
           </div>
           Craft, rank and share your passion - the open-source way!
         </h1>
       </section>
 
+      {/* How it works: three GIFs from the README, then the tips again (onboarding, 2026-10-31). */}
+      <section aria-labelledby="how-it-works" className="pb-20">
+        <h2 id="how-it-works" className="text-4xl md:text-5xl font-bold mb-12 text-center">How it works</h2>
+        <div className="grid gap-8 md:grid-cols-3">
+          {HOW_IT_WORKS.map(({title, line, gif, alt}) => (
+            <figure key={title} className="flex flex-col gap-3">
+              <Image src={gif} alt={alt} unoptimized className="w-full h-auto rounded-lg border"/>
+              <figcaption>
+                <h3 className="text-xl font-semibold">{title}</h3>
+                <p className="text-muted-foreground">{line}</p>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="mt-10 flex flex-col items-center gap-3 text-center">
+          <ShowTipsAgain/>
+          <p className="text-sm text-muted-foreground">
+            Something confusing? Tell us on{' '}
+            <a href="https://github.com/infinia-yzl/opentierboy/issues" className="underline underline-offset-2 hover:text-foreground">GitHub</a>
+            {' '}or{' '}
+            <a href="https://discord.gg/CEtDSHV38b" className="underline underline-offset-2 hover:text-foreground">Discord</a>.
+          </p>
+        </div>
+      </section>
+
       {/* Mission Section */}
-      <div className="relative w-screen left-1/2 right-1/2 -mx-[50vw] bg-primary text-primary-foreground">
-        <section className="py-20 max-w-screen-lg mx-auto px-4">
+      <div className="relative w-screen left-1/2 right-1/2 mx-[-50vw] bg-foreground text-background">
+        <section className="py-20 max-w-(--breakpoint-lg) mx-auto px-4">
           <h2 className="text-4xl md:text-5xl font-bold mb-8">Mission</h2>
           <h3 className="text-3xl md:text-4xl font-bold mb-6">A message from the founder</h3>
           <p className="text-xl leading-relaxed mb-6">
@@ -82,7 +133,7 @@ const AboutPage = () => {
                   And let&apos;s be honest – most users don&apos;t need to save and share their custom images anyway.
                   You can still easily share your completed tier lists as images, which is what matters most.
                 </p>
-                <blockquote className="mt-6 border-l-2 pl-6 italic">
+                <blockquote className="border-l-2 pl-6 italic">
                   &quot;I recommend keeping folders on your device for each of your tier lists, and saving your custom
                   images there so you can quickly add them.&quot;
                 </blockquote>
@@ -146,7 +197,7 @@ const AboutPage = () => {
 
       {/* Community Section */}
       <section className="py-20">
-        <Card className="bg-primary text-primary-foreground p-4">
+        <Card className="bg-foreground text-background p-4">
           <CardHeader>
             <h2 className="text-4xl md:text-5xl font-bold text-center">Build With Us!</h2>
           </CardHeader>

@@ -17,6 +17,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="docs/media/rank.gif" width="880" alt="Naming a list and dragging OVERWATCH tanks into the S, A, B and C rows">
+</p>
+
 ## 🚀 Getting Started
 
 1. Visit [https://opentierboy.com](https://opentierboy.com)
@@ -29,11 +33,57 @@
 
 - **Tier Studio**: Modern, user-friendly interface for effortless tier list creation
 - **No Login Required**: Create and share without an account
-- **BYOI (Bring Your Own Images)**: Upload images from your device to personalize your tier list
+- **BYOI (Bring Your Own Images)**: Upload, paste or drop pictures from your device, or add images from other websites by
+  their address
 - **Copy Jutsu**: Easily share your rankings with a stateful URL
-- **Freeze Frame**: Capture your rankings as an image
-- **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking - we only use local storage for
-  functionality
+- **Freeze Frame**: Capture your rankings as an image. A downloaded Freeze Frame reopens as an editable list
+- **Recently Viewed**: The lists you opened come back on the home page. Pin the ones you want to keep
+- **Appearance**: Light, Dark or System mode, each game's own colours, and a Modern or Classic font
+- **Zen**: Hide the buttons and rank by dragging, without distractions
+- **Privacy First**: No database, no logins, no sign-ups, no ads, no tracking. Your list lives in its link.
+  Images you upload or paste stay in your browser and never reach our server. Images from trusted sites load
+  straight from those sites; images from other sites load only after you allow them.
+
+## 🎬 See It in Action
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Bring your own images</b><br>
+      Upload, paste or drop pictures. They stay in your browser.<br>
+      <img src="docs/media/images.gif" alt="Uploading eight framework logos and ranking them">
+    </td>
+    <td width="50%" valign="top">
+      <b>Freeze Frame</b><br>
+      Capture the list as a picture, and download it.<br>
+      <img src="docs/media/freeze-frame.gif" alt="Share, Image, Capture Preview, then Download">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Reopen a Freeze Frame</b><br>
+      A downloaded Freeze Frame opens again as an editable list.<br>
+      <img src="docs/media/reopen.gif" alt="Opening a Freeze Frame file brings back the list, ready to edit">
+    </td>
+    <td width="50%" valign="top">
+      <b>Recently viewed</b><br>
+      Lists you opened come back on the home page. Pin the ones you keep.<br>
+      <img src="docs/media/recent.gif" alt="Pinning a list in Recently viewed and opening it">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>Appearance</b><br>
+      Light, Dark or System, each game's colours, and a Modern or Classic font.<br>
+      <img src="docs/media/appearance.gif" alt="Switching to Dark mode, then to the Classic font">
+    </td>
+    <td width="50%" valign="top">
+      <b>Zen</b><br>
+      Hide the buttons and rank without distractions.<br>
+      <img src="docs/media/zen.gif" alt="Turning on Zen and ranking two more tanks">
+    </td>
+  </tr>
+</table>
 
 ## ♨️ Open Source
 
@@ -60,9 +110,18 @@ Found a bug or have a suggestion? Open an issue on GitHub:
 
 1. Go to the [Issues](https://github.com/infinia-yzl/opentierboy/issues) tab.
 2. Click "New Issue".
-3. Choose the appropriate template (Bug Report, Feature Request, or Image Update/Addition).
+3. Choose the appropriate template (Bug Report, Feature Request / Feedback, or Image Update or Addition).
 4. Provide a clear title and detailed description.
 5. Add relevant labels if necessary.
+
+## 🤖 Built with AI Agents
+
+OpenTierBoy is built mostly by AI coding agents (Claude, by Anthropic). The work is spec-driven: the owner writes
+what to build, the agents follow the rules in [CLAUDE.md](CLAUDE.md), and automated tests check the result. The owner
+makes some checks by hand and may not review every line of code.
+
+OpenTierBoy is provided "as is", without warranty of any kind, and its authors are not liable for any damages arising
+from its use. See sections 15 and 16 of the [LICENSE](LICENSE).
 
 ## 📜 License
 
@@ -79,6 +138,9 @@ This means:
 
 See the [LICENSE](LICENSE) file for full details.
 
+The license covers the code. The OpenTierBoy name, logo and wordmark belong to the project owner: a fork needs its own
+name and logo. See [TRADEMARKS.md](TRADEMARKS.md).
+
 ## 🌐 Community
 
 Join our [Discord server](https://discord.gg/CEtDSHV38b) to share your tier lists, discuss features, and connect
@@ -91,8 +153,8 @@ including but not limited to:
 
 - [Next.js](https://nextjs.org/) - The React framework for production.
 - [shadcn/ui](https://ui.shadcn.com/) - Beautifully designed components built with Radix UI and Tailwind CSS.
-- [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) - Beautiful and accessible drag and drop for lists with
-  React.
+- [dnd-kit](https://github.com/clauderic/dnd-kit) - Drag and drop toolkit for React (a copy lives in
+  `packages/dnd-kit`, see [docs/reference/drag-and-drop.md](docs/reference/drag-and-drop.md)).
 - [html2canvas-pro](https://yorickshan.github.io/html2canvas-pro/) & [html2canvas](https://html2canvas.hertzen.com/) -
   Screenshots with JavaScript.
 - [lz-string](https://github.com/pieroxy/lz-string/) - LZ-based compression algorithm for JavaScript.

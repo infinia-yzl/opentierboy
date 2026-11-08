@@ -1,0 +1,372 @@
+# OpenTierBoy
+
+A tier list maker at opentierboy.com. No accounts, no database. The whole list lives in the
+page link (`?state=`), and sharing the link shares the list.
+`AGENTS.md` is a symlink to this file. Edit `CLAUDE.md` only.
+
+## Product rules (never break these)
+
+1. **Existing behaviour is intended.** Do not add, remove or change anything users can see
+   or do unless the task says so. If something looks wrong, ask the owner first, or record it
+   as a known-bug test (see Tests). Do not fix it on the side.
+2. **Browser history is the undo feature.** Every change to the list pushes a new history
+   entry (`router.push` with a new `?state=`). Back steps to the previous version. Never use
+   `router.replace` or `history.replaceState` for list edits. Never merge or skip entries.
+3. **Every shared link ever made keeps working.** Link formats v0, v1, v2 and v3 decode forever.
+   The golden fixtures in `tests/fixtures/` are append-only. See "Link contract" below.
+4. **Item ids are permanent.** An id is `<packageName>-<filename>`, for example
+   `image-overwatch-ana.webp`. Never rename or remove a shipped id. Renames go through
+   `image-aliases.json` only.
+5. **Links are the only save.** No accounts, no database, no server storage of lists or
+   images. Images uploaded from a device never reach the server.
+6. **Tier labels describe positions.** Dragging row S onto A's place moves the contents. The
+   labels stay S, A, B... from top to bottom.
+
+## Ask before you
+
+Ask the owner first, unless the task explicitly asks for it:
+
+- change anything a user can see or do (layout, wording, flows, defaults);
+- change how links are encoded or decoded;
+- add a dependency, or upgrade a major version;
+- edit a workflow in `.github/` or this file;
+- change branches, pull requests or history on GitHub (retarget, merge, close, force-push).
+  Discuss the plan first, and check that no pull request can close as a side effect.
+
+Never edit or delete an existing fixture entry, even when asked to "fix a test".
+
+When unsure, stop and ask. Explain the change and its risk in plain words.
+
+## Stack
+
+Next.js 16 (App Router, Turbopack) · React 19 · TypeScript (strict) · Tailwind CSS 4 + shadcn/ui ·
+dnd-kit (drag and drop; a fork in `packages/dnd-kit`, used only through `lib/dnd`) · `lz-string`
+(link compression) · `html2canvas-pro` (screenshots) · Playwright (end-to-end tests) · Vitest
+(unit tests) · hosted on Vercel.
+
+## Commands
+
+```bash
+npm ci                    # install exactly what package-lock.json says
+npm run dev               # prepare images, then the dev server on :3000
+npm run build             # prepare images, check item ids, then the production build
+npm run check             # type check, lint, unit tests, item ids, trusted sites, fixtures (CI runs this)
+npm run lint              # ESLint (`eslint .`, config in eslint.config.mjs)
+npm run test:unit         # Vitest only
+npm run check:images      # every shipped item id is registered (`-- --update` adds new ids;
+                          # `-- --files`: its image and PNG copy are in public/images/)
+npm run check:fixtures    # no fixture entry changed since the base branch (`-- --base <ref>`)
+npm run check:trusted-sites   # no trusted image site is on the pinned tracker list (downloads it with git)
+npx playwright install    # once per machine: the browsers for Playwright
+npm run test:e2e          # Playwright; needs `npm run build` first
+npm run test:e2e -- --project=chromium tests/e2e/drag-and-drop.spec.ts
+npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tiles (needs a running build)
+```
+
+- Run `npm run check` before every commit. CI runs the same script.
+- Playwright runs against the production build. Rebuild before e2e tests after any change
+  to `app/`, `components/`, `contexts/`, `lib/`, `models/`, `articles/`, `public/`,
+  `imageset.config.json`, `imageset.custom.json` or the config files (`next.config.ts`,
+  `postcss.config.mjs`). Tailwind 4 has no config file: the theme lives in
+  `app/globals.css`.
+- `npm run build` first runs the `prebuild` script: it copies every image set, active and
+  legacy, from `node_modules/image-*` into `public/images/` (with their PNG copies for link
+  previews), stops when a legacy set's package no longer builds its frozen entry, then runs
+  `check:images -- --files`, so a lost item id, a changed legacy set or a missing image file
+  stops the build. Always build with `npm run build`. A plain `next build` skips the images.
+- Browsers already installed elsewhere: see `tests/README.md` (`PLAYWRIGHT_BROWSERS_PATH`).
+- Link preview tests (`link-previews.api.spec.ts`) need the server on port 3000. They skip
+  themselves on other ports.
+
+## Folder map
+
+```
+app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (link preview
+                      image, edge runtime), /blog, /about, sitemap
+proxy.ts              HTTP status of /rank paths, decided before the page streams (308 for old
+                      tag paths, 404 for templates that do not exist, noindex for legacy sets)
+components/           React components; components/ui/ is shadcn/ui; DragDropTierList.tsx is the
+                      editor's rows (drag and drop through lib/dnd/react.tsx); usePageState.ts:
+                      one scroll listener and one zen-mode observer shared by every tile
+contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
+                      syncs it with the address (one router.push per list change, one at a time;
+                      label settings use router.replace, owner decision A3)
+contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
+                      uploads) and link images (allowed sites, load checks)
+lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue;
+                      moves and added or removed rows come from lib/dnd/moves.ts
+lib/TierCortex.ts     createTierCortex(): the functions of the next three modules, bound to the
+                      app's aliases, image sets and base URL (used by the store, /rank and /api/og)
+lib/packageItems.ts   item lookup (built once per image-set config, shared), aliases, placeholder
+                      items, item and category shapes, custom items
+lib/listLink.ts       the link encode and decode used by the store: link to tiers of items, and back
+lib/linkPreview.ts    preview helpers for the OG route: row gradients, preview image URLs, base URL
+lib/listCard/         the list card that link previews and Freeze Frame both draw: fit rules (fit.ts)
+                      and its data (model.ts); components/ListCard.tsx renders it (LIST_CARD_COLORS)
+lib/appearance.ts     modes, retired themes, fonts, game colours and the head script (see "Appearance")
+lib/fonts.ts          the game fonts of the image-set cards
+lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)
+lib/dnd/              drag and drop adapter, the only code that imports dnd-kit: pure moves, previews,
+                      keyboard targets, announcements (labels, never ids), touch activation, and
+                      the React API in react.tsx (docs/reference/drag-and-drop.md)
+lib/tileSize.ts       tile sizes by shape (square, landscape, portrait)
+lib/imageSets.ts      visibleImageSets(): the sets offered in the picker, landing page, sitemap
+lib/state/            link format: decodeState (all formats), encodeState (v3; v2 on request); lz-string only
+lib/state/deviceId.ts device image id rule (A40) and legacy upload ids (A42)
+lib/state/lz.ts       lz-string decompression with an output cap, checked before decompressing
+lib/images/           images from links and devices: address checks, trusted sites, device
+                      image store (the only IndexedDB code), image load check
+lib/security/         Content Security Policy and the other security headers (sent by next.config.ts)
+lib/zod.ts            zod without eval (import `z` from here, never from `zod`)
+lib/snapshot/         snapshot files: the list inside a Freeze Frame PNG (iTXt chunk, checked
+                      reader, zod payload), and what opening a file does
+lib/recent/           Recently viewed: links this browser opened, in local storage (pins, caps)
+lib/rankPath.ts       the /rank path rule for stored paths, and page names for lists without a title
+lib/rankRoute.ts      the set and tag a /rank path names, and its HTTP answer (page and proxy.ts)
+lib/utils.ts          slugs for /rank URLs, tier gradients
+lib/mdx.ts            blog article options (JavaScript in articles is removed, never run)
+models/               types: Tier (row templates), Item, ItemSet, ImageSet
+packages/dnd-kit/     the vendored dnd-kit fork (npm workspaces, committed build; docs/reference/drag-and-drop.md)
+scripts/prepareImages.js   builds imageset.config.json and public/images from the image-* packages,
+                      and checks each legacy set against its frozen entry (see "Image sets")
+scripts/lib/image-sets.mjs   shared rules: active vs legacy, config entries, shapes
+scripts/image-set-update.mjs   checks for the image-set-update workflow (payload and patch gate)
+scripts/bench-drag.mjs   drag performance benchmark (docs/reference/drag-and-drop.md, "Performance")
+image-registry.lock.json   every item id ever shipped (append-only)
+image-aliases.json    old item id → new item id, for renamed images
+trusted-image-sites.json   sites whose link images load without asking
+scripts/tracker-list.pin.json   the tracker list check:trusted-sites downloads (no copy in the repo)
+imageset.custom.json  which image sets ship, in display order: active sets with display names,
+                      legacy sets as {"legacy": true} (the active list)
+imageset.legacy.json  frozen config entries of the legacy sets (append-only, never edit an entry;
+                      the build fails when a legacy package builds anything else)
+imageset.config.json  generated by prepareImages (do not edit by hand)
+public/images/        every image set, copied from its npm package at build time, with the PNG
+                      copies (git-ignored; nothing in it is committed)
+articles/             blog posts (Markdown)
+tests/e2e/            Playwright specs, one file per UI area or route (tests/README.md, "Where a test goes")
+tests/pages/          page objects (tier-list-page.ts: TierListPage, site-page.ts: SitePage)
+tests/support/        test.ts (fixtures), links.ts (build a ranking link)
+tests/fixtures/       golden shared links and link states (append-only)
+tests/unit/           Vitest unit tests (*.test.ts) at the paths of the code they test; rules/ and fixtures/
+docs/                 the docs, listed in docs/README.md: maintainers/ (owner settings, releases,
+                      image sets) and reference/ (link format, images, snapshot files, drag and drop)
+```
+
+## Link contract
+
+The format, its limits, the fixtures and how to add a version: `docs/reference/link-format.md`.
+
+- A shared link is `/rank/<set>/<tag>?state=<value>`. The app writes v3 (`3.` + lz-string of
+  compact JSON). `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format.
+- Old formats (v0, v1 and v2) are decoded forever. Never change what an old link decodes to.
+- Every list change pushes a new history entry. Label position and label visibility are
+  written with `router.replace`, so they add no Back step (owner decision A3, 2026-10-25).
+- `lib/state/` holds the format. It imports only `lz-string` (no React, `window`,
+  `localStorage` or Node modules), because the edge OG route uses it too.
+- `lib/state/decoders/legacy.ts` is frozen: never edit it. If an old link stops decoding,
+  fix the code around it.
+- The fixtures `tests/fixtures/shared-links.json`, `tests/fixtures/state/generated.json` and
+  `tests/fixtures/state/v3.json` are **append-only**: never edit, reorder or delete an entry.
+  A failing fixture means the app broke old links: fix the app. Add real links with
+  `node scripts/capture-shared-links.mjs`. `npm run check:fixtures` fails when an entry
+  changed or disappeared.
+- Do not update `lz-string` without the owner. A new version could decode old links
+  differently.
+
+## Image id contract
+
+- Image sets are npm packages named `image-*`. Each image's id is
+  `<packageName>-<filename>` and appears inside shared links.
+- Never rename or delete an image file in a shipped set, and never drop a shipped set.
+  Old links that use those ids would show placeholders.
+- `image-registry.lock.json` lists every id ever shipped. Never remove or change an entry.
+  `npm run check:images` fails when a registered id is gone without an alias;
+  `npm run check:images -- --update` appends new ids.
+- A rename needs an alias entry (old id → new id) in `image-aliases.json`.
+  `resolveItem` (`lib/packageItems.ts`) follows it, so old links show the renamed image.
+- **An alias target must be a new id, added in the same change that removes the old id.**
+  Never point an alias at an id that already shipped: an old list holding both ids would show
+  the merged image twice, with duplicate drag ids. `image-set-update.yml` refuses such aliases.
+
+## Image sets
+
+Image set updates and the shapes decision: `docs/maintainers/repository-settings.md`
+(sections 8 and 9). How to contribute to an image set: `CONTRIBUTING.md`.
+
+- **Active sets** come from npm: THE FINALS (`image-reachthefinals`) and OVERWATCH
+  (`image-overwatch`). They are the entries of `imageset.custom.json` without `"legacy"`.
+  New versions arrive as pull requests from `.github/workflows/image-set-update.yml`. The
+  owner reviews and merges every pull request; nothing merges on its own.
+- **Legacy sets** are frozen: SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development
+  Technologies and the example template (`image-set`). They come from npm like the active
+  sets, each pinned to an exact version in `package.json`: never change a pin. Dependabot
+  ignores them and `image-set-update.yml` refuses them (`tests/unit/rules/legacy-set-pins.test.ts`).
+  Their frozen config entries live in `imageset.legacy.json` (append-only), and the build stops
+  when a pinned package builds anything else. Never edit, move or delete a legacy set. They are
+  hidden from the template picker, the landing page and the sitemap (`lib/imageSets.ts`), the
+  app shortcuts (`app/manifest.ts`) and the search engine data (`app/layout.tsx`), but their
+  `/rank` pages, old links and link previews keep working (`tests/e2e/legacy-sets*.spec.ts`).
+- **Shapes**: until the owner decides otherwise, image sets must not publish landscape or
+  portrait images. `tests/unit/rules/image-shapes.test.ts` fails if `imageset.config.json`
+  holds one.
+- **Adding a set** (its first version, by hand) and **removing a set** (forks only: OpenTierBoy
+  never removes a shipped set): `CONTRIBUTING.md`, "Adding an image set" and "Removing an image
+  set from a fork".
+- **Making a set legacy**: copy its entry from `imageset.config.json` into
+  `imageset.legacy.json` with `"legacy": true`, set its `imageset.custom.json` entry to
+  `{"legacy": true}`, pin its package to the exact installed version
+  (`npm install <package>@<version> --save-exact`), add it to the npm `ignore` list in
+  `.github/dependabot.yml`, add it to `LEGACY_SETS` in `tests/support/links.ts`, run
+  `npm run prepare-images`, and check that `imageset.config.json` only gained `"legacy": true`.
+
+## Custom images
+
+How images from links and devices work, trusted sites and the Content Security Policy:
+`docs/reference/images.md`.
+
+- **Link images** (`{u, c}` items): an address must pass `checkLinkImageUrl`
+  (`lib/images/linkImage.ts`). Store the normalised address it returns.
+- Render link images with a plain `<img referrerPolicy="no-referrer" loading="lazy">`. Never
+  send them through `next/image` or `/_next/image`, and never add `https://**` to
+  `images.remotePatterns` (A8).
+- Images from a site outside `trusted-image-sites.json` load only after the visitor allows
+  them. Nothing may request such an image before that.
+- **The server never fetches a user's address.** Link previews (the OG route) draw only
+  image-set pictures: every link image, from any site, and every device image is a label tile
+  (owner decision, 2026-11-01). A link image address never reaches `inlineLocalImages`.
+- **Device images** (`{d, c}` items) stay in the visitor's browser. `lib/images/deviceStore.ts`
+  is the only module that may use IndexedDB (ESLint enforces it). Open the store only in
+  effects, never during rendering. Make object URLs only from a Blob of the type sniffed from
+  the bytes (`ObjectUrlRegistry.urlFor(id, blob, type)`), never from a `File`: a `text/html`
+  `blob:` URL runs as a page of this site.
+- **Content Security Policy** and the other security headers: `next.config.ts` sends them
+  from `lib/security/`. Eval is not allowed (only `next dev` allows it). A new external
+  script, font or connection needs a change to the policy and to `tests/e2e/security.spec.ts`.
+- **zod**: import `z` from `@/lib/zod`, never from `zod`. Plain zod tries eval when it builds a
+  schema, which the policy reports as a violation (A39).
+
+## Snapshot files and recently viewed
+
+The file format, limits, reason codes and Recently viewed: `docs/reference/snapshot-files.md`.
+
+- **Snapshot file**: Freeze Frame's Download saves the PNG with the list inside (payload
+  version 1). Saved files must keep opening, like old links: never change what payload
+  version 1 means.
+- Files are untrusted input. `readSnapshotFile` (`lib/snapshot/`) checks the PNG and the
+  payload and never throws. Every image is drawn again through a canvas before it is stored
+  (`prepareImageForStore` with `alwaysReencode`), because the payload checks only its header
+  (A10).
+- Opening a file (the menu item, a dropped file or a pasted file) goes through `openFiles` in
+  `components/useSnapshotFiles.tsx`, and a list opens with one `router.push` (one Back step).
+- **Recently viewed** keeps the links this browser opened in local storage. The editor records
+  a list once, when it opens with a list in its link; edits never record. Stored entries are
+  checked with zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
+
+## Appearance
+
+- **Mode**: Light, Dark or System, through next-themes. Saved themes from before 2.0.0
+  (`ocean-light`, `ocean-dark`, `forest-light`, `forest-dark`) still apply: `THEME_CLASSES` in
+  `lib/appearance.ts` maps them to light and dark.
+- **Font** (Modern: Geologica; Classic: Nunito Sans with Urbanist headings), **Game colours** and
+  Compact tiles are classes on `<html>` (`font-classic`, `no-game-colours`, `tiles-compact`), kept
+  in local storage (`otb-font`, `otb-game-colours`, `otb-tile-size`). `APPEARANCE_SCRIPT` (`lib/appearance.ts`) runs in the head of every page
+  (`app/layout.tsx`) and adds them before the page paints. It is a constant string with no user
+  data, and the one allowed `dangerouslySetInnerHTML` besides trusted JSON.
+- **Game colours**: `components/GameColours.tsx` sets `data-game` on `<html>` on an image set's
+  pages, and `app/globals.css` holds each game's primary colour.
+- Link previews and Freeze Frame always use Geologica and the card's warm colours
+  (`LIST_CARD_COLORS`), whatever the visitor chose.
+
+## Zen and the tips
+
+- **Zen** (`components/ZenBar.tsx`, `components/zenMode.ts`, `lib/zen/`): the Zen bar is always
+  shown and never covers the list (owner decision, 2026-11-01). Back and Forward step through
+  browser history (the step count is in `components/useListSteps.ts`). The ranking order and
+  the layout are view settings: they write no link and no history entry.
+- **Creator layouts** (`components/ZenStage.tsx`, `components/useZenLayout.ts`,
+  `lib/zen/layouts.ts`): 16:9, 9:16 and the green-key overlay. The frame never scrolls; the
+  tray or the rows scroll inside it. The Zen bar sits in a strip above the frame.
+- **Compact tiles** follow Show Labels, and choosing Compact turns Show Labels off (A3: no Back
+  step).
+- **Item tiles** come only from `DraggableTierItem` (`lib/dnd/react.tsx`), which keys each tile
+  by its item; a tile that changes its item throws. Tile pictures never start the browser's own
+  drag. Collisions ignore the part of a droppable that a scrolling box hides.
+- **Tips** (`components/EditorTips.tsx`, `lib/tips/`): one-time, kept in `otb-tips`; every e2e
+  test runs with tips off unless it sets `test.use({tips: true})`.
+
+## Tests
+
+- Read `tests/README.md` before writing e2e tests.
+- Name each test `<verb> <result> when <condition>`, with the verb `returns`, `throws`,
+  `writes` or `renders` (`tests/README.md`, "Test names").
+- A unit test of one source file has that file's name and path; every other file under `tests/`
+  is kebab-case (`tests/README.md`, "File names").
+- Import `test` and `expect` from `tests/support/test.ts`. Put selectors in page objects
+  (`tests/pages/`), never in specs.
+- Locate by role and accessible name. If an element has none, add an `aria-label` to the
+  app. No CSS selectors, no test ids.
+- Never sleep: no `waitForTimeout`, no fixed delays. Wait for what the user sees.
+- Arrange state through the URL with `rankingState()` from `tests/support/links.ts`.
+- Tag read-only journeys that work on phones with `@mobile`.
+- A confirmed bug gets a test of the correct behaviour in a `Known bugs` describe block,
+  marked `test.fail(true, '<reason>')`. When you fix it, remove the marker and move the test.
+- Run new e2e tests under load: `--repeat-each=5 --workers=4`.
+- Unit tests: Vitest, `tests/unit/**/*.test.ts`, import app code through `@/`.
+- Keep tests cross-browser (Chromium, Firefox, WebKit).
+
+## Code conventions
+
+- TypeScript strict. `tsconfig.json` targets ES2017: Next.js adds that target on build when
+  it is missing, so keep it.
+- `app/api/og/` runs on the edge runtime. Code it imports (`lib/TierCortex.ts` and the modules
+  it binds, `lib/state/`) must not use Node APIs (`fs`, `path`) or browser APIs (`window`,
+  `localStorage`) at import time. ESLint enforces this for `lib/state/` and `app/api/og/`.
+- Functional style (owner, A47): plain functions and readonly data. No classes in any code
+  file (ESLint enforces it); only `tests/`, `packages/` and the root config files named in
+  `ROOT_CONFIG_FILES` may use them. The other exception is a class that a third-party API
+  requires: it goes in the one file that wraps that API, listed in `ALLOWED_CLASS_FILES` in
+  `eslint.config.mjs` (today `lib/dnd/dndKit.ts`, for dnd-kit's activation constraint). Never
+  turn the rule off with an `eslint-disable` comment.
+- State that outlives a call lives in a factory function with closures (for example
+  `createTierCortex`, `createMemoryDeviceStore`). UI state lives in React hooks.
+- Errors are plain `Error` objects with a `name` and a `code` (see `pixelCapError()` in
+  `lib/images/prepareImage.ts`), or result objects. Never use `instanceof` on our own types.
+  A programmer error, such as a bad argument, may throw a built-in `RangeError` or
+  `TypeError`.
+- Follow the patterns in nearby code. Keep changes small and focused on the task.
+- Never commit secrets. Never add tracking, analytics or ads.
+
+## Commits and pull requests
+
+- Conventional Commits: `type(scope): summary`, for example
+  `fix(editor): keep the title when switching templates`.
+- Small, logical commits. Each commit passes `npm run check`.
+- Pull request text: what changed, why, how you verified it, and what you could not verify.
+  An agent also states the steps the owner instructed, whether the owner has reviewed the code
+  (and how much), and the owner's intent (CONTRIBUTING.md, "AI-assisted contributions").
+- The version in `package.json` follows Semantic Versioning (owner decision, 2026-10-31).
+- Until the 2.0.0 cutover, revamp pull requests target `epic/ui-revamp`, and PR #202 brings it
+  into `main`. Merge into the epic with merge commits, never squash: a branch may carry the
+  commits of the branch below it. PR #202 itself is squash-merged into `main`, as one commit
+  (owner decision, 2026-11-04).
+- Write for the owner in plain, short sentences.
+
+## Review rules
+
+Reviews (human or Claude) flag these as bugs:
+
+- Breaking a product rule above, or changing behaviour the task did not ask for.
+- Editing or deleting an existing fixture entry, or a change that alters what an old link
+  decodes to.
+- Renaming or removing an image file, image set or item id.
+- Cross-site scripting: user text (titles, labels, link data) rendered as HTML, or
+  `dangerouslySetInnerHTML` with anything other than trusted JSON or `APPEARANCE_SCRIPT`.
+- Untrusted input (shared links, uploaded or pasted files, image URLs) parsed without
+  validation and size limits.
+- The server fetching a URL that came from a user.
+- Secrets in code, logs or test fixtures.
+- GitHub workflows with `pull_request_target`, write permissions they do not need, or
+  event data (titles, branch names, payloads) placed directly in `run:` steps. Pass such
+  data through `env:` instead.
+- Third-party actions not pinned to a full commit SHA.

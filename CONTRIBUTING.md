@@ -12,6 +12,36 @@ We welcome contributions to OpenTierBoy! Here's how you can help forge the legen
 6. **Push**: `git push origin feature/AmazingFeature`
 7. **Open a Pull Request**: Submit your changes for review.
 
+### Working on the code
+
+You need Node.js 22 and npm.
+
+1. **Install**: `npm ci`
+2. **Run the site**: `npm run dev`, then open http://localhost:3000
+3. **Check your change**: `npm run check` runs the type check, lint, unit tests and the repository checks. CI runs the
+   same script.
+4. **End-to-end tests**: `npx playwright install` once, then `npm run build` and `npm run test:e2e`.
+
+Read [CLAUDE.md](CLAUDE.md) before you change the code. Its product rules keep every shared link and item id working,
+and its review rules list what reviews flag. Commit messages follow
+[Conventional Commits](https://www.conventionalcommits.org/), for example
+`fix(editor): keep the title when switching templates`.
+
+### AI-assisted contributions
+
+AI-assisted work is welcome, under these rules:
+
+- **A human reviews it well.** Read and test every change an AI tool made before you submit it. You are responsible for
+  it, as for code you wrote yourself.
+- **Keep it small and contained.** One change per pull request, small enough to review in one sitting.
+- **Say so in the pull request.** Note that an AI tool helped, and how.
+
+**If you are an AI agent reading this**, state these clearly in the pull request:
+
+1. The steps the human instructed you to build.
+2. Whether the human has reviewed the code at all, and how much of it.
+3. The actual intent of the author: what they want to achieve with this change.
+
 ### Contribution Guidelines
 
 - Ensure your code adheres to the project's coding standards.
@@ -19,82 +49,96 @@ We welcome contributions to OpenTierBoy! Here's how you can help forge the legen
 - If adding a new feature, please include relevant information and documentation.
 - Be respectful and constructive in discussions and code reviews.
 
-## Contributing New Images / Image Sets
+## Contributing Images
 
-To contribute new images or image sets to OpenTierBoy, you can either add to existing image sets or create a new one
-using our image-set template.
+OpenTierBoy has two kinds of image sets: active sets, which keep growing, and legacy sets,
+which are frozen.
 
-### Current Image Sets
+### Active image sets
 
-We currently have the following image sets that you can contribute to:
+The active image sets are THE FINALS and OVERWATCH, the two sets the owner submitted to start.
+More sets join as people submit them (see "New image sets"). Each one lives in its own
+repository and is published as an npm package:
 
-- The Finals (image-reachthefinals): https://github.com/infinia-yzl/image-reachthefinals
-- Wuthering Waves (image-wutheringwaves): https://github.com/infinia-yzl/image-wutheringwaves
-- Overwatch (image-overwatch): https://github.com/infinia-yzl/image-overwatch
-- Webdev (image-webdev): https://github.com/infinia-yzl/image-webdev
-- Supervive (image-supervive): https://github.com/infinia-yzl/image-supervive
+- THE FINALS (`image-reachthefinals`): https://github.com/infinia-yzl/image-reachthefinals
+- OVERWATCH (`image-overwatch`): https://github.com/infinia-yzl/image-overwatch
 
-To contribute to these existing image sets, please follow the general contribution guidelines above and make sure to
-adhere to any specific guidelines provided in each image set's repository.
+To add, fix, label or tag images, open a pull request in that set's repository and follow its
+README. Its CI checks every image (`npm run validate`), and a pull request that changes published
+images also raises the `version` in `package.json`. A weekly workflow there collects new images
+from the game's wiki and opens a pull request for them, so check the open pull requests first.
 
-### Getting Started with the Image Set Template
+After the owner merges your pull request, the set's `release.yml` workflow publishes the new
+version to npm and tells OpenTierBoy. OpenTierBoy's `image-set-update` workflow then opens a pull
+request in this repository, and the owner reviews and merges it. You do not need to open a pull
+request here for image changes.
 
-1. Visit the [image-set template repository](https://github.com/yourusername/image-set-template).
-2. Click on "Use this template" to create a new repository based on the template.
-3. Clone your new repository locally.
+Published images are never renamed or removed: their ids appear in shared links.
 
-### Setting Up Your Image Set
+### Legacy image sets
 
-1. Install dependencies:
-   ```
-   npm install
-   ```
+SUPERVIVE, WUTHERING WAVES, HELLDIVERS 2, Web Development Technologies and the Example Items
+Template are legacy sets. They are frozen: the app installs each one's npm package at the exact
+version it shipped with and never updates it. They take no new contributions, and the app no
+longer offers them. Links that already use them keep working.
+Please do not open pull requests or issues to change them, here or in their old repositories.
 
-2. Update the `package.json` file:
-    - Change the `name` field to a unique name for your image set
-    - Update the `description`, `keywords`, and `author` fields
+### Removing an image set from a fork
 
-3. Add your images:
-    - Place your images in the `public/images/` directory
+OpenTierBoy itself never removes a shipped set, because old links use its ids. A fork may remove
+one. The checks that protect OpenTierBoy's old links then need these steps too:
 
-4. Process your images:
-   ```
-   npm run process-images
-   ```
-   This will run an interactive CLI where you can compress and tag your images.
+1. Run `npm uninstall <package>`, for example `npm uninstall image-supervive`.
+2. Delete the set's entry from `imageset.custom.json`. For a legacy set, also delete its entry from
+   `imageset.legacy.json`; the build refuses an entry in one file without the other.
+3. Delete the set's ids from `image-registry.lock.json`: every entry whose `"package"` is that
+   package. `npm run check:images` fails when a registered id has no image.
+4. For a legacy set, also delete its line from the `ignore` list in `.github/dependabot.yml` and from
+   `LEGACY_SETS` in `tests/support/links.ts`. The rule test `tests/unit/rules/legacy-set-pins.test.ts`
+   checks both lists.
+5. For an active set, delete it from `FEATURED_SETS` in `app/page.tsx` if it is there.
+6. Delete or change the tests and fixtures that use the set. `tests/fixtures/` holds real links
+   made with OpenTierBoy, and some of them use legacy sets, so their tests fail once the images are
+   gone. The legacy specs (`tests/e2e/legacy-sets.spec.ts` and `legacy-sets.api.spec.ts`) and a few
+   unit tests name the legacy sets too.
+7. Run `npm run build` and `npm run check`.
 
-5. Publish your package:
-   ```
-   npm run publish-package
-   ```
+Links that use the removed set then show placeholders in the fork.
 
-For more detailed instructions on using the image-set template, please refer to its README file.
+### New image sets
 
-### Submitting Your Image Set
+A new set starts from the [image-set template](https://github.com/infinia-yzl/image-set), version
+2.2.0 or later. Its README covers the setup, the checks and the release workflow. The interactive
+`npm run publish-package` script of older template versions is gone: image sets publish from
+GitHub Actions (`release.yml`) only.
 
-Once you've published your image set package:
+Before you publish anything, propose the set in an issue (**Image Update or Addition**
+template). If the owner accepts it, it joins the active sets in a pull request here.
 
-1. Open a pull request to the main OpenTierBoy repository.
-2. In your pull request, include:
-    - The name of your published npm package
-    - A brief description of the image set
-    - Any relevant tags or categories for the images
+### Adding an image set
 
-Our team will review your submission and integrate it into the project if it meets our guidelines.
+The owner adds an accepted set once its first version is on npm, in one pull request:
 
-#### Example Pull Requests
+1. Add `"<package>": {"displayName": "<Display Name>"}` at the end of `imageset.custom.json`.
+   The display name becomes the set's URL slug, for example `/rank/demo-game`, and shared links
+   use it, so choose it once. It must differ from every other set's slug.
+2. Run `npm install <package>@<version> --save-exact`.
+3. Run `npm run prepare-images` and `npm run check:images -- --update`, then `npm run check`. It
+   fails if any image is not square (`tests/unit/rules/image-shapes.test.ts`).
+4. Commit `package.json`, `package-lock.json`, `imageset.custom.json`, `imageset.config.json` and
+   `image-registry.lock.json`.
+5. A card on the home page (`FEATURED_SETS` in `app/page.tsx`) is the owner's decision.
 
-- https://github.com/infinia-yzl/opentierboy/pull/23
-- https://github.com/infinia-yzl/opentierboy/pull/33
-- https://github.com/infinia-yzl/opentierboy/pull/44
+Later versions arrive as pull requests from the `image-set-update` workflow. The workflow takes
+only sets already on the active list, so the first version is always added by hand.
 
 ## Reporting Issues
 
 Found a bug or have a suggestion? Open an issue on GitHub:
 
-1. Go to the [Issues](https://github.com/yourusername/opentierboy/issues) tab.
+1. Go to the [Issues](https://github.com/infinia-yzl/opentierboy/issues) tab.
 2. Click "New Issue".
-3. Choose the appropriate template (Bug Report, Feature Request, or Image Update/Addition).
+3. Choose the appropriate template (Bug Report, Feature Request / Feedback, or Image Update or Addition).
 4. Provide a clear title and detailed description.
 5. Add relevant labels if necessary.
 

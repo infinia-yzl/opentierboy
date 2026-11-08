@@ -74,7 +74,7 @@ const BlogPostList: React.FC = () => {
   const posts = getBlogPosts();
 
   return (
-    <div className="max-w-4xl md:max-w-screen-2xl mx-auto">
+    <div className="max-w-4xl md:max-w-(--breakpoint-2xl) mx-auto">
       <Breadcrumb className="pb-4">
         <BreadcrumbList>
           <BreadcrumbItem>

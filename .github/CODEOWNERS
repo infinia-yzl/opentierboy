@@ -1,0 +1,36 @@
+# Changes to these paths ask for a review from the owner. They hold the contracts that keep
+# old shared links and item ids working, and the repository's automation.
+# Some paths do not exist yet; later phases add them.
+
+# Link format: encoders and decoders for the ?state= value, and the code that turns a link
+# into the list on screen and back.
+/lib/state/                  @infinia-yzl
+/lib/TierCortex.ts           @infinia-yzl
+/lib/listLink.ts             @infinia-yzl
+# Golden shared links and state fixtures (append-only).
+/tests/fixtures/             @infinia-yzl
+# Item id registry and renames (ids are permanent).
+/image-registry.lock.json    @infinia-yzl
+/image-aliases.json          @infinia-yzl
+# Frozen legacy image sets: their config entries (append-only) and committed images.
+/imageset.legacy.json        @infinia-yzl
+/public/images/              @infinia-yzl
+# The active image sets (image-set-update.yml accepts updates of these only).
+/imageset.custom.json        @infinia-yzl
+# The checks and tests that guard these contracts. CI runs a pull request's own copy of them.
+/scripts/check-fixtures-append-only.mjs          @infinia-yzl
+/scripts/check-image-registry.mjs                @infinia-yzl
+/scripts/image-set-update.mjs                    @infinia-yzl
+/scripts/lib/image-sets.mjs                      @infinia-yzl
+/tests/unit/lib/state/                           @infinia-yzl
+/tests/unit/fixtures/                            @infinia-yzl
+/tests/unit/support/tier-cortex-pre-refactor.ts   @infinia-yzl
+# Sites whose images load without asking, and the tracker list check that guards them.
+/trusted-image-sites.json                        @infinia-yzl
+/scripts/check-trusted-sites.mjs                 @infinia-yzl
+/scripts/tracker-list.pin.json                   @infinia-yzl
+# Workflows, Dependabot, issue templates and this file.
+/.github/                    @infinia-yzl
+# Instructions for agents (AGENTS.md is a link to it).
+/CLAUDE.md                   @infinia-yzl
+/AGENTS.md                   @infinia-yzl

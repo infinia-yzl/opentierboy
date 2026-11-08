@@ -1,57 +1,75 @@
-name: Playwright Tests
-on:
-  deployment_status:
-jobs:
-  test:
-    if: github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success'
-    timeout-minutes: 30
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.deployment.ref }}
+name: E2E on deployment
 
-      - uses: actions/setup-node@v4
+# Runs the end-to-end tests against each successful Vercel production deployment. Pull
+# request CI (ci.yml) tests a local build. This workflow checks the real site: hosting,
+# headers and link preview images with Vercel's URLs.
+#
+# Trigger: Vercel's GitHub App sends a repository_dispatch event, "vercel.deployment.success",
+# after each successful deployment, with the deployment's URL and environment in
+# github.event.client_payload (https://vercel.com/docs/git/vercel-for-github). release.yml
+# uses the same event. GitHub always runs repository_dispatch workflows from this file on the
+# default branch, so a fork's pull request cannot change the workflow that reads the
+# "vercel-e2e" secret. Only someone with write access to this repository can send the event.
+#
+# The tests come from the default branch too. On a production deployment that is the code
+# Vercel deployed, so the tests match it. Preview deployments of pull requests are skipped:
+# their code can be newer than the default branch's tests (or need a newer Playwright), so
+# those runs would fail for reasons that say nothing about the deployment. CI on the pull
+# request is the gate.
+
+on:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-deployed-${{ github.event.client_payload.environment }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-deployed:
+    name: e2e (deployed)
+    if: >-
+      github.event.client_payload.environment == 'production' &&
+      startsWith(github.event.client_payload.url, 'https://')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Holds VERCEL_AUTOMATION_BYPASS_SECRET. "deployment: false" uses the environment's
+    # secrets without recording a GitHub deployment.
+    environment:
+      name: vercel-e2e
+      deployment: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: lts/*
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
-        id: run-tests
-        continue-on-error: true
-        run: npx playwright test
+      # With BASE_URL set, Playwright starts no local server. playwright.config.ts sends
+      # the bypass header only when the secret is set.
+      - name: Run Playwright tests against the deployment
+        run: npx playwright test --project=api --project=chromium
         env:
-          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          BASE_URL: ${{ github.event.client_payload.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-deployed
           path: playwright-report/
           retention-days: 14
-
-      - name: Update snapshots if tests fail
-        if: steps.run-tests.outcome == 'failure'
-        run: npx playwright test --update-snapshots
-        env:
-          BASE_URL: ${{ github.event.deployment_status.environment_url }}
-
-      # If the changes to screenshots are expected, you can download the screenshots from this artifact to replace the outdated images in the repository.
-      - name: Upload actual updated screenshots
-        if: steps.run-tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: updated-snapshots
-          path: tests/**/*.spec.ts-snapshots/**/*.png
-          retention-days: 14
-
-      # Fail the workflow if tests failed
-      - name: Check test status
-        if: steps.run-tests.outcome == 'failure'
-        run: exit 1
