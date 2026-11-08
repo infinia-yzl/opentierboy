@@ -4,7 +4,7 @@ import {describe, expect, it} from 'vitest';
 
 /**
  * The dnd-kit fork in packages/dnd-kit reaches the app through npm workspaces
- * (docs/dnd-fork.md). npm installs a second copy from the registry as soon as one fork
+ * (docs/reference/drag-and-drop.md). npm installs a second copy from the registry as soon as one fork
  * version stops matching a range inside dnd-kit (for example a prerelease suffix, or a
  * Dependabot bump). Two copies of @dnd-kit/state or @preact/signals-core break drag and
  * drop at runtime, so these tests guard the wiring.

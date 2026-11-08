@@ -1,5 +1,5 @@
 {
-  "$comment": "Sites whose link images load without asking the visitor first. A host matches exactly, unless its entry sets \"subdomains\": true. npm run check:trusted-sites fails when a host or its registrable domain is on the Disconnect tracker list (pinned in scripts/tracker-list.pin.json). See docs/custom-images.md.",
+  "$comment": "Sites whose link images load without asking the visitor first. A host matches exactly, unless its entry sets \"subdomains\": true. npm run check:trusted-sites fails when a host or its registrable domain is on the Disconnect tracker list (pinned in scripts/tracker-list.pin.json). See docs/reference/images.md.",
   "sites": [
     {
       "host": "thefinals.wiki",

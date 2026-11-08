@@ -7,7 +7,7 @@ import type {RowTemplate, RowTemplateId} from './types';
  *
  * These lists are part of the v3 link format: a v3 row may leave out its tier id when the id
  * equals the template's id at that position. Never change or reorder an existing list.
- * A new template needs a new `tp` value (see docs/link-format-v3.md).
+ * A new template needs a new `tp` value (see docs/reference/link-format.md).
  */
 export const ROW_TEMPLATE_TIER_IDS: Readonly<Record<RowTemplateId, readonly string[]>> = {
   '3rows': ['tier-s', 'tier-a', 'tier-b', 'uncategorized'],

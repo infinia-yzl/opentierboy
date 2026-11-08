@@ -530,7 +530,7 @@ export class SortableDroppable<T extends Data> extends Droppable<T> {
 }
 
 /*
- * OpenTierBoy fork (docs/dnd-fork.md, "Local changes"): index-change animations in batches.
+ * OpenTierBoy fork (docs/reference/drag-and-drop.md, "Local changes"): index-change animations in batches.
  *
  * Upstream measures and animates each sortable on its own, one after the other: cancel its
  * transform transitions, measure it, start its animation. Each measurement also sets the

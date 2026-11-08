@@ -12,7 +12,7 @@ export function isItemShape(value: unknown): value is ItemShape {
 }
 
 /**
- * How a v3 link stores an item (lib/state, docs/link-format-v3.md):
+ * How a v3 link stores an item (lib/state, docs/reference/link-format.md):
  * - 'link': an image from a web address (`url`). The browser loads it from trusted sites, and
  *   from other sites once the visitor allows them (contexts/CustomImagesContext.tsx). The
  *   server never loads it: link previews draw it as a label tile (app/api/og/list-preview.ts).

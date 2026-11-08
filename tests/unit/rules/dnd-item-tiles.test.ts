@@ -4,7 +4,7 @@ import ts from 'typescript';
 import {describe, expect, it} from 'vitest';
 
 /**
- * An item tile never changes its item (docs/dnd-fork.md, "React API"). A tile whose item id
+ * An item tile never changes its item (docs/reference/drag-and-drop.md, "React API"). A tile whose item id
  * changed lost its draggable in dnd-kit and took no more drags (fixed in 176120b). So
  * lib/dnd/react.tsx makes the mistake impossible to write: the only export for item tiles is
  * DraggableTierItem, which renders the tile keyed by its item id, and the hook behind it is not

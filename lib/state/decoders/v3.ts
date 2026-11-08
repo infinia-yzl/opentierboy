@@ -1,6 +1,6 @@
 /*
  * Decodes the v3 link format: `?state=3.<payload>`, where the payload is lz-string
- * compressToEncodedURIComponent of compact JSON. docs/link-format-v3.md describes the format.
+ * compressToEncodedURIComponent of compact JSON. docs/reference/link-format.md describes the format.
  *
  *   {
  *     "t":  title                        (left out when empty)

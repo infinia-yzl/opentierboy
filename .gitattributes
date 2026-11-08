@@ -1,4 +1,4 @@
-# Build output of the dnd-kit fork (node packages/dnd-kit/build.mjs, see docs/dnd-fork.md).
+# Build output of the dnd-kit fork (node packages/dnd-kit/build.mjs, see docs/reference/drag-and-drop.md).
 # GitHub folds these files in pull request diffs. Review the sources under src/ instead.
 packages/dnd-kit/*/dist/** linguist-generated=true
 packages/dnd-kit/*/*.js linguist-generated=true
