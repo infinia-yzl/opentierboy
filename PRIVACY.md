@@ -95,4 +95,4 @@ are effective when they are posted on this page.
 ## Contact Information
 
 If you have any questions about this Privacy Policy, you can contact us by email
-at [dev@infinia.space](mailto:dev@infinia.space).
+at [opentierboy@infinia.space](mailto:opentierboy@infinia.space).

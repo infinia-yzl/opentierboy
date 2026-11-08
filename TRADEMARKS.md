@@ -30,5 +30,5 @@ Give your fork its own name and logo before you put it online. The name and logo
 
 ## Questions
 
-If you are not sure whether your use is allowed, email [dev@infinia.space](mailto:dev@infinia.space) before you
+If you are not sure whether your use is allowed, email [opentierboy@infinia.space](mailto:opentierboy@infinia.space) before you
 publish.

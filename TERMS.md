@@ -18,7 +18,7 @@ Your agreement with us includes these Terms and our Privacy Policy ("Agreements"
 and understood Agreements, and agree to be bound by them.
 
 If you do not agree with (or cannot comply with) Agreements, then you may not use the Service, but please let us know by
-emailing at [dev@infinia.space,](mailto:dev@infinia.space) so we can try to find a solution. These Terms apply to all
+emailing [opentierboy@infinia.space](mailto:opentierboy@infinia.space), so we can try to find a solution. These Terms apply to all
 visitors, users, and others
 who wish to access or use the Service.
 
@@ -26,7 +26,7 @@ who wish to access or use the Service.
 
 By accessing or using our Service, you agree to be bound by these Terms. If you disagree with any part of the terms,
 then you do not have permission to access the Service. If a term does not make sense to you, please let us know by
-e-mailing [dev@infinia.space](mailto:dev@infinia.space).
+e-mailing [opentierboy@infinia.space](mailto:opentierboy@infinia.space).
 
 ## Changes to these Terms
 
@@ -82,7 +82,7 @@ them, even when they appear next to our name or logo, for example in a link prev
 
 ## Reporting Abuse
 
-If you find a tier list or a link that breaks these Terms, email [dev@infinia.space](mailto:dev@infinia.space) with the
+If you find a tier list or a link that breaks these Terms, email [opentierboy@infinia.space](mailto:opentierboy@infinia.space) with the
 link and a short description of the problem. Tier lists live in their links, and we store none of them, so we cannot
 delete a tier list. We can remove a website from our list of trusted image sites, so that its images no longer load
 without asking, and we can take other steps that the law requires.
@@ -115,7 +115,7 @@ The use should not negatively impact the market for the original work.
 OpenTierBoy does not claim ownership of any images users add. Users retain all rights to their original content.
 We respect the intellectual property rights of others and expect our users to do the same. If you believe that your
 copyrighted work has been used in a way that constitutes copyright infringement, please contact us
-at [dev@infinia.space](mailto:dev@infinia.space).
+at [opentierboy@infinia.space](mailto:opentierboy@infinia.space).
 
 ## License
 
@@ -154,4 +154,4 @@ conflict of law provisions.
 
 ## Contact Information
 
-If you have any questions about these Terms, please contact us at [dev@infinia.space](mailto:dev@infinia.space).
+If you have any questions about these Terms, please contact us at [opentierboy@infinia.space](mailto:opentierboy@infinia.space).
