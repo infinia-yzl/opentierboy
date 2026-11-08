@@ -8,8 +8,8 @@
  * once, as "From a link" does, and adds only the images that load
  * (components/useSnapshotFiles.tsx: openLinks).
  *
- * Pure code: no browser or Node APIs. The browser reads the drop's HTML (the `<img>` addresses)
- * and hands the strings in.
+ * Pure code: no browser or Node APIs. The drop's HTML is read as text (imageSourcesInHtml), and
+ * never parsed into a document.
  */
 import {checkLinkImageUrl, type LinkImageAccepted, type LinkImageRefusal} from './linkImage';
 
@@ -21,7 +21,7 @@ export const MAX_DROPPED_TEXT_LENGTH = 100_000;
 
 /** What a drag or a paste carries, as text. */
 export interface DroppedText {
-  /** The `src` of each `<img>` in the drop's HTML, in order (read by the browser). */
+  /** The `src` of each `<img>` in the drop's HTML, in order (imageSourcesInHtml). */
   imageSources?: readonly string[];
   /** The `text/uri-list` data: one address per line, `#` lines are comments. */
   uriList?: string;
@@ -82,6 +82,46 @@ function unwrap(word: string): string {
 export function addressesInText(text: string): string[] {
   if (typeof text !== 'string') return [];
   return capped(text).split(/\s+/).map(unwrap).filter((word) => LOOKS_LIKE_ADDRESS.test(word));
+}
+
+/** The most `<img>` addresses read from a drop's HTML. */
+export const MAX_DROPPED_IMAGES_READ = 100;
+
+/**
+ * An `<img` tag's `src` attribute, double-quoted, single-quoted or bare. The search for `src`
+ * stops at the next `<`, so each `<img` is read up to the next tag at most and the time grows
+ * in line with the length (a long run of unclosed `<img` tags took over a second before).
+ */
+const IMG_SRC = /<img\b[^<>]*?\ssrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+
+/** The character references an address may hold in HTML: &amp; and friends, and &#…; numbers. */
+function decodeReferences(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|quot|apos|lt|gt);/gi, (whole, name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.startsWith('#x')) return codePoint(parseInt(lower.slice(2), 16), whole);
+    if (lower.startsWith('#')) return codePoint(parseInt(lower.slice(1), 10), whole);
+    return {amp: '&', quot: '"', apos: "'", lt: '<', gt: '>'}[lower] ?? whole;
+  });
+}
+
+function codePoint(value: number, fallback: string): string {
+  return Number.isInteger(value) && value > 0 && value <= 0x10ffff ? String.fromCodePoint(value) : fallback;
+}
+
+/**
+ * The `src` addresses of the `<img>` tags in a drop's HTML (an image dragged from another page),
+ * in order, at most MAX_DROPPED_IMAGES_READ. The HTML is only read as text: nothing parses it
+ * into a document, runs it or loads from it. Every address still goes through
+ * `checkLinkImageUrl` (checkAddresses).
+ */
+export function imageSourcesInHtml(html: string): string[] {
+  if (typeof html !== 'string' || html === '' || html.length > MAX_DROPPED_TEXT_LENGTH) return [];
+  const sources: string[] = [];
+  for (const match of html.matchAll(IMG_SRC)) {
+    sources.push(decodeReferences(match[1] ?? match[2] ?? match[3] ?? ''));
+    if (sources.length === MAX_DROPPED_IMAGES_READ) break;
+  }
+  return sources;
 }
 
 /** The addresses of a `text/uri-list`: one per line, without comment lines and empty lines. */
