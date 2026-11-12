@@ -2,7 +2,7 @@ import type {Page, TestInfo} from '@playwright/test';
 import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
-import {attachAndAssertCoverage, walkModel, walkRevisits} from '../support/machines';
+import {attachAndAssertCoverage, walkModel, walkRevisits, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
 import {layoutOf, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutKey, type ZenLayoutSnapshot} from '../machines/zen-layout';
 
@@ -686,13 +686,13 @@ test.describe('zen layouts', () => {
 
     // A campaign opens the list once per path or run: about 2.5 s each on Chromium.
     test('renders each state of the Zen layout machine when the user walks its simple paths', async ({tierList, page}, testInfo) => {
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage);
     });
 
     test('renders each state of the Zen layout machine when the user turns Zen off and on again in seeded runs', async ({tierList, page}, testInfo) => {
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       await walkRevisits(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
     });
   });

@@ -4,7 +4,7 @@ import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
 import {imageFile} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel} from '../support/machines';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import type {SitePage} from '../pages/site-page';
 import {TIP_IDS, tipsEditorState, tipsModel, type StoredTips, type TipsEvent, type TipsSnapshot} from '../machines/tips';
@@ -400,7 +400,7 @@ test.describe('tips', () => {
     };
 
     test('renders each state of the tips machine when the user walks its seeded runs from a new browser', async ({tierList, page}, testInfo) => {
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       // Before the first page opens, so TOAST_TIMES_OUT can run the page clock.
       await page.clock.install();
       const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo));
@@ -410,7 +410,7 @@ test.describe('tips', () => {
     // No page clock here: Playwright's clock gives the page no navigation entry
     // (performance.getEntriesByType('navigation') is empty), so the shared-list tip never shows.
     test('renders each state of the shared-list tip machine when the user walks its seeded runs from a friend\'s link', async ({tierList, site, page}, testInfo) => {
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo));
       await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage);
     });

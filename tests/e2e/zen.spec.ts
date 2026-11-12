@@ -4,7 +4,7 @@ import {expect, test} from '../support/test';
 import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {rankingState} from '../support/links';
-import {attachAndAssertCoverage, walkModel} from '../support/machines';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import {
   orderOf, queueHiddenIn, zenOrderModel, type RankingOrderKey, type ZenOrderEvent, type ZenOrderSnapshot,
 } from '../machines/zen-order';
@@ -550,7 +550,7 @@ test.describe('zen', () => {
     test('renders each state of the Zen ranking order machine when the user changes the order and Zen in seeded runs', async ({
       tierList, page,
     }, testInfo) => {
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       // attachAndAssertCoverage also fails when a run never entered a state of the diagram, such
       // as Pick freely with the queue hidden out of Zen: one transition per event and region is not enough.
       const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo));

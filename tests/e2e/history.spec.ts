@@ -2,7 +2,7 @@ import type {Page, TestInfo} from '@playwright/test';
 import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
-import {attachAndAssertCoverage, walkModel} from '../support/machines';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {historyModel, MAX_VERSIONS, type HistoryEvent, type HistoryLabelPosition, type HistorySnapshot} from '../machines/history';
 
@@ -316,7 +316,7 @@ test.describe('history', () => {
 
     test('renders each version of the list when the user changes it and goes Back and Forward in seeded runs', async ({tierList, page}, testInfo) => {
       expect(TRAY).toHaveLength(MAX_VERSIONS - 1);
-      test.setTimeout(180_000);
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(historyModel, historySut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, historyModel, coverage);
     });

@@ -79,6 +79,12 @@ export async function walkRevisits(model: MachineModel, sut: unknown): Promise<T
   return coverage;
 }
 
+/**
+ * The time limit of one model campaign. A campaign opens the list once per path or run (about
+ * 2.5 s each on Chromium, alone), and Firefox, WebKit and busy CI runners are slower.
+ */
+export const MODEL_CAMPAIGN_TIMEOUT = 360_000;
+
 /** Ties a machine file's model to its machine's types. */
 export function defineModel<TMachine extends AnyStateMachine>(model: MachineModel<TMachine>): MachineModel<TMachine> {
   return Object.freeze(model);

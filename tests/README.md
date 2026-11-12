@@ -260,7 +260,10 @@ disagree, and its error lists every step with the machine's state.
 - **The campaign** sits at the end of its area's spec in a `describe('model')`. `reset` opens the
   start list through the URL, each event calls a page object action that waits for its result,
   and `states` holds web-first checks. `attachAndAssertCoverage` adds the coverage report to the
-  Playwright report and fails the test when the walk missed a state node or a transition. With
+  Playwright report and fails the test when the walk missed a state node, a transition or a state
+  of the diagram (see `assertFullCoverage` for why each is needed). Give each campaign
+  `test.setTimeout(MODEL_CAMPAIGN_TIMEOUT)`, and bound every retrying wait in its actions
+  (`toPass({timeout})`), so a stalled step fails with its own message. With
   `testInfo`, a failing campaign also attaches the failing run's trace, its `fixture.json` and a
   screenshot.
 - **Diagrams.** `docs/machines/<id>.md` draws each machine as a Mermaid diagram, which GitHub shows

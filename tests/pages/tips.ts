@@ -145,7 +145,7 @@ export class Tips {
     await expect(async () => {
       await this.page.clock.runFor(10_000);
       await expect(toast).toBeHidden({timeout: 2_000});
-    }).toPass();
+    }, 'the tip toast should time out on the page clock').toPass({timeout: 30_000});
   }
 
   /** What local storage keeps under `otb-tips`, or null. */
