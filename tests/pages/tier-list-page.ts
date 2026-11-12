@@ -1830,6 +1830,17 @@ export class TierListPage {
     await this.page.keyboard.press(key);
   }
 
+  /**
+   * Presses Escape with the focus on the list. After a menu choice the focus is on the menu's
+   * button, whose tooltip would take the first Escape (zen-layouts.spec.ts), so the focus leaves
+   * the button first, and the tooltip closes.
+   */
+  async pressEscapeOnList() {
+    await this.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await expect(this.page.getByRole('tooltip')).toHaveCount(0);
+    await this.page.keyboard.press('Escape');
+  }
+
   /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
   async stepInZenBar(name: 'Back' | 'Forward') {
     await this.changeAndWaitForLink(() => this.zenBarButton(name).click());

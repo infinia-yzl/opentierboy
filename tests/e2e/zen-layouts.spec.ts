@@ -1,6 +1,10 @@
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
+import {attachAndAssertCoverage, walkModel, walkRevisits} from '../support/machines';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
+import {layoutOf, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutKey, type ZenLayoutSnapshot} from '../machines/zen-layout';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -650,6 +654,46 @@ test.describe('zen layouts', () => {
       await tierList.stepInZenBar('Back');
       await expect(tierList.itemsIn('A')).toHaveCount(0);
       await expect(tierList.zenFrame).toBeVisible();
+    });
+  });
+
+  // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/zen-layout.ts walked
+  // through the Playwright adapter of @xstate/test.
+  test.describe('model', () => {
+    const LAYOUT_NAMES: Record<ZenLayoutKey, ZenLayoutName> = {editor: 'Editor', wide: '16:9', tall: '9:16', overlay: 'Overlay · green key'};
+
+    /** The Zen layout machine's events and checks, run on this test's page (createPlaywrightSut). */
+    const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, ZenLayoutSnapshot, ZenLayoutEvent>(page, {
+      reset: () => tierList.goto(TANKS, LIST),
+      events: {
+        TOGGLE_ZEN: () => tierList.setZenMode(true),
+        EXIT_ZEN: () => tierList.setZenMode(false),
+        PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
+        CHOOSE_LAYOUT: (_page, event) => tierList.chooseLayout(LAYOUT_NAMES[event.layout]),
+      },
+      states: {
+        '*': async (_page, snapshot) => {
+          if (snapshot.matches({mode: 'on'})) {
+            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${LAYOUT_NAMES[layoutOf(snapshot)]}`);
+          } else {
+            await expect(tierList.zenBar).toHaveCount(0);
+          }
+        },
+      },
+      testInfo,
+      step: (name, body) => test.step(name, body),
+    });
+
+    // A campaign opens the list once per path or run: about 2.5 s each on Chromium.
+    test('renders each state of the Zen layout machine when the user walks its simple paths', async ({tierList, page}, testInfo) => {
+      test.setTimeout(180_000);
+      const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage);
+    });
+
+    test('renders each state of the Zen layout machine when the user turns Zen off and on again in seeded runs', async ({tierList, page}, testInfo) => {
+      test.setTimeout(180_000);
+      await walkRevisits(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
     });
   });
 });
