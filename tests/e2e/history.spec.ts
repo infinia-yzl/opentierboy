@@ -295,10 +295,10 @@ test.describe('history', () => {
         CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
         BROWSER_BACK: () => tierList.goBack(),
         BROWSER_FORWARD: () => tierList.goForward(),
-        CHOOSE_TOP: () => tierList.chooseLabelPosition('Top'),
-        CHOOSE_LEFT: () => tierList.chooseLabelPosition('Left'),
-        HIDE_ITEM_LABELS: () => tierList.setItemLabelsVisible(false),
-        SHOW_ITEM_LABELS: () => tierList.setItemLabelsVisible(true),
+        CHOOSE_TOP: () => tierList.chooseLabelPositionWithKeyboard('Top'),
+        CHOOSE_LEFT: () => tierList.chooseLabelPositionWithKeyboard('Left'),
+        HIDE_ITEM_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(false),
+        SHOW_ITEM_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(true),
       },
       // Web-first checks, no read(): after Back or Forward the address changes before the list
       // on screen does, so one read could still see the version before.

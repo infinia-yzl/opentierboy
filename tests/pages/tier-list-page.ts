@@ -2106,16 +2106,44 @@ export class TierListPage {
     await this.page.goForward();
   }
 
+  /**
+   * Chooses a label position in Row options with the keyboard: the menu opens, the focus moves to
+   * the choice, and Enter chooses it. The menu is taller than half of a 720 px window, and Radix
+   * locks the page's scroll while it is open, so with the button in the middle of the window
+   * its lower choices can sit below the window, out of reach of the mouse.
+   */
+  async chooseLabelPositionWithKeyboard(position: LabelPosition) {
+    await this.chooseRowOptionWithKeyboard(this.page.getByRole('menuitemradio', {name: position, exact: true}));
+  }
+
+  /** Shows or hides item labels in Row options with the keyboard (see chooseLabelPositionWithKeyboard). */
+  async setItemLabelsVisibleWithKeyboard(visible: boolean) {
+    await this.chooseRowOptionWithKeyboard(this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}));
+  }
+
+  private async chooseRowOptionWithKeyboard(option: Locator) {
+    await this.changeAndWaitForLink(async () => {
+      await this.rowOptionsButton.click();
+      await option.focus();
+      await expect(option).toBeFocused();
+      await this.page.keyboard.press('Enter');
+    });
+  }
+
   // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
 
   /** Drags the first item of Unranked to the end of a row. Returns once the link is written. */
   async dragFirstUnrankedItemToTier(tierName: string) {
     // Item tiles only: the first-drag tip puts its "Hide tips" and "Close tip" buttons in the tray.
-    const [name] = await this.itemsIn(this.unranked).evaluateAll((items) => items
-      .filter((item) => item.getAttribute('aria-roledescription') === 'draggable')
-      .map((item) => item.getAttribute('aria-label')));
-    if (!name) throw new Error('Unranked holds no item');
-    await this.dragItemToTier(name, tierName);
+    // Right after a page load, the tiles take a drag only once the page is ready, so this waits.
+    let name: string | null = null;
+    await expect.poll(async () => {
+      [name = null] = await this.itemsIn(this.unranked).evaluateAll((items) => items
+        .filter((item) => item.getAttribute('aria-roledescription') === 'draggable')
+        .map((item) => item.getAttribute('aria-label')));
+      return name;
+    }, {message: 'Unranked should hold an item that takes a drag'}).not.toBeNull();
+    await this.dragItemToTier(name!, tierName);
   }
 
   /** Uploads pictures from the device, and returns once the link holds them. */
