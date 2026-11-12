@@ -1,4 +1,5 @@
 import type {MachineModel} from '../support/machines';
+import {historyModel} from './history';
 import {zenLayoutModel} from './zen-layout';
 
 /**
@@ -8,4 +9,5 @@ import {zenLayoutModel} from './zen-layout';
  */
 export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenLayoutModel,
+  historyModel,
 ] as MachineModel[]);

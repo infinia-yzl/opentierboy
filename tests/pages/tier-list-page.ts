@@ -2070,6 +2070,40 @@ export class TierListPage {
   async undoFromToast(text: string | RegExp, options?: {timeout?: number}) {
     await this.toast(text).getByRole('button', {name: 'Undo'}).click(options);
   }
+
+  // ---- History machine (tests/machines/history.ts) -----------------------------------------
+
+  /**
+   * Opens a list as a new history entry after a blank page, so no history entry follows it.
+   * Opening the address already on screen would replace its entry and keep the entries after it,
+   * from an earlier visit; the blank page in between drops them.
+   */
+  async openAfterBlankPage(path: string, state: string) {
+    await this.page.goto('about:blank');
+    await this.goto(path, state);
+  }
+
+  /** Drags the first item of the Unranked tray to the end of a tier: one change to the list. */
+  async rankFirstUnrankedItem(tierName: string) {
+    const name = await this.itemsIn(this.unranked).first().getAttribute('aria-label');
+    if (!name) throw new Error('The Unranked tray has no item to rank');
+    await this.dragItemToTier(name, tierName);
+  }
+
+  /** The browser's Back button. Returns once the address of the entry before is in the address bar. */
+  async goBack() {
+    await this.changeAndWaitForLink(async () => {
+      await this.page.goBack();
+    });
+  }
+
+  /**
+   * The browser's Forward button. With an entry after this one, page.goForward returns once its
+   * address is in the address bar; with none, the browser stays where it is and so does the address.
+   */
+  async goForward() {
+    await this.page.goForward();
+  }
 }
 
 type Box = {x: number; y: number; width: number; height: number};
