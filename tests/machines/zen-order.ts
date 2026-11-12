@@ -15,6 +15,7 @@ export type RankingOrderKey = typeof RANKING_ORDER_KEYS[number];
  */
 export const zenOrderMachine = createMachine({
   id: 'zenOrder',
+  description: 'Zen on and off, the Zen bar’s Ranking order and “Hide the queue”. Both stay when Zen goes off and on again; “Hide the queue” is unavailable in Pick freely but stays as it was.',
   schemas: {
     events: {
       TOGGLE_ZEN: types<{}>(),
@@ -87,7 +88,6 @@ const inZen = ({snapshot}: {snapshot: Snapshot}) => snapshot.matches({mode: 'on'
 
 export const zenOrderModel = defineModel({
   id: 'zen-order',
-  description: 'Zen on and off, the Zen bar’s Ranking order and “Hide the queue”. Both stay when Zen goes off and on again; “Hide the queue” is unavailable in Pick freely but stays as it was.',
   machine: zenOrderMachine,
   // The Zen toggle and the Zen bar are offered one at a time. "Hide the queue" is offered where
   // the menu lets it change: in Zen, outside Pick freely, to the other value (the page object

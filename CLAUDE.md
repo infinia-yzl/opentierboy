@@ -315,8 +315,7 @@ The file format, limits, reason codes and Recently viewed: `docs/reference/snaps
 - Unit tests: Vitest, `tests/unit/**/*.test.ts`, import app code through `@/`.
 - Keep tests cross-browser (Chromium, Firefox, WebKit).
 - Model-based tests: XState v6 machines in `tests/machines/`, walked by `@xstate/test`
-  (`tests/README.md`, "Model-based tests"). Change a machine with the behaviour it describes, then
-  run `npm run machines:diagrams`.
+  (`tests/README.md`, "Model-based tests"). Change a machine with the behaviour it describes.
 
 ## Code conventions
 

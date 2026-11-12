@@ -151,6 +151,7 @@ const hide = ({value, context}: {value: unknown; context: TipsContext}) => toEdi
  */
 export const tipsMachine = createMachine({
   id: 'tips',
+  description: 'The first-drag tip and the link-save and device-images toasts of one browser: one at a time, the others wait, an ended tip is seen, Hide tips turns them off and About turns them on again.',
   schemas: {
     context: types<TipsContext>(),
     events: {
@@ -222,7 +223,6 @@ const constant = fc.constant({});
 
 export const tipsModel = defineModel({
   id: 'tips',
-  description: 'The first-drag tip and the link-save and device-images toasts of one browser: one at a time, the others wait, an ended tip is seen, Hide tips turns them off and About turns them on again.',
   machine: tipsMachine,
   events: {
     OPEN_TEMPLATE: {generate: constant, weight: 0.5},
@@ -236,9 +236,9 @@ export const tipsModel = defineModel({
     HIDE_TIPS: {generate: constant, when: tipShows, weight: 2},
     SHOW_TIPS_AGAIN: {generate: constant, when: inEditor, weight: 0.5},
   },
-  // Each device image adds an item to Unranked, so the graph never ends: the diagram stops
-  // drawing once Unranked holds more than the template's 13 items. (propertyTest ignores
-  // stopWhen; maxCommands bounds the walk.)
+  // Each device image adds an item to Unranked, so the graph never ends: the reachable-state
+  // check stops exploring once Unranked holds more than the template's 13 items. (propertyTest
+  // ignores stopWhen; maxCommands bounds the walk.)
   stopWhen: (snapshot: Snapshot) => snapshot.context.unranked > TEMPLATE_ITEMS,
   // Few seeds take every transition: the device-images toast is three steps deep and needs a
   // fourth to end it. Of seeds 1 to 60 at 20 runs of up to 10 commands, only seed 21 does

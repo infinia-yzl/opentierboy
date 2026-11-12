@@ -26,8 +26,7 @@
     "test:unit": "vitest run",
     "check": "tsc --noEmit -p . && eslint . && vitest run && npm run check:images && npm run check:trusted-sites && npm run check:fixtures",
     "bench:drag": "node scripts/bench-drag.mjs",
-    "record:gifs": "node scripts/record-gifs.mjs",
-    "machines:diagrams": "vitest run tests/unit/machines --update"
+    "record:gifs": "node scripts/record-gifs.mjs"
   },
   "dependencies": {
     "@dnd-kit/abstract": "0.5.1",

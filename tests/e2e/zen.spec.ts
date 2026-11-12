@@ -551,7 +551,7 @@ test.describe('zen', () => {
       tierList, page,
     }, testInfo) => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      // attachAndAssertCoverage also fails when a run never entered a state of the diagram, such
+      // attachAndAssertCoverage also fails when a run never entered a reachable state, such
       // as Pick freely with the queue hidden out of Zen: one transition per event and region is not enough.
       const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, zenOrderModel, coverage);

@@ -252,24 +252,28 @@ disagree, and its error lists every step with the machine's state.
   such as a tooltip that takes an Escape. When the app changes on purpose, change the machine in
   the same pull request. When the app looks wrong, ask the owner, as for any test.
 - **The model file** exports the machine and a `defineModel({...})` (`tests/support/machines.ts`):
-  an `id` (the file name), a one-line `description`, the `events` the tests send (fast-check
+  an `id` (the file name), the `events` the tests send (fast-check
   generators, with `when` so an event is sent only where the page offers it), and the `walk`:
   every simple path (`testPaths`) for a small graph, or seeded random runs (`propertyTest`) for a
   graph too large to walk on every pull request. `revisits` adds a short seeded run for what simple
   paths skip, such as Zen turned off and on again. Add every model to `tests/machines/index.ts`.
+  The machine's root `description` says in one sentence what the machine describes.
 - **The campaign** sits at the end of its area's spec in a `describe('model')`. `reset` opens the
   start list through the URL, each event calls a page object action that waits for its result,
   and `states` holds web-first checks. `attachAndAssertCoverage` adds the coverage report to the
-  Playwright report and fails the test when the walk missed a state node, a transition or a state
-  of the diagram (see `assertFullCoverage` for why each is needed). Give each campaign
+  Playwright report and fails the test when the walk missed a state node, a transition or a
+  reachable state (see `assertFullCoverage` for why each is needed). Give each campaign
   `test.setTimeout(MODEL_CAMPAIGN_TIMEOUT)`, and bound every retrying wait in its actions
   (`toPass({timeout})`), so a stalled step fails with its own message. With
   `testInfo`, a failing campaign also attaches the failing run's trace, its `fixture.json` and a
   screenshot.
-- **Diagrams.** `docs/machines/<id>.md` draws each machine as a Mermaid diagram, which GitHub shows
-  in pull requests. After a change to a machine, run `npm run machines:diagrams`;
-  `tests/unit/machines/diagrams.test.ts` fails while a diagram is out of date, and it also runs each
-  walk without a browser, so a walk that misses a transition fails in `npm run check` first.
+- **Without a browser.** `tests/unit/machines/walks.test.ts` runs each model's walk on the machine
+  alone, so a walk that misses a state or a transition fails in `npm run check` first.
+- **Seeing a machine.** Open its file in the [Stately editor](https://stately.ai/blog/2026-11-05-xstate-v6-beta):
+  the Stately Editor VS Code extension opens it from the code, or run
+  `npx statelyai open tests/machines/<id>.ts`. The editor draws the machine from the file
+  itself, including the conditions of transition functions, so the picture matches the code at
+  every commit.
 - **Failures.** `@xstate/test` can save a failing sequence in `.xstate-test/` and replay it first
   next time; the folder is ignored by git. To keep a fixed bug's sequence as a regression test,
   replay its fixture with `replayTest(..., {expect: 'pass'})`.

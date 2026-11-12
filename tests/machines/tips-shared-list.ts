@@ -49,6 +49,7 @@ function openList(value: unknown, context: SharedListContext, {fresh}: {fresh: b
  */
 export const tipsSharedListMachine = createMachine({
   id: 'tipsSharedList',
+  description: 'The shared-list tip: it shows for a link opened fresh until the browser saw it or the link-save toast, ends with Close, Hide tips or the first change, and About turns it on again.',
   schemas: {
     context: types<SharedListContext>(),
     events: {
@@ -125,7 +126,6 @@ const constant = fc.constant({});
 
 export const tipsSharedListModel = defineModel({
   id: 'tips-shared-list',
-  description: 'The shared-list tip: it shows for a link opened fresh until the browser saw it or the link-save toast, ends with Close, Hide tips or the first change, and About turns it on again.',
   machine: tipsSharedListMachine,
   events: {
     OPEN_SHARED_LINK: constant,

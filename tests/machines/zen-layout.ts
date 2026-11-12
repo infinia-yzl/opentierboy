@@ -13,6 +13,7 @@ export type ZenLayoutKey = typeof ZEN_LAYOUT_KEYS[number];
  */
 export const zenLayoutMachine = createMachine({
   id: 'zenLayout',
+  description: 'Zen on and off, and the layout of the Zen bar’s Layout menu. The layout stays when Zen goes off and on again.',
   schemas: {
     events: {
       TOGGLE_ZEN: types<{}>(),
@@ -61,7 +62,6 @@ export function layoutOf(snapshot: Snapshot): ZenLayoutKey {
 
 export const zenLayoutModel = defineModel({
   id: 'zen-layout',
-  description: 'Zen on and off, and the layout of the Zen bar’s Layout menu. The layout stays when Zen goes off and on again.',
   machine: zenLayoutMachine,
   // The Zen toggle and the Zen bar are offered one at a time, so `when` sends each only where the
   // page shows it. Escape is offered everywhere: outside Zen, the page must ignore it.

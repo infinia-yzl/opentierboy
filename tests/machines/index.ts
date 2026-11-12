@@ -6,8 +6,8 @@ import {zenLayoutModel} from './zen-layout';
 import {zenOrderModel} from './zen-order';
 
 /**
- * Every model of tests/machines/. tests/unit/machines/diagrams.test.ts draws each one into
- * docs/machines/<id>.md and checks that its paths reach every state node and transition.
+ * Every model of tests/machines/. tests/unit/machines/walks.test.ts walks each one without a
+ * browser and checks that the walk reaches every state node, transition and reachable state.
  * Add a new machine's model here.
  */
 export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([

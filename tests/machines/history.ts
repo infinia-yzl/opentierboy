@@ -65,6 +65,7 @@ const goForward = ({context}: {context: HistoryContext}) => {
  */
 export const historyMachine = createMachine({
   id: 'history',
+  description: 'Browser history as the list’s undo: each change adds a version, Back and Forward step between versions, a change after Back drops the later ones, and label settings add no version.',
   schemas: {
     context: types<HistoryContext>(),
     events: {
@@ -96,7 +97,6 @@ type When = {snapshot: Snapshot};
 
 export const historyModel = defineModel({
   id: 'history',
-  description: 'Browser history as the list’s undo: each change adds a version, Back and Forward step between versions, a change after Back drops the later ones, and label settings add no version.',
   machine: historyMachine,
   events: {
     // Each change makes one more version, up to MAX_VERSIONS.
@@ -122,7 +122,7 @@ export const historyModel = defineModel({
   // Simple paths cannot walk this graph: Forward, and a change after Back, always lead to a
   // version the path has already shown, so no simple path takes them. Seeded random runs do.
   walk: {property: {seed: 14, numRuns: 5, maxCommands: 25}},
-  // Bounds the diagram's graph (testPaths' stopWhen); the walk stops at MAX_VERSIONS through
-  // CHANGE_LIST's `when`.
+  // Bounds the graph of the reachable-state check (stopWhen); the walk stops at MAX_VERSIONS
+  // through CHANGE_LIST's `when`.
   stopWhen: (snapshot) => snapshot.context.versions >= MAX_VERSIONS,
 });
