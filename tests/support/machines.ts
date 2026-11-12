@@ -61,9 +61,49 @@ type Walker = (machine: unknown, options: Record<string, unknown>) => Promise<{c
 const runPaths = testPaths as unknown as Walker;
 const runProperty = propertyTest as unknown as Walker;
 
+/**
+ * WebKit's page error for a Next.js link prefetch (an `?_rsc=` request) that a navigation cut
+ * off, such as `/127.0.0.1:3000/blog?_rsc=Zhvt… due to access control checks.` A run's `reset`
+ * opens a new page while the old page still prefetches its links (CI, PR #236).
+ */
+const ABORTED_PREFETCH = /\?_rsc=[^\s]+ due to access control checks\.$/;
+
+interface SutSession {
+  check?: () => unknown;
+}
+
+/**
+ * The sut, with its page oracles (createPlaywrightSut's `check`, README "Oracles") passing over
+ * aborted-prefetch errors only: a failure that lists any other message still fails the step.
+ */
+export function ignoringAbortedPrefetches<TSut>(sut: TSut): TSut {
+  const {create} = sut as {create: (...args: unknown[]) => unknown};
+  return {
+    ...sut,
+    create: async (...args: unknown[]) => {
+      const session = await create(...args) as SutSession;
+      const check = session.check;
+      if (!check) return session;
+      return {
+        ...session,
+        check: async () => {
+          try {
+            await check.call(session);
+          } catch (error) {
+            const {name, messages} = error as {name?: string; messages?: readonly string[]};
+            const noise = name === 'PlaywrightOracleError' && messages && messages.length > 0
+              && messages.every((message) => ABORTED_PREFETCH.test(message));
+            if (!noise) throw error;
+          }
+        },
+      };
+    },
+  };
+}
+
 /** Runs the model's walk against `sut`, and resolves with its coverage. */
 export async function walkModel(model: MachineModel, sut: unknown): Promise<TestCoverage> {
-  const shared = {events: model.events, sut, ...(model.stopWhen ? {stopWhen: model.stopWhen} : {})};
+  const shared = {events: model.events, sut: ignoringAbortedPrefetches(sut), ...(model.stopWhen ? {stopWhen: model.stopWhen} : {})};
   if ('paths' in model.walk) {
     const {coverage} = await runPaths(model.machine, {...shared, pathGenerator: model.walk.paths, samples: 1});
     return coverage;
@@ -75,7 +115,7 @@ export async function walkModel(model: MachineModel, sut: unknown): Promise<Test
 /** Runs the model's `revisits` run against `sut`, when it has one. */
 export async function walkRevisits(model: MachineModel, sut: unknown): Promise<TestCoverage | null> {
   if (!model.revisits) return null;
-  const {coverage} = await runProperty(model.machine, {events: model.events, sut, ...model.revisits, frontiers: 'auto'});
+  const {coverage} = await runProperty(model.machine, {events: model.events, sut: ignoringAbortedPrefetches(sut), ...model.revisits, frontiers: 'auto'});
   return coverage;
 }
 
