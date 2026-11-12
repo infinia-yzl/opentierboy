@@ -163,16 +163,43 @@ export function machineDiagramMarkdown(model: MachineModel): string {
   ].join('\n');
 }
 
+/** A state value as JSON with its keys sorted, so two spellings of one state compare equal. */
+function canonicalState(value: unknown): string {
+  const sorted = (node: unknown): unknown => (typeof node === 'string'
+    ? node
+    : Object.fromEntries(Object.keys(node as object).sort().map((key) => [key, sorted((node as Record<string, unknown>)[key])])));
+  return JSON.stringify(sorted(value));
+}
+
+/** The states the diagram draws, as canonical JSON state values. */
+export function diagramStates(model: MachineModel): string[] {
+  const adjacency = getAdjacencyMap(model.machine, {
+    events: sampleEvents(model.events),
+    ...(model.stopWhen ? {stopWhen: model.stopWhen} : {}),
+  });
+  return [...new Set(Object.values(adjacency).map(({state}) => canonicalState(state.value)))].sort();
+}
+
 /**
- * Fails unless the walk took every state node and transition. assertTestCoverage counts only
- * covered and uncovered ids, and a transition whose target a function computes (every v6 guard)
- * stays "unknown" until a run takes it, so unknown transitions fail too, as the official
- * model-based-testing example checks (`coverage.transitions.unknown` is empty).
+ * Fails unless the walk took every state node, transition and drawn state.
+ * - assertTestCoverage counts only covered and uncovered ids.
+ * - A transition whose target a function computes (every v6 guard) stays "unknown" until a run
+ *   takes it, so unknown transitions fail too, as the official model-based-testing example
+ *   checks (`coverage.transitions.unknown` is empty).
+ * - The states dimension lists only the states the runs entered, so a state no run reached is
+ *   missing from it without being "uncovered". Every state of the diagram must be covered.
  */
-export function assertFullCoverage(coverage: TestCoverage) {
+export function assertFullCoverage(model: MachineModel, coverage: TestCoverage) {
   assertTestCoverage(coverage, {stateNodes: 1, transitions: 1});
+  const problems: string[] = [];
   if (coverage.transitions.unknown.length > 0) {
-    throw new Error(`The walk took no run through these transitions: ${coverage.transitions.unknown.join(', ')}\n${formatTestCoverage(coverage)}`);
+    problems.push(`no run took these transitions: ${coverage.transitions.unknown.join(', ')}`);
+  }
+  const covered = new Set(coverage.states.covered.map((id) => canonicalState(JSON.parse(id))));
+  const missed = diagramStates(model).filter((state) => !covered.has(state));
+  if (missed.length > 0) problems.push(`no run entered these states of the diagram: ${missed.join(', ')}`);
+  if (problems.length > 0) {
+    throw new Error(`The walk of ${model.id} is incomplete: ${problems.join('; ')}\n${formatTestCoverage(coverage)}`);
   }
 }
 
@@ -189,5 +216,5 @@ export async function attachAndAssertCoverage(testInfo: TestInfo, model: Machine
     body: formatTestCoverage(coverage, {format: 'markdown'}),
     contentType: 'text/markdown',
   });
-  assertFullCoverage(coverage);
+  assertFullCoverage(model, coverage);
 }

@@ -6,7 +6,7 @@ import {imageFile, serveImageSite} from '../support/image-sites';
 import {rankingState} from '../support/links';
 import {attachAndAssertCoverage, walkModel} from '../support/machines';
 import {
-  orderOf, queueHiddenIn, stateNameOf, ZEN_ORDER_STATES, zenOrderModel, type RankingOrderKey, type ZenOrderEvent, type ZenOrderSnapshot,
+  orderOf, queueHiddenIn, zenOrderModel, type RankingOrderKey, type ZenOrderEvent, type ZenOrderSnapshot,
 } from '../machines/zen-order';
 
 const TANKS = '/rank/overwatch/tank';
@@ -512,7 +512,7 @@ test.describe('zen', () => {
     };
 
     /** The Zen ranking order machine's events and checks, run on this test's page (createPlaywrightSut). */
-    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, reached: Set<string>) => createPlaywrightSut<Page, ZenOrderSnapshot, ZenOrderEvent>(page, {
+    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, ZenOrderSnapshot, ZenOrderEvent>(page, {
       reset: () => tierList.goto(TANKS, TRAY_STATE),
       events: {
         TOGGLE_ZEN: () => tierList.setZenMode(true),
@@ -522,7 +522,6 @@ test.describe('zen', () => {
       },
       states: {
         '*': async (_page, snapshot) => {
-          reached.add(stateNameOf(snapshot));
           if (!snapshot.matches({mode: 'on'})) {
             // Out of Zen the tray is the editor's, whatever the order.
             await expect(tierList.zenBar).toHaveCount(0);
@@ -552,12 +551,10 @@ test.describe('zen', () => {
       tierList, page,
     }, testInfo) => {
       test.setTimeout(180_000);
-      const reached = new Set<string>();
-      const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo, reached));
+      // attachAndAssertCoverage also fails when a run never entered a state of the diagram, such
+      // as Pick freely with the queue hidden out of Zen: one transition per event and region is not enough.
+      const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, zenOrderModel, coverage);
-      // The coverage counts one transition per event and region, so it also passes when a state
-      // was never reached, such as Pick freely with the queue hidden out of Zen.
-      expect([...reached].sort(), 'states the runs reached').toEqual([...ZEN_ORDER_STATES].sort());
     });
   });
 });
