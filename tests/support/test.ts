@@ -6,6 +6,7 @@ import {TierListPage} from '../pages/tier-list-page';
 import {SitePage} from '../pages/site-page';
 import sharedLinks from '../fixtures/shared-links.json';
 import {sendBypassOnlyToSite} from './vercel-bypass';
+import {INSPECTOR_HOSTNAMES, modelInspectOn} from './model-inspect';
 
 export interface SharedLinkFixture {
   id: string;
@@ -199,6 +200,8 @@ const guardedFetch = Object.assign((input: string | URL | Request, init?: Reques
     return originalFetch(input, init); // not an absolute address: fetch() refuses it itself
   }
   if (!isExternal(url, SITE_URL_FROM_ENV)) return originalFetch(input, init);
+  // The hosted inspector opens its session with fetch(), only in a local run with MODEL_INSPECT=1.
+  if (modelInspectOn && url.protocol === 'https:' && INSPECTOR_HOSTNAMES.includes(url.hostname)) return originalFetch(input, init);
   currentBlockedList().push(url.href);
   const error = new TypeError(`Blocked a request to an external host: ${url.href}`);
   if (requestSink === null) throw error;

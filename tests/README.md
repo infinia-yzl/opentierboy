@@ -274,6 +274,20 @@ disagree, and its error lists every step with the machine's state.
   `npx statelyai open tests/machines/<id>.ts`. The editor draws the machine from the file
   itself, including the conditions of transition functions, so the picture matches the code at
   every commit.
+- **Watching a run.** With `MODEL_INSPECT=1`, each walk also drives a live XState actor of its
+  machine, one step after each page action, and streams it to Stately's hosted inspector
+  (`@statelyai/sdk`). The run prints `[Stately Inspector] <link>` once per worker: open that link
+  to watch the machine move while Playwright drives the page. One worker gives one link:
+
+  ```bash
+  MODEL_INSPECT=1 npx playwright test --project=chromium tests/e2e/zen-layouts.spec.ts -g model --workers=1
+  ```
+
+  The inspector receives the machine's definition and its steps from your run. It is free and
+  anonymous; the link is private and expires 24 hours after its last activity. CI never turns it
+  on, and `tests/support/test.ts` lets the test runner reach only `sky.stately.ai`, only for it.
+  If the inspector cannot connect, the run goes on without it. `STATELY_INSPECT_URL` points it at
+  another relay.
 - **Failures.** `@xstate/test` can save a failing sequence in `.xstate-test/` and replay it first
   next time; the folder is ignored by git. To keep a fixed bug's sequence as a regression test,
   replay its fixture with `replayTest(..., {expect: 'pass'})`.

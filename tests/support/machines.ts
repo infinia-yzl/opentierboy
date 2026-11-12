@@ -1,8 +1,10 @@
 import * as fc from 'fast-check';
 import type {TestInfo} from '@playwright/test';
 import {assertTestCoverage, formatTestCoverage, formatTestCoverageHTML, propertyTest, testPaths, type TestCoverage} from '@xstate/test';
-import type {AnyStateMachine, EventObject, SnapshotFrom} from 'xstate';
+import type {createInspector} from '@statelyai/sdk';
+import {createActor, type AnyStateMachine, type EventObject, type SnapshotFrom} from 'xstate';
 import {getAdjacencyMap} from 'xstate/graph';
+import {modelInspectOn} from './model-inspect';
 
 /**
  * Helpers for the model-based tests (tests/README.md, "Model-based tests"): XState v6 machines in
@@ -98,9 +100,75 @@ export function ignoringAbortedPrefetches<TSut>(sut: TSut): TSut {
   };
 }
 
+type Inspector = ReturnType<typeof createInspector>;
+/** This worker's inspector: undefined until the first walk asks, null when it is off or failed. */
+let workerInspector: Inspector | null | undefined;
+
+/**
+ * Stately's hosted inspector (@statelyai/sdk, createInspector), one per worker, in a local run
+ * with MODEL_INSPECT=1 (tests/support/model-inspect.ts). The SDK prints its private link. If
+ * it cannot connect, the walk runs without it.
+ */
+async function liveInspector(): Promise<Inspector | null> {
+  if (!modelInspectOn) return null;
+  if (workerInspector !== undefined) return workerInspector;
+  // Loaded only when the inspector is on. The SDK is an ES module only, which Playwright's
+  // CommonJS test files reach with import().
+  const sdk = await import('@statelyai/sdk');
+  const inspector = sdk.createInspector({launch: 'none', name: 'OpenTierBoy model tests'});
+  try {
+    await inspector.ready; // the SDK prints the private link: "[Stately Inspector] <link>"
+    workerInspector = inspector;
+  } catch (error) {
+    console.warn(`The Stately inspector did not connect, so this run is not inspected: ${String(error)}`);
+    workerInspector = null;
+  }
+  return workerInspector;
+}
+
+interface SendingSession {
+  send: (event: EventObject, context: unknown) => unknown;
+  dispose?: (result: unknown) => unknown;
+}
+
+/**
+ * The sut, with each run mirrored on a live actor of the model's machine: after the page
+ * performs an event, the actor takes the same event, so the inspector shows the machine moving
+ * in step with the page. Without the inspector, the sut as it is.
+ */
+async function withLiveInspector<TSut>(model: MachineModel, sut: TSut): Promise<TSut> {
+  const inspector = await liveInspector();
+  if (!inspector) return sut;
+  const {create} = sut as {create: (...args: unknown[]) => unknown};
+  return {
+    ...sut,
+    create: async (...args: unknown[]) => {
+      const session = await create(...args) as SendingSession;
+      const actor = createActor(model.machine, {inspect: inspector.inspect});
+      actor.start();
+      return {
+        ...session,
+        send: async (event: EventObject, context: unknown) => {
+          await session.send(event, context);
+          actor.send(event);
+        },
+        dispose: async (result: unknown) => {
+          actor.stop();
+          await session.dispose?.(result);
+        },
+      };
+    },
+  };
+}
+
+/** The sut as every walk runs it: aborted prefetches passed over, and the live inspector when on. */
+async function walkSut(model: MachineModel, sut: unknown): Promise<unknown> {
+  return withLiveInspector(model, ignoringAbortedPrefetches(sut));
+}
+
 /** Runs the model's walk against `sut`, and resolves with its coverage. */
 export async function walkModel(model: MachineModel, sut: unknown): Promise<TestCoverage> {
-  const shared = {events: model.events, sut: ignoringAbortedPrefetches(sut), ...(model.stopWhen ? {stopWhen: model.stopWhen} : {})};
+  const shared = {events: model.events, sut: await walkSut(model, sut), ...(model.stopWhen ? {stopWhen: model.stopWhen} : {})};
   if ('paths' in model.walk) {
     const {coverage} = await runPaths(model.machine, {...shared, pathGenerator: model.walk.paths, samples: 1});
     return coverage;
@@ -112,7 +180,7 @@ export async function walkModel(model: MachineModel, sut: unknown): Promise<Test
 /** Runs the model's `revisits` run against `sut`, when it has one. */
 export async function walkRevisits(model: MachineModel, sut: unknown): Promise<TestCoverage | null> {
   if (!model.revisits) return null;
-  const {coverage} = await runProperty(model.machine, {events: model.events, sut: ignoringAbortedPrefetches(sut), ...model.revisits, frontiers: 'auto'});
+  const {coverage} = await runProperty(model.machine, {events: model.events, sut: await walkSut(model, sut), ...model.revisits, frontiers: 'auto'});
   return coverage;
 }
 
