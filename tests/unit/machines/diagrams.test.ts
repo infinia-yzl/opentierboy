@@ -22,6 +22,7 @@ describe.each(MACHINE_MODELS.map((model) => [model.id, model] as const))('machin
     const coverage = await walkModel(model, idleSut);
     expect(coverage.stateNodes.uncovered).toEqual([]);
     expect(coverage.transitions.uncovered).toEqual([]);
+    expect(coverage.transitions.unknown).toEqual([]);
     await walkRevisits(model, idleSut);
   });
 });

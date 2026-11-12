@@ -59,6 +59,7 @@ Projects (see `playwright.config.ts`):
 tests/
   e2e/            Playwright specs: one file per UI area or route (see "Where a test goes")
   pages/          page objects: every selector and every user action (tier-list-page.ts, site-page.ts)
+  machines/       XState v6 models of UI areas, walked by the model-based tests (see "Model-based tests")
   support/        Playwright fixtures and helpers: links, image sites, snapshot files
   fixtures/       golden links and link states, golden snapshot files, images to upload (append-only)
   unit/           Vitest unit tests, at the same paths as the code they test
@@ -237,6 +238,41 @@ git checkout imageset.config.json              # back to the real config, then b
 
 While the made-up config is in place, the guard in `tests/unit/rules/image-shapes.test.ts` fails on
 purpose.
+
+## Model-based tests
+
+Some areas also have a model: an XState v6 machine in `tests/machines/` that describes what the
+area does, state by state. [`@xstate/test`](https://github.com/statelyai/xstate/tree/next/packages/xstate-test#readme)
+2.0 walks the machine and runs every walk against the page through its Playwright adapter,
+`createPlaywrightSut` (the [XState v6 guide](https://stately.ai/docs/xstate/v6/model-based-testing)
+and the package README are the reference). A model test fails when the page and the machine
+disagree, and its error lists every step with the machine's state.
+
+- **A machine describes intended behaviour.** It mirrors what the page shows, including details
+  such as a tooltip that takes an Escape. When the app changes on purpose, change the machine in
+  the same pull request. When the app looks wrong, ask the owner, as for any test.
+- **The model file** exports the machine and a `defineModel({...})` (`tests/support/machines.ts`):
+  an `id` (the file name), a one-line `description`, the `events` the tests send (fast-check
+  generators, with `when` so an event is sent only where the page offers it), and the `walk`:
+  every simple path (`testPaths`) for a small graph, or seeded random runs (`propertyTest`) for a
+  graph too large to walk on every pull request. `revisits` adds a short seeded run for what simple
+  paths skip, such as Zen turned off and on again. Add every model to `tests/machines/index.ts`.
+- **The campaign** sits at the end of its area's spec in a `describe('model')`. `reset` opens the
+  start list through the URL, each event calls a page object action that waits for its result,
+  and `states` holds web-first checks. `attachAndAssertCoverage` adds the coverage report to the
+  Playwright report and fails the test when the walk missed a state node or a transition. With
+  `testInfo`, a failing campaign also attaches the failing run's trace, its `fixture.json` and a
+  screenshot.
+- **Diagrams.** `docs/machines/<id>.md` draws each machine as a Mermaid diagram, which GitHub shows
+  in pull requests. After a change to a machine, run `npm run machines:diagrams`;
+  `tests/unit/machines/diagrams.test.ts` fails while a diagram is out of date, and it also runs each
+  walk without a browser, so a walk that misses a transition fails in `npm run check` first.
+- **Failures.** `@xstate/test` can save a failing sequence in `.xstate-test/` and replay it first
+  next time; the folder is ignored by git. To keep a fixed bug's sequence as a regression test,
+  replay its fixture with `replayTest(..., {expect: 'pass'})`.
+- **XState v6 syntax.** Targets are objects (`{target: 'on'}`); guards and context changes are
+  transition functions that return `{target, context}` or `undefined`. Read the current state from
+  the transition function's `value` argument: `self.getSnapshot()` fails while the graph is walked.
 
 ## Test names
 

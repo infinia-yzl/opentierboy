@@ -164,6 +164,19 @@ export function machineDiagramMarkdown(model: MachineModel): string {
 }
 
 /**
+ * Fails unless the walk took every state node and transition. assertTestCoverage counts only
+ * covered and uncovered ids, and a transition whose target a function computes (every v6 guard)
+ * stays "unknown" until a run takes it, so unknown transitions fail too, as the official
+ * model-based-testing example checks (`coverage.transitions.unknown` is empty).
+ */
+export function assertFullCoverage(coverage: TestCoverage) {
+  assertTestCoverage(coverage, {stateNodes: 1, transitions: 1});
+  if (coverage.transitions.unknown.length > 0) {
+    throw new Error(`The walk took no run through these transitions: ${coverage.transitions.unknown.join(', ')}\n${formatTestCoverage(coverage)}`);
+  }
+}
+
+/**
  * Attaches the coverage report to the Playwright report (formatTestCoverageHTML and the text of
  * formatTestCoverage), then fails the test unless the run took every state node and transition.
  */
@@ -176,5 +189,5 @@ export async function attachAndAssertCoverage(testInfo: TestInfo, model: Machine
     body: formatTestCoverage(coverage, {format: 'markdown'}),
     contentType: 'text/markdown',
   });
-  assertTestCoverage(coverage, {stateNodes: 1, transitions: 1});
+  assertFullCoverage(coverage);
 }
