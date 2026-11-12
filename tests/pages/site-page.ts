@@ -246,6 +246,13 @@ export class SitePage {
     return this.recentlyViewed.getByRole('link', {name, exact: true});
   }
 
+  /** Opens the home page and the list named `name` in Recently viewed (a move inside the site). */
+  async openRecentLink(name: string) {
+    await this.gotoHome();
+    await this.recentLink(name).click();
+    await expect(this.main.getByRole('heading', {level: 1, name, exact: true})).toBeVisible();
+  }
+
   /** The pin toggle of a recently viewed list (pressed when pinned). */
   recentPinButton(name: string): Locator {
     return this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true});

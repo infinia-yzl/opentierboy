@@ -102,6 +102,52 @@ export class Tips {
     await expect(this.page.getByRole('listitem').filter({hasText: 'The tips will show again'})).toBeVisible();
   }
 
+  // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
+
+  /**
+   * Leaves the site and empties this browser's storage (local storage, IndexedDB, cookies), so
+   * the next page opens as in a browser that never visited OpenTierBoy. The tab and its page
+   * clock stay.
+   */
+  async forgetThisBrowser() {
+    await this.page.goto('about:blank');
+    await this.page.context().setStorageState({cookies: [], origins: []});
+  }
+
+  /** The toast of the tip on screen (at most one shows). */
+  get tipToast(): Locator {
+    return this.linkSaveToast.or(this.deviceImagesToast);
+  }
+
+  /**
+   * The toast of the tip on screen, by its title: the next tip's toast may take its place, and
+   * an action waits for this one only.
+   */
+  private async shownTipToast(): Promise<Locator> {
+    await expect(this.tipToast).toHaveCount(1);
+    return await this.linkSaveToast.count() > 0 ? this.linkSaveToast : this.deviceImagesToast;
+  }
+
+  /** Closes the tip's toast with its close button. */
+  async closeTipToast() {
+    await this.closeToast(await this.shownTipToast());
+  }
+
+  /**
+   * Lets the tip's toast time out: the pointer leaves the toasts (a toast under the pointer
+   * waits), then the page clock runs 10 s ahead (EditorTips.tsx, TIP_TOAST_MS). Needs
+   * page.clock.install() before the page opened. The toast's timer starts again in an effect
+   * after the pointer leaves, so the clock runs again until the toast is gone.
+   */
+  async waitOutTipToast() {
+    const toast = await this.shownTipToast();
+    await this.page.mouse.move(0, 0);
+    await expect(async () => {
+      await this.page.clock.runFor(10_000);
+      await expect(toast).toBeHidden({timeout: 2_000});
+    }).toPass();
+  }
+
   /** What local storage keeps under `otb-tips`, or null. */
   async stored(): Promise<StoredTips | null> {
     const raw = await this.page.evaluate(() => localStorage.getItem('otb-tips'));

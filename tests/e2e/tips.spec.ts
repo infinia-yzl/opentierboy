@@ -1,7 +1,19 @@
 /** The one-time tips for first-time visitors (components/EditorTips.tsx, lib/tips/tips.ts). */
+import type {Locator, Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
 import {imageFile} from '../support/image-sites';
+import {attachAndAssertCoverage, walkModel} from '../support/machines';
+import type {TierListPage} from '../pages/tier-list-page';
+import type {SitePage} from '../pages/site-page';
+import {TIP_IDS, tipsEditorState, tipsModel, type StoredTips, type TipsEvent, type TipsSnapshot} from '../machines/tips';
+import {
+  sharedListEditorState,
+  tipsSharedListModel,
+  type TipsSharedListEvent,
+  type TipsSharedListSnapshot,
+} from '../machines/tips-shared-list';
 import {
   FIRST_DRAG_KEYBOARD,
   FIRST_DRAG_MOUSE,
@@ -295,6 +307,112 @@ test.describe('tips', () => {
 
       await expect(tips.firstDrag).toBeVisible();
       expect(await tips.stored()).toEqual({seen: [], off: false});
+    });
+  });
+
+  test.describe('model', () => {
+    /** `otb-tips` with the seen tips in the order of TIP_IDS, as the machines keep them. */
+    const storedInOrder = async (tips: Tips): Promise<StoredTips | null> => {
+      const stored = await tips.stored();
+      return stored && {seen: TIP_IDS.filter((id) => stored.seen.includes(id)), off: stored.off};
+    };
+
+    /** The tip on screen (or none) and what `otb-tips` holds, in the editor or on About. */
+    const expectTips = async (tips: Tips, shown: Locator | null, stored: StoredTips) => {
+      if (shown) await expect(shown).toBeVisible();
+      await expect(tips.all).toHaveCount(shown ? 1 : 0);
+      await expect.poll(() => storedInOrder(tips)).toEqual(stored);
+    };
+
+    /**
+     * The tips machine's events and checks (createPlaywrightSut). Each run starts as a new
+     * browser on the template; the page clock lets a toast time out without waiting 10 s.
+     */
+    const tipsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      const tips = new Tips(page);
+      let changes = 0;
+      return createPlaywrightSut<Page, TipsSnapshot, TipsEvent>(page, {
+        reset: async () => {
+          await tips.forgetThisBrowser();
+          await tierList.goto(TANKS);
+        },
+        events: {
+          OPEN_TEMPLATE: () => tierList.goto(TANKS),
+          OPEN_EMPTY_LIST: () => tierList.goto('/rank'),
+          DROP_IN_ROW: () => tierList.dragFirstUnrankedItemToTier('S'),
+          CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
+          ADD_DEVICE_IMAGE: () => tierList.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
+          CLOSE_TIP: () => tips.close(),
+          CLOSE_TOAST: () => tips.closeTipToast(),
+          TOAST_TIMES_OUT: () => tips.waitOutTipToast(),
+          HIDE_TIPS: () => tips.hideTips(),
+          SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
+        },
+        states: {
+          about: async (_page, snapshot) => {
+            await expect.poll(() => storedInOrder(tips)).toEqual({seen: snapshot.context.seen, off: false});
+          },
+          '*': async (_page, snapshot) => {
+            const state = tipsEditorState(snapshot);
+            const shown = state === 'firstDragTip' ? tips.firstDrag
+              : state === 'linkSaveToast' ? tips.linkSaveToast
+                : state === 'deviceImagesToast' ? tips.deviceImagesToast
+                  : null;
+            await expectTips(tips, shown, {seen: snapshot.context.seen, off: state === 'tipsOff'});
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    /** The shared-list machine's events and checks. Each run starts as a new browser on the friend's link. */
+    const sharedListSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
+      const tips = new Tips(page);
+      let changes = 0;
+      return createPlaywrightSut<Page, TipsSharedListSnapshot, TipsSharedListEvent>(page, {
+        reset: async () => {
+          await tips.forgetThisBrowser();
+          await tierList.goto(TANKS, SHARED);
+        },
+        events: {
+          OPEN_SHARED_LINK: () => tierList.goto(TANKS, SHARED),
+          OPEN_FROM_RECENTLY_VIEWED: () => site.openRecentLink('Tanks by a friend'),
+          CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
+          CLOSE_TIP: () => tips.close(),
+          CLOSE_TOAST: () => tips.closeTipToast(),
+          HIDE_TIPS: () => tips.hideTips(),
+          SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
+        },
+        states: {
+          about: async (_page, snapshot) => {
+            await expect.poll(() => storedInOrder(tips)).toEqual({seen: snapshot.context.seen, off: false});
+          },
+          '*': async (_page, snapshot) => {
+            const state = sharedListEditorState(snapshot);
+            const shown = state === 'sharedListTip' ? tips.sharedList : state === 'linkSaveToast' ? tips.linkSaveToast : null;
+            await expectTips(tips, shown, {seen: snapshot.context.seen, off: state === 'tipsOff'});
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the tips machine when the user walks its seeded runs from a new browser', async ({tierList, page}, testInfo) => {
+      test.setTimeout(180_000);
+      // Before the first page opens, so TOAST_TIMES_OUT can run the page clock.
+      await page.clock.install();
+      const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, tipsModel, coverage);
+    });
+
+    // No page clock here: Playwright's clock gives the page no navigation entry
+    // (performance.getEntriesByType('navigation') is empty), so the shared-list tip never shows.
+    test('renders each state of the shared-list tip machine when the user walks its seeded runs from a friend\'s link', async ({tierList, site, page}, testInfo) => {
+      test.setTimeout(180_000);
+      const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo));
+      await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage);
     });
   });
 });

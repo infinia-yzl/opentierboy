@@ -2104,6 +2104,23 @@ export class TierListPage {
   async goForward() {
     await this.page.goForward();
   }
+
+  // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
+
+  /** Drags the first item of Unranked to the end of a row. Returns once the link is written. */
+  async dragFirstUnrankedItemToTier(tierName: string) {
+    // Item tiles only: the first-drag tip puts its "Hide tips" and "Close tip" buttons in the tray.
+    const [name] = await this.itemsIn(this.unranked).evaluateAll((items) => items
+      .filter((item) => item.getAttribute('aria-roledescription') === 'draggable')
+      .map((item) => item.getAttribute('aria-label')));
+    if (!name) throw new Error('Unranked holds no item');
+    await this.dragItemToTier(name, tierName);
+  }
+
+  /** Uploads pictures from the device, and returns once the link holds them. */
+  async addItemsFromDeviceAndWaitForLink(files: DeviceFiles) {
+    await this.changeAndWaitForLink(() => this.addItemsFromDevice(files));
+  }
 }
 
 type Box = {x: number; y: number; width: number; height: number};
