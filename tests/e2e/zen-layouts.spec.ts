@@ -2,9 +2,9 @@ import type {Page, TestInfo} from '@playwright/test';
 import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
-import {attachAndAssertCoverage, walkModel, walkRevisits, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
-import {layoutOf, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutKey, type ZenLayoutSnapshot} from '../machines/zen-layout';
+import {layoutOf, ZEN_LAYOUT_NAMES, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutSnapshot} from '../models/zen-layout';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -660,8 +660,6 @@ test.describe('zen layouts', () => {
   // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/zen-layout.ts walked
   // through the Playwright adapter of @xstate/test.
   test.describe('model', () => {
-    const LAYOUT_NAMES: Record<ZenLayoutKey, ZenLayoutName> = {editor: 'Editor', wide: '16:9', tall: '9:16', overlay: 'Overlay · green key'};
-
     /** The Zen layout machine's events and checks, run on this test's page (createPlaywrightSut). */
     const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, ZenLayoutSnapshot, ZenLayoutEvent>(page, {
       reset: () => tierList.goto(TANKS, LIST),
@@ -669,12 +667,16 @@ test.describe('zen layouts', () => {
         TOGGLE_ZEN: () => tierList.setZenMode(true),
         EXIT_ZEN: () => tierList.setZenMode(false),
         PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
-        CHOOSE_LAYOUT: (_page, event) => tierList.chooseLayout(LAYOUT_NAMES[event.layout]),
+        CHOOSE_EDITOR: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.editor),
+        CHOOSE_WIDE: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.wide),
+        CHOOSE_TALL: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.tall),
+        CHOOSE_OVERLAY: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
       },
       states: {
         '*': async (_page, snapshot) => {
-          if (snapshot.matches({mode: 'on'})) {
-            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${LAYOUT_NAMES[layoutOf(snapshot)]}`);
+          const layout = layoutOf(snapshot);
+          if (layout) {
+            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${ZEN_LAYOUT_NAMES[layout]}`);
           } else {
             await expect(tierList.zenBar).toHaveCount(0);
           }
@@ -684,16 +686,10 @@ test.describe('zen layouts', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    // A campaign opens the list once per path or run: about 2.5 s each on Chromium.
-    test('renders each state of the Zen layout machine when the user walks its simple paths', async ({tierList, page}, testInfo) => {
+    test('renders each state of the Zen layout machine when the user walks every transition', async ({tierList, page}, testInfo) => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage);
-    });
-
-    test('renders each state of the Zen layout machine when the user turns Zen off and on again in seeded runs', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      await walkRevisits(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
     });
   });
 });

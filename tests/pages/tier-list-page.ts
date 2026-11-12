@@ -571,11 +571,12 @@ export class TierListPage {
     let dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
 
-    const from = await centerOf(handle);
     const mouse = this.page.mouse;
     // A press starts no drag while the previous drop still animates (about 300 ms), so the
-    // helper presses again until the drag starts.
+    // helper presses again until the drag starts. Each try measures the item again, in case
+    // the page moved it since the last try.
     await expect(async () => {
+      const from = await centerOf(handle);
       await mouse.move(from.x, from.y);
       await mouse.down();
       // A mouse drag starts only after the pointer moves a few pixels.
@@ -586,7 +587,7 @@ export class TierListPage {
         await mouse.up();
         throw error;
       });
-    }, 'the drag should start').toPass();
+    }, 'the drag should start').toPass({timeout: 30_000});
 
     await expect(async () => {
       const scroll = await this.scrollPosition();

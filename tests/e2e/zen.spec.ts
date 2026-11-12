@@ -6,8 +6,8 @@ import {imageFile, serveImageSite} from '../support/image-sites';
 import {rankingState} from '../support/links';
 import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import {
-  orderOf, queueHiddenIn, zenOrderModel, type RankingOrderKey, type ZenOrderEvent, type ZenOrderSnapshot,
-} from '../machines/zen-order';
+  orderOf, queueHiddenIn, RANKING_ORDER_NAMES, zenOrderModel, type ZenOrderEvent, type ZenOrderSnapshot,
+} from '../models/zen-order';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -485,10 +485,6 @@ test.describe('zen', () => {
   });
 
   test.describe('model', () => {
-    const ORDER_NAMES: Record<RankingOrderKey, Parameters<TierListPage['chooseRankingOrder']>[0]> = {
-      pickFreely: 'Pick freely', inOrder: 'In order', shuffle: 'Shuffle',
-    };
-
     /** The Unranked tray in Zen with In order or Shuffle: the item up next first, then the queue. */
     const expectUpNext = async (tierList: TierListPage, snapshot: ZenOrderSnapshot) => {
       await expect(tierList.unranked.getByRole('heading', {level: 2})).toHaveText('Up next');
@@ -517,12 +513,16 @@ test.describe('zen', () => {
       events: {
         TOGGLE_ZEN: () => tierList.setZenMode(true),
         EXIT_ZEN: () => tierList.setZenMode(false),
-        CHOOSE_ORDER: (_page, event) => tierList.chooseRankingOrder(ORDER_NAMES[event.order]),
-        SET_HIDE_QUEUE: (_page, event) => tierList.setHideQueue(event.hide),
+        CHOOSE_PICK_FREELY: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.pickFreely),
+        CHOOSE_IN_ORDER: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.inOrder),
+        CHOOSE_SHUFFLE: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.shuffle),
+        HIDE_QUEUE: () => tierList.setHideQueue(true),
+        SHOW_QUEUE: () => tierList.setHideQueue(false),
       },
       states: {
         '*': async (_page, snapshot) => {
-          if (!snapshot.matches({mode: 'on'})) {
+          const order = orderOf(snapshot);
+          if (!order) {
             // Out of Zen the tray is the editor's, whatever the order.
             await expect(tierList.zenBar).toHaveCount(0);
             await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
@@ -530,8 +530,8 @@ test.describe('zen', () => {
             await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
             return;
           }
-          await expect(tierList.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${ORDER_NAMES[orderOf(snapshot)]}`);
-          if (orderOf(snapshot) !== 'pickFreely') {
+          await expect(tierList.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${RANKING_ORDER_NAMES[order]}`);
+          if (order !== 'pickFreely') {
             await expectUpNext(tierList, snapshot);
             return;
           }
@@ -546,13 +546,8 @@ test.describe('zen', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    // Seeded runs (tests/machines/zen-order.ts): each opens the list once, about 2.5 s on Chromium.
-    test('renders each state of the Zen ranking order machine when the user changes the order and Zen in seeded runs', async ({
-      tierList, page,
-    }, testInfo) => {
+    test('renders each state of the Zen ranking order machine when the user walks every transition', async ({tierList, page}, testInfo) => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      // attachAndAssertCoverage also fails when a run never entered a reachable state, such
-      // as Pick freely with the queue hidden out of Zen: one transition per event and region is not enough.
       const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, zenOrderModel, coverage);
     });

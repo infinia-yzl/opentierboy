@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
-import {MACHINE_MODELS} from '../../machines';
-import {assertFullCoverage, walkModel, walkRevisits} from '../../support/machines';
+import {MACHINE_MODELS} from '../../models';
+import {assertFullCoverage, walkModel} from '../../support/machines';
 
 /**
  * The machines of tests/machines/, walked without a browser: each walk, the one its Playwright
@@ -13,6 +13,5 @@ describe.each(MACHINE_MODELS.map((model) => [model.id, model] as const))('machin
   it('returns every state node, transition and reachable state when the model walks without a browser', async () => {
     const coverage = await walkModel(model, idleSut);
     expect(() => assertFullCoverage(model, coverage)).not.toThrow();
-    await walkRevisits(model, idleSut);
   });
 });

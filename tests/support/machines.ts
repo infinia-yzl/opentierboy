@@ -1,23 +1,23 @@
 import * as fc from 'fast-check';
 import type {TestInfo} from '@playwright/test';
-import {assertTestCoverage, formatTestCoverage, formatTestCoverageHTML, propertyTest, testPaths, type TestCoverage} from '@xstate/test';
+import {assertTestCoverage, formatTestCoverage, formatTestCoverageHTML, testPaths, type TestCoverage} from '@xstate/test';
 import type {createInspector} from '@statelyai/sdk';
-import {createActor, type AnyStateMachine, type EventObject, type SnapshotFrom} from 'xstate';
-import {getAdjacencyMap} from 'xstate/graph';
+import {createActor, type AnyMachineSnapshot, type AnyStateMachine, type EventObject} from 'xstate';
+import {getAdjacencyMap, getPathsFromEvents, type AdjacencyValue} from 'xstate/graph';
 import {modelInspectOn} from './model-inspect';
 
 /**
  * Helpers for the model-based tests (tests/README.md, "Model-based tests"): XState v6 machines in
- * tests/machines/, walked by @xstate/test 2.0 (testPaths, propertyTest) through the official
- * Playwright adapter (@xstate/test/playwright, createPlaywrightSut).
+ * tests/machines/, walked by @xstate/test 2.0 (testPaths) through the official Playwright
+ * adapter (@xstate/test/playwright, createPlaywrightSut).
  *
- * A machine file exports a `MachineModel`: the machine, the event cases the tests send (the
- * `events` option of testPaths and propertyTest), and the bounds of its graph. To see a machine,
- * open its file in the Stately editor (tests/README.md, "Model-based tests").
+ * A machine file in tests/machines/ holds only its machine, with every target written out, so
+ * the file pastes into the Stately editor as it is. Its model in tests/models/ is a `MachineModel`:
+ * the machine and the event cases the tests send (the `events` option of testPaths).
  */
 
 /**
- * The `events` option of testPaths and propertyTest: by event type, a fast-check generator, a
+ * The `events` option of testPaths: by event type, a fast-check generator, a
  * descriptor with `generate` (and `case`, `when`), or an array of them (README, "Events").
  * Typed as testPaths checks them in each spec; here only the generators are read.
  */
@@ -25,40 +25,31 @@ export type ModelEvents = Readonly<Record<string, unknown>>;
 
 type EventCase = fc.Arbitrary<unknown> | {readonly generate: fc.Arbitrary<unknown>};
 
-export interface MachineModel<TMachine extends AnyStateMachine = AnyStateMachine> {
-  /** The machine file's name and the title of the coverage report, such as 'zen-layout'. */
-  readonly id: string;
-  readonly machine: TMachine;
-  readonly events: ModelEvents;
-  /** Bounds a graph whose context grows without end (testPaths' `stopWhen`). */
-  readonly stopWhen?: (snapshot: SnapshotFrom<TMachine>) => boolean;
-  /**
-   * How the tests walk the machine, as the v6 guide advises: every simple path of a finite graph
-   * (`testPaths`), or seeded random sequences for a graph too large to walk (`propertyTest`).
-   * The walk must reach every state node and transition (attachAndAssertCoverage).
-   */
-  readonly walk: {readonly paths: 'simple'} | {readonly property: PropertyWalk};
-  /**
-   * A short seeded propertyTest after the walk, for revisits that simple paths skip (a state
-   * entered a second time, such as Zen turned off and on again). Omit when `walk` is a property walk.
-   */
-  readonly revisits?: PropertyWalk;
+/** What an event case's `when` receives. */
+export interface When {
+  readonly snapshot: AnyMachineSnapshot;
 }
 
-/** The options of a seeded propertyTest run. */
-export interface PropertyWalk {
-  readonly seed: number;
-  readonly numRuns: number;
-  readonly maxCommands: number;
+/** A `when` that sends the event wherever the walk is: the page must ignore it where the machine does. */
+export const always = (_args: When) => true;
+
+/** A `when` that sends the event only where the machine takes it (snapshot.can). */
+export const offered = (type: string) => ({snapshot}: When) => snapshot.can({type});
+
+export interface MachineModel<TMachine extends AnyStateMachine = AnyStateMachine> {
+  /** The machine's file name and the title of the coverage report, such as 'zen-layout'. */
+  readonly id: string;
+  readonly machine: TMachine;
+  /** The events the tests send, with `when` so each is sent only where the page offers it. */
+  readonly events: ModelEvents;
 }
 
 /**
- * testPaths and propertyTest, with their options untyped: a model's events and sut follow its own
- * machine's types, which this shared helper does not know. Each spec still types its sut.
+ * testPaths, with its options untyped: a model's events and sut follow its own machine's types,
+ * which this shared helper does not know. Each spec still types its sut.
  */
 type Walker = (machine: unknown, options: Record<string, unknown>) => Promise<{coverage: TestCoverage}>;
 const runPaths = testPaths as unknown as Walker;
-const runProperty = propertyTest as unknown as Walker;
 
 /**
  * WebKit's page error for a Next.js link prefetch (an `?_rsc=` request) that a navigation cut
@@ -166,31 +157,24 @@ async function walkSut(model: MachineModel, sut: unknown): Promise<unknown> {
   return withLiveInspector(model, ignoringAbortedPrefetches(sut));
 }
 
-/** Runs the model's walk against `sut`, and resolves with its coverage. */
+/**
+ * Runs the model's walk (walkPaths) against `sut` with testPaths, and resolves with its
+ * coverage.
+ */
 export async function walkModel(model: MachineModel, sut: unknown): Promise<TestCoverage> {
-  const shared = {events: model.events, sut: await walkSut(model, sut), ...(model.stopWhen ? {stopWhen: model.stopWhen} : {})};
-  if ('paths' in model.walk) {
-    const {coverage} = await runPaths(model.machine, {...shared, pathGenerator: model.walk.paths, samples: 1});
-    return coverage;
-  }
-  const {coverage} = await runProperty(model.machine, {...shared, ...model.walk.property});
-  return coverage;
-}
-
-/** Runs the model's `revisits` run against `sut`, when it has one. */
-export async function walkRevisits(model: MachineModel, sut: unknown): Promise<TestCoverage | null> {
-  if (!model.revisits) return null;
-  const {coverage} = await runProperty(model.machine, {events: model.events, sut: await walkSut(model, sut), ...model.revisits, frontiers: 'auto'});
+  const paths = walkPaths(model).flatMap((events) => getPathsFromEvents(model.machine, events));
+  const {coverage} = await runPaths(model.machine, {events: model.events, sut: await walkSut(model, sut), paths});
   return coverage;
 }
 
 /**
- * The time limit of one model campaign. A campaign opens the list once per path or run (about
- * 2.5 s each on Chromium, alone), and Firefox, WebKit and busy CI runners are slower.
+ * The time limit of one model campaign. A campaign opens the list once per path (about 2.5 s
+ * on Chromium, alone) and takes up to about 250 steps, and Firefox, WebKit and busy CI runners
+ * are slower.
  */
 export const MODEL_CAMPAIGN_TIMEOUT = 360_000;
 
-/** Ties a machine file's model to its machine's types. */
+/** Ties a model to its machine's types. */
 export function defineModel<TMachine extends AnyStateMachine>(model: MachineModel<TMachine>): MachineModel<TMachine> {
   return Object.freeze(model);
 }
@@ -209,6 +193,136 @@ export function sampleEvents(events: ModelEvents): EventObject[] {
   });
 }
 
+/** The model's events that its `when` sends in `snapshot`: one sample of each event case. */
+function eventsIn(model: MachineModel, snapshot: AnyMachineSnapshot): EventObject[] {
+  return sampleEvents(model.events).filter((event) => {
+    const cases = model.events[event.type];
+    const list = (Array.isArray(cases) ? cases : [cases]) as readonly unknown[];
+    return list.some((entry) => {
+      const when = (entry as {when?: (args: When) => boolean}).when;
+      return !when || when({snapshot});
+    });
+  });
+}
+
+/**
+ * A traversal key for a snapshot: its state value, and what its history states remember while
+ * their parent is not active. Zen off with 9:16 remembered is a different state from Zen off
+ * with Overlay remembered, because Zen turns on again in a different layout. While the parent
+ * is active, what its history state holds is replaced on the next exit, so it does not count.
+ */
+function walkKey(snapshot: AnyMachineSnapshot): string {
+  const remembered = Object.entries(snapshot.historyValue ?? {})
+    .filter(([id]) => !snapshot.matches(`#${id.slice(0, id.lastIndexOf('.'))}` as never))
+    .map(([id, nodes]) => [id, (nodes as readonly {id: string}[]).map((node) => node.id).sort()])
+    .sort();
+  return JSON.stringify({value: snapshot.value, remembered});
+}
+
+/** Every state node of a machine. */
+function stateNodesOf(machine: AnyStateMachine): AnyStateMachine['root'][] {
+  const visit = (node: AnyStateMachine['root']): AnyStateMachine['root'][] => [node, ...Object.values(node.states).flatMap(visit)];
+  return visit(machine.root);
+}
+
+/**
+ * The state nodes whose transitions `type` takes in `snapshot`: for each active state, the
+ * nearest state node, itself or an ancestor, that declares `type` in `on`.
+ */
+function transitionsTaken(machine: AnyStateMachine, snapshot: AnyMachineSnapshot, type: string): AnyStateMachine['root'][] {
+  const active = stateNodesOf(machine).filter((node) => snapshot.matches(`#${node.id}` as never));
+  const handles = (node: AnyStateMachine['root']) => Boolean((node.config.on as Record<string, unknown> | undefined)?.[type]);
+  const taken = active
+    .filter((node) => Object.keys(node.states).length === 0 || node.type === 'parallel')
+    .map((node) => {
+      let at: AnyStateMachine['root'] | undefined = node;
+      while (at && !handles(at)) at = at.parent;
+      return at;
+    })
+    .filter((node): node is AnyStateMachine['root'] => node !== undefined);
+  return [...new Set(taken)];
+}
+
+/**
+ * The part of `value` in the region of `node`: under its nearest ancestor-or-self that is a region
+ * of a parallel state, or the whole value. A transition in one region leaves the other regions as
+ * they are, so where it leads is read in its own region only.
+ */
+function valueInRegion(node: AnyStateMachine['root'], value: unknown): unknown {
+  let region = node;
+  while (region.parent && region.parent.type !== 'parallel') region = region.parent;
+  return region.path.reduce<unknown>((part, key) => (part as Record<string, unknown>)[key], value);
+}
+
+/**
+ * The walk of a model: event sequences, each from the initial state, that together enter every
+ * reachable state (walkKey), take every transition of the machine into every state it can lead
+ * to (so Zen turns on again in each layout it can remember), and send each event that the page
+ * must ignore once in each state that ignores it. The machines are small and static,
+ * so xstate/graph's getAdjacencyMap lists every step the model's events can take. The walk
+ * starts at the initial state and goes, by the shortest route, to the nearest step that reaches
+ * something not yet covered. When nothing uncovered is reachable from where it stands, a new
+ * sequence starts. The result is deterministic: the same machine and events give the same walk.
+ */
+export function walkPaths(model: MachineModel): EventObject[][] {
+  const {machine} = model;
+  const adjacency = getAdjacencyMap(machine, {
+    events: ((snapshot: AnyMachineSnapshot) => eventsIn(model, snapshot)) as never,
+    serializeState: walkKey as never,
+  });
+  interface Step {readonly from: string; readonly event: EventObject; readonly to: string; readonly covers: readonly string[]}
+  const stepsFrom = new Map<string, Step[]>();
+  const uncovered = new Set<string>();
+  for (const [from, {state, transitions}] of Object.entries(adjacency) as [string, AdjacencyValue<AnyMachineSnapshot, EventObject>][]) {
+    for (const {event, state: next} of Object.values(transitions) as {event: EventObject; state: AnyMachineSnapshot}[]) {
+      const to = walkKey(next);
+      const taken = transitionsTaken(machine, state, event.type);
+      const covers = [`state ${to}`, ...(taken.length > 0
+        ? taken.map((node) => `transition ${node.id} ${event.type} to ${JSON.stringify(valueInRegion(node, next.value))}`)
+        : [`ignored ${event.type} in ${JSON.stringify(state.value)}`])];
+      covers.forEach((item) => uncovered.add(item));
+      stepsFrom.set(from, [...(stepsFrom.get(from) ?? []), {from, event, to, covers}]);
+    }
+  }
+  const [initial] = Object.keys(adjacency);
+  uncovered.delete(`state ${initial}`);
+  const useful = (step: Step) => step.covers.some((item) => uncovered.has(item));
+  /** The shortest route from `start` that ends with a useful step, or null. */
+  const routeFrom = (start: string): Step[] | null => {
+    const reachedBy = new Map<string, Step | null>([[start, null]]);
+    const queue = [start];
+    for (let at = queue.shift(); at !== undefined; at = queue.shift()) {
+      const steps = stepsFrom.get(at) ?? [];
+      const found = steps.find(useful);
+      if (found) {
+        const route = [found];
+        for (let step = reachedBy.get(at); step; step = reachedBy.get(step.from)) route.unshift(step);
+        return route;
+      }
+      for (const step of steps) {
+        if (reachedBy.has(step.to)) continue;
+        reachedBy.set(step.to, step);
+        queue.push(step.to);
+      }
+    }
+    return null;
+  };
+  const paths: EventObject[][] = [];
+  while (uncovered.size > 0) {
+    const path: EventObject[] = [];
+    for (let at = initial, route = routeFrom(at); route; route = routeFrom(at)) {
+      for (const step of route) {
+        step.covers.forEach((item) => uncovered.delete(item));
+        path.push(step.event);
+        at = step.to;
+      }
+    }
+    if (path.length === 0) throw new Error(`The walk of ${model.id} cannot reach: ${[...uncovered].join(', ')}`);
+    paths.push(path);
+  }
+  return paths;
+}
+
 /** A state value as JSON with its keys sorted, so two spellings of one state compare equal. */
 function canonicalState(value: unknown): string {
   const sorted = (node: unknown): unknown => (typeof node === 'string'
@@ -217,31 +331,42 @@ function canonicalState(value: unknown): string {
   return JSON.stringify(sorted(value));
 }
 
-/**
- * Every state the machine can reach with the model's events, as canonical JSON state values:
- * xstate/graph's getAdjacencyMap runs every transition, so transition functions (v6 guards)
- * count too.
- */
+/** Every state the machine can reach with the model's events, as canonical JSON state values. */
 export function reachableStates(model: MachineModel): string[] {
-  const adjacency = getAdjacencyMap(model.machine, {
-    events: sampleEvents(model.events),
-    ...(model.stopWhen ? {stopWhen: model.stopWhen} : {}),
-  });
+  const adjacency = getAdjacencyMap(model.machine, {events: sampleEvents(model.events)});
   return [...new Set(Object.values(adjacency).map(({state}) => canonicalState(state.value)))].sort();
 }
 
 /**
- * Fails unless the walk took every state node, transition and reachable state.
+ * The ids of the machine's history states. A history state is never active: entering it enters
+ * the state it remembers, so @xstate/test counts it as an uncovered state node however often a
+ * run goes through it. The transitions into it still count.
+ */
+function historyStateIds(machine: AnyStateMachine): string[] {
+  const visit = (node: AnyStateMachine['root']): string[] => [
+    ...(node.type === 'history' ? [node.id] : []),
+    ...Object.values(node.states).flatMap(visit),
+  ];
+  return visit(machine.root);
+}
+
+/**
+ * Fails unless the walk took every state node (history states aside), transition and reachable state.
  * - assertTestCoverage counts only covered and uncovered ids.
- * - A transition whose target a function computes (every v6 guard) stays "unknown" until a run
- *   takes it, so unknown transitions fail too, as the official model-based-testing example
- *   checks (`coverage.transitions.unknown` is empty).
- * - The states dimension lists only the states the runs entered, so a state no run reached is
- *   missing from it without being "uncovered". Every reachable state must be covered.
+ * - A transition that a function computes stays "unknown" until a run takes it, so unknown
+ *   transitions fail too, as the official model-based-testing example checks
+ *   (`coverage.transitions.unknown` is empty). The machines here have none
+ *   (tests/unit/machines/static-machines.test.ts), so this guards against one coming back.
+ * - The states dimension lists only the states the runs entered, so a state that no run reached
+ *   is missing from it without being "uncovered". Every reachable state must be covered: in a
+ *   machine with parallel regions, that is every combination of their states.
  */
 export function assertFullCoverage(model: MachineModel, coverage: TestCoverage) {
-  assertTestCoverage(coverage, {stateNodes: 1, transitions: 1});
+  assertTestCoverage(coverage, {transitions: 1});
   const problems: string[] = [];
+  const history = new Set(historyStateIds(model.machine));
+  const missedNodes = coverage.stateNodes.uncovered.filter((id) => !history.has(id));
+  if (missedNodes.length > 0) problems.push(`no run entered these state nodes: ${missedNodes.join(', ')}`);
   if (coverage.transitions.unknown.length > 0) {
     problems.push(`no run took these transitions: ${coverage.transitions.unknown.join(', ')}`);
   }

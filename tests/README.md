@@ -59,7 +59,8 @@ Projects (see `playwright.config.ts`):
 tests/
   e2e/            Playwright specs: one file per UI area or route (see "Where a test goes")
   pages/          page objects: every selector and every user action (tier-list-page.ts, site-page.ts)
-  machines/       XState v6 models of UI areas, walked by the model-based tests (see "Model-based tests")
+  machines/       XState v6 machines of UI areas, one per file, ready to paste into Stately
+  models/         what the model-based tests send and check for each machine (see "Model-based tests")
   support/        Playwright fixtures and helpers: links, image sites, snapshot files
   fixtures/       golden links and link states, golden snapshot files, images to upload (append-only)
   unit/           Vitest unit tests, at the same paths as the code they test
@@ -242,7 +243,7 @@ purpose.
 ## Model-based tests
 
 Some areas also have a model: an XState v6 machine in `tests/machines/` that describes what the
-area does, state by state. [`@xstate/test`](https://github.com/statelyai/xstate/tree/next/packages/xstate-test#readme)
+area does, state by state, and a model in `tests/models/` that ties it to the page. [`@xstate/test`](https://github.com/statelyai/xstate/tree/next/packages/xstate-test#readme)
 2.0 walks the machine and runs every walk against the page through its Playwright adapter,
 `createPlaywrightSut` (the [XState v6 guide](https://stately.ai/docs/xstate/v6/model-based-testing)
 and the package README are the reference). A model test fails when the page and the machine
@@ -251,13 +252,24 @@ disagree, and its error lists every step with the machine's state.
 - **A machine describes intended behaviour.** It mirrors what the page shows, including details
   such as a tooltip that takes an Escape. When the app changes on purpose, change the machine in
   the same pull request. When the app looks wrong, ask the owner, as for any test.
-- **The model file** exports the machine and a `defineModel({...})` (`tests/support/machines.ts`):
-  an `id` (the file name), the `events` the tests send (fast-check
-  generators, with `when` so an event is sent only where the page offers it), and the `walk`:
-  every simple path (`testPaths`) for a small graph, or seeded random runs (`propertyTest`) for a
-  graph too large to walk on every pull request. `revisits` adds a short seeded run for what simple
-  paths skip, such as Zen turned off and on again. Add every model to `tests/machines/index.ts`.
-  The machine's root `description` says in one sentence what the machine describes.
+- **The machine file** (`tests/machines/<id>.ts`) holds only the machine: one import of
+  `createMachine` from `xstate` and the exported machine. Every transition is an object with a
+  written-out target (`{target: 'off'}`), never a function, so XState and the Stately editor see
+  every arrow. Use the statechart features for what code would compute: nested states for
+  what exists only inside another state, parallel states for settings that change on their own,
+  history states for what a state remembers, and one state per case the page shows. The root
+  `description` says what the machine describes, and a state's `description` says what the page
+  shows in it. `tests/unit/rules/stately-machines.test.ts` checks these rules in `npm run check`.
+- **The model file** (`tests/models/<id>.ts`) holds what the tests need: a `defineModel({...})`
+  (`tests/support/machines.ts`) with an `id` (the file name), the machine and the `events` the
+  tests send (fast-check generators, with `when` so an event is sent only where the page offers
+  it; `offered(type)` sends it where the machine takes it), and helpers that say what each state
+  shows on the page. Add every model to `tests/models/index.ts`.
+- **The walk** is computed from the machine (`walkPaths`): a few event sequences from the start
+  state that together enter every reachable state, take every transition into every state it
+  can lead to, and send each event the page must ignore once in each state that ignores it. A
+  state that a history state remembers counts on its own, so Zen turns on again in each layout.
+  The walk is the same on every run.
 - **The campaign** sits at the end of its area's spec in a `describe('model')`. `reset` opens the
   start list through the URL, each event calls a page object action that waits for its result,
   and `states` holds web-first checks. `attachAndAssertCoverage` adds the coverage report to the
@@ -269,11 +281,9 @@ disagree, and its error lists every step with the machine's state.
   screenshot.
 - **Without a browser.** `tests/unit/machines/walks.test.ts` runs each model's walk on the machine
   alone, so a walk that misses a state or a transition fails in `npm run check` first.
-- **Seeing a machine.** Open its file in the [Stately editor](https://stately.ai/blog/2026-11-05-xstate-v6-beta):
-  the Stately Editor VS Code extension opens it from the code, or run
-  `npx statelyai open tests/machines/<id>.ts`. The editor draws the machine from the file
-  itself, including the conditions of transition functions, so the picture matches the code at
-  every commit.
+- **Seeing a machine.** Copy the whole file, open the [Stately editor](https://editor.stately.ai)
+  and paste it into Import Code. The editor draws the machine as it is in the file. A history
+  state shows as **H**; its default target is in the file, and the editor does not draw it.
 - **Watching a run.** With `MODEL_INSPECT=1`, each walk also drives a live XState actor of its
   machine, one step after each page action, and streams it to Stately's hosted inspector
   (`@statelyai/sdk`). The run prints `[Stately Inspector] <link>` once per worker: open that link
@@ -291,9 +301,9 @@ disagree, and its error lists every step with the machine's state.
 - **Failures.** `@xstate/test` can save a failing sequence in `.xstate-test/` and replay it first
   next time; the folder is ignored by git. To keep a fixed bug's sequence as a regression test,
   replay its fixture with `replayTest(..., {expect: 'pass'})`.
-- **XState v6 syntax.** Targets are objects (`{target: 'on'}`); guards and context changes are
-  transition functions that return `{target, context}` or `undefined`. Read the current state from
-  the transition function's `value` argument: `self.getSnapshot()` fails while the graph is walked.
+- **XState v6 syntax.** Targets are objects (`{target: 'on'}`), a leading dot targets a child
+  (`'.wide'`), and `#<machine id>.<path>` targets a state elsewhere in the machine. A history
+  state needs a default `target`.
 
 ## Test names
 

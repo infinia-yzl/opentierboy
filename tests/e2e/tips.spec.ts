@@ -7,13 +7,8 @@ import {imageFile} from '../support/image-sites';
 import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import type {SitePage} from '../pages/site-page';
-import {TIP_IDS, tipsEditorState, tipsModel, type StoredTips, type TipsEvent, type TipsSnapshot} from '../machines/tips';
-import {
-  sharedListEditorState,
-  tipsSharedListModel,
-  type TipsSharedListEvent,
-  type TipsSharedListSnapshot,
-} from '../machines/tips-shared-list';
+import {TIP_IDS, tipsModel, tipsViewOf, type TipsEvent, type TipsSnapshot, type TipsView} from '../models/tips';
+import {sharedListViewOf, tipsSharedListModel, type TipsSharedListEvent, type TipsSharedListSnapshot} from '../models/tips-shared-list';
 import {
   FIRST_DRAG_KEYBOARD,
   FIRST_DRAG_MOUSE,
@@ -311,17 +306,19 @@ test.describe('tips', () => {
   });
 
   test.describe('model', () => {
-    /** `otb-tips` with the seen tips in the order of TIP_IDS, as the machines keep them. */
-    const storedInOrder = async (tips: Tips): Promise<StoredTips | null> => {
-      const stored = await tips.stored();
-      return stored && {seen: TIP_IDS.filter((id) => stored.seen.includes(id)), off: stored.off};
-    };
-
-    /** The tip on screen (or none) and what `otb-tips` holds, in the editor or on About. */
-    const expectTips = async (tips: Tips, shown: Locator | null, stored: StoredTips) => {
-      if (shown) await expect(shown).toBeVisible();
-      await expect(tips.all).toHaveCount(shown ? 1 : 0);
-      await expect.poll(() => storedInOrder(tips)).toEqual(stored);
+    /**
+     * The tip on screen (or none) and what `otb-tips` holds, in the editor or on About, as a state
+     * of a tips machine shows them. With tips off, only `off` is checked.
+     */
+    const expectTips = async (tips: Tips, view: TipsView) => {
+      const shown = {firstDrag: tips.firstDrag, linkSave: tips.linkSaveToast, deviceImages: tips.deviceImagesToast, sharedList: tips.sharedList};
+      if (view.shown) await expect(shown[view.shown]).toBeVisible();
+      await expect(tips.all).toHaveCount(view.shown ? 1 : 0);
+      await expect.poll(async () => {
+        const stored = await tips.stored();
+        if (!stored) return null;
+        return {seen: view.stored.seen && TIP_IDS.filter((id) => stored.seen.includes(id)), off: stored.off};
+      }).toEqual(view.stored);
     };
 
     /**
@@ -338,7 +335,6 @@ test.describe('tips', () => {
         },
         events: {
           OPEN_TEMPLATE: () => tierList.goto(TANKS),
-          OPEN_EMPTY_LIST: () => tierList.goto('/rank'),
           DROP_IN_ROW: () => tierList.dragFirstUnrankedItemToTier('S'),
           CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
           ADD_DEVICE_IMAGE: () => tierList.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
@@ -349,17 +345,7 @@ test.describe('tips', () => {
           SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
         },
         states: {
-          about: async (_page, snapshot) => {
-            await expect.poll(() => storedInOrder(tips)).toEqual({seen: snapshot.context.seen, off: false});
-          },
-          '*': async (_page, snapshot) => {
-            const state = tipsEditorState(snapshot);
-            const shown = state === 'firstDragTip' ? tips.firstDrag
-              : state === 'linkSaveToast' ? tips.linkSaveToast
-                : state === 'deviceImagesToast' ? tips.deviceImagesToast
-                  : null;
-            await expectTips(tips, shown, {seen: snapshot.context.seen, off: state === 'tipsOff'});
-          },
+          '*': (_page, snapshot) => expectTips(tips, tipsViewOf(snapshot)),
         },
         testInfo,
         step: (name, body) => test.step(name, body),
@@ -385,21 +371,14 @@ test.describe('tips', () => {
           SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
         },
         states: {
-          about: async (_page, snapshot) => {
-            await expect.poll(() => storedInOrder(tips)).toEqual({seen: snapshot.context.seen, off: false});
-          },
-          '*': async (_page, snapshot) => {
-            const state = sharedListEditorState(snapshot);
-            const shown = state === 'sharedListTip' ? tips.sharedList : state === 'linkSaveToast' ? tips.linkSaveToast : null;
-            await expectTips(tips, shown, {seen: snapshot.context.seen, off: state === 'tipsOff'});
-          },
+          '*': (_page, snapshot) => expectTips(tips, sharedListViewOf(snapshot)),
         },
         testInfo,
         step: (name, body) => test.step(name, body),
       });
     };
 
-    test('renders each state of the tips machine when the user walks its seeded runs from a new browser', async ({tierList, page}, testInfo) => {
+    test('renders each state of the tips machine when the user walks every transition from a new browser', async ({tierList, page}, testInfo) => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       // Before the first page opens, so TOAST_TIMES_OUT can run the page clock.
       await page.clock.install();
@@ -409,7 +388,7 @@ test.describe('tips', () => {
 
     // No page clock here: Playwright's clock gives the page no navigation entry
     // (performance.getEntriesByType('navigation') is empty), so the shared-list tip never shows.
-    test('renders each state of the shared-list tip machine when the user walks its seeded runs from a friend\'s link', async ({tierList, site, page}, testInfo) => {
+    test('renders each state of the shared-list tip machine when the user walks every transition from a friend\'s link', async ({tierList, site, page}, testInfo) => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo));
       await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage);

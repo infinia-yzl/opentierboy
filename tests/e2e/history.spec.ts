@@ -4,7 +4,7 @@ import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
 import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
-import {historyModel, MAX_VERSIONS, type HistoryEvent, type HistoryLabelPosition, type HistorySnapshot} from '../machines/history';
+import {historyModel, historyViewOf, MAX_VERSIONS, type HistoryEvent, type HistorySnapshot} from '../models/history';
 
 const TANKS = '/rank/overwatch/tank';
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
@@ -276,7 +276,7 @@ test.describe('history', () => {
   });
 
   /**
-   * The history machine (tests/machines/history.ts), walked in seeded runs. Back and Forward are
+   * The history machine (tests/machines/history.ts). Back and Forward are
    * the browser's own buttons (page.goBack, page.goForward): product rule 2 makes the browser
    * history the undo, for every visitor. The Zen bar's Back and Forward call the same history
    * (components/useListSteps.ts), but only in Zen, which hides Row options and with them the
@@ -287,7 +287,6 @@ test.describe('history', () => {
     // row A, so version n of the list has n items in row A.
     const TRAY = ['Mauga', 'Winston', 'Sigma'];
     const LIST = rankingState('image-overwatch', {S: ['Reinhardt'], '': TRAY});
-    const LABEL_POSITIONS: Record<HistoryLabelPosition, 'Left' | 'Top'> = {left: 'Left', top: 'Top'};
 
     /** The history machine's events and checks, run on this test's page (createPlaywrightSut). */
     const historySut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, HistorySnapshot, HistoryEvent>(page, {
@@ -296,16 +295,19 @@ test.describe('history', () => {
         CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
         BROWSER_BACK: () => tierList.goBack(),
         BROWSER_FORWARD: () => tierList.goForward(),
-        CHOOSE_LABEL_POSITION: (_page, event) => tierList.chooseLabelPosition(LABEL_POSITIONS[event.position]),
-        SET_ITEM_LABELS: (_page, event) => tierList.setItemLabelsVisible(event.visible),
+        CHOOSE_TOP: () => tierList.chooseLabelPosition('Top'),
+        CHOOSE_LEFT: () => tierList.chooseLabelPosition('Left'),
+        HIDE_ITEM_LABELS: () => tierList.setItemLabelsVisible(false),
+        SHOW_ITEM_LABELS: () => tierList.setItemLabelsVisible(true),
       },
       // Web-first checks, no read(): after Back or Forward the address changes before the list
       // on screen does, so one read could still see the version before.
       states: {
         '*': async (_page, snapshot) => {
-          const {index, labelPosition, itemLabels} = snapshot.context;
-          await expect(tierList.itemsIn('A')).toHaveCount(index);
-          await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TRAY.length - index);
+          // Version 1 is the list as opened; each later version ranks one more item into row A.
+          const {version, labelPosition, itemLabels} = historyViewOf(snapshot);
+          await expect(tierList.itemsIn('A')).toHaveCount(version - 1);
+          await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TRAY.length - (version - 1));
           await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
           await expect.poll(() => tierList.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
         },
@@ -314,7 +316,7 @@ test.describe('history', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each version of the list when the user changes it and goes Back and Forward in seeded runs', async ({tierList, page}, testInfo) => {
+    test('renders each version of the list when the user walks every transition of changes, Back and Forward', async ({tierList, page}, testInfo) => {
       expect(TRAY).toHaveLength(MAX_VERSIONS - 1);
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(historyModel, historySut(tierList, page, testInfo));
