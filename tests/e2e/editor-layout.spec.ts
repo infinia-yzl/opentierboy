@@ -176,6 +176,7 @@ test.describe('editor layout', () => {
     // off. Show Labels is a label setting, written in place of the current history entry (A3).
     test('writes no history entry and renders menu item "Hide Labels" checked when the user chooses Compact with item labels on', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
+      await expect(tierList.itemCaption('Reinhardt')).toBeVisible();
       await tierList.openRowOptions();
       await expect(tierList.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
       await tierList.pressKey('Escape');
@@ -185,7 +186,11 @@ test.describe('editor layout', () => {
 
       await tierList.openRowOptions();
       await expect(tierList.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
-      await expect(tierList.itemCaption('Reinhardt')).toHaveCount(0);
+      // The open menu hides the page from role queries, so the caption is checked after it closes.
+      // A Compact tile keeps its name in a hidden tooltip, so the caption is hidden, not gone.
+      await tierList.pressKey('Escape');
+      await expect(tierList.rowOptionsButton).toHaveAttribute('aria-expanded', 'false');
+      await expect(tierList.itemCaption('Reinhardt')).toBeHidden();
       expect(await newEntries()).toBe(0);
     });
 
