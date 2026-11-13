@@ -53,8 +53,8 @@ export const addFromTemplateMachine = createMachine({
           on: {UNDO: {target: '#addFromTemplate.empty'}, TOAST_TIMES_OUT: {target: 'closed'}},
         },
         nothingAdded: {
-          description: 'The list held every tank already. The toast shows, and its Undo changes nothing.',
-          on: {UNDO: {target: 'closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          description: 'The list held every tank already. The toast says so, without Undo.',
+          on: {TOAST_TIMES_OUT: {target: 'closed'}},
         },
       },
     },
@@ -76,8 +76,8 @@ export const addFromTemplateMachine = createMachine({
           on: {UNDO: {target: '#addFromTemplate.empty'}, TOAST_TIMES_OUT: {target: 'closed'}},
         },
         nothingAdded: {
-          description: 'The list held every support already. The toast shows, and its Undo changes nothing.',
-          on: {UNDO: {target: 'closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          description: 'The list held every support already. The toast says so, without Undo.',
+          on: {TOAST_TIMES_OUT: {target: 'closed'}},
         },
       },
     },
@@ -103,8 +103,8 @@ export const addFromTemplateMachine = createMachine({
           on: {UNDO: {target: '#addFromTemplate.tank.closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
         },
         nothingAdded: {
-          description: 'The list held every image of the set already. The toast shows, and its Undo changes nothing.',
-          on: {UNDO: {target: 'closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          description: 'The list held every image of the set already. The toast says so, without Undo.',
+          on: {TOAST_TIMES_OUT: {target: 'closed'}},
         },
       },
     },

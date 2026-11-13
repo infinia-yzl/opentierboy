@@ -11,6 +11,9 @@ export const TEMPLATE_SETS = {
 export const TEMPLATE_SET_KEYS = ['tank', 'support'] as const;
 export type TemplateSetKey = typeof TEMPLATE_SET_KEYS[number];
 
+/** The toasts that adding a set shows (components/useAddItems.ts). */
+export type AddToast = 'Items Added' | 'No New Items';
+
 /** The page of the template picker, by the heading of its group of options, or null when it is closed. */
 export type PickerPage = 'Packages' | 'OVERWATCH' | null;
 
@@ -19,8 +22,8 @@ export interface AddFromTemplateView {
   /** The sets whose images Unranked holds, each image once. */
   readonly sets: readonly TemplateSetKey[];
   readonly picker: PickerPage;
-  /** The toast "Items Added" with its Undo shows. */
-  readonly toast: boolean;
+  /** The toast on screen: "Items Added" with its Undo, "No New Items" without, or none. */
+  readonly toast: AddToast | null;
 }
 
 export type AddFromTemplateSnapshot = SnapshotFrom<typeof addFromTemplateMachine>;
@@ -35,13 +38,13 @@ const SETS_BY_CONTENTS: Readonly<Record<string, readonly TemplateSetKey[]>> = {
 
 /** Each state below a contents state, by its path, and what the picker and the toast show. */
 const OVERLAYS: Readonly<Record<string, Pick<AddFromTemplateView, 'picker' | 'toast'>>> = {
-  closed: {picker: null, toast: false},
-  'picker.packages': {picker: 'Packages', toast: false},
-  'picker.overwatch': {picker: 'OVERWATCH', toast: false},
-  picker: {picker: 'OVERWATCH', toast: false},
-  tankAdded: {picker: null, toast: true},
-  supportAdded: {picker: null, toast: true},
-  nothingAdded: {picker: null, toast: true},
+  closed: {picker: null, toast: null},
+  'picker.packages': {picker: 'Packages', toast: null},
+  'picker.overwatch': {picker: 'OVERWATCH', toast: null},
+  picker: {picker: 'OVERWATCH', toast: null},
+  tankAdded: {picker: null, toast: 'Items Added'},
+  supportAdded: {picker: null, toast: 'Items Added'},
+  nothingAdded: {picker: null, toast: 'No New Items'},
 };
 
 /** The dotted path of a state value, such as 'empty.picker.overwatch'. */

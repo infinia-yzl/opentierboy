@@ -67,13 +67,15 @@ test.describe('editor items', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
-    test('renders each item once when the user adds the template set the list already has', async ({tierList}) => {
+    test('renders each item once and the toast "No New Items" without Undo when the user adds a template set the list has', async ({tierList}) => {
       await tierList.goto(TANKS);
 
       await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
 
       // Wait for the add to happen: the count is already right before it does.
-      await expect(tierList.toast('Items Added')).toBeVisible();
+      await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
+      await expect(tierList.undoButtonIn('No New Items')).toHaveCount(0);
+      await expect(tierList.toast('Items Added')).toHaveCount(0);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
     });
 
@@ -180,6 +182,20 @@ test.describe('editor items', () => {
   // Where people add images (owner decision, 2026-10-31): the drop overlay, an empty list's drop
   // area, the "drop or paste" line of the tray's tile, and the menu's "or drop" and "or paste".
   test.describe('adding images', () => {
+    test('renders the template picker with its name, a Back button and a Packages button when the user opens a package', async ({tierList}) => {
+      await tierList.goto('/rank');
+      await tierList.openTemplatePickerFromDropArea();
+      await expect(tierList.templatePicker).toHaveAccessibleName('Add images from a template');
+
+      await tierList.openTemplatePackage('OVERWATCH');
+      await tierList.templatePickerButton('Back').click();
+      await expect(tierList.templatePickerPage('Packages')).toBeVisible();
+
+      await tierList.openTemplatePackage('OVERWATCH');
+      await tierList.templatePickerButton('Packages').click();
+      await expect(tierList.templatePickerPage('Packages')).toBeVisible();
+    });
+
     test('renders the drop overlay with its two lines when the user drags a link over the editor', async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.dropOverlay).toHaveCount(0);
@@ -343,7 +359,8 @@ test.describe('editor items', () => {
   test.describe('model: templates', () => {
     /** What a state shows: Unranked's images, the drop area or the tile, the picker's page and the toast. */
     const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
-      await expect(tierList.toast('Items Added')).toHaveCount(view.toast ? 1 : 0);
+      await expect(tierList.toast('Items Added')).toHaveCount(view.toast === 'Items Added' ? 1 : 0);
+      await expect(tierList.toast('No New Items')).toHaveCount(view.toast === 'No New Items' ? 1 : 0);
       if (view.picker) {
         // The open picker hides the page behind it from the accessibility tree, so only the picker is checked.
         await expect(tierList.templatePickerPage(view.picker)).toBeVisible();

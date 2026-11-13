@@ -16,8 +16,12 @@ export function useAddItemsWithUndo(): (newItems: Item[]) => void {
   return useCallback((newItems: Item[]) => {
     const addedIds = itemsToAdd(tiers, newItems).map((item) => item.id);
     addItems(newItems);
+    if (addedIds.length === 0) {
+      toast('No New Items', {description: 'Every item is already in the list.'});
+      return;
+    }
     toast('Items Added', {
-      description: `${newItems.length} item(s) have been added.`,
+      description: `${addedIds.length} item(s) have been added.`,
       action: {
         label: 'Undo',
         onClick: () => removeItems(addedIds),

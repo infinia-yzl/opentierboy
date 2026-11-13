@@ -2608,6 +2608,11 @@ export class TierListPage {
     return this.templatePicker.getByRole('group', {name, exact: true});
   }
 
+  /** A button in the template picker's top bar: Back, or a page of the breadcrumb such as "Packages". */
+  templatePickerButton(name: string): Locator {
+    return this.templatePicker.getByRole('button', {name, exact: true});
+  }
+
   /** Opens the template picker with the empty list's Template, and waits for its search box. */
   async openTemplatePickerFromDropArea() {
     await this.emptyListAction('Template').click();
@@ -2628,14 +2633,14 @@ export class TierListPage {
 
   /**
    * Chooses a set on the open package page of the template picker, such as 'Tank', and waits for
-   * the picker to close and the toast "Items Added" to show. Then it rests the pointer on the
+   * the picker to close and the toast "Items Added" or "No New Items" to show. Then it rests the pointer on the
    * toast: Sonner keeps a toast while the pointer is on it, so the toast waits for Undo however
    * slow the next steps are.
    */
   async chooseTemplateSetAndHoldToast(setTitle: string) {
     await this.templatePicker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
     await expect(this.templatePicker).toBeHidden();
-    const toast = this.toast('Items Added');
+    const toast = this.toast('Items Added').or(this.toast('No New Items'));
     await expect(toast).toBeVisible();
     await toast.hover();
   }
@@ -2646,10 +2651,10 @@ export class TierListPage {
     await expect(this.toast('Items Added')).toHaveCount(0);
   }
 
-  /** Moves the pointer off the toast "Items Added", and waits until the toast ends by itself (after 4 s). */
+  /** Moves the pointer off the toast of a template add, and waits until the toast ends by itself (after 4 s). */
   async waitOutTemplateAddToast() {
     await this.page.mouse.move(0, 0);
-    await expect(this.toast('Items Added')).toHaveCount(0, {timeout: 10_000});
+    await expect(this.toast('Items Added').or(this.toast('No New Items'))).toHaveCount(0, {timeout: 10_000});
   }
 }
 
