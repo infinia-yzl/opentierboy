@@ -35,6 +35,15 @@ const IMAGES = path.join(__dirname, '..', 'fixtures', 'images');
 
 test.describe('editor items', () => {
   test.describe('item actions', () => {
+    test('renders the restored item at its old position when the user clicks Undo after a delete', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+
+      await tierList.deleteItem('Mauga');
+      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+      await tierList.undoFromToast('Item deleted');
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+    });
+
     test('renders the item again in row S when the user deletes it and clicks Undo in the toast "Item deleted"', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 
@@ -341,25 +350,6 @@ test.describe('editor items', () => {
     });
   });
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite passes while the bug exists. When a fix lands, remove the marker and move the test.
-   */
-  test.describe('Known bugs', () => {
-    test('renders the restored item at its old position when the user clicks Undo after a delete', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-
-      await tierList.deleteItem('Mauga');
-      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
-      await tierList.undoFromToast('Item deleted');
-      await expect(tierList.itemsIn('S')).toHaveCount(2);
-
-      // Marked here, after the steps that must work: a failure above fails the test as usual.
-      test.fail(true, 'Undo adds the restored item at the end of its tier (itemRestored in lib/tierListReducer.ts).');
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston'], {timeout: 3_000});
-    });
-  });
-
   // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/add-from-template.ts
   // walked through the Playwright adapter of @xstate/test.
   test.describe('model: templates', () => {
@@ -420,21 +410,13 @@ test.describe('editor items', () => {
    * The remove-and-undo machine (tests/machines/remove-and-undo.ts): Delete, Reset and Remove
    * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. The
    * pointer rests on the toast after each removal, which pauses its 4 s timer.
-   *
-   * Known bug: Undo after a delete puts the item back at the end of its row ("Known bugs"
-   * above), so after that Undo row S is checked for its items in any order.
    */
   test.describe('model: removing', () => {
     const LIST = rankingState('image-overwatch', {S: [...OPENED_ROWS.S], A: [...OPENED_ROWS.A], '': [...OPENED_ROWS.Unranked]});
 
-    /** The items of each row, in order unless the view says the app gets the order of row S wrong. */
-    const expectRows = async (tierList: TierListPage, {rows, orderOfSChecked}: RemoveAndUndoView) => {
-      if (orderOfSChecked) {
-        await expect(tierList.itemsIn('S')).toHaveText([...rows.S]);
-      } else {
-        await expect(tierList.itemsIn('S')).toHaveCount(rows.S.length);
-        for (const name of rows.S) await expect(tierList.itemsIn('S')).toContainText([name]);
-      }
+    /** The items of each row, in order. */
+    const expectRows = async (tierList: TierListPage, {rows}: RemoveAndUndoView) => {
+      await expect(tierList.itemsIn('S')).toHaveText([...rows.S]);
       await expect(tierList.itemsIn('A')).toHaveText([...rows.A]);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText([...rows.Unranked]);
     };

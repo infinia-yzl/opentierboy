@@ -110,7 +110,7 @@ export type TierListAction =
   | {type: 'tierRemoved'; tierId: string}
   | {type: 'tierRenamed'; index: number; name: string}
   | {type: 'itemDeleted'; itemId: string}
-  | {type: 'itemRestored'; item: Item; tierId: string}
+  | {type: 'itemRestored'; item: Item; tierId: string; index: number}
   | {type: 'itemsAdded'; items: Item[]}
   | {type: 'itemsRemoved'; itemIds: string[]}
   | {type: 'rowTemplateChanged'; template: readonly Tier[]}
@@ -249,9 +249,12 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
       case 'itemRestored':
         // The list may hold the item again already (added back, or Back to a version with it).
         if (state.tiers.some(tier => tier.items.some(item => item.id === action.item.id))) return state;
-        return edit(state, state.tiers.map(tier => (
-          tier.id === action.tierId ? {...tier, items: [...tier.items, action.item]} : tier
-        )));
+        // Back at its place in the tier, or at the end when the tier has fewer items now.
+        return edit(state, state.tiers.map(tier => {
+          if (tier.id !== action.tierId) return tier;
+          const at = Math.min(action.index, tier.items.length);
+          return {...tier, items: [...tier.items.slice(0, at), action.item, ...tier.items.slice(at)]};
+        }));
       case 'itemsAdded':
         return edit(state, addItems(state.tiers, action.items));
       case 'itemsRemoved':
@@ -276,13 +279,13 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
 }
 
 /**
- * The item that `deleteItem` removes, and the tier it was in: the last tier that holds it,
- * as the editor has always reported it.
+ * The item that `deleteItem` removes, the tier it was in and its place there: the last tier
+ * that holds it, as the editor has always reported it.
  */
-export function findItemToDelete(tiers: Tier[], itemId: string): {item: Item; tierId: string} | null {
-  for (let index = tiers.length - 1; index >= 0; index--) {
-    const item = tiers[index].items.find(candidate => candidate.id === itemId);
-    if (item) return {item, tierId: tiers[index].id};
+export function findItemToDelete(tiers: Tier[], itemId: string): {item: Item; tierId: string; index: number} | null {
+  for (let tierIndex = tiers.length - 1; tierIndex >= 0; tierIndex--) {
+    const index = tiers[tierIndex].items.findIndex(candidate => candidate.id === itemId);
+    if (index !== -1) return {item: tiers[tierIndex].items[index], tierId: tiers[tierIndex].id, index};
   }
   return null;
 }

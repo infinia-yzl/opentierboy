@@ -194,7 +194,7 @@ describe('createTierListReducer with short legacy upload ids (A42)', () => {
     expect(store.state.tiers[0].items.map(item => item.id)).toEqual(['legacy-ab3c9']);
     // Toast Undo of the delete: the list holds the upload already, so nothing changes.
     const before = store.state;
-    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId});
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId, index: deleted.index});
     expect(store.state).toBe(before);
     expect(store.contents()[0]).toEqual(['My cat']);
   });
@@ -457,15 +457,25 @@ describe('createTierListReducer list actions', () => {
     ]);
   });
 
-  it('returns the item at the end of its tier when itemRestored runs after itemDeleted', () => {
+  it('returns the item at its old place in its tier when itemRestored runs after itemDeleted', () => {
     const store = setup(fiveRowLink({S: [MAU, WIN]}));
     const deleted = findItemToDelete(store.state.tiers, MAU)!;
-    expect(deleted.tierId).toBe('tier-s');
+    expect(deleted).toMatchObject({tierId: 'tier-s', index: 0});
     store.dispatch({type: 'itemDeleted', itemId: MAU});
     expect(store.contents()[0]).toEqual(['Winston']);
-    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId});
-    expect(store.contents()[0]).toEqual(['Winston', 'Mauga']);
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId, index: deleted.index});
+    expect(store.contents()[0]).toEqual(['Mauga', 'Winston']);
     expect(findItemToDelete(store.state.tiers, 'missing')).toBeNull();
+  });
+
+  it('returns the item at the end of its tier when itemRestored runs and the tier has fewer items than its old place', () => {
+    const store = setup(fiveRowLink({S: [MAU, WIN]}));
+    const deleted = findItemToDelete(store.state.tiers, WIN)!;
+    expect(deleted.index).toBe(1);
+    store.dispatch({type: 'itemDeleted', itemId: WIN});
+    store.dispatch({type: 'itemDeleted', itemId: MAU});
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId, index: deleted.index});
+    expect(store.contents()[0]).toEqual(['Winston']);
   });
 
   it('returns only items with a new id and label when itemsAdded runs, and itemsRemoved removes only those', () => {
@@ -500,7 +510,7 @@ describe('createTierListReducer list actions', () => {
     // Back to the version that still has Mauga, then Undo from the toast.
     store.visit(start);
     const before = store.state;
-    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId});
+    store.dispatch({type: 'itemRestored', item: deleted.item, tierId: deleted.tierId, index: deleted.index});
     expect(store.state).toBe(before);
     expect(store.contents()[0]).toEqual(['Mauga', 'Winston']);
   });

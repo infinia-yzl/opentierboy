@@ -93,7 +93,7 @@ export const removeAndUndoMachine = createMachine({
           initial: 'restored',
           states: {
             restored: {
-              description: 'Version 3 of 3: the items as opened. A deleted item comes back at the end of its row.',
+              description: 'Version 3 of 3: the items as opened, each at its old place.',
               on: {BROWSER_BACK: {target: 'removed'}},
             },
             removed: {

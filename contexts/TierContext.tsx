@@ -69,7 +69,7 @@ export interface TierContext {
   renameTier: (index: number, name: string) => void;
   deleteItem: (itemId: string) => void;
   /** Puts a deleted item back at the end of the tier it came from (toast Undo). */
-  restoreItem: (item: Item, tierId: string) => void;
+  restoreItem: (item: Item, tierId: string, index: number) => void;
   /** Adds items to Unranked, leaving out items the list already holds. */
   addItems: (items: Item[]) => void;
   removeItems: (itemIds: string[]) => void;
@@ -159,7 +159,7 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
     removeTier: (tierId: string) => dispatch({type: 'tierRemoved', tierId}),
     renameTier: (index: number, name: string) => dispatch({type: 'tierRenamed', index, name}),
     deleteItem: (itemId: string) => dispatch({type: 'itemDeleted', itemId}),
-    restoreItem: (item: Item, tierId: string) => dispatch({type: 'itemRestored', item, tierId}),
+    restoreItem: (item: Item, tierId: string, index: number) => dispatch({type: 'itemRestored', item, tierId, index}),
     addItems: (items: Item[]) => dispatch({type: 'itemsAdded', items}),
     removeItems: (itemIds: string[]) => dispatch({type: 'itemsRemoved', itemIds}),
     resetRankings: () => dispatch({type: 'rankingsReset'}),

@@ -39,12 +39,6 @@ const ROWS_AFTER: Readonly<Record<Removal, Rows>> = {
 export interface RemoveAndUndoView {
   /** The items in each row. */
   readonly rows: Rows;
-  /**
-   * False where the app puts an item at the wrong place (the known bug "renders the restored
-   * item at its old position when the user clicks Undo after a delete", editor-items.spec.ts):
-   * row S is then checked for its items in any order.
-   */
-  readonly orderOfSChecked: boolean;
   /** True on the list as opened, whose address is the link the run opened. */
   readonly asOpened: boolean;
   /** True while the dialog "Are you sure?" of Remove All shows. */
@@ -76,15 +70,14 @@ export function removeAndUndoViewOf(snapshot: RemoveAndUndoSnapshot): RemoveAndU
   const path = listPath((snapshot.value as Value).list);
   const removal = removalOf(snapshot);
   const version = path.split('.').pop();
-  const before = {rows: OPENED_ROWS, orderOfSChecked: true, asOpened: true};
+  const before = {rows: OPENED_ROWS, asOpened: true};
   if (path === 'opened' || path === 'confirming') {
     return {...before, dialog: path === 'confirming', toastWithUndo: null, removalToast: null};
   }
   if (!removal) throw new RangeError(`No removal in the state ${path}`);
   const shown = version === 'asOpened' ? before
-    : version === 'removed' ? {rows: ROWS_AFTER[removal], orderOfSChecked: true, asOpened: false}
-      // Undo of a delete adds the item at the end of its row (itemRestored, lib/tierListReducer.ts).
-      : {rows: OPENED_ROWS, orderOfSChecked: removal !== 'oneItemDeleted', asOpened: false};
+    : version === 'removed' ? {rows: ROWS_AFTER[removal], asOpened: false}
+      : {rows: OPENED_ROWS, asOpened: false};
   const toast = TOAST_OF[removal];
   return {...shown, dialog: false, toastWithUndo: path.startsWith('undoOffered.') ? toast : null, removalToast: toast};
 }
