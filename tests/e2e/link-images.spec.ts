@@ -1,8 +1,24 @@
 /** Link images: images added by their web address, and the consent to load images from other sites. */
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
-import {SCRIPTED_PASTE_SKIP} from '../pages/tier-list-page';
+import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, serveImageSite} from '../support/image-sites';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {
+  BLUE,
+  GREEN,
+  linkImagesModel,
+  linkImagesViewOf,
+  NAVY,
+  OTHER_SITE,
+  RED,
+  TRUSTED_SITE,
+  type LinkImage,
+  type LinkImagesEvent,
+  type LinkImagesSnapshot,
+} from '../models/link-images';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -295,6 +311,71 @@ test.describe('link images', () => {
       await expect(tierList.itemImage('Local')).toHaveCount(0);
       await expect(tierList.imageSitesNotice).toHaveCount(0);
       expect(sent().filter((request) => request.url.startsWith('http://127.0.0.1:9/'))).toEqual([]);
+    });
+  });
+
+  test.describe('model', () => {
+    const item = ({label, url}: LinkImage) => ({u: url, c: label});
+    /** The first list of the machine: Blue (an unknown site) and Red (a trusted site) in Unranked. */
+    const FIRST_LIST = listWith([item(BLUE), item(RED)]);
+    /** The other list: Navy, from the same unknown site. */
+    const OTHER_LIST = listWith([item(NAVY)]);
+
+    /**
+     * The link images machine's events and checks (createPlaywrightSut). Each run starts as a new
+     * browser on the first list. `loadedAt` counts the unknown site's requests before the last
+     * page load, so a state checks only the requests of the page on screen.
+     */
+    const linkImagesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, otherSite: {requests: string[]}) => {
+      let loadedAt = 0;
+      const sinceLoad = () => otherSite.requests.slice(loadedAt);
+      const load = async (open: () => Promise<void>) => {
+        loadedAt = otherSite.requests.length;
+        await open();
+      };
+      return createPlaywrightSut<Page, LinkImagesSnapshot, LinkImagesEvent>(page, {
+        reset: () => load(() => tierList.openAsNewBrowser(TANKS, FIRST_LIST)),
+        events: {
+          LOAD_IMAGES: () => tierList.loadImagesFromOtherSites(),
+          ALWAYS_ALLOW_SITES: () => tierList.alwaysAllowImageSites(),
+          ADD_IMAGE_FROM_LINK: () => tierList.addItemFromLinkAndWaitForLink(GREEN.url, GREEN.label),
+          RELOAD: () => load(() => tierList.reload()),
+          OPEN_OTHER_LIST: () => load(() => tierList.goto(TANKS, OTHER_LIST)),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = linkImagesViewOf(snapshot);
+            // Trusted sites load at once, also while the notice waits.
+            for (const image of view.trustedImages) {
+              await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
+            }
+            if (view.waiting) {
+              await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+              for (const image of view.otherSiteImages) {
+                await expect(tierList.item(image.label)).toContainText(OTHER_SITE);
+                await expect(tierList.itemImage(image.label)).toHaveCount(0);
+              }
+              expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
+            } else {
+              await expect(tierList.imageSitesNotice).toHaveCount(0);
+              for (const image of view.otherSiteImages) {
+                await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
+              }
+              await expect.poll(sinceLoad).toEqual(expect.arrayContaining(view.otherSiteImages.map(({url}) => url)));
+            }
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the link images machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      await serveImageSite(page, TRUSTED_SITE);
+      const otherSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
+      const coverage = await walkModel(linkImagesModel, linkImagesSut(tierList, page, testInfo, otherSite));
+      await attachAndAssertCoverage(testInfo, linkImagesModel, coverage);
     });
   });
 });

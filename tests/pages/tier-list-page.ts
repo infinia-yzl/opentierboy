@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import {expect, type Locator, type Page} from '@playwright/test';
+import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {escapeRegExp} from '../support/regexp';
 
 export type RowCount = 3 | 5 | 7;
@@ -2122,12 +2122,8 @@ export class TierListPage {
   }
 
   private async chooseRowOptionWithKeyboard(option: Locator) {
-    await this.changeAndWaitForLink(async () => {
-      await this.rowOptionsButton.click();
-      await option.focus();
-      await expect(option).toBeFocused();
-      await this.page.keyboard.press('Enter');
-    });
+    await this.openRowOptions();
+    await this.changeAndWaitForLink(() => this.chooseOpenRowOption(option));
   }
 
   // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
@@ -2150,6 +2146,280 @@ export class TierListPage {
   async addItemsFromDeviceAndWaitForLink(files: DeviceFiles) {
     await this.changeAndWaitForLink(() => this.addItemsFromDevice(files));
   }
+
+  // ---- Link images machine (tests/machines/link-images.ts) ----------------------------------
+
+  /**
+   * Opens a list as a new browser would: this site's local storage (the always-allowed image
+   * sites among it) is cleared on a blank page first. Context-wide init scripts run again.
+   */
+  async openAsNewBrowser(path: string, state: string) {
+    await this.page.goto('about:blank');
+    await this.page.context().setStorageState({cookies: [], origins: []});
+    await this.goto(path, state);
+  }
+
+  /** Adds an image with "From a link", and returns once the link holds it. */
+  async addItemFromLinkAndWaitForLink(address: string, name: string) {
+    await this.changeAndWaitForLink(() => this.addItemFromLink(address, name));
+  }
+
+  // ---- Appearance machine (tests/machines/appearance.ts) ---------------------------------------
+
+  /** The picture of an item's tile: 80 px wide with Comfortable tiles, 48 px with Compact. */
+  itemPicture(name: string): Locator {
+    return this.item(name).getByRole('img');
+  }
+
+  /**
+   * Chooses a tile size in Row options with the keyboard (see chooseLabelPositionWithKeyboard:
+   * Tile Size is the menu's last group). Choosing Compact with Show Labels on also turns Show
+   * Labels off, which rewrites the link in place: then this waits for the new link.
+   */
+  async chooseTileSizeWithKeyboard(name: TileSizeName) {
+    await this.openRowOptions();
+    const turnsLabelsOff = name === 'Compact'
+      && await this.rowOption('Compact').getAttribute('aria-checked') !== 'true'
+      && await this.rowOption('Show Labels').getAttribute('aria-checked') === 'true';
+    const choose = () => this.chooseOpenRowOption(this.rowOption(name));
+    if (turnsLabelsOff) await this.changeAndWaitForLink(choose);
+    else await choose();
+  }
+
+  /** Chooses an option of the open Row options menu with the keyboard, and waits until the menu closes. */
+  private async chooseOpenRowOption(option: Locator) {
+    await option.focus();
+    await expect(option).toBeFocused();
+    await this.page.keyboard.press('Enter');
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+  }
+
+  // ---- Share panel machine (tests/machines/share-panel.ts) ----------------------------------
+
+  /** The Image tab's line before the first capture. */
+  get captureHint(): Locator {
+    return this.sharePanel.getByText('Capture an image to get started.');
+  }
+
+  /** Freeze Frame's Download button, shown after Capture Preview. */
+  get downloadButton(): Locator {
+    return this.sharePanel.getByRole('button', {name: 'Download', exact: true});
+  }
+
+  /** Writes an empty text to the clipboard (see readCopiedText), so a run starts with nothing copied. */
+  async emptyClipboard() {
+    await this.page.evaluate(() => navigator.clipboard.writeText(''));
+  }
+
+  /** Closes the open share panel with the Share button. */
+  async closeSharePanelWithShareButton() {
+    await this.shareButton.click();
+    await expect(this.sharePanel).toBeHidden();
+  }
+
+  /** Closes the open share panel with a click on the Unranked tray's heading, outside the panel. */
+  async clickOutsideSharePanel() {
+    await this.unranked.getByRole('heading', {level: 2}).click();
+    await expect(this.sharePanel).toBeHidden();
+  }
+
+  /** Chooses a tab of the open share panel. */
+  async chooseShareTab(name: 'URL' | 'Image') {
+    await this.shareTab(name).click();
+    await expect(this.shareTab(name)).toHaveAttribute('aria-selected', 'true');
+  }
+
+  /** Clicks Copy Markdown in the open share panel, and waits for its toast. */
+  async copyMarkdownInOpenPanel() {
+    await this.copyMarkdownButton.click();
+    await expect(this.toast('Markdown copied to clipboard').first()).toBeVisible();
+  }
+
+  /**
+   * Clicks Capture Preview in the open Image tab, and waits until the capture has ended: the
+   * button reads "Capture Preview" again (it reads "Capturing..." meanwhile), with the picture
+   * and no error toast.
+   */
+  async captureInOpenPanel() {
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled({timeout: 30_000});
+    await expect(this.toast('Image captured successfully').first()).toBeVisible();
+    await expect(this.toast('Failed to capture image')).toHaveCount(0);
+    await expect(this.capturedImage).toBeVisible();
+  }
+
+  // ---- Keyboard drag machine (tests/machines/keyboard-drag.ts) --------------------------------
+
+  /**
+   * Focuses an item, as a keyboard user who tabbed to it, once it takes a drag: right after a page
+   * load a tile takes a drag only when the page is ready (its role description "draggable").
+   */
+  async focusItemReadyToDrag(name: string) {
+    const item = this.item(name);
+    await expect(item).toHaveAttribute('aria-roledescription', 'draggable');
+    await item.focus();
+    await expect(item).toBeFocused();
+  }
+
+  // ---- Snapshot files machine (tests/machines/snapshot-files.ts) ----------------------------
+
+  /**
+   * Holds the server's answers to the editor's list writes (the request each new address of a
+   * /rank page makes; prefetches pass), as on a very slow connection, until `release`.
+   * `isHolding` turns true once a write is held: its router.push was made.
+   */
+  async holdListWrites(): Promise<HeldListWrites> {
+    let open!: () => void;
+    const released = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    let holding = false;
+    const handled: Promise<void>[] = [];
+    const hold = async (route: Route) => {
+      const request = route.request();
+      const headers = request.headers();
+      const write = headers['rsc'] === '1' && !headers['next-router-prefetch'] && !headers['next-router-segment-prefetch']
+        && new URL(request.url()).pathname.startsWith('/rank');
+      if (!write) return route.fallback();
+      holding = true;
+      await released;
+      // The page may have dropped the request meanwhile (the visitor left): nothing to answer then.
+      await route.fallback().catch(() => undefined);
+    };
+    const handler = (route: Route) => {
+      const done = hold(route);
+      handled.push(done);
+      return done;
+    };
+    await this.page.route('**/*', handler);
+    return {
+      isHolding: () => holding,
+      release: async () => {
+        open();
+        await Promise.all(handled);
+        await this.page.unroute('**/*', handler);
+      },
+    };
+  }
+
+  /** Waits until the dialog "Open the list in this file?" has closed or says "Opening the list…". */
+  private async untilOpenListDialogClosesOrOpens() {
+    await expect(this.openListDialog.filter({hasNotText: 'Opening the list…'}), 'the dialog should close or say "Opening the list…"')
+      .toHaveCount(0, {timeout: 10_000});
+  }
+
+  /**
+   * Chooses Cancel in "Open the list in this file?" with the keyboard (Playwright does not click
+   * a button that says aria-disabled, as Cancel does while the list opens; a person still can).
+   * Returns once the dialog closed, or once it says "Opening the list…".
+   */
+  async chooseCancelInOpenListDialog() {
+    const cancel = this.openListDialog.getByRole('button', {name: 'Cancel'});
+    await cancel.focus();
+    await expect(cancel).toBeFocused();
+    await this.page.keyboard.press('Enter');
+    await this.untilOpenListDialogClosesOrOpens();
+  }
+
+  /** Presses Escape in "Open the list in this file?". Returns once it closed, or once it says "Opening the list…". */
+  async pressEscapeInOpenListDialog() {
+    await this.page.keyboard.press('Escape');
+    await this.untilOpenListDialogClosesOrOpens();
+  }
+
+  /**
+   * Clicks Open list with the server's answers held (holdListWrites). When the list goes to a
+   * new address, returns the hold once the write is held and the dialog says "Opening the
+   * list…". When the address shows the list already, returns null once the dialog closed.
+   */
+  async clickOpenListWithServerHeld(): Promise<HeldListWrites | null> {
+    const hold = await this.holdListWrites();
+    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
+    await expect.poll(async () => hold.isHolding() || !(await this.openListDialog.isVisible()), {
+      message: 'the list write should reach the server, or the dialog close',
+      timeout: 10_000,
+    }).toBe(true);
+    if (hold.isHolding()) {
+      await expect(this.openListDialog).toContainText('Opening the list…');
+      return hold;
+    }
+    await hold.release();
+    return null;
+  }
+
+  /** Lets the server answer the held write of an opening list, and waits until the list is in the address. */
+  async answerHeldListWrite(hold: HeldListWrites) {
+    const before = this.page.url();
+    await hold.release();
+    await expect(this.openListDialog).toBeHidden();
+    await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
+  }
+
+  /**
+   * Returns once the address changed (a picture was added) or a dialog shows, where a paste or a
+   * drop changes nothing.
+   */
+  private async untilAddressChangesOrDialogShows(before: string) {
+    await expect.poll(async () => this.page.url() !== before || await this.openListDialog.isVisible(), {
+      message: 'the link should change, unless a dialog shows',
+      timeout: 15_000,
+    }).toBe(true);
+  }
+
+  /**
+   * Pastes a file where the focus is, as Ctrl+V does: into the editor, or into the dialog when one
+   * shows. Returns once the link changed, or at once while a dialog shows. Firefox drops the files
+   * of a scripted paste (SCRIPTED_PASTE_SKIP).
+   */
+  async pasteFileWhereFocused(file: {name: string; mimeType: string; buffer: Buffer}) {
+    const before = this.page.url();
+    await this.page.evaluate(({name, mimeType, base64}) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
+      (document.activeElement ?? document.body).dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
+    await this.untilAddressChangesOrDialogShows(before);
+  }
+
+  /**
+   * Drops a file where the pointer is: on the editor's first row, or on the dialog when one shows
+   * (it covers the page). Returns once the link changed, or at once while a dialog shows.
+   */
+  async dropFileWherePointed(file: {name: string; mimeType: string; buffer: Buffer}) {
+    const before = this.page.url();
+    if (await this.openListDialog.isVisible()) await this.dropFile(file, {onto: this.openListDialog});
+    else await this.dropFile(file);
+    await this.untilAddressChangesOrDialogShows(before);
+  }
+
+  /** Chooses a picture with "Open a Freeze Frame…" and returns once the link holds it. */
+  async openFileAndWaitForLink(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.changeAndWaitForLink(() => this.openFile(file));
+  }
+
+  /**
+   * Pastes groups of pictures at once with the server's answers held, so the first add stays on
+   * its way to the address and the others wait their turn, then leaves for the landing page.
+   * The server answers once the landing page shows.
+   */
+  async leaveWhilePastesWait(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
+    const hold = await this.holdListWrites();
+    try {
+      await this.pasteImagesAtOnce(groups);
+      await expect.poll(() => hold.isHolding(), {message: 'the first add should be on its way to the address', timeout: 15_000}).toBe(true);
+      await this.leaveForHome();
+    } finally {
+      await hold.release();
+    }
+  }
+}
+
+/** The server's answers to list writes, held by TierListPage.holdListWrites. */
+export interface HeldListWrites {
+  /** True once a list write is held. */
+  readonly isHolding: () => boolean;
+  /** Lets the server answer every held write, and stops holding. */
+  readonly release: () => Promise<void>;
 }
 
 type Box = {x: number; y: number; width: number; height: number};

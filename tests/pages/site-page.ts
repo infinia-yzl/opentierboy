@@ -267,4 +267,136 @@ export class SitePage {
     const links = await this.main.getByRole('link').all();
     return Promise.all(links.map(async (link) => (await link.getAttribute('href')) ?? ''));
   }
+
+  // ---- Appearance machine (tests/machines/appearance.ts) ---------------------------------------
+
+  /**
+   * Waits until the Appearance button opens its menu. Until the page has started in the browser,
+   * the header shows a plain button that a click does not open: the menu's button then says that
+   * it has a popup menu.
+   */
+  async appearanceMenuReady() {
+    await expect(this.appearanceButton).toHaveAttribute('aria-haspopup', 'menu');
+  }
+
+  /** What this browser's local storage holds under `key`, or null. */
+  async storedValue(key: string): Promise<string | null> {
+    return this.page.evaluate((storageKey) => localStorage.getItem(storageKey), key);
+  }
+
+  /**
+   * Opens About from the site navigation, then goes back with the browser's Back button.
+   * Returns once the address before is back, and the page that shows it has started.
+   */
+  async visitAboutAndGoBack() {
+    const before = this.page.url();
+    await this.openFromNavigation('About');
+    await expect(this.page).toHaveURL(/\/about$/);
+    await expect(this.pageHeading).toBeVisible();
+    await this.page.goBack();
+    await expect(this.page).toHaveURL(before);
+    await this.appearanceMenuReady();
+  }
+
+  // ---- Recently viewed machine (tests/machines/recently-viewed.ts) ----------------------------
+
+  /**
+   * Starts Home with these entries in Recently viewed and nothing else in local storage, as a
+   * browser that kept them would. `stored` is the value of `otb-recent-links`
+   * (lib/recent/recentLinks.ts).
+   */
+  async seedRecentLinks(stored: string) {
+    await this.gotoHome();
+    await this.page.evaluate((value) => {
+      localStorage.clear();
+      localStorage.setItem('otb-recent-links', value);
+    }, stored);
+    await this.page.reload();
+    await expect(this.recentlyViewed).toBeVisible();
+  }
+
+  /** When Recently viewed last recorded the list with this title (milliseconds), or 0 when it holds none. */
+  async recentOpenedAt(title: string): Promise<number> {
+    return this.page.evaluate((name) => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('otb-recent-links') ?? 'null') as {links?: {title?: string; openedAt?: number}[]} | null;
+        return stored?.links?.find((link) => link.title === name)?.openedAt ?? 0;
+      } catch {
+        return 0;
+      }
+    }, title);
+  }
+
+  /** Waits until the editor has recorded the list with this title after `before` (recentOpenedAt). */
+  private async waitUntilRecorded(title: string, before: number) {
+    await expect(this.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
+    await expect.poll(() => this.recentOpenedAt(title), {
+      message: `Recently viewed records ${title}`,
+      timeout: 10_000,
+    }).toBeGreaterThan(before);
+  }
+
+  /** Home, once its Recently viewed shows. */
+  private async returnHome() {
+    await this.gotoHome();
+    await expect(this.recentlyViewed).toBeVisible();
+  }
+
+  /**
+   * Opens a list's link from outside Home (`href`: its path and `?state=`), waits until
+   * Recently viewed has recorded it, and goes back to Home. Call it on a page of the site.
+   */
+  async openListAndReturnHome(href: string, title: string) {
+    const before = await this.recentOpenedAt(title);
+    await this.page.goto(href);
+    await this.waitUntilRecorded(title, before);
+    await this.returnHome();
+  }
+
+  /** Opens a list from its link in Recently viewed, waits until it is recorded again, and goes back to Home. */
+  async reopenRecentLinkAndReturnHome(title: string) {
+    const before = await this.recentOpenedAt(title);
+    await this.recentLink(title).click();
+    await this.waitUntilRecorded(title, before);
+    await this.returnHome();
+  }
+
+  /** The toast of a refused pin, such as "You can pin up to 20 lists". */
+  recentToast(text: string): Locator {
+    return this.page.getByRole('listitem').filter({hasText: text});
+  }
+
+  /** The pin toggles in Recently viewed that are pressed (the pinned lists). */
+  get pressedRecentPinButtons(): Locator {
+    return this.recentlyViewed.getByRole('button', {name: /^Pin /, pressed: true});
+  }
+
+  /**
+   * Presses Pin of an unpinned list, and waits until it is pinned or the pin-limit toast
+   * (`refusal`) shows. Then the pointer leaves the list, so it cannot rest on the toast and
+   * hold its timer.
+   */
+  async pinRecentLink(name: string, refusal: string) {
+    await this.recentPinButton(name).click();
+    const pinned = this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true, pressed: true});
+    await expect(pinned.or(this.recentToast(refusal))).toBeVisible();
+    await this.page.mouse.move(0, 0);
+  }
+
+  /** Presses Pin of a pinned list, and waits until it is unpinned. */
+  async unpinRecentLink(name: string) {
+    await this.recentPinButton(name).click();
+    await expect(this.recentPinButton(name)).toHaveAttribute('aria-pressed', 'false');
+  }
+
+  /** Removes a list from Recently viewed, and waits until its link is gone. */
+  async removeRecentLinkAndWait(name: string) {
+    await this.removeRecentLink(name);
+    await expect(this.recentLink(name)).toHaveCount(0);
+  }
+
+  /** Waits until the toast with `text` ends by itself (Sonner's 4 seconds). */
+  async waitOutRecentToast(text: string) {
+    await expect(this.recentToast(text)).toBeHidden({timeout: 15_000});
+  }
 }

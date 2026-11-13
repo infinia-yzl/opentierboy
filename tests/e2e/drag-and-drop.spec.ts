@@ -1,7 +1,20 @@
 /** Moving items and rows: mouse drags, the keyboard, touch, and what screen readers hear. */
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, expectTierList, test} from '../support/test';
-import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
+import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import type {TierListPage} from '../pages/tier-list-page';
+import {
+  KEYBOARD_DRAG_ITEM,
+  KEYBOARD_DRAG_ROWS,
+  keyboardDragModel,
+  keyboardDragViewOf,
+  type KeyboardDragEvent,
+  type KeyboardDragRow,
+  type KeyboardDragSnapshot,
+} from '../models/keyboard-drag';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -362,6 +375,73 @@ test.describe('drag and drop', () => {
       for (const image of await tierList.allItemImages.all()) {
         await expect(image).toHaveAttribute('draggable', 'false');
       }
+    });
+  });
+
+  test.describe('model', () => {
+    // One tile in a list of two rows and the tray, so every place the tile can take is a state.
+    const ITEM_ID = packageItemId('image-overwatch', KEYBOARD_DRAG_ITEM);
+    const LIST = v3State({r: [['tier-s', 'S', []], ['tier-a', 'A', []], ['uncategorized', '', [ITEM_ID]]]});
+
+    /** The row that holds the tile in a v3 link: rows are [id, label, items] or [label, items]. */
+    const linkRowOf = (link: string): KeyboardDragRow | null => {
+      const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
+      const row = rows.find((entry) => (entry[entry.length - 1] as unknown[]).includes(ITEM_ID));
+      if (!row) return null;
+      const label = row[row.length - 2] as string;
+      return label === '' ? 'Unranked' : label as KeyboardDragRow;
+    };
+
+    /** The keyboard drag machine's events and checks, run on this test's page (createPlaywrightSut). */
+    const keyboardDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      // Each change of the list in the link adds one history entry; a cancel and a drop in place add none.
+      let entries = 0;
+      let linkRow: KeyboardDragRow = 'Unranked';
+      return createPlaywrightSut<Page, KeyboardDragSnapshot, KeyboardDragEvent>(page, {
+        reset: async () => {
+          await tierList.goto(TANKS, LIST);
+          // A keyboard user tabs to the tile first.
+          await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+          entries = await tierList.historyLength();
+          linkRow = 'Unranked';
+        },
+        events: {
+          PRESS_SPACE: () => tierList.pressKey('Space'),
+          PRESS_ENTER: () => tierList.pressKey('Enter'),
+          PRESS_UP: () => tierList.pressKey('ArrowUp'),
+          PRESS_DOWN: () => tierList.pressKey('ArrowDown'),
+          PRESS_ESCAPE: () => tierList.pressKey('Escape'),
+        },
+        // Web-first checks: the preview draws at once, but a move is read out 500 ms later.
+        states: {
+          '*': async (_page, snapshot) => {
+            const {shownIn, linkIn, carried, heard} = keyboardDragViewOf(snapshot);
+            for (const row of KEYBOARD_DRAG_ROWS) {
+              await expect(tierList.itemsIn(row)).toHaveText(row === shownIn ? [KEYBOARD_DRAG_ITEM] : []);
+            }
+            await expect(tierList.dragAnnouncer).toHaveText(heard);
+            await expect.poll(() => linkRowOf(page.url()), {message: 'the link should hold the tile in its row'}).toBe(linkIn);
+            if (linkIn !== linkRow) {
+              entries += 1;
+              linkRow = linkIn;
+            }
+            await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
+            if (!carried) {
+              // After a drop or a cancel, focus is back on the tile, and it takes the next drag.
+              await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
+              await tierList.expectEveryItemDraggable();
+            }
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the keyboard drag machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(keyboardDragModel, keyboardDragSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, keyboardDragModel, coverage);
     });
   });
 });

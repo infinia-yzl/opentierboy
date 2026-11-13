@@ -1,10 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, expectTierList, test} from '../support/test';
 import {rankingState, templateItemCount} from '../support/links';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import type {TierListPage} from '../pages/tier-list-page';
+import type {SitePage} from '../pages/site-page';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {
+  OTHER_PINNED_LISTS,
+  OTHER_RECENT_LISTS,
+  PIN_LIMIT_TOAST,
+  recentLinkNames,
+  recentlyViewedModel,
+  recentlyViewedViewOf,
+  WALK_LISTS,
+  type RecentlyViewedEvent,
+  type RecentlyViewedSnapshot,
+  type RecentlyViewedView,
+  type WalkList,
+} from '../models/recently-viewed';
 import golden from '../fixtures/snapshots/snapshots.json';
 
 const TANKS = '/rank/overwatch/tank';
@@ -257,6 +274,71 @@ test.describe('home', () => {
       await site.dropOnDropArea(pngFile(entry.file, fs.readFileSync(path.join(SNAPSHOTS, entry.file))));
 
       await expect(site.openListDialog).toContainText('This page stays one Back step away.');
+    });
+  });
+
+  test.describe('model', () => {
+    /** The walk's two lists: their links (path and `state`), by the machine's names for them. */
+    const WALK_LINKS = {
+      tanks: {path: TANKS, state: rankingState('image-overwatch', {S: ['Mauga']}, WALK_LISTS.tanks)},
+      support: {path: SUPPORT, state: rankingState('image-overwatch', {S: ['Ana']}, WALK_LISTS.support)},
+    } as const;
+    const hrefOf = (list: WalkList) => `${WALK_LINKS[list].path}?state=${WALK_LINKS[list].state}`;
+
+    /**
+     * What `otb-recent-links` holds when a run starts: the other lists of the model, one short of
+     * each cap. The pinned ones were pinned and opened in the past; the unpinned ones were opened
+     * a year from now, so the walk's lists are always the oldest unpinned ones.
+     */
+    const seededRecentLinks = () => {
+      const now = Date.now();
+      const day = 86_400_000;
+      const link = (title: string) => ({path: '/rank/overwatch/dps', state: rankingState('image-overwatch', {}, title), title});
+      const pinned = OTHER_PINNED_LISTS.map((title, index) => ({
+        ...link(title), openedAt: now - (index + 1) * day, pinned: true, pinnedAt: now - (index + 1) * day,
+      }));
+      const recent = OTHER_RECENT_LISTS.map((title, index) => ({
+        ...link(title), openedAt: now + 365 * day - index * 60_000, pinned: false,
+      }));
+      return JSON.stringify({version: 1, links: [...pinned, ...recent]});
+    };
+
+    /** The links of Recently viewed, the pin state of the walk's lists and the pin-limit toast, as a state shows them. */
+    const expectRecentlyViewed = async (site: SitePage, view: RecentlyViewedView) => {
+      await expect(site.recentLinks).toHaveText(recentLinkNames(view));
+      await expect(site.pressedRecentPinButtons).toHaveCount(OTHER_PINNED_LISTS.length + (view.pinned ? 1 : 0));
+      if (view.pinned) await expect(site.recentPinButton(WALK_LISTS[view.pinned])).toHaveAttribute('aria-pressed', 'true');
+      if (view.recent) await expect(site.recentPinButton(WALK_LISTS[view.recent])).toHaveAttribute('aria-pressed', 'false');
+      await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(view.pinRefused ? 1 : 0);
+    };
+
+    /** The Recently viewed machine's events and checks (createPlaywrightSut). Each run starts on Home with the seeded lists. */
+    const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
+      reset: () => site.seedRecentLinks(seededRecentLinks()),
+      events: {
+        OPEN_TANKS: () => site.openListAndReturnHome(hrefOf('tanks'), WALK_LISTS.tanks),
+        OPEN_SUPPORT: () => site.openListAndReturnHome(hrefOf('support'), WALK_LISTS.support),
+        REOPEN_TANKS: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.tanks),
+        REOPEN_SUPPORT: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.support),
+        PIN_TANKS: () => site.pinRecentLink(WALK_LISTS.tanks, PIN_LIMIT_TOAST),
+        PIN_SUPPORT: () => site.pinRecentLink(WALK_LISTS.support, PIN_LIMIT_TOAST),
+        UNPIN_TANKS: () => site.unpinRecentLink(WALK_LISTS.tanks),
+        UNPIN_SUPPORT: () => site.unpinRecentLink(WALK_LISTS.support),
+        REMOVE_TANKS: () => site.removeRecentLinkAndWait(WALK_LISTS.tanks),
+        REMOVE_SUPPORT: () => site.removeRecentLinkAndWait(WALK_LISTS.support),
+        TOAST_TIMES_OUT: () => site.waitOutRecentToast(PIN_LIMIT_TOAST),
+      },
+      states: {
+        '*': (_page, snapshot) => expectRecentlyViewed(site, recentlyViewedViewOf(snapshot)),
+      },
+      testInfo,
+      step: (name, body) => test.step(name, body),
+    });
+
+    test('renders each state of the Recently viewed machine when the user walks every transition', async ({site, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(recentlyViewedModel, recentlyViewedSut(site, page, testInfo));
+      await attachAndAssertCoverage(testInfo, recentlyViewedModel, coverage);
     });
   });
 });

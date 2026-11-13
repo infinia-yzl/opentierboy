@@ -1,7 +1,12 @@
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
 import {imageFile, serveImageSite} from '../support/image-sites';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import type {TierListPage} from '../pages/tier-list-page';
+import {sharePanelModel, sharePanelViewOf, type SharePanelEvent, type SharePanelSnapshot, type SharePanelView} from '../models/share-panel';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -195,6 +200,74 @@ test.describe('share panel', () => {
       test.fail(true, 'The two buttons hold only an icon (components/ShareButton.tsx), so they have no accessible name.');
       await expect(tierList.socialShareButton(/Facebook/)).toBeVisible({timeout: 2_000});
       await expect(tierList.socialShareButton(/\bX\b|Twitter/)).toBeVisible({timeout: 2_000});
+    });
+  });
+
+  test.describe('model', () => {
+    /** The note on one image from the device (see "images in the link"). */
+    const ONE_DEVICE_IMAGE_NOTE = "1 image from your device isn't in the link. People who open the link see its name in its place. To share the image itself, download a Freeze Frame from the Image tab.";
+
+    /** The panel, its tab and note, and the clipboard, as a state of the share panel machine shows them. */
+    const expectSharePanel = async (tierList: TierListPage, view: SharePanelView) => {
+      if (view.tab === null) {
+        await expect(tierList.sharePanel).toBeHidden();
+        await expect(tierList.shareButton).toBeEnabled();
+      } else {
+        await expect(tierList.shareTab(view.tab)).toHaveAttribute('aria-selected', 'true');
+        if (view.tab === 'URL') await expect(tierList.copyMarkdownButton).toBeVisible();
+        if (view.captured === true) {
+          await expect(tierList.capturedImage).toBeVisible();
+          await expect(tierList.downloadButton).toBeEnabled();
+        }
+        if (view.captured === false) {
+          await expect(tierList.captureHint).toBeVisible();
+          await expect(tierList.capturedImage).toHaveCount(0);
+        }
+        if (view.deviceImages === 1) await expect(tierList.linkImageNotes).toHaveText([ONE_DEVICE_IMAGE_NOTE]);
+        else await expect(tierList.linkImageNotes).toHaveCount(0);
+      }
+      const markdownLink = new RegExp(`\\]\\(${escapeRegExp(new URL(TANKS, tierList.page.url()).href)}\\?state=3\\.`);
+      if (view.clipboardHoldsLink) await expect.poll(() => tierList.clipboardText()).toMatch(markdownLink);
+      else await expect.poll(() => tierList.clipboardText()).toBe('');
+    };
+
+    /** The share panel machine's events and checks (createPlaywrightSut). Each run opens the template with nothing copied. */
+    const sharePanelSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      let added = 0;
+      return createPlaywrightSut<Page, SharePanelSnapshot, SharePanelEvent>(page, {
+        reset: async () => {
+          await tierList.goto(TANKS);
+          await tierList.emptyClipboard();
+        },
+        events: {
+          OPEN_SHARE_PANEL: () => tierList.openSharePanel(),
+          CLOSE_WITH_SHARE_BUTTON: () => tierList.closeSharePanelWithShareButton(),
+          PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
+          CLICK_OUTSIDE: () => tierList.clickOutsideSharePanel(),
+          CHOOSE_IMAGE_TAB: () => tierList.chooseShareTab('Image'),
+          CHOOSE_URL_TAB: () => tierList.chooseShareTab('URL'),
+          CAPTURE_PREVIEW: () => tierList.captureInOpenPanel(),
+          DOWNLOAD: async () => {
+            const file = await tierList.downloadCapturedImage();
+            expect(file.name).toMatch(/\.png$/);
+          },
+          COPY_MARKDOWN: () => tierList.copyMarkdownInOpenPanel(),
+          ADD_DEVICE_IMAGE: () => tierList.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++added}.png`)]),
+        },
+        states: {
+          '*': (_page, snapshot) => expectSharePanel(tierList, sharePanelViewOf(snapshot)),
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the share panel machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      // Before the first page opens: Firefox and WebKit keep the copied text in the page.
+      await tierList.readCopiedText();
+      const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, sharePanelModel, coverage);
     });
   });
 });
