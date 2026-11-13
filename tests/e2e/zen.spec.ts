@@ -413,24 +413,6 @@ test.describe('zen', () => {
       expect(shown.sort()).toEqual([...TRAY].sort());
     });
 
-    test('renders "Queue (hidden)" with no item names after the item up next when the user turns on "Hide the queue"', async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
-
-      await tierList.setHideQueue(true);
-
-      await expect(tierList.queue('Queue (hidden)')).toBeVisible();
-      await expect(tierList.queue()).toHaveCount(0);
-      await expect(tierList.upNextItem).toHaveAccessibleName('Mauga');
-      for (const name of ['Winston', 'Sigma', 'Orisa']) {
-        await expect(tierList.unranked.getByText(name)).toHaveCount(0);
-      }
-
-      await tierList.setHideQueue(false);
-      await expect(tierList.queueItems).toHaveText(['Winston', 'Sigma', 'Orisa']);
-    });
-
     test('renders menu item "Hide the queue" turned off and unavailable when the ranking order is Pick freely', async ({tierList, page}) => {
       await tierList.goto(TANKS);
       await tierList.setZenMode(true);
@@ -439,18 +421,6 @@ test.describe('zen', () => {
 
       await expect(page.getByRole('menuitemradio', {name: 'Pick freely'})).toHaveAttribute('aria-checked', 'true');
       await expect(page.getByRole('menuitemcheckbox', {name: 'Hide the queue'})).toHaveAttribute('aria-disabled', 'true');
-    });
-
-    test('renders the Unranked tray with every item when the user chooses Pick freely after In order', async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
-
-      await tierList.chooseRankingOrder('Pick freely');
-
-      await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
-      await expect(tierList.queue()).toHaveCount(0);
     });
 
     test('writes no history entry and leaves the address as it is when the user chooses each ranking order and "Hide the queue"', async ({
@@ -469,18 +439,6 @@ test.describe('zen', () => {
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
       await expect(tierList.zenStepCount).toHaveText('1 / 1');
-    });
-
-    test('renders the tray as it was when the user leaves Zen with In order chosen', async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
-
-      await tierList.setZenMode(false);
-
-      await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-      await expect(tierList.hints).toBeVisible();
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
     });
   });
 

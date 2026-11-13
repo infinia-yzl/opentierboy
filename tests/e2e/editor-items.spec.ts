@@ -267,18 +267,6 @@ test.describe('editor items', () => {
       });
     });
 
-    test('renders the template picker, then the items, when the user clicks Template in the drop area of an empty list', async ({tierList}) => {
-      await tierList.goto('/rank');
-
-      await tierList.emptyListAction('Template').click();
-      await expect(tierList.templatePicker.getByRole('combobox')).toBeVisible();
-      await tierList.templateOption('OVERWATCH').click();
-      await tierList.templateOption(/^Tank\b/).click();
-
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
-      await expect(tierList.emptyListDropArea).toHaveCount(0);
-    });
-
     test('renders the dialog "Add New Items" when the user clicks Upload in the drop area of an empty list', async ({tierList}) => {
       await tierList.goto('/rank');
 

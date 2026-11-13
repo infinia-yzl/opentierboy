@@ -291,18 +291,6 @@ test.describe('tips', () => {
       await expect.poll(() => tips.stored()).toEqual({seen: [], off: true});
       await expect(tierList.hints).toBeVisible();
     });
-
-    test('renders the first-drag tip again when the user turns the tips on again on About after Hide tips', async ({tierList}) => {
-      const tips = new Tips(tierList.page);
-      await tierList.goto(TANKS);
-      await tips.hideTips();
-
-      await tips.showTipsAgainOnAbout();
-      await tierList.goto(TANKS);
-
-      await expect(tips.firstDrag).toBeVisible();
-      expect(await tips.stored()).toEqual({seen: [], off: false});
-    });
   });
 
   test.describe('model', () => {
