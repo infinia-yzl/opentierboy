@@ -167,8 +167,14 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const pathname = usePathname();
   // The picture and the list it shows, taken together: Download embeds that list, even when the
   // list on screen has changed since.
-  const [capture, setCapture] = useState<Capture | null>(null);
+  const [capture, setCapture] = useState<(Capture & {previewUrl: string}) | null>(null);
   const imageBlob = capture?.picture ?? null;
+  // One object URL per captured picture, made when it is captured: the next capture, or leaving
+  // the editor, frees it.
+  const previewUrl = capture?.previewUrl ?? null;
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [frame, setFrame] = useState<FrameChoice>('whole');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -254,11 +260,15 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
       }
 
+      // The toast waits for the picture, so it never shows before the preview can.
       canvas.toBlob((blob: Blob | null) => {
-        if (blob) setCapture({picture: blob, ...shown});
+        if (blob) {
+          setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
+          toast.success('Image captured successfully');
+        } else {
+          toast.error(`Failed to capture image with ${captureMethod} method`);
+        }
       }, 'image/png');
-
-      toast.success('Image captured successfully');
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
@@ -431,10 +441,10 @@ What do you think? 🤔
                 </CollapsibleContent>
               </Collapsible>
 
-              {imageBlob && (
+              {previewUrl && (
                 <div className="relative w-full h-[200px] rounded-md overflow-hidden bg-muted">
                   <Image
-                    src={URL.createObjectURL(imageBlob)}
+                    src={previewUrl}
                     alt="Captured tier list"
                     fill
                     style={{objectFit: "contain"}}
