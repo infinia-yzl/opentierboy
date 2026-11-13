@@ -58,15 +58,26 @@ const runPaths = testPaths as unknown as Walker;
  */
 const ABORTED_PREFETCH = /\?_rsc=[^\s]+ due to access control checks\.$/;
 
+/**
+ * WebKit's report that ResizeObserver delivered some notifications a frame late. It is not an
+ * exception: the specification reports it to help debugging, and nothing is lost. Radix menus
+ * size themselves to the space beside their button (components/ui/dropdown-menu.tsx), so a page
+ * that reflows while a menu closes, such as tiles growing after Comfortable, can cause it.
+ */
+const RESIZE_OBSERVER_LOOP = /ResizeObserver loop completed with undelivered notifications\.$/;
+
+/** The page errors the walks pass over: browser notices, not failures of the app. */
+const BENIGN_PAGE_ERRORS: readonly RegExp[] = [ABORTED_PREFETCH, RESIZE_OBSERVER_LOOP];
+
 interface SutSession {
   check?: () => unknown;
 }
 
 /**
  * The sut, with its page oracles (createPlaywrightSut's `check`, README "Oracles") passing over
- * aborted-prefetch errors only: a failure that lists any other message still fails the step.
+ * BENIGN_PAGE_ERRORS only: a failure that lists any other message still fails the step.
  */
-export function ignoringAbortedPrefetches<TSut>(sut: TSut): TSut {
+export function ignoringBenignPageErrors<TSut>(sut: TSut): TSut {
   const {create} = sut as {create: (...args: unknown[]) => unknown};
   return {
     ...sut,
@@ -82,7 +93,7 @@ export function ignoringAbortedPrefetches<TSut>(sut: TSut): TSut {
           } catch (error) {
             const {name, messages} = error as {name?: string; messages?: readonly string[]};
             const noise = name === 'PlaywrightOracleError' && messages && messages.length > 0
-              && messages.every((message) => ABORTED_PREFETCH.test(message));
+              && messages.every((message) => BENIGN_PAGE_ERRORS.some((benign) => benign.test(message)));
             if (!noise) throw error;
           }
         },
@@ -152,9 +163,9 @@ async function withLiveInspector<TSut>(model: MachineModel, sut: TSut): Promise<
   };
 }
 
-/** The sut as every walk runs it: aborted prefetches passed over, and the live inspector when on. */
+/** The sut as every walk runs it: benign browser notices passed over, and the live inspector when on. */
 async function walkSut(model: MachineModel, sut: unknown): Promise<unknown> {
-  return withLiveInspector(model, ignoringAbortedPrefetches(sut));
+  return withLiveInspector(model, ignoringBenignPageErrors(sut));
 }
 
 /**
