@@ -192,6 +192,12 @@ describe('reorderRows', () => {
     expect(reorderRows(tiers, 0, 5)).toBe(tiers);
   });
 
+  it('returns the same array when row A moves onto row B and both are empty', () => {
+    const tiers = deepFreeze([tier('tier-s', 'S', ['mauga']), tier('tier-a', 'A'), tier('tier-b', 'B'), tier('uncategorized', '', ['ana'])]);
+    expect(reorderRows(tiers, 1, 2)).toBe(tiers);
+    expect(reorderRows(tiers, 2, 1)).toBe(tiers);
+  });
+
   it('returns the same array when from equals to or an index does not fit', () => {
     const tiers = sampleTiers();
     expect(reorderRows(tiers, 2, 2)).toBe(tiers);
@@ -208,7 +214,7 @@ describe('reorderRows', () => {
     expect(next[5]).toBe(tiers[5]);
   });
 
-  it('returns the pre-2.0.0 onDragEnd list when ranked rows move, and the input when Unranked moves', () => {
+  it('returns the pre-2.0.0 onDragEnd list when ranked rows move, and the input when Unranked moves or rows look the same', () => {
     const lists: Tier[][] = [
       ...Object.values(tierTemplates).map(template => template.map(row => ({...row, items: [item(`${row.id}-x`)]}))),
       sampleTiers(),
@@ -219,11 +225,15 @@ describe('reorderRows', () => {
       for (let from = 0; from < tiers.length; from++) {
         for (let to = 0; to < tiers.length; to++) {
           const last = tiers.length - 1;
-          const expected = from === last || to === last ? tiers : todaysOnDragEnd(structuredClone(tiers), {
+          const before = from === last || to === last ? tiers : todaysOnDragEnd(structuredClone(tiers), {
             type: 'TIER',
             source: {droppableId: 'all-tiers', index: from},
             destination: {droppableId: 'all-tiers', index: to},
           });
+          // The pre-2.0.0 code also swapped the ids of rows that look the same (two empty rows),
+          // which wrote a history entry with no visible change. That case now changes nothing.
+          const withoutIds = (rows: Tier[]) => rows.map(({id: _id, ...row}) => row);
+          const expected = JSON.stringify(withoutIds(before)) === JSON.stringify(withoutIds(tiers)) ? tiers : before;
           expect(reorderRows(deepFreeze(tiers), from, to), `${from} → ${to}`).toEqual(expected);
         }
       }

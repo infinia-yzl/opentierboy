@@ -78,7 +78,19 @@ export function reorderRows<T extends TierLike>(tiers: T[], from: number, to: nu
   const moved = tiers.slice();
   const [row] = moved.splice(from, 1);
   moved.splice(to, 0, row);
-  return moved.map((tier, index) => (tier.name === tiers[index].name ? tier : {...tier, name: tiers[index].name}));
+  const result = moved.map((tier, index) => (tier.name === tiers[index].name ? tier : {...tier, name: tiers[index].name}));
+  // Rows that look the same, such as two empty rows, swap only their ids: the list on screen
+  // stays as it is, so nothing changes and no history entry is written.
+  return result.every((tier, index) => looksTheSame(tier, tiers[index])) ? tiers : result;
+}
+
+/** True when two rows show the same: every field but the id is equal. */
+function looksTheSame(a: TierLike, b: TierLike): boolean {
+  const fields = new Set([...Object.keys(a), ...Object.keys(b)]);
+  fields.delete('id');
+  return [...fields].every(field => (
+    JSON.stringify((a as unknown as Record<string, unknown>)[field]) === JSON.stringify((b as unknown as Record<string, unknown>)[field])
+  ));
 }
 
 /** The last row is Unranked (lib/dnd/model.ts). */
