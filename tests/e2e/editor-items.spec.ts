@@ -1,8 +1,31 @@
 /** Adding, removing and resetting items in the editor, and items the image sets do not know. */
 import path from 'node:path';
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {serveImageSite} from '../support/image-sites';
 import {FIVE_ROW_TIERS, packageItemId, rankingState, rawState, templateItemCount, v3LinkJson} from '../support/links';
+import {
+  DELETED_ITEM,
+  OPENED_ROWS,
+  removeAndUndoModel,
+  removeAndUndoViewOf,
+  undoChangesList,
+  type RemoveAndUndoEvent,
+  type RemoveAndUndoSnapshot,
+  type RemoveAndUndoView,
+} from '../models/remove-and-undo';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import type {TierListPage} from '../pages/tier-list-page';
+import {
+  addFromTemplateModel,
+  addFromTemplateViewOf,
+  TEMPLATE_SET_KEYS,
+  TEMPLATE_SETS,
+  type AddFromTemplateEvent,
+  type AddFromTemplateSnapshot,
+  type AddFromTemplateView,
+} from '../models/add-from-template';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -334,6 +357,137 @@ test.describe('editor items', () => {
       // Marked here, after the steps that must work: a failure above fails the test as usual.
       test.fail(true, 'Undo adds the restored item at the end of its tier (itemRestored in lib/tierListReducer.ts).');
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston'], {timeout: 3_000});
+    });
+  });
+
+  // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/add-from-template.ts
+  // walked through the Playwright adapter of @xstate/test.
+  test.describe('model: templates', () => {
+    /** What a state shows: Unranked's images, the drop area or the tile, the picker's page and the toast. */
+    const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
+      await expect(tierList.toast('Items Added')).toHaveCount(view.toast ? 1 : 0);
+      if (view.picker) {
+        // The open picker hides the page behind it from the accessibility tree, so only the picker is checked.
+        await expect(tierList.templatePickerPage(view.picker)).toBeVisible();
+        return;
+      }
+      await expect(tierList.templatePicker).toBeHidden();
+      const expected = view.sets.reduce((count, set) => count + templateItemCount('image-overwatch', TEMPLATE_SETS[set].tag), 0);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(expected);
+      for (const set of TEMPLATE_SET_KEYS) {
+        await expect(tierList.itemIn(tierList.unranked, TEMPLATE_SETS[set].example)).toHaveCount(view.sets.includes(set) ? 1 : 0);
+      }
+      if (view.sets.length === 0) {
+        await expect(tierList.emptyListDropArea).toBeVisible();
+        await expect(tierList.addImagesTile).toHaveCount(0);
+      } else {
+        await expect(tierList.emptyListDropArea).toHaveCount(0);
+        await expect(tierList.addImagesTile).toBeVisible();
+      }
+    };
+
+    /** The add-from-template machine's events and checks. Each run starts on a new empty list. */
+    const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
+      reset: async () => {
+        await tierList.goto('/rank');
+        await expect(tierList.emptyListAction('Template')).toBeVisible();
+      },
+      events: {
+        OPEN_FROM_MENU: () => tierList.openTemplatePicker(),
+        OPEN_FROM_DROP_AREA: () => tierList.openTemplatePickerFromDropArea(),
+        OPEN_OVERWATCH: () => tierList.openTemplatePackage('OVERWATCH'),
+        CHOOSE_TANK: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.tank.title),
+        CHOOSE_SUPPORT: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.support.title),
+        PRESS_ESCAPE: () => tierList.pressEscapeForTemplatePicker(),
+        UNDO: () => tierList.undoTemplateAdd(),
+        TOAST_TIMES_OUT: () => tierList.waitOutTemplateAddToast(),
+      },
+      states: {
+        '*': (_page, snapshot) => expectView(tierList, addFromTemplateViewOf(snapshot)),
+      },
+      testInfo,
+      step: (name, body) => test.step(name, body),
+    });
+
+    test('renders each state of the add-from-template machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(addFromTemplateModel, addFromTemplateSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, addFromTemplateModel, coverage);
+    });
+  });
+
+  /**
+   * The remove-and-undo machine (tests/machines/remove-and-undo.ts): Delete, Reset and Remove
+   * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. The
+   * pointer rests on the toast after each removal, which pauses its 4 s timer.
+   *
+   * Known bug: Undo after a delete puts the item back at the end of its row ("Known bugs"
+   * above), so after that Undo row S is checked for its items in any order.
+   */
+  test.describe('model: removing', () => {
+    const LIST = rankingState('image-overwatch', {S: [...OPENED_ROWS.S], A: [...OPENED_ROWS.A], '': [...OPENED_ROWS.Unranked]});
+
+    /** The items of each row, in order unless the view says the app gets the order of row S wrong. */
+    const expectRows = async (tierList: TierListPage, {rows, orderOfSChecked}: RemoveAndUndoView) => {
+      if (orderOfSChecked) {
+        await expect(tierList.itemsIn('S')).toHaveText([...rows.S]);
+      } else {
+        await expect(tierList.itemsIn('S')).toHaveCount(rows.S.length);
+        for (const name of rows.S) await expect(tierList.itemsIn('S')).toContainText([name]);
+      }
+      await expect(tierList.itemsIn('A')).toHaveText([...rows.A]);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText([...rows.Unranked]);
+    };
+
+    /** The remove-and-undo machine's events and checks, run on this test's page (createPlaywrightSut). */
+    const removeAndUndoSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      let opened = '';
+      // The state on screen, as the last check saw it: Undo waits for a new link only where it changes the list.
+      let onScreen: RemoveAndUndoSnapshot | null = null;
+      const shown = () => {
+        if (!onScreen) throw new Error('No state was checked yet');
+        return onScreen;
+      };
+      return createPlaywrightSut<Page, RemoveAndUndoSnapshot, RemoveAndUndoEvent>(page, {
+        reset: async () => {
+          onScreen = null;
+          await tierList.openAfterBlankPage(TANKS, LIST);
+          await tierList.waitUntilInteractive();
+          opened = page.url();
+        },
+        events: {
+          DELETE_ITEM: () => tierList.deleteItemAndRestOnToast(DELETED_ITEM),
+          CHOOSE_RESET: () => tierList.resetRankingsAndRestOnToast(),
+          OPEN_REMOVE_ALL: () => tierList.openRemoveAll(),
+          CONFIRM_REMOVE_ALL: () => tierList.confirmRemoveAllAndRestOnToast(),
+          CANCEL_REMOVE_ALL: () => tierList.cancelRemoveAll(),
+          CLICK_UNDO: () => tierList.undoInToast(removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
+          BROWSER_BACK: () => tierList.goBack(),
+          BROWSER_FORWARD: () => tierList.goForward(),
+        },
+        // Web-first checks: after Back or Forward the address changes before the list on screen does.
+        states: {
+          '*': async (_page, snapshot) => {
+            onScreen = snapshot;
+            const view = removeAndUndoViewOf(snapshot);
+            if (view.asOpened) await expect(page).toHaveURL(opened);
+            else await expect(page).not.toHaveURL(opened);
+            await expect(tierList.removeAllDialog).toHaveCount(view.dialog ? 1 : 0);
+            // The dialog is modal: the rows behind it leave the accessibility tree until it closes.
+            if (!view.dialog) await expectRows(tierList, view);
+            if (view.toastWithUndo) await expect(tierList.undoButtonIn(view.toastWithUndo)).toBeVisible();
+            else if (view.removalToast) await expect(tierList.toast(view.removalToast)).toHaveCount(0);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the remove-and-undo machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(removeAndUndoModel, removeAndUndoSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, removeAndUndoModel, coverage);
     });
   });
 });

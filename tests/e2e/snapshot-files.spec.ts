@@ -3,7 +3,7 @@
  * inside, and opening snapshot files and other pictures (A10). Golden files: tests/fixtures/snapshots.
  */
 import zlib from 'node:zlib';
-import type {Page, TestInfo} from '@playwright/test';
+import type {BrowserContext, Page, TestInfo} from '@playwright/test';
 import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
@@ -17,6 +17,7 @@ import path from 'node:path';
 import golden from '../fixtures/snapshots/snapshots.json';
 import {attachAndAssertCoverage, MODEL_CAMPAIGN_TIMEOUT, walkModel} from '../support/machines';
 import {snapshotFilesModel, snapshotFilesViewOf, type SnapshotFilesEvent, type SnapshotFilesSnapshot} from '../models/snapshot-files';
+import {freezeFrameLoadModel, freezeFrameLoadViewOf, type FreezeFrameLoadEvent, type FreezeFrameLoadSnapshot} from '../models/freeze-frame-load';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -1039,6 +1040,190 @@ test.describe('snapshot files', () => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(snapshotFilesModel, snapshotFilesSut(tierList, new SitePage(page), page, testInfo));
       await attachAndAssertCoverage(testInfo, snapshotFilesModel, coverage);
+    });
+  });
+
+  test.describe('model: loading a Freeze Frame', () => {
+    const MIXED_BAG = 'Mixed bag';
+    const CHANGED_TITLE = 'Changed later';
+    const TRUSTED_SITE = 'i.imgur.com';
+    const OTHER_SITE = 'images.example.org';
+    const TRUSTED_IMAGE = {label: 'Imgur red', url: `https://${TRUSTED_SITE}/red.png`};
+    const OTHER_IMAGE = {label: 'Example red', url: `https://${OTHER_SITE}/red.png`};
+    /** The picture from the device: a blue square, so its colour tells it from the red link images. */
+    const PICTURE = 'cat';
+    /** The list as each run opens it: OVERWATCH items and the two link images. The run adds the picture. */
+    const MIXED_STATE = v3State({t: MIXED_BAG, tp: 3, r: [
+      ['S', [packageItemId('image-overwatch', 'Mauga'), {u: TRUSTED_IMAGE.url, c: TRUSTED_IMAGE.label}]],
+      ['A', [packageItemId('image-overwatch', 'Winston'), {u: OTHER_IMAGE.url, c: OTHER_IMAGE.label}]],
+      ['B', []],
+      ['', []],
+    ]});
+    /** The rows of Mixed bag. While its site waits, the label tile of the other site's image also names the site. */
+    const mixedTiers = (otherSite: 'loads' | 'waits' | null) => [
+      {name: 'S', items: ['Mauga', TRUSTED_IMAGE.label]},
+      {name: 'A', items: ['Winston', otherSite === 'waits' ? `${OTHER_IMAGE.label}${OTHER_SITE}` : OTHER_IMAGE.label]},
+      {name: 'B', items: []},
+      {name: 'Unranked', items: [PICTURE]},
+    ];
+
+    /** The ids of the device images (`{d}` items) in a v3 link. */
+    const deviceIdsOf = (url: string) => (v3LinkJson(url) as V3Json).r
+      .flatMap((row) => row[row.length - 1] as unknown[])
+      .flatMap((item) => (typeof item === 'object' && item !== null && 'd' in item ? [(item as {d: string}).d] : []));
+
+    type OpenAsVisitor = (link: string, options?: {beforeOpen?: (context: BrowserContext) => Promise<unknown>}) => Promise<TierListPage>;
+
+    /**
+     * The freeze frame load machine's events and checks (createPlaywrightSut). Each run starts in
+     * the first browser, with its local storage cleared, on Mixed bag: the visitor clicks Load in
+     * the notice and adds the picture from the device. Download keeps the real downloaded file,
+     * which the later steps open. The device store keeps the pictures of earlier runs, so the
+     * checks compare with its count right after Download. A new browser is a new context
+     * (openAsVisitor), closed by the next reset.
+     */
+    const freezeFrameLoadSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo, openAsVisitor: OpenAsVisitor, otherSite: {requests: string[]}) => {
+      /** The machine's state before the step that runs, as the last check saw it (null right after a reset). */
+      let at: FreezeFrameLoadSnapshot | null = null;
+      let file: {name: string; mimeType: string; buffer: Buffer} | null = null;
+      let fileState = '';
+      let pictureId = '';
+      let storedAfterDownload = 0;
+      let historyAfterDownload = 0;
+      let visitor: TierListPage | null = null;
+      let visitorOtherSite: {requests: string[]} = {requests: []};
+      /** The requests to images.example.org before the last page load of the browser on screen. */
+      let loadedAt = 0;
+      const inNewBrowser = () => at?.matches('newBrowser') ?? false;
+      const here = () => {
+        if (!inNewBrowser()) return tierList;
+        if (!visitor) throw new Error('No new browser is open');
+        return visitor;
+      };
+      const savedFile = () => {
+        if (!file) throw new Error('No file was downloaded');
+        return file;
+      };
+      return createPlaywrightSut<Page, FreezeFrameLoadSnapshot, FreezeFrameLoadEvent>(page, {
+        reset: async () => {
+          at = null;
+          file = null;
+          if (visitor) await visitor.page.context().close();
+          visitor = null;
+          loadedAt = otherSite.requests.length;
+          await tierList.openAsNewBrowser(TANKS, MIXED_STATE);
+          await tierList.waitUntilInteractive();
+          await tierList.loadImagesFromOtherSites();
+          await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${PICTURE}.png`, BLUE_SQUARE)]);
+          [pictureId] = deviceIdsOf(page.url());
+        },
+        events: {
+          CAPTURE_PREVIEW: async () => {
+            await tierList.openImageTab();
+            await tierList.captureInOpenPanel();
+          },
+          DOWNLOAD: async () => {
+            const saved = await tierList.downloadCapturedImage();
+            expect(saved.name).toBe('mixed-bag.png');
+            const payload = JSON.parse(snapshotTextOf(saved.buffer) ?? 'null') as {state: string; path: string; images: {id: string}[]};
+            expect(payload.path).toBe(TANKS);
+            expect(payload.images.map((image) => image.id), 'the file holds the picture under its id here').toEqual([pictureId]);
+            file = pngFile(saved.name, saved.buffer);
+            fileState = payload.state;
+            await tierList.closeSharePanelWithEscape();
+            storedAfterDownload = await tierList.deviceImageCount();
+            historyAfterDownload = await tierList.historyLength();
+          },
+          OPEN_FILE_IN_EDITOR: () => here().openFileAndWaitForDialog(savedFile()),
+          OPEN_FILE_ON_HOME: () => site.openFreezeFrameAndWaitForDialog(savedFile()),
+          CHANGE_TITLE: () => tierList.setTitle(CHANGED_TITLE),
+          GO_HOME: async () => {
+            loadedAt = otherSite.requests.length;
+            await tierList.leaveForHome();
+            await expect(site.openFreezeFrameButton).toBeVisible();
+          },
+          OPEN_NEW_BROWSER: async () => {
+            visitor = await openAsVisitor('/rank', {beforeOpen: async (context) => {
+              await serveImageSite(context, TRUSTED_SITE);
+              visitorOtherSite = await serveImageSite(context, OTHER_SITE);
+            }});
+            loadedAt = 0;
+            await visitor.waitUntilInteractive();
+          },
+          CANCEL: () => here().cancelOpenList(),
+          OPEN_LIST: async () => {
+            if (at?.matches('sameBrowser.home.asking')) await site.confirmOpenList();
+            else await here().confirmOpenList({newAddress: !at?.matches('sameBrowser.editor.askingOverSameList')});
+          },
+          BROWSER_BACK: () => here().goBack(),
+          RELOAD: async () => {
+            loadedAt = visitorOtherSite.requests.length;
+            await here().reload();
+          },
+          LOAD_IMAGES: () => here().loadImagesFromOtherSites(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            at = snapshot;
+            const view = freezeFrameLoadViewOf(snapshot);
+            const shown = here();
+            const requests = view.browser === 'new' ? visitorOtherSite.requests : otherSite.requests;
+            if (view.dialog === 'editor') await expect(shown.openListDialog).toContainText('Your current list stays one Back step away.');
+            else if (view.dialog === 'home') await expect(shown.openListDialog).toContainText('This page stays one Back step away.');
+            else await expect(shown.openListDialog).toHaveCount(0);
+            if (view.captured) {
+              await expect(tierList.capturedImage).toBeVisible();
+              await expect(tierList.downloadButton).toBeVisible();
+            }
+            if (view.list === null && view.dialog === null && !view.captured) {
+              await expect(page).toHaveURL(/^[^?]*\/$/);
+              await expect(site.openFreezeFrameButton).toBeVisible();
+            }
+            if (view.list === 'blank') {
+              await expect(shown.page).toHaveURL(/\/rank$/);
+              await expect(shown.allItems).toHaveCount(0);
+            }
+            if (view.list === 'mixedBag' || view.list === 'changed') {
+              await expectTierList(shown, {title: view.list === 'mixedBag' ? MIXED_BAG : CHANGED_TITLE, tiers: mixedTiers(view.otherSite)});
+              await expect.poll(async () => {
+                const color = await shown.itemImageCenterColor(PICTURE);
+                return color !== null && color[2] > 200 && color[0] < 60;
+              }, {message: 'the picture shows, blue'}).toBe(true);
+              await expect.poll(() => shown.itemShowsUpload(PICTURE), {message: 'the picture comes from the device store'}).toBe(true);
+              await expect.poll(() => shown.itemImageHasLoaded(TRUSTED_IMAGE.label), {message: `${TRUSTED_SITE} loads`}).toBe(true);
+              if (view.otherSite === 'loads') {
+                await expect(shown.imageSitesNotice).toHaveCount(0);
+                await expect.poll(() => shown.itemImageHasLoaded(OTHER_IMAGE.label), {message: `${OTHER_SITE} loads`}).toBe(true);
+              } else {
+                await expect(shown.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+                await expect(shown.item(OTHER_IMAGE.label)).toContainText(OTHER_SITE);
+                await expect(shown.itemImage(OTHER_IMAGE.label)).toHaveCount(0);
+                expect(requests.slice(loadedAt), `no request should reach ${OTHER_SITE} while its image waits`).toEqual([]);
+              }
+            }
+            if (view.link === 'fileOwn') await expect(shown.page).toHaveURL(new URL(`${TANKS}?state=${fileState}`, shown.page.url()).href);
+            if (view.link === 'newPictureId') {
+              const [id, ...others] = deviceIdsOf(shown.page.url());
+              expect(others, 'the link holds one picture').toEqual([]);
+              expect(id, 'the picture was drawn again and stored under a new id').toMatch(/^snap-/);
+            }
+            if (view.list === 'mixedBag' && view.browser === 'new') expect(await shown.deviceImageCount(), 'the new browser stored the picture').toBe(1);
+            if (file && view.browser === 'same') expect(await tierList.deviceImageCount(), 'opening the file stored no new picture').toBe(storedAfterDownload);
+            if (snapshot.matches('sameBrowser.editor.fileSaved')) expect(await tierList.historyLength(), 'no history entry since Download').toBe(historyAfterDownload);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the freeze frame load machine when the user walks every transition', async ({tierList, page, openAsVisitor}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      await serveImageSite(page, TRUSTED_SITE);
+      const otherSite = await serveImageSite(page, OTHER_SITE);
+      const sut = freezeFrameLoadSut(tierList, new SitePage(page), page, testInfo, openAsVisitor, otherSite);
+      const coverage = await walkModel(freezeFrameLoadModel, sut);
+      await attachAndAssertCoverage(testInfo, freezeFrameLoadModel, coverage);
     });
   });
 });

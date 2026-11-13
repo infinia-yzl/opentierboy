@@ -1,9 +1,21 @@
 /** Device images: pictures uploaded or pasted from the device, kept in this browser (IndexedDB). */
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
 import {expect, test} from '../support/test';
 import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/tier-list-page';
 import {FIVE_ROW_TIERS, packageItemId, rawState, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/image-sites';
+import {attachAndAssertCoverage, MODEL_CAMPAIGN_TIMEOUT, walkModel} from '../support/machines';
+import {
+  DEVICE_IMAGE_NAMES,
+  deviceImagesModel,
+  deviceImagesViewOf,
+  type DeviceImageKey,
+  type DeviceImagesEvent,
+  type DeviceImagesSnapshot,
+  type DeviceImagesView,
+} from '../models/device-images';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -345,6 +357,99 @@ test.describe('device images', () => {
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
       // The upload moved into the device image store.
       await expect.poll(() => tierList.localStorageItem('customItems')).toBeNull();
+    });
+  });
+
+  test.describe('model', () => {
+    /** The start of every run: Mauga in S, rows A and B and Unranked empty. */
+    const START = listWith([]);
+    const MAUGA = packageItemId('image-overwatch', 'Mauga');
+    const FILES = {red: imageFile('red-square.png'), blue: imageFile('blue-square.png', BLUE_SQUARE)};
+    /** The blue test square is rgb(40, 80, 220). */
+    const isBlue = (color: [number, number, number] | null) => color !== null && color[0] < 100 && color[1] < 120 && color[2] > 180;
+    const SHOWS_PICTURE = {red: isRed, blue: isBlue};
+    /** A device image in the link: a local id of 16 characters and the name, never the picture. */
+    const inLink = (key: DeviceImageKey) => ({d: expect.stringMatching(/^[A-Za-z0-9_-]{16}$/), c: DEVICE_IMAGE_NAMES[key]});
+    const lastItems = (row: unknown[]) => row[row.length - 1];
+
+    /**
+     * What a state of the device images machine shows on `shown`, the page on screen: the rows,
+     * the link, each image's picture (its own picture in the browser that added it, the
+     * placeholder image in a new browser) and the toast "Items Added".
+     */
+    const expectDeviceImages = async (shown: TierListPage, view: DeviceImagesView) => {
+      const names = (keys: readonly DeviceImageKey[]) => keys.map((key) => DEVICE_IMAGE_NAMES[key]);
+      await expect(shown.itemsIn('S')).toHaveText(['Mauga', ...names(view.ranked)]);
+      await expect(shown.itemsIn(shown.unranked)).toHaveText(names(view.unranked));
+      await expect.poll(() => {
+        const rows = (v3LinkJson(shown.page.url()) as {r: unknown[][]}).r;
+        return [lastItems(rows[0]), lastItems(rows[rows.length - 1])];
+      }, {message: 'the link should hold the id and name of each device image'}).toEqual([
+        [MAUGA, ...view.ranked.map(inLink)],
+        view.unranked.map(inLink),
+      ]);
+      for (const key of [...view.ranked, ...view.unranked]) {
+        const name = DEVICE_IMAGE_NAMES[key];
+        if (view.browser === 'this') {
+          await expect.poll(async () => SHOWS_PICTURE[key](await shown.itemImageCenterColor(name)), {message: `${name} should show its picture`}).toBe(true);
+        } else {
+          await expect.poll(() => shown.itemShowsPlaceholder(name), {message: `${name} should show the placeholder image`}).toBe(true);
+        }
+      }
+      if (view.toast) await expect(shown.itemsAddedToast).toContainText('1 item(s) have been added.');
+      else await expect(shown.itemsAddedToast).toHaveCount(0);
+    };
+
+    /**
+     * The device images machine's events and checks (createPlaywrightSut). Each run starts as a
+     * new browser on START. A new browser is a new browser context, open until the walk closes it
+     * or the next run starts.
+     */
+    const deviceImagesSut = (
+      tierList: TierListPage,
+      page: Page,
+      testInfo: TestInfo,
+      openAsVisitor: (link: string) => Promise<TierListPage>,
+    ) => {
+      let visitor: TierListPage | null = null;
+      const closeVisitor = async () => {
+        await visitor?.closeBrowser();
+        visitor = null;
+      };
+      return createPlaywrightSut<Page, DeviceImagesSnapshot, DeviceImagesEvent>(page, {
+        reset: async () => {
+          await closeVisitor();
+          await tierList.openAsNewBrowser(TANKS, START);
+        },
+        events: {
+          UPLOAD_RED: () => tierList.addItemsFromDeviceAndHoldToast([FILES.red]),
+          UPLOAD_BLUE: () => tierList.addItemsFromDeviceAndHoldToast([FILES.blue]),
+          UNDO: () => tierList.undoAddedItems(),
+          TOAST_TIMES_OUT: () => tierList.waitOutItemsAddedToast(),
+          RANK_RED: () => tierList.dragItemToTierWhenReady(DEVICE_IMAGE_NAMES.red, 'S'),
+          RELOAD: () => tierList.reload(),
+          OPEN_IN_NEW_BROWSER: async () => {
+            visitor = await openAsVisitor(await tierList.shareLink());
+          },
+          CLOSE_NEW_BROWSER: () => closeVisitor(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = deviceImagesViewOf(snapshot);
+            const shown = view.browser === 'new' ? visitor : tierList;
+            expect(shown, 'the new browser should be open').not.toBeNull();
+            await expectDeviceImages(shown!, view);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the device images machine when the user walks every transition', async ({tierList, page, openAsVisitor}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(deviceImagesModel, deviceImagesSut(tierList, page, testInfo, openAsVisitor));
+      await attachAndAssertCoverage(testInfo, deviceImagesModel, coverage);
     });
   });
 });

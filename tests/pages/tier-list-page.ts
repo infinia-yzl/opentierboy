@@ -2412,6 +2412,245 @@ export class TierListPage {
       await hold.release();
     }
   }
+
+  // ---- Shared link machine (tests/machines/shared-link.ts) ----------------------------------
+
+  /**
+   * The names of a row's items, in order: their accessible names, so a label tile counts by its
+   * label without the site name it also shows.
+   */
+  async itemNamesIn(tierName: string): Promise<string[]> {
+    return this.itemsIn(tierName).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
+  }
+
+  /**
+   * Scrolls an item into view and tells whether its tile shows the loaded placeholder image (an
+   * unknown item, or a device image this browser does not have). Use it with expect.poll().
+   */
+  async itemShowsPlaceholder(name: string): Promise<boolean> {
+    const image = this.itemImage(name);
+    if ((await image.count()) === 0) return false;
+    await image.scrollIntoViewIfNeeded();
+    return image.evaluate((img: HTMLImageElement) => (
+      img.complete && img.naturalWidth > 0 && decodeURIComponent(img.currentSrc).includes('/placeholder-image.png')
+    ));
+  }
+
+  /**
+   * Drags an item to the end of a row once its tile takes a drag (right after a page load the
+   * tiles take one only once the page has started). Returns once the link is written.
+   */
+  async dragItemToTierWhenReady(itemName: string, tierName: string) {
+    await expect(this.item(itemName), `${itemName} should take a drag`).toHaveAttribute('aria-roledescription', 'draggable');
+    await this.dragItemToTier(itemName, tierName);
+  }
+
+  // ---- Mouse drag machine (tests/machines/mouse-drag.ts) ----------------------------------
+
+  /**
+   * Drags an item with the mouse onto the free space at the end of a row, as dragItemToTier does,
+   * and returns once the drop is announced and has settled. It does not wait for a new link: on
+   * the free space of its own row the item stays where it is, and the link stays as it was.
+   */
+  async dragItemToFreeSpaceOf(itemName: string, tierName: string) {
+    await this.dragWithMouse(this.item(itemName), this.tier(tierName), (box) => ({
+      x: box.x + box.width - 120,
+      y: box.y + box.height / 2,
+    }));
+    await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\b`));
+  }
+
+  /**
+   * Drags an item with the mouse onto the left or right half of another item, as dragItemNextTo
+   * does, and returns once the drop is announced and has settled, without waiting for a new link:
+   * an item already on that side stays where it is.
+   */
+  async dragItemBeside(itemName: string, targetItemName: string, side: 'before' | 'after') {
+    await this.dragWithMouse(this.item(itemName), this.item(targetItemName), (box) => ({
+      x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
+      y: box.y + box.height / 2,
+    }), {followTarget: true});
+    await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\b`));
+  }
+
+  /** The site footer under the editor: nothing in it takes a drop. */
+  get siteFooter(): Locator {
+    return this.page.getByRole('contentinfo');
+  }
+
+  /**
+   * Drags an item with the mouse out of the rows, over the site footer, and releases it there.
+   * The drag ends without a drop. Returns once the cancel is announced and the item is back.
+   */
+  async dragItemOutOfTheRows(itemName: string) {
+    await this.dragWithMouse(this.item(itemName), this.siteFooter, centerOfBox);
+    await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Move cancelled\\. ${escapeRegExp(itemName)} is back in `));
+  }
+
+  // ---- Device images machine (tests/machines/device-images.ts) ------------------------------
+
+  /** The toast "Items Added" with its Undo, which every way of adding items shows. */
+  get itemsAddedToast(): Locator {
+    return this.toast('Items Added');
+  }
+
+  /**
+   * Uploads pictures from the device, and returns once the link holds them, with the pointer
+   * resting on the toast "Items Added": the toast waits while the pointer is on it, so it stays
+   * until the next action, however long the checks take.
+   */
+  async addItemsFromDeviceAndHoldToast(files: DeviceFiles) {
+    await this.changeAndWaitForLink(() => this.addItemsFromDevice(files));
+    await this.itemsAddedToast.hover();
+  }
+
+  /** Chooses Undo in the toast "Items Added", and returns once the link changed and the toast closed. */
+  async undoAddedItems() {
+    await this.changeAndWaitForLink(() => this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click());
+    await expect(this.itemsAddedToast).toHaveCount(0);
+  }
+
+  /** Moves the pointer off the toast "Items Added", and waits until it closes by itself (after 4 s). */
+  async waitOutItemsAddedToast() {
+    await this.page.mouse.move(0, 0);
+    await expect(this.itemsAddedToast, 'the toast "Items Added" should close by itself').toHaveCount(0, {timeout: 15_000});
+  }
+
+  /** Closes this page's browser context, as closing a browser window does. */
+  async closeBrowser() {
+    await this.page.context().close();
+  }
+
+  // ---- Freeze Frame load machine (tests/machines/freeze-frame-load.ts) ----------------------
+
+  /** Closes the open share panel with Escape, pressed with the focus on the list, and waits until it is hidden. */
+  async closeSharePanelWithEscape() {
+    await this.pressEscapeOnList();
+    await expect(this.sharePanel).toBeHidden();
+  }
+
+  /** Chooses a file with "Open a Freeze Frame…", and returns once the dialog "Open the list in this file?" shows. */
+  async openFileAndWaitForDialog(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.openFile(file);
+    await expect(this.openListDialog).toBeVisible();
+  }
+  // ---- Remove and undo machine (tests/machines/remove-and-undo.ts) ----------------------------
+
+  /** The dialog "Are you sure?" that Remove All opens. */
+  get removeAllDialog(): Locator {
+    return this.page.getByRole('alertdialog', {name: 'Are you sure?'});
+  }
+
+  /** The button Undo in the toast `title`. */
+  undoButtonIn(title: string): Locator {
+    return this.toast(title).getByRole('button', {name: 'Undo'});
+  }
+
+  /**
+   * Rests the pointer on a toast. Sonner, the toast library, pauses the toasts' 4 s timers while
+   * the pointer is over them, as when a person reads one, so the toast stays while the test goes
+   * on with Back, Forward and Undo, which do not move the pointer.
+   */
+  private async restOnToast(title: string) {
+    await expect(this.undoButtonIn(title)).toBeVisible();
+    await this.toast(title).hover();
+  }
+
+  /** Deletes an item with its right-click menu, waits for the new link, and rests on the toast "Item deleted". */
+  async deleteItemAndRestOnToast(itemName: string) {
+    await this.changeAndWaitForLink(() => this.deleteItem(itemName));
+    await this.restOnToast('Item deleted');
+  }
+
+  /** Chooses Reset in the Add images menu, waits for the new link, and rests on the toast "Items Reset". */
+  async resetRankingsAndRestOnToast() {
+    await this.resetRankings();
+    await this.restOnToast('Items Reset');
+  }
+
+  /** Chooses Remove All in the Add images menu, and waits for its dialog. */
+  async openRemoveAll() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'Remove All'}).click();
+    await expect(this.removeAllDialog).toBeVisible();
+  }
+
+  /** Confirms the open Remove All dialog, waits for the new link, and rests on the toast "All Items Deleted". */
+  async confirmRemoveAllAndRestOnToast() {
+    await this.changeAndWaitForLink(() => this.removeAllDialog.getByRole('button', {name: 'Remove All Items'}).click());
+    await expect(this.removeAllDialog).toBeHidden();
+    await this.restOnToast('All Items Deleted');
+  }
+
+  /** Cancels the open Remove All dialog. */
+  async cancelRemoveAll() {
+    await this.removeAllDialog.getByRole('button', {name: 'Cancel'}).click();
+    await expect(this.removeAllDialog).toBeHidden();
+  }
+
+  /**
+   * Clicks Undo in the toast `title`, and waits until the toast has closed. With `changesList`,
+   * also waits for the new link, so a Back after it starts from the new history entry. The Undo
+   * of "Item deleted" also shows the toast "Item restored", whether or not the list changed.
+   */
+  async undoInToast(title: string, {changesList}: {changesList: boolean}) {
+    const before = this.page.url();
+    await this.undoButtonIn(title).click();
+    await expect(this.toast(title)).toHaveCount(0);
+    if (title === 'Item deleted') await expect(this.toast('Item restored')).toBeVisible();
+    if (changesList) await expect(this.page, 'Undo should write a new link').not.toHaveURL(before);
+  }
+
+  // ---- Add from template machine (tests/machines/add-from-template.ts) ----------------------
+
+  /** A page of the open template picker, by the heading of its options: "Packages" or a package's name. */
+  templatePickerPage(name: string): Locator {
+    return this.templatePicker.getByRole('group', {name, exact: true});
+  }
+
+  /** Opens the template picker with the empty list's Template, and waits for its search box. */
+  async openTemplatePickerFromDropArea() {
+    await this.emptyListAction('Template').click();
+    await expect(this.templatePicker.getByRole('combobox')).toBeVisible();
+  }
+
+  /** Opens a package's page in the template picker, from Packages, and waits until it lists the package's sets. */
+  async openTemplatePackage(name: string) {
+    await this.templatePicker.getByRole('option', {name, exact: true}).click();
+    await expect(this.templatePickerPage(name)).toBeVisible();
+  }
+
+  /** Presses Escape. With the template picker open, waits until it closes. */
+  async pressEscapeForTemplatePicker() {
+    await this.page.keyboard.press('Escape');
+    await expect(this.templatePicker).toBeHidden();
+  }
+
+  /**
+   * Chooses a set on the open package page of the template picker, such as 'Tank', and waits for
+   * the picker to close and the toast "Items Added" to show. Then it rests the pointer on the
+   * toast: Sonner keeps a toast while the pointer is on it, so the toast waits for Undo however
+   * slow the next steps are.
+   */
+  async chooseTemplateSetAndHoldToast(setTitle: string) {
+    await this.templatePicker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
+    await expect(this.templatePicker).toBeHidden();
+    const toast = this.toast('Items Added');
+    await expect(toast).toBeVisible();
+    await toast.hover();
+  }
+
+  /** Clicks Undo in the toast "Items Added" of a template add, and waits until the toast is gone (the link may stay). */
+  async undoTemplateAdd() {
+    await this.undoFromToast('Items Added');
+    await expect(this.toast('Items Added')).toHaveCount(0);
+  }
+
+  /** Moves the pointer off the toast "Items Added", and waits until the toast ends by itself (after 4 s). */
+  async waitOutTemplateAddToast() {
+    await this.page.mouse.move(0, 0);
+    await expect(this.toast('Items Added')).toHaveCount(0, {timeout: 10_000});
+  }
 }
 
 /** The server's answers to list writes, held by TierListPage.holdListWrites. */

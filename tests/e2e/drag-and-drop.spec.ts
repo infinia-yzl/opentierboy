@@ -15,6 +15,15 @@ import {
   type KeyboardDragRow,
   type KeyboardDragSnapshot,
 } from '../models/keyboard-drag';
+import {
+  MOUSE_DRAG_ITEM,
+  MOUSE_DRAG_OTHER_ITEM,
+  MOUSE_DRAG_ROWS,
+  mouseDragModel,
+  mouseDragViewOf,
+  type MouseDragEvent,
+  type MouseDragSnapshot,
+} from '../models/mouse-drag';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -442,6 +451,75 @@ test.describe('drag and drop', () => {
       test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
       const coverage = await walkModel(keyboardDragModel, keyboardDragSut(tierList, page, testInfo));
       await attachAndAssertCoverage(testInfo, keyboardDragModel, coverage);
+    });
+  });
+
+  test.describe('model', () => {
+    // Two tiles in a list of two rows and the tray, so every arrangement the drags make is a state.
+    const ITEM_IDS: Readonly<Record<string, string>> = {
+      [MOUSE_DRAG_ITEM]: packageItemId('image-overwatch', MOUSE_DRAG_ITEM),
+      [MOUSE_DRAG_OTHER_ITEM]: packageItemId('image-overwatch', MOUSE_DRAG_OTHER_ITEM),
+    };
+    const LIST = v3State({r: [
+      ['tier-s', 'S', [ITEM_IDS[MOUSE_DRAG_OTHER_ITEM]]],
+      ['tier-a', 'A', []],
+      ['uncategorized', '', [ITEM_IDS[MOUSE_DRAG_ITEM]]],
+    ]});
+
+    /** The rows of a v3 link, top to bottom: each label ('Unranked' for the tray) and its item ids. Rows are [id, label, items] or [label, items]. */
+    const linkRowsOf = (link: string) => {
+      const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
+      return rows.map((entry) => ({label: (entry[entry.length - 2] as string) || 'Unranked', items: entry[entry.length - 1]}));
+    };
+
+    /** The mouse drag machine's events and checks, run on this test's page (createPlaywrightSut). */
+    const mouseDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      // Each change of the list adds one history entry (one pushState); a drop that changes nothing adds none.
+      let newEntries: () => Promise<number> = async () => 0;
+      let entries = 0;
+      let shown = '';
+      return createPlaywrightSut<Page, MouseDragSnapshot, MouseDragEvent>(page, {
+        reset: async () => {
+          await tierList.goto(TANKS, LIST);
+          await tierList.expectEveryItemDraggable();
+          // A long walk changes the list more often than history.length can count (50 entries).
+          newEntries = await tierList.countNewHistoryEntries();
+          entries = 0;
+          shown = '';
+        },
+        events: {
+          DRAG_MAUGA_TO_S: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'S'),
+          DRAG_MAUGA_TO_A: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'A'),
+          DRAG_MAUGA_TO_UNRANKED: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'Unranked'),
+          DROP_MAUGA_BEFORE_WINSTON: () => tierList.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'before'),
+          DROP_MAUGA_AFTER_WINSTON: () => tierList.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'after'),
+          DROP_MAUGA_IN_PLACE: () => tierList.dragItemAndDropInPlace(MOUSE_DRAG_ITEM),
+          RELEASE_MAUGA_OUTSIDE_ROWS: () => tierList.dragItemOutOfTheRows(MOUSE_DRAG_ITEM),
+          DRAG_ROW_S_ONTO_A: () => tierList.dragTierOnto('S', 'A'),
+          DRAG_ROW_A_ONTO_S: () => tierList.dragTierOnto('A', 'S'),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = mouseDragViewOf(snapshot);
+            // The labels stay S, A, Unranked from top to bottom; only the tiles move.
+            await expectTierList(tierList, {tiers: MOUSE_DRAG_ROWS.map((row) => ({name: row, items: [...view[row]]}))});
+            await expect.poll(() => linkRowsOf(page.url()), {message: 'the link should hold the rows as they show'})
+              .toEqual(MOUSE_DRAG_ROWS.map((row) => ({label: row, items: view[row].map((name) => ITEM_IDS[name])})));
+            const rows = JSON.stringify(view);
+            if (shown !== '' && rows !== shown) entries += 1;
+            shown = rows;
+            await expect.poll(newEntries, {message: 'only a drop that changes the list adds a history entry'}).toBe(entries);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the mouse drag machine when the user walks every transition', async ({tierList, page}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      const coverage = await walkModel(mouseDragModel, mouseDragSut(tierList, page, testInfo));
+      await attachAndAssertCoverage(testInfo, mouseDragModel, coverage);
     });
   });
 });

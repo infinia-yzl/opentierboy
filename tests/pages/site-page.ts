@@ -399,4 +399,17 @@ export class SitePage {
   async waitOutRecentToast(text: string) {
     await expect(this.recentToast(text)).toBeHidden({timeout: 15_000});
   }
+
+  // ---- Freeze Frame load machine (tests/machines/freeze-frame-load.ts) ----------------------
+
+  /** "Open a Freeze Frame" in Your own list. */
+  get openFreezeFrameButton(): Locator {
+    return this.ownListCard.getByRole('button', {name: 'Open a Freeze Frame'});
+  }
+
+  /** Chooses a file with "Open a Freeze Frame", and returns once the dialog "Open the list in this file?" shows. */
+  async openFreezeFrameAndWaitForDialog(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.openFreezeFrame(file);
+    await expect(this.openListDialog).toBeVisible();
+  }
 }

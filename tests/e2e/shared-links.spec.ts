@@ -1,6 +1,26 @@
-import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {hugeTierNameState, rawState, stateFromJson, templateItemCount} from '../support/links';
+import type {Page, TestInfo} from '@playwright/test';
+import {createPlaywrightSut} from '@xstate/test/playwright';
+import {expect, expectTierList, expectTierNames, SHARED_LINKS, test} from '../support/test';
+import {hugeTierNameState, rawState, stateFromJson, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
+import {BLUE_SQUARE, imageFile, serveImageSite} from '../support/image-sites';
+import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import type {TierListPage} from '../pages/tier-list-page';
+import {
+  BLUE,
+  GONE_HERO,
+  MIXED_TITLE,
+  MY_CAT,
+  OTHER_SITE,
+  PACKAGE_ITEMS,
+  RED,
+  sharedLinkJson,
+  sharedLinkModel,
+  sharedLinkViewOf,
+  TRUSTED_SITE,
+  type SharedLinkEvent,
+  type SharedLinkSnapshot,
+} from '../models/shared-link';
 
 /**
  * Every link people have shared must keep opening exactly as it was shared.
@@ -144,6 +164,106 @@ test.describe('shared links', () => {
 
       await expect(tierList.title).toHaveText('OVERWATCH - Tank');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(templateItemCount('image-overwatch', 'tank'));
+    });
+  });
+
+  test.describe('model', () => {
+    const TANKS = '/rank/overwatch/tank';
+
+    /** A browser that opens the shared link: its page and the requests its page sent to OTHER_SITE. */
+    interface OpeningBrowser {
+      readonly tierList: TierListPage;
+      readonly otherSiteRequests: string[];
+    }
+
+    /**
+     * The shared link machine's events and checks (createPlaywrightSut). `maker` is this test's
+     * page, whose device image store keeps the picture `deviceId` names; `visitor` is a second
+     * browser that never stores a picture, so clearing its local storage makes it new again.
+     * Each run starts in the maker's browser on the shared link. `loadedAt` counts the requests
+     * to OTHER_SITE before the last page load, so a state checks only the page on screen.
+     */
+    const sharedLinkSut = (maker: OpeningBrowser, visitor: OpeningBrowser, deviceId: string, page: Page, testInfo: TestInfo) => {
+      const shared = v3State(sharedLinkJson('asShared', deviceId));
+      let current = maker;
+      let loadedAt = 0;
+      const openIn = async (browser: OpeningBrowser, open: () => Promise<void>) => {
+        current = browser;
+        loadedAt = browser.otherSiteRequests.length;
+        await open();
+      };
+      const sinceLoad = () => current.otherSiteRequests.slice(loadedAt);
+      return createPlaywrightSut<Page, SharedLinkSnapshot, SharedLinkEvent>(page, {
+        reset: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
+        events: {
+          OPEN_IN_MAKER_BROWSER: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
+          OPEN_IN_NEW_BROWSER: () => openIn(visitor, () => visitor.tierList.openAsNewBrowser(TANKS, shared)),
+          LOAD_IMAGES: () => current.tierList.loadImagesFromOtherSites(),
+          DRAG_BLUE_TO_ROW_B: () => current.tierList.dragItemToTierWhenReady(BLUE.label, 'B'),
+          BROWSER_BACK: () => current.tierList.goBack(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = sharedLinkViewOf(snapshot);
+            const {tierList} = current;
+            await expect(tierList.title).toHaveText(MIXED_TITLE);
+            await expectTierNames(tierList, view.rows.map((row) => row.name));
+            for (const row of view.rows) {
+              await expect.poll(() => tierList.itemNamesIn(row.name), {message: `items in ${row.name}`}).toEqual(row.items);
+            }
+            // The round trip: every link holds each custom item exactly as the shared link wrote it.
+            await expect.poll(() => v3LinkJson(tierList.page.url()), {message: 'the link in the address bar'})
+              .toEqual(sharedLinkJson(view.list, deviceId));
+            // Image-set items and the trusted site load at once, also while the notice waits.
+            for (const label of [...PACKAGE_ITEMS, RED.label]) {
+              await expect.poll(() => tierList.itemImageHasLoaded(label), {message: `${label} should load`}).toBe(true);
+            }
+            await expect.poll(() => tierList.itemShowsPlaceholder(GONE_HERO.label), {message: `${GONE_HERO.label} should show the placeholder`}).toBe(true);
+            if (view.deviceImageKept) {
+              await expect.poll(() => tierList.itemShowsUpload(MY_CAT), {message: `${MY_CAT} should show its picture`}).toBe(true);
+            } else {
+              await expect.poll(() => tierList.itemShowsPlaceholder(MY_CAT), {message: `${MY_CAT} should show the placeholder`}).toBe(true);
+              expect(await tierList.itemShowsUpload(MY_CAT), `a new browser has no picture for ${MY_CAT}`).toBe(false);
+            }
+            if (view.waiting) {
+              await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+              await expect(tierList.item(BLUE.label)).toContainText(OTHER_SITE);
+              await expect(tierList.itemImage(BLUE.label)).toHaveCount(0);
+              expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
+            } else {
+              await expect(tierList.imageSitesNotice).toHaveCount(0);
+              await expect.poll(() => tierList.itemImageHasLoaded(BLUE.label), {message: `${BLUE.label} should load`}).toBe(true);
+              await expect.poll(sinceLoad).toContain(BLUE.url);
+            }
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test('renders each state of the shared link machine when the user walks every transition', async ({tierList, page, baseURL, openAsVisitor}, testInfo) => {
+      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
+      await serveImageSite(page, TRUSTED_SITE);
+      const makerSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
+      // The maker's browser keeps a picture: the device image store gives it its id.
+      await tierList.goto('/rank');
+      await tierList.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
+      const [, deviceId] = /"d":"([A-Za-z0-9_-]+)"/.exec(JSON.stringify(v3LinkJson(await tierList.shareLink()))) ?? [];
+      expect(deviceId, 'the upload should be a device image in the link').toBeTruthy();
+
+      let visitorRequests: string[] = [];
+      const visitorPage = await openAsVisitor(new URL(`${TANKS}?state=${v3State(sharedLinkJson('asShared', deviceId))}`, baseURL).href, {
+        beforeOpen: async (context) => {
+          await serveImageSite(context, TRUSTED_SITE);
+          visitorRequests = (await serveImageSite(context, OTHER_SITE, {body: BLUE_SQUARE})).requests;
+        },
+      });
+      const maker = {tierList, otherSiteRequests: makerSite.requests};
+      const visitor = {tierList: visitorPage, otherSiteRequests: visitorRequests};
+
+      const coverage = await walkModel(sharedLinkModel, sharedLinkSut(maker, visitor, deviceId, page, testInfo));
+      await attachAndAssertCoverage(testInfo, sharedLinkModel, coverage);
     });
   });
 });

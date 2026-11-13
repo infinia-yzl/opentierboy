@@ -10,6 +10,12 @@ import {recentlyViewedModel} from './recently-viewed';
 import {keyboardDragModel} from './keyboard-drag';
 import {sharePanelModel} from './share-panel';
 import {snapshotFilesModel} from './snapshot-files';
+import {deviceImagesModel} from './device-images';
+import {freezeFrameLoadModel} from './freeze-frame-load';
+import {mouseDragModel} from './mouse-drag';
+import {sharedLinkModel} from './shared-link';
+import {addFromTemplateModel} from './add-from-template';
+import {removeAndUndoModel} from './remove-and-undo';
 
 /**
  * The model of every machine in tests/machines/. tests/unit/machines/walks.test.ts walks each one
@@ -28,4 +34,10 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   keyboardDragModel,
   sharePanelModel,
   snapshotFilesModel,
+  deviceImagesModel,
+  freezeFrameLoadModel,
+  mouseDragModel,
+  sharedLinkModel,
+  addFromTemplateModel,
+  removeAndUndoModel,
 ] as MachineModel[]);
