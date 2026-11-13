@@ -95,6 +95,16 @@ test.describe('editor labels', () => {
       await expect(tierList.item('Mauga')).toHaveText('Mauga');
     });
 
+    test('renders items without captions when the user clicks Hide Labels in Row options in a short window', async ({tierList, page}) => {
+      // Row options is taller than this window: the menu must keep every choice within reach.
+      await page.setViewportSize({width: 1280, height: 400});
+      await tierList.goto(TANKS);
+
+      await tierList.setItemLabelsVisible(false);
+
+      await expect(tierList.item('Mauga')).toHaveText('');
+    });
+
     test('renders each row label above its items when the user chooses the label position Top', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
