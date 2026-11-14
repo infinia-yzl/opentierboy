@@ -81,10 +81,10 @@ test.describe('security', () => {
       await page.keyboard.press('Escape');
 
       await tierList.goto('/rank');
-      await tierList.dropFile(imageFile('blue-square.png'));
+      await tierList.files.dropFile(imageFile('blue-square.png'));
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
-      await tierList.openFile(pngFile(snapshot.name, snapshot.buffer));
-      await tierList.confirmOpenList();
+      await tierList.files.openFile(pngFile(snapshot.name, snapshot.buffer));
+      await tierList.files.confirmOpenList();
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
       await site.gotoHome();
@@ -171,7 +171,7 @@ test.describe('security', () => {
       const sent = tierList.recordRequests();
 
       await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
-      await tierList.dropFile(imageFile('dropped.png', BLUE_SQUARE));
+      await tierList.files.dropFile(imageFile('dropped.png', BLUE_SQUARE));
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['photo', 'dropped']);
       await expect.poll(() => tierList.itemImageHasLoaded('dropped')).toBe(true);
       await tierList.share.capturePreview();
@@ -206,8 +206,8 @@ test.describe('security', () => {
 
       const friend = await openAsVisitor('/rank');
       const sent = friend.recordRequests();
-      await friend.openFile(pngFile(file.name, file.buffer));
-      await friend.confirmOpenList();
+      await friend.files.openFile(pngFile(file.name, file.buffer));
+      await friend.files.confirmOpenList();
       await expect(friend.itemsIn(friend.unranked)).toHaveText(['photo']);
       await expect.poll(() => friend.itemImageHasLoaded('photo')).toBe(true);
 

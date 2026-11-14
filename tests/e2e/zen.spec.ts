@@ -77,7 +77,7 @@ test.describe('zen', () => {
       const newEntries = await tierList.countNewHistoryEntries();
 
       await tierList.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
-      await tierList.dropFile(imageFile('blue-square.png'));
+      await tierList.files.dropFile(imageFile('blue-square.png'));
 
       await expect(tierList.item('blue-square')).toBeVisible();
       await expect.poll(newEntries).toBe(1);
