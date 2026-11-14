@@ -10,8 +10,10 @@ page link (`?state=`), and sharing the link shares the list.
    or do unless the task says so. If something looks wrong, ask the owner first, or record it
    as a known-bug test (see Tests). Do not fix it on the side.
 2. **Browser history is the undo feature.** Every change to the list pushes a new history
-   entry (`router.push` with a new `?state=`). Back steps to the previous version. Never use
-   `router.replace` or `history.replaceState` for list edits. Never merge or skip entries.
+   entry at once (`history.pushState` with a new `?state=`, in the commit of the render that
+   made the change). Back steps to the previous version. Never use `router.push`,
+   `router.replace` or `history.replaceState` for list edits. Never merge, queue or skip
+   entries.
 3. **Every shared link ever made keeps working.** Link formats v0, v1, v2 and v3 decode forever.
    The golden fixtures in `tests/fixtures/` are append-only. See "Link contract" below.
 4. **Item ids are permanent.** An id is `<packageName>-<filename>`, for example
@@ -81,19 +83,23 @@ npm run bench:drag -- --url http://127.0.0.1:3000   # drag performance, 200 tile
 ## Folder map
 
 ```
-app/                  routes: / (landing), /rank/[[...slug]] (editor), /api/og (link preview
-                      image, edge runtime), /blog, /about, sitemap
+app/                  routes: / (landing), /rank (the editor, in app/rank/layout.tsx),
+                      /rank/[[...slug]] (template pages, built ahead), /rank/~list (addresses with
+                      a list in the link, rendered on request: proxy.ts rewrites them there),
+                      /api/og (link preview image, edge runtime), /blog, /about, sitemap
 proxy.ts              HTTP status of /rank paths, decided before the page streams (308 for old
-                      tag paths, 404 for templates that do not exist, noindex for legacy sets)
+                      tag paths, 404 for templates that do not exist, noindex for legacy sets),
+                      and the rewrite of `?state=` addresses to /rank/~list
 components/           React components; components/ui/ is shadcn/ui; DragDropTierList.tsx is the
                       editor's rows (drag and drop through lib/dnd/react.tsx); usePageState.ts:
                       one scroll listener and one zen-mode observer shared by every tile
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
-                      syncs it with the address (one router.push per list change, one at a time;
-                      label settings use router.replace, owner decision A3)
+                      syncs it with the address (one history.pushState per list change, at
+                      once; label settings use history.replaceState, owner decision A3; Back and
+                      Forward load the list from popstate)
 contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
                       uploads) and link images (allowed sites, load checks)
-lib/tierListReducer.ts   editor state and every change to it (pure reducer), link writes queue;
+lib/tierListReducer.ts   editor state and every change to it (pure reducer), the address writes;
                       moves and added or removed rows come from lib/dnd/moves.ts
 lib/TierCortex.ts     createTierCortex(): the functions of the next three modules, bound to the
                       app's aliases, image sets and base URL (used by the store, /rank and /api/og)
@@ -160,8 +166,9 @@ The format, its limits, the fixtures and how to add a version: `docs/reference/l
 - A shared link is `/rank/<set>/<tag>?state=<value>`. The app writes v3 (`3.` + lz-string of
   compact JSON). `DEFAULT_WRITE_FORMAT` in `lib/state/encode.ts` chooses the format.
 - Old formats (v0, v1 and v2) are decoded forever. Never change what an old link decodes to.
-- Every list change pushes a new history entry. Label position and label visibility are
-  written with `router.replace`, so they add no Back step (owner decision A3, 2026-10-25).
+- Every list change pushes a new history entry with `history.pushState`. Label position and
+  label visibility are written with `history.replaceState`, so they add no Back step (owner
+  decision A3).
 - `lib/state/` holds the format. It imports only `lz-string` (no React, `window`,
   `localStorage` or Node modules), because the edge OG route uses it too.
 - `lib/state/decoders/legacy.ts` is frozen: never edit it. If an old link stops decoding,
@@ -258,7 +265,8 @@ The file format, limits, reason codes and Recently viewed: `docs/reference/snaps
   (`prepareImageForStore` with `alwaysReencode`), because the payload checks only its header
   (A10).
 - Opening a file (the menu item, a dropped file or a pasted file) goes through `openFiles` in
-  `components/useSnapshotFiles.tsx`, and a list opens with one `router.push` (one Back step).
+  `components/useSnapshotFiles.tsx`, and a list opens with one new history entry (one Back
+  step): `history.pushState` for a list of this page, `router.push` for another template path.
 - **Recently viewed** keeps the links this browser opened in local storage. The editor records
   a list once, when it opens with a list in its link; edits never record. Stored entries are
   checked with zod, and only plain `/rank` paths pass (`lib/rankPath.ts`).
