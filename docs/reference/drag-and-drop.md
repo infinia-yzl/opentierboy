@@ -261,7 +261,7 @@ lib/dnd file may declare one.
 Decisions in the adapter:
 
 - **History stays the undo.** The list changes only on drop: one `moveItem` or `reorderRows`,
-  one `router.push`. During a drag the editor renders a preview (`preview.ts`): a copy of the
+  one new history entry (`history.pushState`, in the commit of the drop). During a drag the editor renders a preview (`preview.ts`): a copy of the
   list that follows the pointer or the arrow keys. React draws every change; dnd-kit's
   optimistic sorting, which moves elements behind React's back (and breaks when an item moves
   to another row), is not used. On drop, `itemMoveFromPreview` or `rowMoveFromPreview` gives
@@ -424,6 +424,6 @@ What keeps a drag fast:
 
 What remains at 4x is mostly dnd-kit's own work per moved item: position observers, shape
 measurements and collision detection, about 10 ms of script per frame. After the landing, the
-labels draw their blur again and the list writes its new link (`router.push`), about 0.5 s
-after the release. The item has stopped moving by then. Turning the label transitions off did
+labels draw their blur again and the list writes its new link (`history.pushState`), about
+0.5 s after the release. The item has stopped moving by then. Turning the label transitions off did
 not change those frames.

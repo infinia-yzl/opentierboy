@@ -38,19 +38,20 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
     type), get the refusal of "From your device" ("AVIF and HEIC images cannot be added
     yet...") and nothing is stored. Other files get the message "This file is not a
     picture." Drops do nothing while a dialog, a menu or a list box is open. Files are handled
-    one call at a time, in the order they arrive, so quick pastes each get added. The next file
-    waits until the previous add is in the address (TierContext's `writing`), so every add is
-    its own Back step, however many files wait. Waiting files are not added when Back or
-    Forward shows another version of the list, or while a list file is being asked about or
-    opened: a "Files not added" message names them. When the visitor leaves the editor (a click
-    on a link to another page), waiting files are dropped quietly, so no later add cancels that
-    navigation.
+    one call at a time, in the order they arrive, so quick pastes each get added. Every add is
+    one change, written into the address at once, so every add is its own Back step, however
+    many files wait; the next file waits until the add is on screen. Waiting files are not added
+    when Back or Forward shows another version of the list, or while a list file is being asked
+    about or opened: a "Files not added" message names them. When the visitor leaves the editor
+    (a click on a link to another page), files that wait or arrive are dropped quietly until
+    the next click or key in the editor, so no add cancels that navigation.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
-    away." Open list goes to the list with one `router.push`. The dialog stays open, saying
-    "Opening the list…", until the list is in the address: nothing can change the list
-    meanwhile, so no later change cancels the navigation. It waits first for changes still on
-    their way to the address. Back or Forward during the opening ends it, and leaving the editor
-    ends it without bringing the visitor back.
+    away." Open list goes to the list with one new history entry: a list of this page opens in
+    place (`history.pushState`, no request), a list of another template path is another page
+    (`router.push`). The dialog stays open, saying "Opening the list…", until the list is in the
+    address: nothing can change the list meanwhile, so no change cancels a navigation. Back or
+    Forward during the opening ends it, and leaving the editor ends it without bringing the
+    visitor back.
     The images go into the device store one call at a time with "From your device", with the
     same protection: nothing the list on screen shows, or that was just added, is removed to
     make room. An image this browser already holds under the file's own id is used as it is,
