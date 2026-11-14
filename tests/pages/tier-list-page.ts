@@ -721,8 +721,8 @@ export class TierListPage {
   /**
    * Moves an item with the keyboard, as a keyboard or screen-reader user would:
    * focus the item, Space to lift, arrow keys to move, Space to drop.
-   * With `waitForLink: false` it returns once the drop is announced, before the link is in
-   * the address bar (for quick changes one after another).
+   * With `waitForLink: false` it returns once the drop is announced, without checking the
+   * address bar or the tiles (for quick changes one after another).
    */
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
     const move = () => this.moveWithKeyboard(this.item(itemName), keys, itemName);
@@ -866,8 +866,8 @@ export class TierListPage {
   /**
    * Renames a tier and confirms with Enter. A row with an empty label is named after its
    * position, for example "Tier 2", so pass that as `nameAfter` when clearing a label.
-   * With `waitForLink: false` it returns as soon as the new name shows, before the link is in
-   * the address bar (for quick changes one after another).
+   * With `waitForLink: false` it returns as soon as the new name shows, without checking the
+   * address bar (for quick changes one after another).
    */
   async renameTier(currentName: string, newName: string, nameAfter = newName, {waitForLink = true} = {}) {
     const rename = async () => {
@@ -879,7 +879,7 @@ export class TierListPage {
       await rename();
       return;
     }
-    // From a page that has finished the last step (a drop, a link write): text typed while the
+    // From a page that has finished the last step (a drop): text typed while the
     // drag library still blocks text selection could land beside the old name (WebKit).
     await this.settled();
     await this.changeAndWaitForLink(rename);
