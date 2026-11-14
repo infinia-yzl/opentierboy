@@ -28,6 +28,8 @@ import {CameraIcon, QuestionMarkCircledIcon} from "@radix-ui/react-icons";
 import {GiCardAceSpades, GiLightBackpack, GiScrollQuill} from "react-icons/gi";
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {EditorTips} from "@/components/EditorTips";
+import {useStarted} from "@/components/useBusy";
+import {editorStart} from "@/lib/busy";
 
 interface TierListManagerProps {
   initialItemSet?: ItemSet;
@@ -36,14 +38,18 @@ interface TierListManagerProps {
 }
 
 /** The tier list editor. The list lives in the store (contexts/TierContext.tsx). */
-const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initialState, title}) => (
-  <TierListProvider initialItemSet={initialItemSet} initialState={initialState} pageTitle={title ?? ''}>
-    <CustomImagesProvider>
-      <TierListEditor/>
-      <EditorTips/>
-    </CustomImagesProvider>
-  </TierListProvider>
-);
+const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initialState, title}) => {
+  // The page is busy until the editor and everything in it has started (components/StartHold.tsx).
+  useStarted(editorStart);
+  return (
+    <TierListProvider initialItemSet={initialItemSet} initialState={initialState} pageTitle={title ?? ''}>
+      <CustomImagesProvider>
+        <TierListEditor/>
+        <EditorTips/>
+      </CustomImagesProvider>
+    </TierListProvider>
+  );
+};
 
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();

@@ -1,7 +1,7 @@
 'use client';
 
-import React, {useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
-import {toast} from 'sonner';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from 'react';
+import {toast} from '@/lib/toast';
 import Item from '@/models/Item';
 import {useTierContext} from '@/contexts/TierContext';
 import {PLACEHOLDER_IMAGE_URL} from '@/lib/packageItems';
@@ -25,6 +25,7 @@ import {
   importSnapshotImages,
   type SnapshotDeviceImage,
 } from '@/lib/images/snapshotImport';
+import {pageBusy} from '@/lib/busy';
 
 export type {ImportDeviceImagesResult, SnapshotDeviceImage};
 
@@ -174,10 +175,12 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   const requestedLinks = useRef(new Set<string>());
   const [checkedCount, setCheckedCount] = useState(0);
 
-  // Open the device store and read the local lists, after the page has started.
-  useEffect(() => {
+  // Open the device store and read the local lists, after the page has started. The page is busy
+  // until the store is open (lib/busy.ts); a layout effect, so it says so as the editor shows.
+  useLayoutEffect(() => {
     alive.current = true;
     let cancelled = false;
+    const done = pageBusy.begin();
     const requested = requestedKeys.current;
     const opening = (async () => {
       const opened = await openDeviceStore();
@@ -197,10 +200,11 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
         return;
       }
       setStore(opened);
-    })();
+    })().finally(done);
     return () => {
       cancelled = true;
       alive.current = false;
+      done();
       void opening.then((opened) => opened.close());
       registry.revokeAll();
       requested.clear();
@@ -211,13 +215,16 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
   // URLs of images that left the list.
   const keys = useMemo(() => deviceImageKeys(tiers, isPackageItem), [tiers, isPackageItem]);
   const latestKeys = useRef(keys);
-  useEffect(() => {
+  useLayoutEffect(() => {
     latestKeys.current = keys;
     keys.forEach((key) => handedOut.current.delete(key));
     if (!store) return;
-    void (async () => {
+    // Nothing to read or revoke (most changes of a list): the page is not busy for it.
+    const inList = new Set(keys);
+    if (keys.every((key) => requestedKeys.current.has(key)) && Array.from(requestedKeys.current).every((key) => inList.has(key))) return;
+    // The page is busy until the images are read and shown (lib/busy.ts).
+    void pageBusy.during(async () => {
       await Promise.resolve();
-      const inList = new Set(keys);
       const left = Array.from(requestedKeys.current).filter((key) => !inList.has(key));
       left.forEach((key) => {
         requestedKeys.current.delete(key);
@@ -236,7 +243,7 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
           : {status: evicted.current.has(key) ? 'evicted' : 'missing'};
         return [key, state] as const;
       }));
-    })();
+    });
   }, [store, keys, registry, deviceStates]);
 
   // Check each allowed link image once, and keep every link image's state up to date.
@@ -248,7 +255,7 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
     }));
     return found;
   }, [tiers]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!allowedHosts) return;
     const states: [string, LinkImageState][] = [];
     links.forEach(({label, host, domain}, url) => {
@@ -271,6 +278,9 @@ export function CustomImagesProvider({children}: {children: React.ReactNode}) {
       });
     });
     linkStates.setMany(states);
+    // The page is busy while a link image is being checked: until a render shows no image as
+    // "checking" (lib/busy.ts). The next run of this effect, or the editor closing, ends it.
+    return states.some(([, state]) => state.status === 'checking') ? pageBusy.begin() : undefined;
   }, [links, allowedHosts, checkedCount, linkStates]);
 
   const addDeviceImages = useCallback((images: NewDeviceImage[]): Promise<AddDeviceImagesResult> => {

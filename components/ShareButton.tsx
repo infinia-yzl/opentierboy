@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
 import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon, InfoCircledIcon} from '@radix-ui/react-icons';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {Skeleton} from "@/components/ui/skeleton";
@@ -29,6 +29,8 @@ import {type ListCardData, PICTURE_FRAMES, type PictureFrameName} from "@/lib/li
 import {markdownText} from "@/lib/markdownText";
 import {onOpenSharePanel, useTips} from "@/components/useTips";
 import {cn} from "@/lib/utils";
+import {useBusyWhile} from '@/components/useBusy';
+import {pageBusy} from '@/lib/busy';
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -172,6 +174,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const [frame, setFrame] = useState<FrameChoice>('whole');
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // The page is busy while a Freeze Frame downloads (lib/busy.ts).
+  useBusyWhile(isSaving);
   const downloadSnapshot = useSnapshotDownload();
   // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
   // Share button opens this panel (components/EditorTips.tsx).
@@ -195,6 +199,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   const captureImage = useCallback(async () => {
+    // The page is busy from the click until the picture is ready, or the capture failed.
+    const done = pageBusy.begin();
     setIsCapturing(true);
     // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
@@ -261,10 +267,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         } else {
           toast.error(`Failed to capture image with ${captureMethod} method`);
         }
+        done();
       }, 'image/png');
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
+      done();
     } finally {
       setCard(null);
       setIsCapturing(false);
@@ -273,14 +281,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const copyImage = () => {
     if (imageBlob) {
-      navigator.clipboard.write([
+      // The page is busy from the click until the copy's toast is on screen (lib/busy.ts).
+      // during() also ends it when the clipboard is missing and the call throws.
+      void pageBusy.during(() => navigator.clipboard.write([
         new ClipboardItem({'image/png': imageBlob})
       ]).then(() => {
         toast.success('Image copied to clipboard');
       }).catch(err => {
         console.error('Error copying image: ', err);
         toast.error('Failed to copy image');
-      });
+      }));
     }
   };
 
@@ -307,14 +317,16 @@ What do you think? 🤔
 [Check it out on OpenTierBoy!](${shareUrl()})
 -# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://www.opentierboy.com/\`.
 `;
-    navigator.clipboard.writeText(shareText).then(() => {
+    // The page is busy from the click until the copy's toast is on screen (lib/busy.ts).
+    // during() also ends it when the clipboard is missing and the call throws.
+    void pageBusy.during(() => navigator.clipboard.writeText(shareText).then(() => {
       toast.success('Markdown copied to clipboard', {
         description: 'Share it on Discord or Telegram, or any other platform that supports markdown!'
       });
     }).catch(err => {
       console.error('Error copying markdown: ', err);
       toast.error('Failed to copy markdown');
-    });
+    }));
   }
 
   return (

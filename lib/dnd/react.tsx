@@ -34,6 +34,7 @@ import {keyboardItemTarget, keyboardRowTarget} from './keyboard';
 import type {ItemLike, ItemMove, RowMove, TierLike} from './model';
 import {findItem, moveItem} from './moves';
 import {itemMoveFromPreview, moveRowInPreview, previewItemOver, previewRowOver, rowMoveFromPreview} from './preview';
+import {useBusyWhile} from '@/components/useBusy';
 
 /**
  * The React side of the drag and drop adapter. Components use these and never import dnd-kit.
@@ -296,6 +297,10 @@ export function TierDragDrop<T extends TierLike>({tiers, onItemMove, onRowMove, 
 
   useEffect(() => session.dispose, [session]);
 
+  // The page is busy from the start of a drag until its drop has ended (lib/busy.ts), and
+  // BusyWhileDropping keeps it busy during the drop animation.
+  useBusyWhile(active !== null);
+
   const shown = preview ?? tiers;
   const itemTargetTierId = useMemo(
     () => (active?.kind === 'item' && preview ? findItem(preview, active.id)?.tierId ?? null : null),
@@ -316,6 +321,7 @@ export function TierDragDrop<T extends TierLike>({tiers, onItemMove, onRowMove, 
         onDragEnd={handleDragEnd}
       >
         <DragMoves onOver={handleDragOver} onMove={handleDragMove}/>
+        <BusyWhileDropping/>
         {children(shown)}
       </DragDropProvider>
     </TierDragTargetContext.Provider>
@@ -564,6 +570,17 @@ function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; i
 /** `describedBy` for a row handle: the keyboard instructions. Never changes during a drag. */
 export function useTierDragDescription(): string {
   return useContext(TierDragDescriptionContext);
+}
+
+/**
+ * Keeps the page busy during a drop animation (the fork's `DragOperation.ending`): until it ends,
+ * a press starts no new drag and text selection stays blocked.
+ */
+function BusyWhileDropping() {
+  const manager = useDragDropManager();
+  const ending = useComputed(() => manager?.dragOperation.ending ?? false, [manager]);
+  useBusyWhile(ending.value);
+  return null;
 }
 
 /**

@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useEffect, useRef, useState} from 'react';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {usePathname, useSearchParams} from 'next/navigation';
 import {Cross2Icon} from '@radix-ui/react-icons';
 import {Button} from '@/components/ui/button';

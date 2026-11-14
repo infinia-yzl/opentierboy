@@ -10,11 +10,13 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {Button} from "@/components/ui/button";
 import React from "react";
 import {FaDiscord} from "react-icons/fa6";
+import {PageStarted} from '@/components/StartHold';
 
 export default async function Page(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
   return (
     <div>
+      <PageStarted/>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

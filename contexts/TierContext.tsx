@@ -17,6 +17,7 @@ import {
   loadList,
   stateParam,
 } from "@/lib/tierListReducer";
+import {useBusyWhile} from "@/components/useBusy";
 
 /**
  * The tier list editor's store: one useReducer (lib/tierListReducer.ts) for the list, the
@@ -158,6 +159,8 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
       document.removeEventListener('keydown', onKey, true);
     };
   }, []);
+  // The page is busy while a link waits to be written (lib/busy.ts).
+  useBusyWhile(state.writes.length > 0);
   const lastPushedWrite = useRef(-1);
   useEffect(() => {
     const next = state.writes[0];

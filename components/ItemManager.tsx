@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {toast} from "sonner";
+import {toast} from "@/lib/toast";
 import ItemCreator from "@/components/ItemCreator";
 import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";

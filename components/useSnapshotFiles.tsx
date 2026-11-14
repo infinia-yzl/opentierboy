@@ -2,7 +2,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,8 @@ import {
 } from '@/lib/snapshot/open';
 import {isLinkToAnotherPage} from '@/lib/leavingLink';
 import {stateParam} from '@/lib/tierListReducer';
+import {pageBusy} from '@/lib/busy';
+import {useBusyWhile} from '@/components/useBusy';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';
@@ -152,6 +154,8 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the list is in the address (or the opening ends otherwise). */
   const [opening, setOpening] = useState(false);
+  // The page is busy while a list opens: its pictures are stored, then its link is written.
+  useBusyWhile(opening);
   /** Where the opening list goes, and the address it leaves. */
   const target = useRef<{path: string; state: string; from: string; title: string} | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -266,8 +270,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       return;
     }
     // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
+    // The page is busy from now until these files are done (lib/busy.ts).
     const moves = historyMoves.current;
-    const run = queue.current.then(() => openNow(files));
+    const done = pageBusy.begin();
+    const run = queue.current.then(() => openNow(files)).finally(done);
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
@@ -328,7 +334,8 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       return;
     }
     const moves = historyMoves.current;
-    const run = queue.current.then(() => addLinksNow());
+    const done = pageBusy.begin();
+    const run = queue.current.then(() => addLinksNow()).finally(done);
     queue.current = run.catch(() => undefined);
 
     async function addLinksNow() {

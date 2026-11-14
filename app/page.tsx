@@ -7,6 +7,7 @@ import OwnListCard from "@/components/OwnListCard";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import {rankPageNames} from "@/lib/imageSets";
 import {templateButton} from "@/lib/templateButtons";
+import {PageStarted} from '@/components/StartHold';
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
@@ -40,6 +41,7 @@ const FEATURED_PREVIEWS: Record<string, Record<string, string>> = {
 const Home = () => {
   return (
     <div className="flex flex-col gap-10 pb-4 md:gap-14">
+      <PageStarted/>
       <section aria-labelledby="hero" className="flex flex-col items-center gap-2.5 pt-8 text-center md:pt-16">
         <h1 id="hero" className="text-[30px] font-black leading-[1.15] md:text-[44px]">
           Free and Open-Source Tier Lists

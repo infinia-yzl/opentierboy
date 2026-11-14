@@ -12,6 +12,7 @@ import {gameColourKey} from "@/lib/appearance";
 import {GameColours} from "@/components/GameColours";
 import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 import {Skeleton} from "@/components/ui/skeleton";
+import {EditorStartHold, PageStarted} from "@/components/StartHold";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 const TierListManager = dynamic(
@@ -181,6 +182,8 @@ export default async function TierListPage(
   if (!nameOrPackage) {
     return (
       <div className="flex flex-col items-center justify-center">
+        <PageStarted/>
+        <EditorStartHold/>
         <TierListManager
           initialItemSet={undefined}
           initialState={initialState}
@@ -210,6 +213,8 @@ export default async function TierListPage(
   return (
     <div className="flex flex-col items-center justify-center">
       <GameColours gameKey={gameColourKey(itemSet?.packageName)}/>
+      <PageStarted/>
+      <EditorStartHold/>
       <TierListManager
         initialItemSet={itemSet ?? undefined}
         initialState={initialState}

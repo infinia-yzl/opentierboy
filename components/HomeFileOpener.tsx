@@ -1,8 +1,8 @@
 'use client';
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {useRouter} from 'next/navigation';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,8 @@ import {
   type SnapshotToOpen,
 } from '@/lib/snapshot/open';
 import {itemsToAdd} from '@/lib/tierListReducer';
+import {useBusyWhile, useStarted} from '@/components/useBusy';
+import {homeFileOpenerStart, pageBusy} from '@/lib/busy';
 
 /** The editor page of a new blank list, and its title (app/rank/[[...slug]]/page.tsx). */
 const BLANK_LIST_PATH = '/rank';
@@ -56,6 +58,7 @@ interface HomeFileOpenerProps {
  * store; this component never changes that list or the address, except for the one push.
  */
 export default function HomeFileOpener({request, returnFocusRef}: HomeFileOpenerProps) {
+  useStarted(homeFileOpenerStart);
   return (
     <TierListProvider pageTitle={BLANK_LIST_TITLE}>
       <CustomImagesProvider>
@@ -72,17 +75,23 @@ function Opener({request, returnFocusRef}: HomeFileOpenerProps) {
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the editor replaces this page (or the opening fails). */
   const [opening, setOpening] = useState(false);
+  // The page is busy while a list opens: its pictures are stored, then its link is written.
+  useBusyWhile(opening);
   /** True while a list is asked about or opened, or a new list starts: files are ignored then. */
   const busy = useRef(false);
   /** False once the page has closed: nothing more is stored or opened. */
   const alive = useRef(true);
   /** Requests already handled (an effect may run twice for one request). */
   const handled = useRef(new WeakSet<HomeFileRequest>());
+  /** Ends the busy count of a new list's trip to the editor, which lasts until this page closes. */
+  const leaving = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     alive.current = true;
     return () => {
       alive.current = false;
+      leaving.current?.();
+      leaving.current = null;
     };
   }, []);
 
@@ -116,10 +125,12 @@ function Opener({request, returnFocusRef}: HomeFileOpenerProps) {
     const state = cortex.encodeListForURL(BLANK_LIST_TITLE, tiers.map((tier, index) => (
       index === last ? {...tier, items: [...tier.items, ...added]} : tier
     )));
+    // The page stays busy until the editor replaces it.
+    leaving.current ??= pageBusy.begin();
     router.push(`${BLANK_LIST_PATH}?state=${state}`);
   }, [router]);
 
-  const openFiles = useCallback(async (files: File[]) => {
+  const openFiles = useCallback((files: File[]) => pageBusy.during(async () => {
     // A list is being asked about or opened, or a new list starts.
     if (files.length === 0 || busy.current) return;
     const checks = await Promise.all(files.map(isPictureFile));
@@ -146,9 +157,10 @@ function Opener({request, returnFocusRef}: HomeFileOpenerProps) {
       }
     }
     await startList(pictures);
-  }, [startList]);
+  }), [startList]);
 
-  useEffect(() => {
+  // A layout effect: the page says it is busy in the same event that chose the files.
+  useLayoutEffect(() => {
     if (handled.current.has(request)) return;
     handled.current.add(request);
     void openFiles(request.files);

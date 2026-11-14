@@ -9,6 +9,7 @@ import {useLinkImageItems} from "@/components/useAddItems";
 import {checkLinkImageUrl} from "@/lib/images/linkImage";
 import {checkImage, labelFallback} from "@/lib/images/imageCheck";
 import {IMAGE_CHECK_FAILURE_MESSAGES, LINK_IMAGE_REFUSAL_MESSAGES} from "@/lib/images/messages";
+import {useBusyWhile} from "@/components/useBusy";
 
 interface LinkImageCreatorProps {
   onItemsCreate: (items: Item[]) => void;
@@ -26,6 +27,8 @@ const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
   const [isChecking, setIsChecking] = useState(false);
+  // The page is busy while the image is checked (lib/busy.ts).
+  useBusyWhile(isChecking);
   // The address whose image failed its check: the next submit adds it anyway.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);

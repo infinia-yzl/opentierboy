@@ -8,6 +8,8 @@ import {Card} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
 import {cn} from '@/lib/utils';
 import type {HomeFileRequest} from '@/components/HomeFileOpener';
+import {useHoldUntilStarted} from '@/components/useBusy';
+import {homeFileOpenerStart} from '@/lib/busy';
 
 // Loaded when the visitor first chooses or drops a file: the landing page itself opens no
 // device store and loads none of the editor's code.
@@ -25,6 +27,8 @@ function carriesFiles(event: DragEvent | React.DragEvent): boolean {
  */
 const OwnListCard: React.FC = () => {
   const [request, setRequest] = useState<HomeFileRequest | null>(null);
+  // The opener's code loads with the first file: the page is busy until it has started.
+  useHoldUntilStarted(homeFileOpenerStart, request !== null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);

@@ -1,6 +1,6 @@
 'use client';
 
-import {toast} from "sonner";
+import {toast} from "@/lib/toast";
 
 /**
  * Zen mode is the `zen-mode` class on <html> (components/usePageState.ts follows it). It turns

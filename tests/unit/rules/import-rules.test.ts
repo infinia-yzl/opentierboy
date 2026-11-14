@@ -155,6 +155,24 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('lib/images/deviceStore.ts', ['zod', 'idb'])).toEqual([1]);
   });
 
+  it('returns an error for an import of toast from sonner when the file is outside lib/toast.ts', async () => {
+    const code = [
+      "import {toast} from 'sonner';",
+      "import {Toaster, toast as show} from 'sonner';",
+      "import * as sonner from 'sonner';",
+      // Allowed:
+      "import {Toaster} from 'sonner';",
+      "import {toast as wrapped} from '@/lib/toast';",
+      "import type {ExternalToast} from 'sonner';",
+    ].join('\n') + '\n';
+    const rules = ['no-restricted-imports'];
+    for (const file of ['components/ShareButton.tsx', 'contexts/CustomImagesContext.tsx', 'lib/snapshot/payload.ts', 'tests/unit/probe.test.ts', 'components/ui/sonner.tsx']) {
+      expect(await reportedLines(file, code, rules), file).toEqual([1, 2, 3]);
+    }
+    expect(await reportedLines('lib/toast.ts', code, rules)).toEqual([]);
+    expect(await reportedLines('lib/toast.ts', "import x from 'zod';\nimport y from 'idb';\n", rules)).toEqual([1, 2]);
+  });
+
   it('returns an error for each Node built-in and IndexedDB import when the file is in app/api/og or a module it imports', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];

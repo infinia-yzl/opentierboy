@@ -1,5 +1,5 @@
 import {useCallback} from 'react';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import Item from '@/models/Item';
 import {useTierContext} from '@/contexts/TierContext';
 import {useCustomImages} from '@/contexts/CustomImagesContext';

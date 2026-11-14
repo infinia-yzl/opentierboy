@@ -1,5 +1,5 @@
 import React, {useCallback, memo, useId, useLayoutEffect, useMemo, useRef} from 'react';
-import {toast} from "sonner";
+import {toast} from "@/lib/toast";
 import {useTierContext} from "@/contexts/TierContext";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
