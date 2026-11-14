@@ -52,16 +52,12 @@ export function rowPhrase(tierName: string): string {
   return /^(?:row|tier)\b/i.test(tierName) ? tierName : `row ${tierName}`;
 }
 
-function capitalise(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
 /**
  * The buttons in a row that are not items: the grip ("Move row S", "Move Row 4"), the stack ("Move
- * the 3 items of row S", "Row C has 0 items to move"), the tray's "Add images to" tile and the
+ * the 3 items of row S"; an empty row has none), the tray's "Add images to" tile and the
  * Template, Upload and Link buttons of an empty list's drop area.
  */
-const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|.* has 0 items to move$|Add images to\b|(?:Template|Upload|Link)$)/;
+const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images to\b|(?:Template|Upload|Link)$)/;
 
 /**
  * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
@@ -82,8 +78,7 @@ export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a n
  * - An item is a `button` named after its label (it is the drag handle as well).
  * - Each ranked row has two handles: its grip, a `button` named "Move row <label>" ("Move Row 4"
  *   for a row without a label), which moves the whole row; and its stack, a `button` named "Move
- *   the 3 items of row <label>" ("Row <label> has 0 items to move" when it is empty), which moves
- *   only the items.
+ *   the 3 items of row <label>", which moves only the items. An empty row has no stack.
  */
 /** Files for the file picker: paths, or files made in the test. */
 type DeviceFiles = string[] | {name: string; mimeType: string; buffer: Buffer}[];
@@ -352,10 +347,13 @@ export class TierListPage {
     return this.main.getByRole('button', {name: `Move ${rowPhrase(tierName)}`, exact: true});
   }
 
-  /** A row's stack, at the row's end: it moves only the row's items; the names stay in place. */
+  /**
+   * A row's stack, at the row's end: it moves only the row's items; the names stay in place. An
+   * empty row has nothing to move, so its stack is hidden: this finds nothing then.
+   */
   rowStack(tierName: string): Locator {
     const phrase = escapeRegExp(rowPhrase(tierName));
-    return this.main.getByRole('button', {name: new RegExp(`^(?:Move the \\d+ items? of ${phrase}|${capitalise(phrase)} has 0 items to move)$`)});
+    return this.main.getByRole('button', {name: new RegExp(`^Move the \\d+ items? of ${phrase}$`)});
   }
 
   /** Leaves the editor for the landing page with the site's logo link in the header. */

@@ -219,17 +219,16 @@ test.describe('drag and drop', () => {
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga', 'Sigma']);
     });
 
-    test('renders the stack of an empty row unavailable and no pick-up when the user presses Space on it', async ({tierList}) => {
-      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
-      const announcement = await tierList.dragAnnouncer.textContent();
+    test('renders no stack in row C while it is empty, and its stack when the user drags an item there', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
-      await expect(tierList.rowStack('C')).toHaveAccessibleName('Row C has 0 items to move');
-      await expect(tierList.rowStack('C')).toHaveAttribute('aria-disabled', 'true');
-      await tierList.rowStack('C').focus();
-      await tierList.pressKey('Space');
+      await expect(tierList.rowStack('C')).toHaveCount(0);
+      expect(await tierList.tabOrderIn('C')).toEqual(['Move row C']);
 
-      await tierList.settled();
-      expect(await tierList.dragAnnouncer.textContent()).toBe(announcement);
+      await tierList.dragItemToTier('Winston', 'C');
+
+      await expect(tierList.rowStack('C')).toHaveAccessibleName('Move the 1 item of row C');
+      expect(await tierList.tabOrderIn('C')).toEqual(['Move row C', 'Winston', 'Move the 1 item of row C']);
     });
 
     test('renders the stack name with the item count when the page opens with 2 items in row S', async ({tierList}) => {
@@ -595,6 +594,10 @@ test.describe('drag and drop', () => {
             const view = mouseDragViewOf(snapshot);
             // A stack drag moves only the tiles and the labels stay; a grip drag moves a row, label included.
             await expectTierList(tierList, {tiers: view.order.map((row) => ({name: row, items: [...view.items[row]]}))});
+            // A row with items has its stack; an empty row has nothing to move, and no stack.
+            for (const row of view.order.filter((name) => name !== 'Unranked')) {
+              await expect(tierList.rowStack(row)).toHaveCount(view.items[row].length > 0 ? 1 : 0);
+            }
             await expect.poll(() => linkRowsOf(page.url()), {message: 'the link should hold the rows as they show'})
               .toEqual(view.order.map((row) => ({label: row, items: view.items[row].map((name) => ITEM_IDS[name])})));
             const rows = JSON.stringify(view);

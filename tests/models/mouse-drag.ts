@@ -72,7 +72,7 @@ const freeSpaceDrag = (type: MouseDragEvent['type']) => ({snapshot}: When) => sn
  * row, a drag to the free space of that row crosses Winston on the way, and where Mauga lands
  * depends on the pointer's path (lib/dnd/preview.ts keeps the last place over the own row's free
  * space), so that drag is not sent there. A row's stack is dragged only where the row has items:
- * an empty row's stack is off. Both stack drags and both grip drags always change the list here,
+ * an empty row's stack is off and hidden. Both stack drags and both grip drags always change the list here,
  * because Winston keeps the two rows different and the rows have different labels.
  */
 export const mouseDragModel = defineModel({

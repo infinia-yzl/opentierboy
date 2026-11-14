@@ -139,8 +139,8 @@ tests/
   without a label is `Row <n>`, its position), an item is a `button` named after its label. Each
   ranked row has two handles: its grip, a `button` named `Move row <label>` (`Move Row 4`), which
   moves the whole row (`rowGrip`), and its stack, a `button` named `Move the 3 items of row
-  <label>` (`Row <label> has 0 items to move` when empty), which moves only its items
-  (`rowStack`). The Unranked tray has no handles; every row and the tray hold a level-2 heading,
+  <label>`, which moves only its items (`rowStack`). An empty row has no stack: it is hidden
+  until the row holds an item. The Unranked tray has no handles; every row and the tray hold a level-2 heading,
   which is how the page object finds them. If an element has no accessible name, add
   one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
 - **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`

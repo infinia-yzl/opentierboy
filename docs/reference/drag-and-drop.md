@@ -297,7 +297,7 @@ Decisions in the adapter:
     every other field) and leaves each label at its position (product rule 6). The dragged items
     wait, faded, where they would land. The stack is also a droppable that takes nothing, so a
     keyboard move can bring the lifted stack back to its place (`moveDraggedToItsPlace`). An
-    empty row's stack is off.
+    empty row has nothing to move: its stack is off and hidden.
 
   Rows take both: a row accepts the `row` and `stack` types. Both drops use `rowMoveFromPreview`
   (the place of the dragged tier id), so the editor gets one `onRowMove` or `onRowItemsMove` per
@@ -365,7 +365,7 @@ Decisions in the adapter:
 // the items of a dragged stack. settled: the last drop moved this row or its items (for the wash).
 useTierRow({tierId, index}): {ref, handleRef, isDragging, itemsWaiting, settled}
 
-// A row's stack: ref on the stack. disabled for an empty row.
+// A row's stack: ref on the stack. disabled for an empty row, whose stack is hidden.
 useTierStack({tierId, disabled}): {ref, isDragging}
 
 // The item area of a row: takes items over its free space and over an empty row
@@ -411,8 +411,8 @@ moving, so the preview trailed the pointer.
 `components/DragDropTierList.tsx` and `components/RowHandle.tsx` use these. They keep the
 accessible names: a row is a `group` named by its label ("Row <n>" without one), an item a
 `button` named by its label, a grip a `button` named `Move row <label>` ("Move Row 4"), a stack a
-`button` named `Move the 3 items of row <label>` (`Row <label> has 0 items to move` when empty,
-with `aria-disabled`). In a row, Tab reaches the grip, the items, then the stack. dnd-kit adds
+`button` named `Move the 3 items of row <label>`. An empty row's stack is off and hidden
+(`invisible`, `aria-hidden`): it keeps its place so the rows line up. In a row, Tab reaches the grip, the items, then the stack. dnd-kit adds
 `aria-pressed` and the handles' `aria-roledescription`; the editor sets `role`, `tabIndex` and
 `aria-describedby` itself, so the server-rendered page has them too. What lifts when the pointer
 is over a handle, or a handle has focus, is plain CSS (`app/globals.css`, "The row handles"): the

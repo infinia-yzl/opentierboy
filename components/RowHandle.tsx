@@ -11,8 +11,9 @@ import {rowGripName, rowStackName} from '@/lib/dnd/labels';
  * - RowGrip, a six-dot grip beside the row, outside the list: it moves the whole row, its name
  *   and its items together ("Move row S").
  * - RowStack, a pile of squares with the item count at the row's end: it moves only the items,
- *   and the names stay in place ("Move the 3 items of row S"). An empty row's stack is off
- *   ("Row C has 0 items to move").
+ *   and the names stay in place ("Move the 3 items of row S"). An empty row has nothing to move,
+ *   so its stack is off and hidden: it keeps its place, so the rows line up, and it is out of
+ *   the tab order and the accessibility tree.
  *
  * What lifts when the pointer is over a handle, or the handle has focus, is plain CSS
  * (app/globals.css, "The row handles"), so pointing at a handle renders nothing again.
@@ -66,7 +67,7 @@ interface RowStackProps {
   describedBy?: string;
   name: string;
   index: number;
-  /** How many items the row holds: the count on the stack. With none, the stack is off. */
+  /** How many items the row holds: the count on the stack. With none, the stack is off and hidden. */
   count: number;
 }
 
@@ -77,6 +78,10 @@ interface RowStackProps {
 export const RowStack: React.FC<RowStackProps> = ({tierId, describedBy, name, index, count}) => {
   const empty = count === 0;
   const {ref, isDragging} = useTierStack({tierId, disabled: empty});
+  if (empty) {
+    // Nothing to move: the stack keeps its place, hidden, so the rows line up.
+    return <div ref={ref} aria-hidden="true" data-row-stack="" data-empty="" className="invisible w-10 stage:w-(--stage-handle) shrink-0 self-stretch"/>;
+  }
   return (
     <div
       ref={ref}
@@ -84,10 +89,9 @@ export const RowStack: React.FC<RowStackProps> = ({tierId, describedBy, name, in
       tabIndex={0}
       aria-describedby={describedBy || undefined}
       aria-label={rowStackName(name, index, count)}
-      aria-disabled={empty || undefined}
       data-row-stack=""
       data-lifted={isDragging || undefined}
-      className={`relative w-10 stage:w-(--stage-handle) shrink-0 self-stretch flex items-center justify-center text-foreground ${empty ? 'cursor-default' : 'cursor-grab'} ${HANDLE_CLASSES}`}
+      className={`relative w-10 stage:w-(--stage-handle) shrink-0 self-stretch flex items-center justify-center text-foreground cursor-grab ${HANDLE_CLASSES}`}
     >
       <span
         data-stack-pill=""

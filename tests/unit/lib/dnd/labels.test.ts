@@ -40,10 +40,8 @@ describe('rowGripName and rowStackName', () => {
     expect(rowGripName('Tier 10', 9)).toBe('Move Tier 10');
   });
 
-  it('returns the count of items, or that there is none to move, when rowStackName gets a row', () => {
+  it('returns the count of items when rowStackName gets a row', () => {
     expect(rowStackName('S', 0, 3)).toBe('Move the 3 items of row S');
     expect(rowStackName('', 3, 1)).toBe('Move the 1 item of Row 4');
-    expect(rowStackName('C', 3, 0)).toBe('Row C has 0 items to move');
-    expect(rowStackName('', 3, 0)).toBe('Row 4 has 0 items to move');
   });
 });

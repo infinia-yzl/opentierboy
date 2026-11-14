@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const mouseDragMachine = createMachine({
   id: 'mouseDrag',
-  description: 'Ranking with the mouse in a list of rows S and A and the Unranked tray, with two tiles: Mauga, which the user drags, and Winston, which starts in row S and moves only with the items of his row. Each drag is one press, move and release. A tile dropped on the free space of another row goes to its end; dropped on the left or right half of Winston, it goes just before or just after him. Each ranked row has two handles. Its stack moves only its items: dropped on the other row, the contents swap and the labels stay where they are; an empty row\'s stack is off. Its grip moves the whole row, name and items: dropped on the other row, the two rows swap places, and the colours stay with the places. Each drop that changes the list writes a new link and one new history entry. A drop where the tile started, or a release outside the rows, changes nothing.',
+  description: 'Ranking with the mouse in a list of rows S and A and the Unranked tray, with two tiles: Mauga, which the user drags, and Winston, which starts in row S and moves only with the items of his row. Each drag is one press, move and release. A tile dropped on the free space of another row goes to its end; dropped on the left or right half of Winston, it goes just before or just after him. Each ranked row has two handles. Its stack moves only its items: dropped on the other row, the contents swap and the labels stay where they are; an empty row\'s stack is off and hidden. Its grip moves the whole row, name and items: dropped on the other row, the two rows swap places, and the colours stay with the places. Each drop that changes the list writes a new link and one new history entry. A drop where the tile started, or a release outside the rows, changes nothing.',
   type: 'parallel',
   on: {
     DROP_MAUGA_IN_PLACE: {description: 'Mauga dropped where it started: the list, the link and the history stay as they are.'},
@@ -18,7 +18,7 @@ export const mouseDragMachine = createMachine({
           initial: 'maugaInUnranked',
           states: {
             maugaInUnranked: {
-              description: 'S: Winston. A: empty. Unranked: Mauga. Row A has no items, so its stack is off.',
+              description: 'S: Winston. A: empty. Unranked: Mauga. Row A has no items, so its stack is off and hidden.',
               on: {
                 DRAG_MAUGA_TO_S: {target: 'maugaLast'},
                 DRAG_MAUGA_TO_A: {target: 'maugaInA'},
@@ -63,7 +63,7 @@ export const mouseDragMachine = createMachine({
           initial: 'maugaInUnranked',
           states: {
             maugaInUnranked: {
-              description: 'S: empty. A: Winston. Unranked: Mauga. Row S has no items, so its stack is off.',
+              description: 'S: empty. A: Winston. Unranked: Mauga. Row S has no items, so its stack is off and hidden.',
               on: {
                 DRAG_MAUGA_TO_S: {target: 'maugaInS'},
                 DRAG_MAUGA_TO_A: {target: 'maugaLast'},

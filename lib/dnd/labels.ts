@@ -40,13 +40,12 @@ export function rowGripName(name: unknown, index: number): string {
 }
 
 /**
- * The button name of a row's stack: "Move the 3 items of row S", "Move the 1 item of Row 3", or
- * "Row C has 0 items to move" for an empty row, whose stack is off. The name holds the count the
- * stack shows (WCAG 2.5.3, label in name).
+ * The button name of a row's stack: "Move the 3 items of row S", "Move the 1 item of Row 3". An
+ * empty row's stack is hidden, so it has no name. The name holds the count the stack shows
+ * (WCAG 2.5.3, label in name).
  */
 export function rowStackName(name: unknown, index: number, count: number): string {
   const phrase = rowPhrase(name, index);
-  if (count === 0) return `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)} has 0 items to move`;
   return `Move the ${count} item${count === 1 ? '' : 's'} of ${phrase}`;
 }
 
