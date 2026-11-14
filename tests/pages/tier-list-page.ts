@@ -2,7 +2,7 @@ import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectSettled} from '../support/settled';
 import {escapeRegExp} from '../support/regexp';
 import {runPageClock} from '../support/page-clock';
-import {boxOf, changeAndWaitForLink, rowPhrase, startedAndIdle} from './helpers';
+import {boxOf, changeAndWaitForLink, rowPhrase, startedAndIdle, UNTIL_STARTED} from './helpers';
 import {toasts} from './toasts';
 import {Rows} from './rows';
 import {EditorItems} from './editor-items';
@@ -143,21 +143,21 @@ export class TierListPage {
 
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
   async goto(path: string, state?: string) {
-    await this.page.goto(state ? `${path}?state=${state}` : path);
+    await this.page.goto(state ? `${path}?state=${state}` : path, UNTIL_STARTED);
     await expect(this.tiers.first()).toBeVisible();
     await this.settled();
   }
 
   /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
-    await this.page.goto(link);
+    await this.page.goto(link, UNTIL_STARTED);
     await expect(this.tiers.first()).toBeVisible();
     await this.settled();
   }
 
   /** Opens a page by its address as typed, for example with parameters the app does not read. */
   async gotoAddress(address: string) {
-    await this.page.goto(address);
+    await this.page.goto(address, UNTIL_STARTED);
     await expect(this.tiers.first()).toBeVisible();
     await this.settled();
   }
@@ -168,7 +168,7 @@ export class TierListPage {
    * and settled (a crash while it starts comes before that).
    */
   async gotoPageThatMayCrash(path: string, state: string) {
-    await this.page.goto(`${path}?state=${state}`);
+    await this.page.goto(`${path}?state=${state}`, UNTIL_STARTED);
     await expect.poll(async () => await this.crashMessage.isVisible() || await startedAndIdle(this.main), {
       message: 'the page should crash, or start and settle',
     }).toBe(true);
@@ -181,7 +181,7 @@ export class TierListPage {
 
   /** Reloads the page, and waits until the editor shows the list again. */
   async reload() {
-    await this.page.reload();
+    await this.page.reload(UNTIL_STARTED);
     await expect(this.tiers.first()).toBeVisible();
     await this.settled();
   }
@@ -199,8 +199,11 @@ export class TierListPage {
    * Opening the address already on screen would replace its entry and keep the entries after it,
    * from an earlier visit; the blank page in between drops them.
    */
-  async openAfterBlankPage(path: string, state: string) {
+  async openAfterBlankPage(path: string, state: string, {onBlankPage}: {onBlankPage?: () => Promise<void>} = {}) {
     await this.page.goto('about:blank');
+    // Here the page before has gone, so it sends nothing more: a hold set up now holds only
+    // what the new page asks for.
+    await onBlankPage?.();
     await this.goto(path, state);
   }
 
@@ -230,7 +233,7 @@ export class TierListPage {
    */
   async goBack() {
     await changeAndWaitForLink(this.page, async () => {
-      await this.page.goBack();
+      await this.page.goBack(UNTIL_STARTED);
     });
     await this.settled();
   }
@@ -241,7 +244,7 @@ export class TierListPage {
    * and so do the address and the page.
    */
   async goForward() {
-    await this.page.goForward();
+    await this.page.goForward(UNTIL_STARTED);
     await this.settled();
   }
 
@@ -250,7 +253,7 @@ export class TierListPage {
    * or while files wait: it returns once Back has been sent, without waiting for anything.
    */
   async goBackNow() {
-    await this.page.goBack();
+    await this.page.goBack({waitUntil: 'commit'});
   }
 
   /** The number of entries in the tab's history (window.history.length). */

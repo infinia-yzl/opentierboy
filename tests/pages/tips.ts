@@ -2,6 +2,7 @@ import {expect, type BrowserContext, type Locator, type Page} from '@playwright/
 import {expectSettled} from '../support/settled';
 import {letToastTimeOut} from '../support/page-clock';
 import {letClosedToastLeave, toasts} from './toasts';
+import {UNTIL_STARTED} from './helpers';
 
 /** How long a tip's toast shows (components/EditorTips.tsx, TIP_TOAST_MS). */
 const TIP_TOAST_MS = 10_000;
@@ -113,7 +114,7 @@ export class Tips {
 
   /** Opens About and presses "Show the tips again". */
   async showTipsAgainOnAbout() {
-    await this.page.goto('/about');
+    await this.page.goto('/about', UNTIL_STARTED);
     await expectSettled(this.page);
     await this.page.getByRole('button', {name: 'Show the tips again'}).click();
     await expect(toasts(this.page).filter({hasText: 'The tips will show again'})).toBeVisible();

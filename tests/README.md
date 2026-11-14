@@ -173,7 +173,10 @@ that only a model needs goes in the object of its area too.
   which is how the page object finds them. If an element has no accessible name, add
   one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
 - **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`
-  on a wait. Wait for what the user would see: web-first assertions such as `toHaveText`, the
+  on a wait. (`playwright.config.ts` limits each navigation to 30 s and each action to 15 s,
+  as `expect` limits each assertion to 10 s: a stuck step fails with its own name. These are
+  limits, not waits.) Navigations wait for the document, not for its load event (`UNTIL_STARTED`
+  in `tests/pages/helpers.ts`), and then for the page to settle. Wait for what the user would see: web-first assertions such as `toHaveText`, the
   drag announcer for drag and drop, and the address bar for saved changes. Page object methods
   that change the list return only after the new link is in the address bar. The editor writes
   it in the event of the change (`history.pushState`), with no request to the server.

@@ -6,6 +6,15 @@ import {expect, type Locator, type Page} from '@playwright/test';
  * new link. Specs do not use them: they call page object methods.
  */
 
+/**
+ * How the page objects navigate: until the new document has been read (DOMContentLoaded), not
+ * until its load event. A page says when it has started and finished on <main> (`aria-busy`,
+ * lib/busy.ts), and every navigation helper ends with `settled()`, which waits for that. The load
+ * event waits for every picture, font and held server answer as well: a picture the test holds,
+ * or one that comes late on a slow machine, would stall the step with no error that names it.
+ */
+export const UNTIL_STARTED = {waitUntil: 'domcontentloaded'} as const;
+
 /** A box on screen, in CSS pixels. */
 export type Box = {x: number; y: number; width: number; height: number};
 export type Point = {x: number; y: number};

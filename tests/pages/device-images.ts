@@ -1,6 +1,6 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 import {letToastTimeOut} from '../support/page-clock';
-import {changeAndWaitForLink} from './helpers';
+import {changeAndWaitForLink, UNTIL_STARTED} from './helpers';
 import {letClosedToastLeave} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
@@ -130,7 +130,7 @@ export class DeviceImages {
    * landing page, which does not open the device image store, so the next editor page moves them.
    */
   async keepOldUploads(uploads: {id: string; label: string; png: Buffer}[]) {
-    await this.page.goto('/');
+    await this.page.goto('/', UNTIL_STARTED);
     const entries = uploads.map(({id, label, png}) => ({i: id, c: label, d: `data:image/png;base64,${png.toString('base64')}`}));
     await this.page.evaluate((value) => localStorage.setItem('customItems', value), JSON.stringify(entries));
   }

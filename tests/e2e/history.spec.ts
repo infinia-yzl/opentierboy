@@ -355,9 +355,11 @@ test.describe('history', () => {
       const sut = modelSut<LeavingSnapshot, LeavingEvent>(page, {
         reset: async () => {
           await releaseTrip();
-          // The editor asks for Home as soon as the logo shows, so the trip is held first.
-          trip = await tierList.holdTripHome();
-          await tierList.openAfterBlankPage(TANKS, LEAVE_LIST);
+          // The editor asks for Home as soon as the logo shows, so the trip is held before it
+          // opens, and after the page before has gone, so that page's late asks pass.
+          await tierList.openAfterBlankPage(TANKS, LEAVE_LIST, {onBlankPage: async () => {
+            trip = await tierList.holdTripHome();
+          }});
           opened = page.url();
           entries = await tierList.historyLength();
         },

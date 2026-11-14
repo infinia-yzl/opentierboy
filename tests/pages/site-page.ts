@@ -2,6 +2,7 @@ import {expect, type Locator, type Page} from '@playwright/test';
 import {expectSettled} from '../support/settled';
 import {letToastTimeOut, runPageClock} from '../support/page-clock';
 import {toasts} from './toasts';
+import {UNTIL_STARTED} from './helpers';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontChoice = 'Modern' | 'Classic';
@@ -25,13 +26,13 @@ export class SitePage {
 
   /** Opens a page of the site by its path, and waits until it has started and settled. */
   async goto(path: string) {
-    await this.page.goto(path);
+    await this.page.goto(path, UNTIL_STARTED);
     await this.settled();
   }
 
   /** Reloads the page, and waits until it has started again and settled. */
   async reload() {
-    await this.page.reload();
+    await this.page.reload(UNTIL_STARTED);
     await this.settled();
   }
 
@@ -316,7 +317,7 @@ export class SitePage {
     await this.openFromNavigation('About');
     await expect(this.page).toHaveURL(/\/about$/);
     await expect(this.pageHeading).toBeVisible();
-    await this.page.goBack();
+    await this.page.goBack(UNTIL_STARTED);
     await expect(this.page).toHaveURL(before);
     await this.settled();
     await this.appearanceMenuReady();
@@ -371,7 +372,7 @@ export class SitePage {
    */
   async openListAndReturnHome(href: string, title: string) {
     const before = await this.recentOpenedAt(title);
-    await this.page.goto(href);
+    await this.page.goto(href, UNTIL_STARTED);
     await this.waitUntilRecorded(title, before);
     await this.returnHome();
   }
@@ -454,7 +455,7 @@ async function recordedAndHome(site: SitePage, title: string, before: number) {
 export async function openListLaterAndReturnHome(site: SitePage, href: string, title: string) {
   const before = await site.recentOpenedAt(title);
   await runPageClock(site.page, LATER_MS);
-  await site.page.goto(href);
+  await site.page.goto(href, UNTIL_STARTED);
   await recordedAndHome(site, title, before);
 }
 

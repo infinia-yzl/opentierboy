@@ -6,15 +6,18 @@ import {expectSettled} from './settled';
 import {bypassSecret} from './vercel-bypass';
 import {pausePageTime} from './page-clock';
 
-/** Waits until the page has loaded and has finished what the last step started (expectSettled). */
+/**
+ * Waits until the page's document has been read and the page has finished what the last step
+ * started (expectSettled). Not for the load event: it waits for every picture and held answer.
+ */
 export async function pageSettled(page: Page) {
-  await page.waitForLoadState('load');
+  await page.waitForLoadState('domcontentloaded');
   await expectSettled(page);
 }
 
 /**
  * The states of a machine in which the page is busy on purpose, such as a drag in progress or a
- * list that waits for a held server answer: there a step has finished once the page has loaded.
+ * list that waits for a held server answer: there a step has finished once the document is read.
  */
 export interface BusyStates<TSnapshot extends AnyMachineSnapshot> {
   readonly machine: AnyStateMachine;
