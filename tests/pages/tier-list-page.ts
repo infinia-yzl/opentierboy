@@ -612,7 +612,7 @@ export class TierListPage {
     await handle.scrollIntoViewIfNeeded();
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
-    let dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
+    const dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
 
     const mouse = this.page.mouse;
@@ -633,24 +633,18 @@ export class TierListPage {
       });
     }, 'the drag should start').toPass({timeout: 30_000});
 
+    // toPass reports only a timeout: the last failed check is kept to say what never settled.
+    let lastProblem = '';
     await expect(async () => {
-      const scroll = await this.scrollPosition();
-      if (followTarget) dropAtOnPage = onPage(pointIn(await boxOf(target)), scroll);
-      // A drop point outside the window is reached by holding the pointer at the edge,
-      // where the page auto-scrolls towards it.
-      const x = clamp(dropAtOnPage.x - scroll.x, 1, viewport.width - 2);
-      const y = clamp(dropAtOnPage.y - scroll.y, 1, viewport.height - 2);
-      await mouse.move(x, y, {steps: 5});
-      // The drag library reads the pointer once per animation frame. Waiting a few frames
-      // lets it handle the last move, and shows whether the page is still scrolling.
-      const scrollAfter = await this.scrollPositionAfterFrames();
-      expect(scrollAfter, 'the page should stop auto-scrolling').toEqual(scroll);
-      expect({x: x + scroll.x, y: y + scroll.y}, 'the pointer should be on the drop point').toEqual(dropAtOnPage);
-      if (followTarget) {
-        // Items slide to their new places (an animation): the target must have stopped moving.
-        expect(onPage(pointIn(await boxOf(target)), scrollAfter), 'the target should stay put').toEqual(dropAtOnPage);
+      try {
+        await this.moveToDropPoint(target, pointIn, {followTarget, dropAtOnPage, onPage, viewport});
+      } catch (error) {
+        lastProblem = error instanceof Error ? error.message.split('\n').slice(0, 3).join(' ') : String(error);
+        throw error;
       }
-    }).toPass({timeout: 15_000});
+    }).toPass({timeout: 15_000}).catch((error: unknown) => {
+      throw new Error(`The drag never settled on its drop point. Last check: ${lastProblem}`, {cause: error});
+    });
     if (cancel) {
       // Escape ends the drag where it is; the button is released after that.
       await this.page.keyboard.press('Escape');
@@ -660,6 +654,31 @@ export class TierListPage {
     await afterRelease?.();
     await this.dropSettled();
     await this.expectEveryItemDraggable();
+  }
+
+  /** One try of dragWithMouse to put the pointer on the drop point; throws until all is still. */
+  private async moveToDropPoint(target: Locator, pointIn: (box: Box) => Point, {followTarget, dropAtOnPage: measured, onPage, viewport}: {
+    followTarget: boolean;
+    dropAtOnPage: Point;
+    onPage: (point: Point, scroll: Point) => Point;
+    viewport: {width: number; height: number};
+  }) {
+    const scroll = await this.scrollPosition();
+    const dropAtOnPage = followTarget ? onPage(pointIn(await boxOf(target)), scroll) : measured;
+    // A drop point outside the window is reached by holding the pointer at the edge,
+    // where the page auto-scrolls towards it.
+    const x = clamp(dropAtOnPage.x - scroll.x, 1, viewport.width - 2);
+    const y = clamp(dropAtOnPage.y - scroll.y, 1, viewport.height - 2);
+    await this.page.mouse.move(x, y, {steps: 5});
+    // The drag library reads the pointer once per animation frame. Waiting a few frames
+    // lets it handle the last move, and shows whether the page is still scrolling.
+    const scrollAfter = await this.scrollPositionAfterFrames();
+    expect(scrollAfter, 'the page should stop auto-scrolling').toEqual(scroll);
+    expect({x: x + scroll.x, y: y + scroll.y}, 'the pointer should be on the drop point').toEqual(dropAtOnPage);
+    if (followTarget) {
+      // Items slide to their new places (an animation): the target must have stopped moving.
+      expect(onPage(pointIn(await boxOf(target)), scrollAfter), 'the target should stay put').toEqual(dropAtOnPage);
+    }
   }
 
   /**

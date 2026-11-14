@@ -989,6 +989,7 @@ test.describe('snapshot files', () => {
             waitingPicture = `waiting-${++sent}.png`;
             await tierList.sendFileEventsAtOnce([{event: 'drop', file: LIST_FILE}, {event: 'paste', file: imageFile(waitingPicture, BLUE_SQUARE)}]);
             await expect(tierList.openListDialog).toBeVisible();
+            await expect(tierList.toastAbout('Files not added', waitingPicture)).toBeVisible();
           },
           OPEN_BROKEN_FILE: async () => {
             // The message of an earlier broken file closes first (after 4 seconds).
@@ -1031,6 +1032,13 @@ test.describe('snapshot files', () => {
               for (const name of leavingPictures) await expect(tierList.toastAbout('Files not added', name)).toHaveCount(0);
               return;
             }
+            // Messages first: each closes by itself 4 s after it shows, so on a slow runner the
+            // checks below could outlast it.
+            if (message === 'brokenFile') await expect(tierList.toastAbout('Could not open the file', DAMAGED)).toBeVisible();
+            if (message === 'notAPicture') await expect(tierList.toastAbout('Could not open the file', `${textFile}: This file is not a picture.`)).toBeVisible();
+            if (message === 'filesNotAdded') {
+              await expect(tierList.toastAbout('Files not added', waitingPicture)).toContainText('A list file was being opened, so they were not added:');
+            }
             if (dialog === 'asking') await expect(tierList.openListDialog).toContainText('Your current list stays one Back step away.');
             if (dialog === 'opening') await expect(tierList.openListDialog).toContainText('Opening the list…');
             if (dialog === null) await expect(tierList.openListDialog).toHaveCount(0);
@@ -1043,11 +1051,6 @@ test.describe('snapshot files', () => {
               await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
               await expect(tierList.itemsIn(tierList.unranked)).toHaveText(
                 {ownList: [], withPicture: ['picture'], withTwoPictures: ['picture', 'second']}[list]);
-            }
-            if (message === 'brokenFile') await expect(tierList.toastAbout('Could not open the file', DAMAGED)).toBeVisible();
-            if (message === 'notAPicture') await expect(tierList.toastAbout('Could not open the file', `${textFile}: This file is not a picture.`)).toBeVisible();
-            if (message === 'filesNotAdded') {
-              await expect(tierList.toastAbout('Files not added', waitingPicture)).toContainText('A list file was being opened, so they were not added:');
             }
           },
         },
