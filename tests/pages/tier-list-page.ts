@@ -4,18 +4,13 @@ import {escapeRegExp} from '../support/regexp';
 import {runPageClock} from '../support/page-clock';
 import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, rowPhrase, scrollPosition, scrollPositionAfterFrames, startedAndIdle, type Box, type Point} from './helpers';
 import {toasts} from './toasts';
+import {Rows} from './rows';
 import {EditorItems} from './editor-items';
 import {SharePanel} from './share-panel';
 import {SnapshotFiles} from './snapshot-files';
 import {LinkImages} from './link-images';
 import {DeviceImages} from './device-images';
 import {Zen} from './zen';
-
-export type RowCount = 3 | 5 | 7;
-export type LabelPosition = 'Left' | 'Right' | 'Top';
-/** The values of the `layout` address parameter (lib/zen/layouts.ts). */
-/** The tile sizes in the Row options menu (the dense editor). */
-export type TileSizeName = 'Comfortable' | 'Compact';
 
 /** A box on screen, in CSS pixels. */
 export interface Size {
@@ -91,6 +86,8 @@ export class TierListPage {
   readonly linkImages: LinkImages;
   /** Pictures from the device, kept in this browser (device-images.ts). */
   readonly deviceImages: DeviceImages;
+  /** The rows (rows.ts). */
+  readonly rows: Rows;
 
   constructor(page: Page) {
     this.page = page;
@@ -119,6 +116,7 @@ export class TierListPage {
     this.items = new EditorItems(this);
     this.linkImages = new LinkImages(this);
     this.deviceImages = new DeviceImages(this);
+    this.rows = new Rows(this);
   }
 
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
@@ -225,11 +223,6 @@ export class TierListPage {
   /** A tier's label: the row's h2 heading. */
   tierLabel(tierName: string): Locator {
     return this.tier(tierName).getByRole('heading', {level: 2});
-  }
-
-  /** The text box that edits a tier's label, while it is open. */
-  tierNameInput(tierName: string): Locator {
-    return this.tier(tierName).getByRole('textbox');
   }
 
   /** Every open text box in the editor (title and labels). */
@@ -967,38 +960,6 @@ export class TierListPage {
 
   // ---- Editing labels --------------------------------------------------------------------
 
-  /**
-   * Renames a tier and confirms with Enter. A row with an empty label is named after its
-   * position, for example "Tier 2", so pass that as `nameAfter` when clearing a label.
-   * With `waitForLink: false` it returns as soon as the new name shows, without checking the
-   * address bar (for quick changes one after another).
-   */
-  async renameTier(currentName: string, newName: string, nameAfter = newName, {waitForLink = true} = {}) {
-    const rename = async () => {
-      const input = await this.typeTierName(currentName, newName);
-      await input.press('Enter');
-      await expect(this.tier(nameAfter)).toBeVisible();
-    };
-    if (!waitForLink) {
-      await rename();
-      return;
-    }
-    // From a page that has finished the last step (a drop): text typed while the
-    // drag library still blocks text selection could land beside the old name (WebKit).
-    await this.settled();
-    await changeAndWaitForLink(this.page, rename);
-  }
-
-  /** Opens the editor of a tier label and types a new name, without confirming it. */
-  async typeTierName(currentName: string, newName: string): Promise<Locator> {
-    const row = this.tier(currentName);
-    await row.getByRole('heading', {name: currentName, exact: true}).click();
-    const input = row.getByRole('textbox');
-    await input.fill(newName);
-    await expect(input, 'the text box should hold the typed name').toHaveValue(newName);
-    return input;
-  }
-
   async setTitle(newTitle: string) {
     await this.settled();
     await changeAndWaitForLink(this.page, async () => {
@@ -1019,77 +980,6 @@ export class TierListPage {
 
   // ---- Row and label settings ------------------------------------------------------------
 
-  /** Switches the row template. A new history entry, like any change to the list. */
-  /** Adds an empty row above Unranked with "Add row" (#182). */
-  async addTierRow() {
-    await changeAndWaitForLink(this.page, async () => {
-      await this.addRowButton.click();
-    });
-  }
-
-  /** Removes a ranked row from the row options menu (#182). Its items go to Unranked. */
-  async removeTierRow(tierName: string) {
-    const rows = await this.openRemoveRowMenu();
-    await changeAndWaitForLink(this.page, () => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());
-  }
-
-  /** "Remove a row" in the Row options menu. It shows once the menu is open (openRowOptions). */
-  get removeRowMenuItem(): Locator {
-    return this.page.getByRole('menuitem', {name: 'Remove a row'});
-  }
-
-  /**
-   * Opens the Row options menu, once the page has settled (a test may come from Back) and no
-   * menu is open: a click on Row options with its menu open would close it.
-   */
-  async openRowOptions() {
-    await this.settled();
-    await expect(this.openMenus, 'no menu should be open before Row options opens').toHaveCount(0);
-    await this.rowOptionsButton.click();
-    await expect(this.removeRowMenuItem).toBeVisible();
-  }
-
-  /**
-   * Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items.
-   * The pointer then rests inside the submenu, so a click on a row stays inside it.
-   */
-  async openRemoveRowMenu(): Promise<Locator> {
-    await this.openRowOptions();
-    await this.removeRowMenuItem.click();
-    const submenu = this.page.getByRole('menu').filter({hasNot: this.removeRowMenuItem});
-    const rows = submenu.getByRole('menuitem');
-    await expect(rows.first()).toBeVisible();
-    await this.movePointerIntoSubmenu(this.removeRowMenuItem, submenu);
-    return rows;
-  }
-
-  /**
-   * Moves the pointer from a submenu's item into the open submenu as a person does: sideways
-   * along the item, toward the side where the submenu opened, then across into it. The menu
-   * keeps a submenu open only for a pointer that heads its way; a pointer that jumps straight
-   * to an item further down leaves the item in the wrong direction, and the submenu closes
-   * (the Row options menu sits at the right edge, so its submenu opens on the left).
-   */
-  private async movePointerIntoSubmenu(trigger: Locator, submenu: Locator) {
-    await expect(submenu).toHaveAttribute('data-side', /^(left|right)$/);
-    const side = await submenu.getAttribute('data-side');
-    const from = await boxOf(trigger);
-    const y = from.y + from.height / 2;
-    // The submenu shows off screen until the menu has placed it: wait until it sits beside its item.
-    let into = await boxOf(submenu);
-    await expect.poll(async () => {
-      into = await boxOf(submenu);
-      return into.y < y && y < into.y + into.height;
-    }, {message: 'the submenu should open beside its item'}).toBe(true);
-    const edge = side === 'left' ? from.x + 2 : from.x + from.width - 2;
-    const inside = side === 'left' ? into.x + into.width - 8 : into.x + 8;
-    await this.page.mouse.move(from.x + from.width / 2, y);
-    await this.page.mouse.move(edge, y, {steps: 4});
-    await this.page.mouse.move(inside, y, {steps: 2});
-    await expect(submenu, 'the submenu should stay open once the pointer is inside it').toBeVisible();
-    await expect(submenu.getByRole('menuitem').first()).toBeVisible();
-  }
-
   /**
    * Closes the open menu, and its open submenu, with Escape: the first Escape closes them all.
    * A menu must be open.
@@ -1098,44 +988,6 @@ export class TierListPage {
     await expect(this.openMenus.first(), 'a menu should be open to close').toBeVisible();
     await this.page.keyboard.press('Escape');
     await expect(this.openMenus).toHaveCount(0);
-  }
-
-  async chooseRowCount(count: RowCount) {
-    await changeAndWaitForLink(this.page, async () => {
-      await this.rowOptionsButton.click();
-      await this.page.getByRole('menuitemradio', {name: `${count} Rows`}).click();
-    });
-  }
-
-  /**
-   * Moves the tier labels. The setting travels in the link, in place of the current history
-   * entry (A3), so this waits until the address holds it.
-   */
-  async chooseLabelPosition(position: LabelPosition) {
-    await changeAndWaitForLink(this.page, async () => {
-      await this.rowOptionsButton.click();
-      await this.page.getByRole('menuitemradio', {name: position, exact: true}).click();
-    });
-  }
-
-  /** Shows or hides item labels. Like chooseLabelPosition, it waits until the address holds it. */
-  async setItemLabelsVisible(visible: boolean) {
-    await changeAndWaitForLink(this.page, async () => {
-      await this.rowOptionsButton.click();
-      await this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}).click();
-    });
-  }
-
-  /** A choice in the Row options menu (row count, label position, label visibility). Open the menu first (openRowOptions). */
-  rowOption(name: string): Locator {
-    return this.page.getByRole('menu').getByRole('menuitemradio', {name, exact: true});
-  }
-
-  /** True when the label of a tier sits above the given item, as with labels on Top. */
-  async tierLabelIsAbove(tierName: string, itemName: string): Promise<boolean> {
-    const label = await this.tier(tierName).getByRole('heading', {name: tierName}).boundingBox();
-    const item = await this.item(itemName).boundingBox();
-    return !!(label && item && label.y + label.height <= item.y);
   }
 
   // ---- Managing items --------------------------------------------------------------------
@@ -1338,18 +1190,6 @@ export class TierListPage {
 
   // ---- Tile size (the dense editor) ------------------------------------------------------
 
-  /**
-   * Chooses a tile size in the Row options menu. A view setting: it writes no link of its own.
-   * Choosing Compact with Show Labels on also turns Show Labels off, which rewrites the link in
-   * place; the page is busy until that link is written, so this returns once it has settled.
-   */
-  async chooseTileSize(name: TileSizeName) {
-    await this.openRowOptions();
-    await this.rowOption(name).click();
-    await expect(this.openMenus).toHaveCount(0);
-    await this.settled();
-  }
-
   /** The name tag that a Compact tile shows under itself on hover or keyboard focus. */
   itemNameTag(name: string): Locator {
     return this.item(name).getByRole('tooltip');
@@ -1425,26 +1265,6 @@ export class TierListPage {
     await this.page.goBack();
   }
 
-  /**
-   * Chooses a label position in Row options with the keyboard: the menu opens, the focus moves to
-   * the choice, and Enter chooses it. The menu is taller than half of a 720 px window, and Radix
-   * locks the page's scroll while it is open, so with the button in the middle of the window
-   * its lower choices can sit below the window, out of reach of the mouse.
-   */
-  async chooseLabelPositionWithKeyboard(position: LabelPosition) {
-    await this.chooseRowOptionWithKeyboard(this.page.getByRole('menuitemradio', {name: position, exact: true}));
-  }
-
-  /** Shows or hides item labels in Row options with the keyboard (see chooseLabelPositionWithKeyboard). */
-  async setItemLabelsVisibleWithKeyboard(visible: boolean) {
-    await this.chooseRowOptionWithKeyboard(this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}));
-  }
-
-  private async chooseRowOptionWithKeyboard(option: Locator) {
-    await this.openRowOptions();
-    await changeAndWaitForLink(this.page, () => this.chooseOpenRowOption(option));
-  }
-
   // ---- Leaving machine (tests/machines/leaving.ts) ------------------------------------------
 
   /**
@@ -1491,26 +1311,6 @@ export class TierListPage {
   /** The picture of an item's tile: 80 px wide with Comfortable tiles, 48 px with Compact. */
   itemPicture(name: string): Locator {
     return this.item(name).getByRole('img');
-  }
-
-  /**
-   * Chooses a tile size in Row options with the keyboard (see chooseLabelPositionWithKeyboard:
-   * Tile Size is the menu's last group). Choosing Compact with Show Labels on also turns Show
-   * Labels off, which rewrites the link in place: the page is busy until that link is written,
-   * so this returns once it has settled.
-   */
-  async chooseTileSizeWithKeyboard(name: TileSizeName) {
-    await this.openRowOptions();
-    await this.chooseOpenRowOption(this.rowOption(name));
-    await this.settled();
-  }
-
-  /** Chooses an option of the open Row options menu with the keyboard, and waits until the menu closes. */
-  private async chooseOpenRowOption(option: Locator) {
-    await option.focus();
-    await expect(option).toBeFocused();
-    await this.page.keyboard.press('Enter');
-    await expect(this.page.getByRole('menu')).toHaveCount(0);
   }
 
   // ---- Share panel machine (tests/machines/share-panel.ts) ----------------------------------
@@ -1639,25 +1439,6 @@ const DROP_POINT_TRIES = 100;
 // ---- Model helpers: editor rows, Zen steps, leaving, label writes, "From a link" ------------
 // Plain functions over TierListPage, for the models in tests/models/editor-rows.ts,
 // zen-steps.ts, leaving-writes.ts, label-writes.ts and link-dialog.ts.
-
-/** Removes the top row with Row options › Remove a row, and returns once its link is written. */
-export async function removeFirstTierRow(tierList: TierListPage) {
-  const before = tierList.page.url();
-  const rows = await tierList.openRemoveRowMenu();
-  await rows.first().click();
-  await expect(tierList.page, 'the shareable link should update').not.toHaveURL(before);
-}
-
-/**
- * Chooses a row count in Row options, and returns once the page has settled. The count the list
- * has already changes nothing when the rows are the template's, so this waits for no new link.
- */
-export async function chooseRowCountAndSettle(tierList: TierListPage, count: RowCount) {
-  await tierList.openRowOptions();
-  await tierList.rowOption(`${count} Rows`).click();
-  await expect(tierList.openMenus).toHaveCount(0);
-  await tierList.settled();
-}
 
 /**
  * Clicks the logo link to Home while the trip home may wait for a held server answer

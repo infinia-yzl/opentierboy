@@ -8,7 +8,7 @@ test.describe('editor labels', () => {
     test('renders the new row label, also for a visitor of the share link, when the user renames row S', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.renameTier('S', 'Must pick');
+      await tierList.rows.renameTier('S', 'Must pick');
 
       await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
       const friend = await openAsVisitor(await tierList.shareLink());
@@ -66,11 +66,11 @@ test.describe('editor labels', () => {
     test('renders the new row label and no text box when the user types a name and clicks outside the label', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.typeTierName('S', 'Must pick');
+      await tierList.rows.typeTierName('S', 'Must pick');
       await tierList.hints.click();
 
       await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
-      await expect(tierList.tierNameInput('Must pick')).toHaveCount(0);
+      await expect(tierList.rows.tierNameInput('Must pick')).toHaveCount(0);
     });
 
     test('renders the hint Row 2 and the row items, also from the share link, when the user clears row label A', async ({
@@ -79,7 +79,7 @@ test.describe('editor labels', () => {
     }) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {A: ['Winston']}));
 
-      await tierList.renameTier('A', '', 'Row 2');
+      await tierList.rows.renameTier('A', '', 'Row 2');
 
       await expectTierNames(tierList, ['S', 'Row 2', 'B', 'C', 'F', 'Unranked']);
       await expect(tierList.itemsIn('Row 2')).toHaveText(['Winston']);
@@ -96,7 +96,7 @@ test.describe('editor labels', () => {
       expect(longName.length).toBe(2_000);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
-      await tierList.renameTier('S', longName);
+      await tierList.rows.renameTier('S', longName);
       await tierList.dragItemToTier('Winston', 'A');
       await tierList.goBack();
 
@@ -114,7 +114,7 @@ test.describe('editor labels', () => {
       await page.setViewportSize({width: 1280, height: 400});
       await tierList.goto(TANKS);
 
-      await tierList.setItemLabelsVisible(false);
+      await tierList.rows.setItemLabelsVisible(false);
 
       await expect(tierList.item('Mauga')).toHaveText('');
     });
@@ -125,7 +125,7 @@ test.describe('editor labels', () => {
       await tierList.goto(TANKS);
       const opened = page.url();
 
-      const input = await tierList.typeTierName('S', 'Changed my mind');
+      const input = await tierList.rows.typeTierName('S', 'Changed my mind');
       await input.press('Escape');
 
       await expect(tierList.openTextBoxes).toHaveCount(0);

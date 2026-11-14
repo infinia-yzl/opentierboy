@@ -162,11 +162,11 @@ test.describe('zen', () => {
       await tierList.goto(TANKS);
       await tierList.zen.setZenMode(true);
       await tierList.tierLabel('S').click();
-      await expect(tierList.tierNameInput('S')).toBeVisible();
+      await expect(tierList.rows.tierNameInput('S')).toBeVisible();
 
       await tierList.pressKey('Escape');
 
-      await expect(tierList.tierNameInput('S')).toHaveCount(0);
+      await expect(tierList.rows.tierNameInput('S')).toHaveCount(0);
       await expect(tierList.zen.zenBar).toBeVisible();
     });
   });

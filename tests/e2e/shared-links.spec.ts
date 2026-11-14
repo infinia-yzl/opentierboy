@@ -83,7 +83,7 @@ test.describe('shared links', () => {
         // The tile can be dragged like any other, and the next saved link keeps the item.
         await tierList.dragItemToTier('Mystery', 'Unranked');
         await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston', 'Mystery']);
-        await tierList.renameTier('S', 'Top');
+        await tierList.rows.renameTier('S', 'Top');
         const visitor = await openAsVisitor(await tierList.shareLink());
         await expect(visitor.itemsIn('Top')).toHaveText(['Mauga', 'my cat']);
         await expect(visitor.itemsIn(visitor.unranked)).toHaveText(['Winston', 'Mystery']);

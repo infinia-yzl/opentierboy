@@ -122,7 +122,7 @@ test.describe('editor layout', () => {
       await tierList.goto(TANKS, LIST);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
 
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
       expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 48, height: 48});
@@ -133,7 +133,7 @@ test.describe('editor layout', () => {
 
     test('renders the name under a Compact tile when the mouse is over the tile', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       await tierList.hoverItem('Zarya');
 
@@ -144,21 +144,21 @@ test.describe('editor layout', () => {
 
     test('renders Compact tiles when the page reloads after the user chose Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       await tierList.reload();
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
     });
 
     test('renders 80 px tiles with their names when the user chooses Comfortable after Compact and restores item labels', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.chooseTileSize('Comfortable');
-      await tierList.setItemLabelsVisible(true);
+      await tierList.rows.chooseTileSize('Comfortable');
+      await tierList.rows.setItemLabelsVisible(true);
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
       await expect(tierList.item('Reinhardt')).toContainText('Reinhardt', {useInnerText: true});
@@ -168,8 +168,8 @@ test.describe('editor layout', () => {
       await tierList.goto(TANKS, LIST);
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.chooseTileSize('Compact');
-      await tierList.chooseTileSize('Comfortable');
+      await tierList.rows.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Comfortable');
 
       expect(await newEntries()).toBe(0);
     });
@@ -179,15 +179,15 @@ test.describe('editor layout', () => {
     test('writes no history entry and renders menu item "Hide Labels" checked when the user chooses Compact with item labels on', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
       await expect(tierList.itemCaption('Reinhardt')).toBeVisible();
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
       await tierList.pressKey('Escape');
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
       // The open menu hides the page from role queries, so the caption is checked after it closes.
       // A Compact tile keeps its name in a hidden tooltip, so the caption is hidden, not gone.
       await tierList.pressKey('Escape');
@@ -198,9 +198,9 @@ test.describe('editor layout', () => {
 
     test('renders each name under its 48 px Compact tile when the user restores item labels after choosing Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.setItemLabelsVisible(true);
+      await tierList.rows.setItemLabelsVisible(true);
 
       for (const name of ['Reinhardt', 'Zarya', 'Mauga', 'Winston']) {
         await expect(tierList.itemCaption(name)).toBeVisible();

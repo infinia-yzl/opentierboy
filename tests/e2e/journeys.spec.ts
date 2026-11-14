@@ -117,12 +117,12 @@ test.describe('journeys', () => {
 
       const sixRows = (items: Parameters<typeof rows>[0], name: string, sixth: string[]) => rows(items, [{name, items: sixth}]);
       await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
-        {act: () => tierList.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Row 6', [])},
-        {act: () => tierList.renameTier('Row 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
+        {act: () => tierList.rows.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Row 6', [])},
+        {act: () => tierList.rows.renameTier('Row 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
         {act: () => tierList.dragItemToTier('Winston', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Sigma']}, 'D', ['Winston'])},
-        {act: () => tierList.renameTier('S', 'Best'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...sixRows({Unranked: ['Sigma']}, 'D', ['Winston']).tiers.slice(1)]}},
+        {act: () => tierList.rows.renameTier('S', 'Best'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...sixRows({Unranked: ['Sigma']}, 'D', ['Winston']).tiers.slice(1)]}},
         // A removed row's items go to Unranked.
-        {act: () => tierList.removeTierRow('D'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...rows({Unranked: ['Sigma', 'Winston']}).tiers.slice(1)]}},
+        {act: () => tierList.rows.removeTierRow('D'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...rows({Unranked: ['Sigma', 'Winston']}).tiers.slice(1)]}},
       ]);
     });
 

@@ -141,10 +141,10 @@ test.describe('appearance', () => {
           CHOOSE_CLASSIC: inAppearanceMenu(() => site.chooseFont('Classic')),
           TURN_OFF_GAME_COLOURS: inAppearanceMenu(() => site.setGameColours(false)),
           TURN_ON_GAME_COLOURS: inAppearanceMenu(() => site.setGameColours(true)),
-          CHOOSE_COMPACT: () => tierList.chooseTileSizeWithKeyboard('Compact'),
-          CHOOSE_COMFORTABLE: () => tierList.chooseTileSizeWithKeyboard('Comfortable'),
-          SHOW_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(true),
-          HIDE_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(false),
+          CHOOSE_COMPACT: () => tierList.rows.chooseTileSizeWithKeyboard('Compact'),
+          CHOOSE_COMFORTABLE: () => tierList.rows.chooseTileSizeWithKeyboard('Comfortable'),
+          SHOW_LABELS: () => tierList.rows.setItemLabelsVisibleWithKeyboard(true),
+          HIDE_LABELS: () => tierList.rows.setItemLabelsVisibleWithKeyboard(false),
           RELOAD: async () => {
             await tierList.reload();
             await site.appearanceMenuReady();

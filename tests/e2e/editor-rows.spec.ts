@@ -3,7 +3,7 @@ import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
-import {chooseRowCountAndSettle, removeFirstTierRow, type TierListPage} from '../pages/tier-list-page';
+import {type TierListPage} from '../pages/tier-list-page';
 import {editorRowsModel, editorRowsViewOf, type EditorRowsEvent, type EditorRowsSnapshot} from '../models/editor-rows';
 
 const TANKS = '/rank/overwatch/tank';
@@ -16,7 +16,7 @@ test.describe('editor rows', () => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
     const entries = await tierList.historyLength();
 
-    await tierList.addTierRow();
+    await tierList.rows.addTierRow();
 
     // The new row has no name: it shows its position as a hint (owner decision, 2026-11-14).
     await expect(tierList.tiers).toHaveCount(7);
@@ -33,7 +33,7 @@ test.describe('editor rows', () => {
   test('writes an empty name for the added row into the state parameter when the user clicks Add row', async ({tierList, page}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
-    await tierList.addTierRow();
+    await tierList.rows.addTierRow();
 
     expect(linkRowNames(page.url())).toEqual(['S', 'A', 'B', 'C', 'F', '', '']);
   });
@@ -58,8 +58,8 @@ test.describe('editor rows', () => {
   test('renders the added row with its name and item for a visitor of the share link when the user fills it', async ({tierList, openAsVisitor}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 
-    await tierList.addTierRow();
-    await tierList.renameTier('Row 6', 'D');
+    await tierList.rows.addTierRow();
+    await tierList.rows.renameTier('Row 6', 'D');
     await tierList.dragItemToTier('Mauga', 'D');
 
     const friend = await openAsVisitor(await tierList.shareLink());
@@ -80,7 +80,7 @@ test.describe('editor rows', () => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], B: ['Winston', 'Sigma'], '': ['D.Va']}));
     const entries = await tierList.historyLength();
 
-    await tierList.removeTierRow('B');
+    await tierList.rows.removeTierRow('B');
 
     await expect(tierList.tier('B')).toHaveCount(0);
     await expect(tierList.tiers).toHaveCount(5);
@@ -94,18 +94,18 @@ test.describe('editor rows', () => {
 
   test('renders no Unranked in the Remove a row menu, and the menu item disabled, when the user removes rows down to 1', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.chooseRowCount(3);
+    await tierList.rows.chooseRowCount(3);
 
     await expect(tierList.addRowButton).toBeEnabled();
-    await expect(await tierList.openRemoveRowMenu()).toHaveText(['S', 'A', 'B']);
+    await expect(await tierList.rows.openRemoveRowMenu()).toHaveText(['S', 'A', 'B']);
     await tierList.closeMenus();
 
-    await tierList.removeTierRow('A');
-    await tierList.removeTierRow('B');
+    await tierList.rows.removeTierRow('A');
+    await tierList.rows.removeTierRow('B');
 
     await expect(tierList.addRowButton).toBeEnabled();
-    await tierList.openRowOptions();
-    await expect(tierList.removeRowMenuItem).toBeDisabled();
+    await tierList.rows.openRowOptions();
+    await expect(tierList.rows.removeRowMenuItem).toBeDisabled();
     await tierList.closeMenus();
     await expect(tierList.tiers).toHaveCount(2);
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -118,7 +118,7 @@ test.describe('editor rows', () => {
 
     await expect(tierList.addRowButton).toBeDisabled();
 
-    await tierList.removeTierRow('R7');
+    await tierList.rows.removeTierRow('R7');
     await expect(tierList.tiers).toHaveCount(19);
     await expect(tierList.addRowButton).toBeEnabled();
   });
@@ -127,7 +127,7 @@ test.describe('editor rows', () => {
     test('renders the items of removed rows in Unranked when the user chooses 3 Rows', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], F: ['Sigma']}));
 
-      await tierList.chooseRowCount(3);
+      await tierList.rows.chooseRowCount(3);
 
       await expectTierNames(tierList, ['S', 'A', 'B', 'Unranked']);
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -138,7 +138,7 @@ test.describe('editor rows', () => {
     test('renders rows SS and D and every item in its row when the user chooses 7 Rows', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], F: ['Sigma']}));
 
-      await tierList.chooseRowCount(7);
+      await tierList.rows.chooseRowCount(7);
 
       await expectTierNames(tierList, ['SS', 'S', 'A', 'B', 'C', 'D', 'F', 'Unranked']);
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -158,9 +158,9 @@ test.describe('editor rows', () => {
         {name: 'SS', items: []}, {name: 'S', items: ['Mauga']}, {name: 'A', items: ['Winston']}, {name: 'B', items: []},
         {name: 'C', items: ['Sigma']}, {name: 'D', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
       ]};
-      await tierList.chooseRowCount(7);
+      await tierList.rows.chooseRowCount(7);
       await expectTierList(tierList, expected);
-      await friend.chooseRowCount(7);
+      await friend.rows.chooseRowCount(7);
       await expectTierList(friend, expected);
     });
   });
@@ -191,12 +191,12 @@ test.describe('editor rows', () => {
           last = null;
         },
         events: {
-          ADD_ROW: () => tierList.addTierRow(),
-          REMOVE_FIRST_ROW: () => removeFirstTierRow(tierList),
-          CLEAR_SECOND_LABEL: () => tierList.renameTier('A', '', 'Row 2'),
-          CHOOSE_3_ROWS: () => chooseRowCountAndSettle(tierList, 3),
-          CHOOSE_5_ROWS: () => chooseRowCountAndSettle(tierList, 5),
-          CHOOSE_7_ROWS: () => chooseRowCountAndSettle(tierList, 7),
+          ADD_ROW: () => tierList.rows.addTierRow(),
+          REMOVE_FIRST_ROW: () => tierList.rows.removeFirstTierRow(),
+          CLEAR_SECOND_LABEL: () => tierList.rows.renameTier('A', '', 'Row 2'),
+          CHOOSE_3_ROWS: () => tierList.rows.chooseRowCountAndSettle(3),
+          CHOOSE_5_ROWS: () => tierList.rows.chooseRowCountAndSettle(5),
+          CHOOSE_7_ROWS: () => tierList.rows.chooseRowCountAndSettle(7),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -204,9 +204,9 @@ test.describe('editor rows', () => {
             await expectTierList(tierList, {tiers: rows.map(({name, items}) => ({name, items: [...items]}))});
             if (canAdd) await expect(tierList.addRowButton).toBeEnabled();
             else await expect(tierList.addRowButton).toBeDisabled();
-            await tierList.openRowOptions();
-            if (canRemove) await expect(tierList.removeRowMenuItem).toBeEnabled();
-            else await expect(tierList.removeRowMenuItem).toBeDisabled();
+            await tierList.rows.openRowOptions();
+            if (canRemove) await expect(tierList.rows.removeRowMenuItem).toBeEnabled();
+            else await expect(tierList.rows.removeRowMenuItem).toBeDisabled();
             await tierList.closeMenus();
             const state = String(snapshot.value);
             const entries = await pushes();

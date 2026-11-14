@@ -243,7 +243,7 @@ test.describe('zen layouts', () => {
 
     test('renders 120 px tiles when the tile size is Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
       await tierList.zen.setZenMode(true);
 
       await tierList.zen.chooseLayout('16:9');
@@ -580,7 +580,7 @@ test.describe('zen layouts', () => {
       tierList,
     }) => {
       await tierList.goto(TANKS, LONG_LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
       await tierList.zen.setZenMode(true);
       await tierList.zen.chooseRankingOrder('In order');
       const entries = await tierList.countNewHistoryEntries();

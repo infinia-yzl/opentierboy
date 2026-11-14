@@ -49,7 +49,7 @@ test.describe('share panel', () => {
       await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
       await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.chooseLabelPosition('Top');
+      await tierList.rows.chooseLabelPosition('Top');
       // Back: Mauga leaves S, and the labels stay on Top, while the address holds the entry
       // before (labels on the left).
       await tierList.goBack();
@@ -61,9 +61,9 @@ test.describe('share panel', () => {
       const friend = await openAsVisitor(linkInMarkdown!);
       await expect(friend.itemsIn('S')).toHaveCount(0);
       await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga', 'Winston']);
-      await friend.openRowOptions();
-      await expect(friend.rowOption('Top')).toBeChecked();
-      await expect(friend.rowOption('Show Labels')).toBeChecked();
+      await friend.rows.openRowOptions();
+      await expect(friend.rows.rowOption('Top')).toBeChecked();
+      await expect(friend.rows.rowOption('Show Labels')).toBeChecked();
       await friend.closeMenus();
     });
 
@@ -86,15 +86,15 @@ test.describe('share panel', () => {
 
     test('writes the label position and label visibility to the share link when the user changes them', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.chooseLabelPosition('Top');
-      await tierList.setItemLabelsVisible(false);
+      await tierList.rows.chooseLabelPosition('Top');
+      await tierList.rows.setItemLabelsVisible(false);
 
       const friend = await openAsVisitor(await tierList.shareLink());
-      await friend.openRowOptions();
-      await expect(friend.rowOption('Top')).toBeChecked();
-      await expect(friend.rowOption('Hide Labels')).toBeChecked();
+      await friend.rows.openRowOptions();
+      await expect(friend.rows.rowOption('Top')).toBeChecked();
+      await expect(friend.rows.rowOption('Hide Labels')).toBeChecked();
       await friend.closeMenus();
-      await expect.poll(() => friend.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+      await expect.poll(() => friend.rows.tierLabelIsAbove('S', 'Mauga')).toBe(true);
       await expect(friend.item('Mauga')).toHaveText('');
     });
 
@@ -104,16 +104,16 @@ test.describe('share panel', () => {
       await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
       await expect(tierList.title).toHaveText('Blank list');
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await expect(tierList.rows.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+      await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
       await tierList.reload();
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await expect(tierList.rows.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
       await expect(tierList.item('Mauga')).toHaveText('');
     });

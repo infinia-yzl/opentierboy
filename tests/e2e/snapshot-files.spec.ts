@@ -316,7 +316,7 @@ test.describe('snapshot files', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'As captured'));
       await tierList.share.capturePreview();
       await page.keyboard.press('Escape');
-      await tierList.renameTier('S', 'Best');
+      await tierList.rows.renameTier('S', 'Best');
       await tierList.setTitle('Changed later');
 
       await tierList.share.openImageTab();

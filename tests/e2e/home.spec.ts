@@ -197,7 +197,7 @@ test.describe('home', () => {
   test('renders the list once in Recently viewed, with its opened title, when the user edits it after opening', async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Edited list'));
     await tierList.setTitle('New title');
-    await tierList.renameTier('A', 'Great');
+    await tierList.rows.renameTier('A', 'Great');
     await tierList.dragItemToTier('Winston', 'S');
 
     await site.gotoHome();

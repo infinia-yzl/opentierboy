@@ -60,7 +60,7 @@ const SCANS: readonly Scan[] = [
   {name: 'the link dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.linkImages.openLinkImageDialog())},
   {name: 'the share panel', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.share.openSharePanel())},
   {name: 'the Remove All dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.items.openRemoveAll())},
-  {name: 'the Row options menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openRowOptions())},
+  {name: 'the Row options menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.rows.openRowOptions())},
   // A Freeze Frame file chosen on Home (its link image's site answers from tests/support/image-sites.ts).
   {name: 'the dialog "Open the list in this file?"', by: 'user', phone: false, open: async ({site}) => {
     await site.gotoHome();

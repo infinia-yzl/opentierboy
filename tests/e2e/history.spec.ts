@@ -81,8 +81,8 @@ test.describe('history', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       const entries = await tierList.historyLength();
 
-      await tierList.renameTier('S', 'First', 'First', {waitForLink: false});
-      await tierList.renameTier('First', 'Second', 'Second', {waitForLink: false});
+      await tierList.rows.renameTier('S', 'First', 'First', {waitForLink: false});
+      await tierList.rows.renameTier('First', 'Second', 'Second', {waitForLink: false});
       await tierList.settled();
       expect(await tierList.historyLength(), 'one history entry per rename').toBe(entries + 2);
 
@@ -172,8 +172,8 @@ test.describe('history', () => {
       await tierList.goto(TANKS);
       const entries = await tierList.historyLength();
 
-      await tierList.chooseLabelPosition('Top');
-      await tierList.setItemLabelsVisible(false);
+      await tierList.rows.chooseLabelPosition('Top');
+      await tierList.rows.setItemLabelsVisible(false);
       await tierList.settled();
       expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
       const withSettings = page.url();
@@ -184,9 +184,9 @@ test.describe('history', () => {
       await tierList.goBack();
       await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await expect(tierList.rows.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
     });
 
@@ -196,40 +196,40 @@ test.describe('history', () => {
       await tierList.dragItemToTier('Mauga', 'S');
       const firstChange = page.url();
       await tierList.dragItemToTier('Winston', 'A');
-      await tierList.chooseLabelPosition('Top');
+      await tierList.rows.chooseLabelPosition('Top');
       const withTop = page.url();
 
       await tierList.goBack();
       // Top rewrote the entry of the second change only (A3).
       await expect(page).toHaveURL(firstChange);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Show Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await expect(tierList.rows.rowOption('Show Labels')).toBeChecked();
       await tierList.closeMenus();
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
+      await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
       // Forward shows Winston in A again, still with labels on Top.
       await tierList.goForward();
       await expect(page).toHaveURL(withTop);
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Show Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await expect(tierList.rows.rowOption('Show Labels')).toBeChecked();
       await tierList.closeMenus();
     });
 
     test('renders the label settings of the link when the user goes Back to the editor from another page', async ({tierList, site}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.chooseLabelPosition('Right');
-      await tierList.setItemLabelsVisible(false);
+      await tierList.rows.chooseLabelPosition('Right');
+      await tierList.rows.setItemLabelsVisible(false);
 
       await site.goto('/about');
       await tierList.goBack();
       await expect(tierList.itemsIn('S')).toHaveText(['']);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Right')).toBeChecked();
-      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Right')).toBeChecked();
+      await expect(tierList.rows.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
     });
 
@@ -280,10 +280,10 @@ test.describe('history', () => {
           CHANGE_LIST: step(true, () => tierList.rankFirstUnrankedItem('A')),
           BROWSER_BACK: step(false, () => tierList.goBack()),
           BROWSER_FORWARD: step(false, () => tierList.goForward()),
-          CHOOSE_TOP: step(true, () => tierList.chooseLabelPositionWithKeyboard('Top')),
-          CHOOSE_LEFT: step(true, () => tierList.chooseLabelPositionWithKeyboard('Left')),
-          HIDE_ITEM_LABELS: step(true, () => tierList.setItemLabelsVisibleWithKeyboard(false)),
-          SHOW_ITEM_LABELS: step(true, () => tierList.setItemLabelsVisibleWithKeyboard(true)),
+          CHOOSE_TOP: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Top')),
+          CHOOSE_LEFT: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Left')),
+          HIDE_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(false)),
+          SHOW_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(true)),
         },
         // Web-first checks, no read(): after Back or Forward the address changes before the list
         // on screen does, so one read could still see the version before.
@@ -301,7 +301,7 @@ test.describe('history', () => {
               await expect.poll(() => tierList.itemNamesIn(row), {message: `the items of row ${row}`}).toEqual(names);
             }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
-            await expect.poll(() => tierList.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
+            await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
             // The address holds the version on screen. The label settings rewrite it in place.
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));

@@ -133,7 +133,7 @@ test.describe('security', () => {
     test('renders markup as text in the title and a row label, also after a reload, when the user types it', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.setTitle(CLOSING_MARKUP);
-      await tierList.renameTier('S', SCRIPT_MARKUP);
+      await tierList.rows.renameTier('S', SCRIPT_MARKUP);
       await expect(tierList.title).toHaveText(CLOSING_MARKUP);
       await expect(tierList.tier(SCRIPT_MARKUP)).toBeVisible();
 
