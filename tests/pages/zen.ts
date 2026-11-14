@@ -3,7 +3,8 @@ import {boxOf, changeAndWaitForLink, menuClosedOnto, type Box} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Zen: the Zen bar (Back, the step count, Forward, Ranking order, Layout, Exit Zen), the item up next and the queue, and the creator layouts.
+ * Zen: the Zen bar (Back, the step count, Forward, Ranking order, Layout, Exit Zen), the item up
+ * next and the queue, and the creator layouts.
  *
  * Zen turns on with the Zen button in the title row (TierListPage.zenModeToggle). The ranking order and
  * the layout are view settings: they write no link and no history entry. tests/README.md, "Zen's

@@ -3,7 +3,8 @@ import {boxOf, changeAndWaitForLink} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * The rows: their names, the Row options menu (row count, label position and visibility, tile size), and adding and removing rows.
+ * The rows: their names, the Row options menu (row count, label position and visibility, tile
+ * size), and adding and removing rows.
  *
  * The label settings travel in the link in place of the current history entry (owner decision A3),
  * so their helpers wait until the address holds them. Tile size is a view setting with no link of its own.

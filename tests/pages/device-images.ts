@@ -5,7 +5,8 @@ import {letClosedToastLeave} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Pictures from the device, kept in this browser: the "From your device" dialog, pasted pictures, the device image store and old uploads.
+ * Pictures from the device, kept in this browser: the "From your device" dialog, pasted pictures,
+ * the device image store and old uploads.
  *
  * docs/reference/images.md. Product rule 5: a device image never reaches the server.
  *

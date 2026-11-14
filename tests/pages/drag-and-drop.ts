@@ -4,7 +4,8 @@ import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, rowPhrase, sc
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Drag and drop in the editor: mouse, keyboard and touch drags of items and rows, where to aim, and what the drag announcer says.
+ * Drag and drop in the editor: mouse, keyboard and touch drags of items and rows, where to aim,
+ * and what the drag announcer says.
  *
  * tests/README.md, "Drag and drop". Every helper that drops something checks after the drop that
  * every item tile still takes a drag (expectEveryItemDraggable).

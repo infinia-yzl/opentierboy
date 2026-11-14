@@ -5,7 +5,8 @@ import {expectOnlyNewToast} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * The share panel: the link and the Markdown text (URL tab), and Freeze Frame (Image tab): capture, Download and what the captured picture holds.
+ * The share panel: the link and the Markdown text (URL tab), and Freeze Frame (Image tab):
+ * capture, Download and what the captured picture holds.
  *
  * The panel opens from the Share button in the title row (TierListPage.shareButton).
  *

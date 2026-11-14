@@ -4,7 +4,8 @@ import {changeAndWaitForLink} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Images from web addresses: the "From a link" dialog, addresses dropped or pasted as text, and the notice that asks before images of other sites load.
+ * Images from web addresses: the "From a link" dialog, addresses dropped or pasted as text, and
+ * the notice that asks before images of other sites load.
  *
  * docs/reference/images.md. Tests play the image sites with tests/support/image-sites.ts.
  *

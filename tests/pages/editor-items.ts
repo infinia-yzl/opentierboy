@@ -6,7 +6,8 @@ import {letClosedToastLeave} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Adding, removing and resetting items: the Add images menu, the template picker, Reset and Remove All, an item's Delete, and their toasts with Undo.
+ * Adding, removing and resetting items: the Add images menu, the template picker, Reset and Remove
+ * All, an item's Delete, and their toasts with Undo.
  *
  * Also the empty list's drop area and the overlay that shows while files or links are dragged over
  * the editor. Images from a link and from the device have their own objects (link-images.ts,

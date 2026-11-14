@@ -4,7 +4,8 @@ import {toasts} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 /**
- * Snapshot files: opening a file (the menu item, a dropped or pasted file), the dialog "Open the list in this file?", and the server's held answers while a list opens.
+ * Snapshot files: opening a file (the menu item, a dropped or pasted file), the dialog "Open the
+ * list in this file?", and the server's held answers while a list opens.
  *
  * docs/reference/snapshot-files.md. Freeze Frame, which makes the files, is in share-panel.ts.
  *
