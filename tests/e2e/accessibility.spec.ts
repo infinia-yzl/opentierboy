@@ -52,7 +52,7 @@ const SCANS: readonly Scan[] = [
     await tierList.goto(TANKS, UNNAMED_ROW_LIST);
     await tierList.focusWithKeyboard(tierList.rowStack('S'));
   }},
-  {name: 'Zen on a shared list', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.setZenMode(true))},
+  {name: 'Zen on a shared list', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.zen.setZenMode(true))},
   {name: 'the Appearance menu', by: 'user', phone: true, open: onSharedList(({site}) => site.openAppearance())},
   {name: 'the Add images menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openManageItemsMenu())},
   {name: 'the template picker', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openTemplatePicker())},

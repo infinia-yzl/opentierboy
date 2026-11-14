@@ -68,7 +68,7 @@ test.describe('editor layout', () => {
     test('renders no button "Edit title" and no hints when the user turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.editTitleButton).toBeVisible();
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tierList.editTitleButton).toBeHidden();
       await expect(tierList.hints).toBeHidden();
       await expect(tierList.title).toBeVisible();
@@ -105,7 +105,7 @@ test.describe('editor layout', () => {
 
     test('renders the Unranked row with no tile "Add images to Unranked" and no hints when the user turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS);
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tierList.addImagesTile).toBeHidden();
       await expect(tierList.hints).toBeHidden();
       await expect(tierList.unranked).toBeVisible();

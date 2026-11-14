@@ -1,16 +1,15 @@
 import fs from 'node:fs/promises';
-import {type BrowserContext, expect, type Locator, type Page, type Route} from '@playwright/test';
+import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectSettled} from '../support/settled';
-import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, menuClosedOnto, rowPhrase, scrollPosition, scrollPositionAfterFrames, startedAndIdle, type Box, type Point} from './helpers';
-import {expectOnlyNewToast, letClosedToastLeave, toasts} from './toasts';
 import {escapeRegExp} from '../support/regexp';
 import {letToastTimeOut, runPageClock} from '../support/page-clock';
-import type {HeldImageSite} from '../support/image-sites';
+import {type HeldImageSite} from '../support/image-sites';
+import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, rowPhrase, scrollPosition, scrollPositionAfterFrames, startedAndIdle, type Box, type Point} from './helpers';
+import {expectOnlyNewToast, letClosedToastLeave, toasts} from './toasts';
+import {Zen} from './zen';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
-/** The choices of the Zen bar's Layout menu. */
-export type ZenLayoutName = 'Editor' | '16:9' | '9:16' | 'Overlay · green key';
 /** The values of the `layout` address parameter (lib/zen/layouts.ts). */
 /** The tile sizes in the Row options menu (the dense editor). */
 export type TileSizeName = 'Comfortable' | 'Compact';
@@ -104,6 +103,8 @@ export class TierListPage {
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
   readonly zenModeToggle: Locator;
+  /** Zen (zen.ts). */
+  readonly zen: Zen;
 
   constructor(page: Page) {
     this.page = page;
@@ -126,6 +127,7 @@ export class TierListPage {
     this.manageItemsButton = page.getByRole('button', {name: 'Add images', exact: true});
     this.shareButton = page.getByRole('button', {name: 'Share', exact: true});
     this.zenModeToggle = page.getByRole('button', {name: 'Zen', exact: true});
+    this.zen = new Zen(this);
   }
 
   /** The share panel, a dialog with the heading "Share Your Rankings". */
@@ -2022,21 +2024,6 @@ export class TierListPage {
 
   // ---- Zen mode --------------------------------------------------------------------------
 
-  /** The Zen bar at the top centre: Back, the step count, Forward, Ranking order, Exit Zen. */
-  get zenBar(): Locator {
-    return this.page.getByRole('toolbar', {name: 'Zen'});
-  }
-
-  /** Every button of the Zen bar, in order. */
-  get zenBarButtons(): Locator {
-    return this.zenBar.getByRole('button');
-  }
-
-  /** The site header (its banner), which Zen hides. */
-  get siteHeader(): Locator {
-    return this.page.getByRole('banner');
-  }
-
   /** A choice of the open menu that is a radio item, such as a ranking order or a layout. */
   menuItemRadio(name: string): Locator {
     return this.page.getByRole('menuitemradio', {name, exact: true});
@@ -2050,79 +2037,6 @@ export class TierListPage {
   /** Moves the mouse to a point of the window and leaves it there. */
   async restMouseAt(x: number, y: number) {
     await this.page.mouse.move(x, y);
-  }
-
-  zenBarButton(name: 'Back' | 'Forward' | 'Exit Zen'): Locator {
-    return this.zenBar.getByRole('button', {name, exact: true});
-  }
-
-  /** The Zen bar's step count, such as "7 / 13". */
-  get zenStepCount(): Locator {
-    return this.zenBar.getByRole('status');
-  }
-
-  /** The Zen bar's button that opens the Ranking order menu; its name says the order. */
-  get rankingOrderButton(): Locator {
-    return this.zenBar.getByRole('button', {name: /^Ranking order: /});
-  }
-
-  /** The OpenTierBoy wordmark that Zen shows in place of the editor tools. */
-  get zenWordmark(): Locator {
-    return this.main.getByRole('img', {name: 'OpenTierBoy'});
-  }
-
-  /** In Zen with In order or Shuffle: the item up next, the one item of the Unranked tray to drag. */
-  get upNextItem(): Locator {
-    return this.unranked.getByRole('button');
-  }
-
-  /** In Zen with In order or Shuffle: the queue after the item up next ("Queue" or "Queue (hidden)"). */
-  queue(name: 'Queue' | 'Queue (hidden)' = 'Queue'): Locator {
-    return this.unranked.getByRole('list', {name, exact: true});
-  }
-
-  /** The items in the queue, in order, each named after its item. */
-  get queueItems(): Locator {
-    return this.queue().getByRole('listitem');
-  }
-
-  /**
-   * Turns Zen on with the Zen toggle in the title row, or off with the Zen bar's "Exit Zen"
-   * (the toggle hides in Zen, with the other tools).
-   */
-  async setZenMode(on: boolean) {
-    if (on) {
-      await this.zenModeToggle.click();
-      await expect(this.zenBar).toBeVisible();
-    } else {
-      await this.zenBarButton('Exit Zen').click();
-      await expect(this.zenBar).toHaveCount(0);
-      await expect(this.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
-    }
-  }
-
-  /**
-   * The parts of the list that the Zen bar's box overlaps: the title ("title"), the rows and the
-   * Unranked tray (by their heading) and the items (by their label). Empty when the bar covers
-   * nothing of the list.
-   */
-  async listPartsUnderZenBar(): Promise<string[]> {
-    const bar = await this.zenBar.boundingBox();
-    if (!bar) throw new Error('The Zen bar is not on the page');
-    const title = (await this.title.count()) > 0 ? this.title : this.titleInput;
-    const parts: {name: string; locator: Locator}[] = [{name: 'title', locator: title}];
-    for (const row of await this.tiers.all()) {
-      parts.push({name: `row ${await row.getByRole('heading', {level: 2}).innerText()}`, locator: row});
-    }
-    for (const item of await this.allItems.all()) {
-      parts.push({name: `item ${await item.getAttribute('aria-label')}`, locator: item});
-    }
-    const covered: string[] = [];
-    for (const {name, locator} of parts) {
-      const box = await locator.boundingBox();
-      if (box && boxesOverlap(bar, box)) covered.push(name);
-    }
-    return covered;
   }
 
   /** Moves the page clock on by `ms` (`pageClock`), and lets the page handle what those timers started. */
@@ -2146,49 +2060,7 @@ export class TierListPage {
     await this.page.keyboard.press('Escape');
   }
 
-  /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
-  async stepInZenBar(name: 'Back' | 'Forward') {
-    await changeAndWaitForLink(this.page, () => this.zenBarButton(name).click());
-  }
-
-  /** Chooses a ranking order in the Zen bar's menu. It writes no history entry. */
-  async chooseRankingOrder(order: 'Pick freely' | 'In order' | 'Shuffle') {
-    await this.rankingOrderButton.click();
-    await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
-    await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
-    await menuClosedOnto(this.page, this.rankingOrderButton);
-  }
-
-  /** Turns "Hide the queue" on or off in the Zen bar's menu. */
-  async setHideQueue(on: boolean) {
-    await this.rankingOrderButton.click();
-    const item = this.page.getByRole('menuitemcheckbox', {name: 'Hide the queue'});
-    await expect(item).toHaveAttribute('aria-checked', String(!on));
-    await item.click();
-    await expect(this.page.getByRole('menu')).toHaveCount(0);
-  }
-
-  /** Opens the Zen bar's Ranking order menu, and returns it. */
-  async openRankingOrderMenu(): Promise<Locator> {
-    await this.rankingOrderButton.click();
-    const menu = this.page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    return menu;
-  }
-
   // ---- Zen layouts (16:9, 9:16, stream overlay) -----------------------------------------
-
-  /** The Zen bar's button that opens the Layout menu; its name says the layout. */
-  get layoutButton(): Locator {
-    return this.zenBar.getByRole('button', {name: /^Layout: /});
-  }
-
-  /** Opens a list, turns Zen on and chooses a layout in the Zen bar's Layout menu. */
-  async gotoInLayout(path: string, state: string | undefined, layout: ZenLayoutName) {
-    await this.goto(path, state);
-    await this.setZenMode(true);
-    if (layout !== 'Editor') await this.chooseLayout(layout);
-  }
 
   /** Opens a page by its address as typed, for example with parameters the app does not read. */
   async gotoAddress(address: string) {
@@ -2197,35 +2069,9 @@ export class TierListPage {
     await this.settled();
   }
 
-  /** Chooses a layout in the Zen bar's Layout menu. It writes no history entry. */
-  async chooseLayout(name: ZenLayoutName) {
-    await this.layoutButton.click();
-    await this.page.getByRole('menuitemradio', {name, exact: true}).click();
-    await expect(this.layoutButton).toHaveAccessibleName(`Layout: ${name}`);
-    await menuClosedOnto(this.page, this.layoutButton);
-  }
-
-  /** Opens the Zen bar's Layout menu, and returns it. */
-  async openLayoutMenu(): Promise<Locator> {
-    await this.layoutButton.click();
-    return this.page.getByRole('menu');
-  }
-
   /** Every open menu, also one that another open menu hides from assistive technology. */
   get openMenus(): Locator {
     return this.page.getByRole('menu', {includeHidden: true});
-  }
-
-  /** Clicks a menu button of the Zen bar while one of its menus is open, as a person can. */
-  async clickZenBarMenuButtonOverOpenMenu(menu: 'Ranking order' | 'Layout') {
-    const bar = this.page.getByRole('toolbar', {name: 'Zen', includeHidden: true});
-    await bar.getByRole('button', {name: new RegExp(`^${menu}: `), includeHidden: true}).click();
-  }
-
-  /** The name of the item up next (In order or Shuffle). */
-  async upNextItemName(): Promise<string> {
-    await expect(this.upNextItem).toHaveCount(1);
-    return (await this.upNextItem.getAttribute('aria-label')) ?? '';
   }
 
   /**
@@ -2269,11 +2115,6 @@ export class TierListPage {
     return menu.getByRole('menuitemradio').or(menu.getByRole('menuitemcheckbox')).or(menu.getByRole('menuitem'));
   }
 
-  /** The frame of a creator layout: "Frame 16:9" (16:9 and the overlays) or "Frame 9:16". */
-  get zenFrame(): Locator {
-    return this.page.getByRole('region', {name: /^Frame /});
-  }
-
   /** True when the box of `inner` lies within the box of `outer` on screen (to the nearest pixel). */
   async isInside(inner: Locator, outer: Locator): Promise<boolean> {
     const [a, b] = await Promise.all([boxOf(inner), boxOf(outer)]);
@@ -2286,44 +2127,6 @@ export class TierListPage {
     const box = await locator.boundingBox();
     if (!box) throw new Error('The element is not on screen');
     return {width: Math.round(box.width), height: Math.round(box.height)};
-  }
-
-  /**
-   * Clicks the frame's top left corner: the green key in the overlay, away from the list's panel.
-   * Waits until no tooltip is left: a closing tooltip still takes the next Escape.
-   */
-  async clickFrameCorner() {
-    const frame = await boxOf(this.zenFrame);
-    await this.page.mouse.click(frame.x + 10, frame.y + 10);
-    await expect(this.page.getByRole('tooltip')).toHaveCount(0);
-  }
-
-  /** The colour of the cover behind a creator layout's frame, as a computed CSS colour. */
-  async frameCoverColour(): Promise<string> {
-    return this.zenFrame.evaluate((frame) => getComputedStyle(frame.parentElement as Element).backgroundColor);
-  }
-
-  /**
-   * The Unranked tray scrolls (a long list in a creator layout): true when its items, or Up next
-   * and the queue, are taller than the box that scrolls them.
-   */
-  async unrankedItemsScroll(): Promise<boolean> {
-    return scrollsInside(this.unranked.getByRole('button').first());
-  }
-
-  /** The rows scroll (more rows than a creator layout's frame holds): true when they are taller than their box. */
-  async rowsScroll(): Promise<boolean> {
-    return scrollsInside(this.tiers.first());
-  }
-
-  /**
-   * True when the content of a creator layout's frame, or of the cover around it, is taller than
-   * its box: then the frame or the cover would scroll. A creator layout keeps both still (owner
-   * decision, 2026-11-01).
-   */
-  async frameOverflows(): Promise<boolean> {
-    return this.zenFrame.evaluate((frame) => [frame, frame.parentElement as HTMLElement]
-      .some((box) => box.scrollHeight > box.clientHeight + 1 || box.scrollTop > 0));
   }
 
   /** The name a Compact tile shows under itself, with Show Labels on. */
@@ -3073,26 +2876,6 @@ export interface HeldRankPages {
 const DROP_POINT_TRIES = 100;
 
 /**
- * True when the nearest box around an element that scrolls (overflow auto or scroll) has more
- * content than room. False when no box around it scrolls.
- */
-async function scrollsInside(locator: Locator): Promise<boolean> {
-  return locator.evaluate((element) => {
-    let box: HTMLElement | null = element.parentElement;
-    while (box && box !== document.body) {
-      if (/(auto|scroll)/.test(getComputedStyle(box).overflowY)) return box.scrollHeight > box.clientHeight + 1;
-      box = box.parentElement;
-    }
-    return false;
-  });
-}
-
-/** True when two boxes share some area (boxes that only touch at an edge do not). */
-function boxesOverlap(a: Box, b: Box): boolean {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-}
-
-/**
  * Runs in the browser: loads an image and counts its different colours (5 bits per channel).
  * With `column` (a box in CSS pixels), it slides a box of that size down that column of the
  * image (scaled by the device pixel ratio) and returns the highest count.
@@ -3187,27 +2970,6 @@ export function linkDialogAddressField(tierList: TierListPage): Locator {
 /** The dialog's one button: "Add Item", "Checking the image…" or "Add Anyway". */
 export function linkDialogButton(tierList: TierListPage): Locator {
   return tierList.linkImageDialog.getByRole('button', {name: /^(Add Item|Add Anyway|Checking the image…)$/});
-}
-
-// ---- Model campaigns: Zen ranking order (tests/machines/zen-order.ts) ----------------------
-
-/**
- * Presses "Hide the queue" in the Zen bar's Ranking order menu while it is unavailable (Pick
- * freely). Checks that the box says so and holds `checked`, that the press changes nothing and
- * leaves the menu open, then closes the menu with Escape, which the menu takes: Zen stays on.
- */
-export async function pressUnavailableHideQueue(tierList: TierListPage, checked: boolean) {
-  const menu = await tierList.openRankingOrderMenu();
-  const box = tierList.menuItemCheckbox('Hide the queue');
-  await expect(box).toHaveAttribute('aria-disabled', 'true');
-  await expect(box).toHaveAttribute('aria-checked', String(checked));
-  // A person can still click it; Playwright waits for an enabled element unless forced. Forced, it
-  // skips its other checks too, so the test waits until the menu has placed the box on screen.
-  await expect(box).toBeInViewport();
-  await box.click({force: true});
-  await expect(menu).toBeVisible();
-  await expect(box).toHaveAttribute('aria-checked', String(checked));
-  await tierList.closeMenus();
 }
 
 // ---- Model campaigns: toasts while page time stands still (`pageTime: 'paused'`) ------------

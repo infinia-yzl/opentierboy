@@ -79,7 +79,7 @@ test.describe('appearance', () => {
         await tierList.goto(TANKS);
         await site.chooseMode(mode);
 
-        await tierList.setZenMode(true);
+        await tierList.zen.setZenMode(true);
 
         const toast = tierList.toast('Entered Zen Mode');
         await expect(toast).toBeVisible();

@@ -428,8 +428,8 @@ test.describe('drag and drop', () => {
       await serveImageSite(page, 'i.imgur.com');
       const tray = ['Winston', 'Sigma', 'Orisa'].map((name) => packageItemId('image-overwatch', name));
       await tierList.goto(TANKS, v3State({t: 'Images', tp: 3, r: [['S', [{u: 'https://i.imgur.com/red.png', c: 'Red square'}]], ['A', []], ['B', []], ['', tray]]}));
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseRankingOrder('In order');
 
       await expect.poll(() => tierList.itemImageHasLoaded('Red square')).toBe(true);
       await expect(tierList.allItemImages).toHaveCount(4);

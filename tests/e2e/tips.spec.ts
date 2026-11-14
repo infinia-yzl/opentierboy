@@ -92,9 +92,9 @@ test.describe('tips', () => {
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
 
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tips.firstDrag).toBeHidden();
-      await tierList.setZenMode(false);
+      await tierList.zen.setZenMode(false);
       await expect(tips.firstDrag).toBeVisible();
     });
 

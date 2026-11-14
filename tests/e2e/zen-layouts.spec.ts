@@ -3,7 +3,8 @@ import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
-import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
+import type {TierListPage} from '../pages/tier-list-page';
+import type {ZenLayoutName} from '../pages/zen';
 import {layoutOf, listChangedIn, ZEN_FRAME_NAMES, ZEN_LAYOUT_NAMES, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutSnapshot} from '../models/zen-layout';
 
 const TANKS = '/rank/overwatch/tank';
@@ -56,9 +57,9 @@ async function dropByHand(tierList: TierListPage, entries: () => Promise<number>
 
 /** Drags the item up next (In order or Shuffle) by hand to a row, as dropByHand does. Returns its name. */
 async function dropUpNextByHand(tierList: TierListPage, entries: () => Promise<number>, tier: string): Promise<string> {
-  const item = await tierList.upNextItemName();
+  const item = await tierList.zen.upNextItemName();
   await dropByHand(tierList, entries, item, tier);
-  await expect(tierList.upNextItem).not.toHaveAccessibleName(item);
+  await expect(tierList.zen.upNextItem).not.toHaveAccessibleName(item);
   return item;
 }
 
@@ -68,55 +69,55 @@ test.describe('zen layouts', () => {
 
     test('renders the 16:9 frame under the Zen bar and no site header when the user chooses 16:9 in Zen', async ({tierList, page}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
-      await expect(tierList.layoutButton).toHaveAccessibleName('Layout: Editor');
-      await expect(tierList.zenFrame).toHaveCount(0);
+      await tierList.zen.setZenMode(true);
+      await expect(tierList.zen.layoutButton).toHaveAccessibleName('Layout: Editor');
+      await expect(tierList.zen.zenFrame).toHaveCount(0);
 
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.chooseLayout('16:9');
 
-      await expect(tierList.zenFrame).toHaveAccessibleName('Frame 16:9');
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
-      await expect(tierList.siteHeader).toBeHidden();
+      await expect(tierList.zen.zenFrame).toHaveAccessibleName('Frame 16:9');
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(FULL_HD);
+      await expect(tierList.zen.siteHeader).toBeHidden();
       await expect(tierList.editorTools).toBeHidden();
       await expect(tierList.title).toBeVisible();
-      await expect(tierList.zenWordmark).toBeVisible();
-      await expect(tierList.zenBarButtons).toHaveCount(5);
+      await expect(tierList.zen.zenWordmark).toBeVisible();
+      await expect(tierList.zen.zenBarButtons).toHaveCount(5);
     });
 
     test('renders the editor and no frame when the user chooses Editor after 16:9', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
 
-      await tierList.chooseLayout('Editor');
+      await tierList.zen.chooseLayout('Editor');
 
-      await expect(tierList.zenFrame).toHaveCount(0);
-      await expect(tierList.zenBar).toBeVisible();
-      await expect(tierList.zenWordmark).toBeVisible();
+      await expect(tierList.zen.zenFrame).toHaveCount(0);
+      await expect(tierList.zen.zenBar).toBeVisible();
+      await expect(tierList.zen.zenWordmark).toBeVisible();
     });
 
     test('renders the site header and the editor tools, and the frame again in Zen, when the user exits Zen in 16:9', async ({tierList, page}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
 
-      await tierList.setZenMode(false);
+      await tierList.zen.setZenMode(false);
 
-      await expect(tierList.zenFrame).toHaveCount(0);
-      await expect(tierList.siteHeader).toBeVisible();
+      await expect(tierList.zen.zenFrame).toHaveCount(0);
+      await expect(tierList.zen.siteHeader).toBeVisible();
       await expect(tierList.editorTools).toBeVisible();
 
-      await tierList.setZenMode(true);
-      await expect(tierList.zenFrame).toHaveAccessibleName('Frame 16:9');
+      await tierList.zen.setZenMode(true);
+      await expect(tierList.zen.zenFrame).toHaveAccessibleName('Frame 16:9');
     });
 
     test('renders the editor and no frame when the user presses Escape in the overlay', async ({tierList, page}) => {
-      await tierList.gotoInLayout(TANKS, LIST, 'Overlay · green key');
-      await expect(tierList.zenFrame).toBeVisible();
+      await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
+      await expect(tierList.zen.zenFrame).toBeVisible();
       // A click on the green key first: the Layout menu gave focus back to its button, and an
       // Escape there would close the button's tooltip first.
-      await tierList.clickFrameCorner();
+      await tierList.zen.clickFrameCorner();
 
       await tierList.pressKey('Escape');
 
-      await expect(tierList.zenFrame).toHaveCount(0);
-      await expect(tierList.zenBar).toHaveCount(0);
+      await expect(tierList.zen.zenFrame).toHaveCount(0);
+      await expect(tierList.zen.zenBar).toHaveCount(0);
       await expect(tierList.editorTools).toBeVisible();
     });
 
@@ -125,9 +126,9 @@ test.describe('zen layouts', () => {
       await tierList.gotoAddress(`${TANKS}?state=${LIST}&layout=16x9`);
 
       await expect(tierList.editorTools).toBeVisible();
-      await expect(tierList.siteHeader).toBeVisible();
-      await expect(tierList.zenBar).toHaveCount(0);
-      await expect(tierList.zenFrame).toHaveCount(0);
+      await expect(tierList.zen.siteHeader).toBeVisible();
+      await expect(tierList.zen.zenBar).toHaveCount(0);
+      await expect(tierList.zen.zenFrame).toHaveCount(0);
       await expect(tierList.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
     });
   });
@@ -138,9 +139,9 @@ test.describe('zen layouts', () => {
       tierList,
     }) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
 
-      const menu = await tierList.openLayoutMenu();
+      const menu = await tierList.zen.openLayoutMenu();
 
       await expect(tierList.menuItems(menu)).toHaveText(['Editor', '16:9', '9:16', 'Overlay · green key']);
     });
@@ -154,12 +155,12 @@ test.describe('zen layouts', () => {
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, LIST, layout);
-        await tierList.chooseRankingOrder('In order');
+        await tierList.zen.gotoInLayout(TANKS, LIST, layout);
+        await tierList.zen.chooseRankingOrder('In order');
 
-        expect(await tierList.listPartsUnderZenBar()).toEqual([]);
-        const bar = (await tierList.zenBar.boundingBox())!;
-        const frame = (await tierList.zenFrame.boundingBox())!;
+        expect(await tierList.zen.listPartsUnderZenBar()).toEqual([]);
+        const bar = (await tierList.zen.zenBar.boundingBox())!;
+        const frame = (await tierList.zen.zenFrame.boundingBox())!;
         expect(bar.y + bar.height).toBeLessThanOrEqual(frame.y);
         expect(Math.abs(bar.x + bar.width / 2 - (frame.x + frame.width / 2))).toBeLessThan(2);
       });
@@ -167,22 +168,22 @@ test.describe('zen layouts', () => {
 
     test('renders the Zen bar 72 px high and the frame at 1080 x 1920 under it when the window is 1080 x 2024 in 9:16', async ({tierList, page}) => {
       await page.setViewportSize(TALL_WINDOW);
-      await tierList.gotoInLayout(TANKS, LIST, '9:16');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
-      expect((await tierList.sizeOf(tierList.zenBar)).height).toBe(72);
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+      expect((await tierList.sizeOf(tierList.zen.zenBar)).height).toBe(72);
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
     });
 
     test('renders the Zen bar opaque and clickable when the mouse rests for 10 seconds in 16:9', async ({tierList, page}) => {
       await page.clock.install();
       await page.setViewportSize(WIDE_WINDOW);
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
       await tierList.restMouseAt(20, 600);
 
       await tierList.letTimePass(10_000);
 
-      await expect(tierList.zenBar).toHaveCSS('pointer-events', 'auto');
-      await expect(tierList.zenBar).toHaveCSS('opacity', '1');
+      await expect(tierList.zen.zenBar).toHaveCSS('pointer-events', 'auto');
+      await expect(tierList.zen.zenBar).toHaveCSS('opacity', '1');
     });
   });
 
@@ -190,7 +191,7 @@ test.describe('zen layouts', () => {
     test.use({viewport: WIDE_WINDOW});
 
     test('renders 120 px tiles, 76 px tier letters, a 60 px row stack and a 68 px title when the window is 1920 x 1168', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
       expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 120, height: 120});
@@ -201,51 +202,51 @@ test.describe('zen layouts', () => {
 
     test('renders the frame and its tiles at half size when the window is 960 x 584', async ({tierList, page}) => {
       await page.setViewportSize({width: 960, height: 584});
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
 
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual({width: 960, height: 540});
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual({width: 960, height: 540});
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 60, height: 60});
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '38px');
     });
 
     test('renders the item up next at 136 px and the queue after it at 120 px when the user chooses In order', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
 
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.chooseRankingOrder('In order');
 
-      await expect(tierList.upNextItem).toHaveAccessibleName('Mauga');
-      expect(await tierList.sizeOf(tierList.upNextItem)).toEqual({width: 136, height: 136});
-      await expect(tierList.queueItems).toHaveText(['Winston', 'Sigma', 'Orisa']);
-      expect(await tierList.sizeOf(tierList.queueItems.first())).toEqual({width: 120, height: 120});
+      await expect(tierList.zen.upNextItem).toHaveAccessibleName('Mauga');
+      expect(await tierList.sizeOf(tierList.zen.upNextItem)).toEqual({width: 136, height: 136});
+      await expect(tierList.zen.queueItems).toHaveText(['Winston', 'Sigma', 'Orisa']);
+      expect(await tierList.sizeOf(tierList.zen.queueItems.first())).toEqual({width: 120, height: 120});
     });
 
     test('renders 12 items in the queue when 15 items are left', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LONG_LIST, '16:9');
+      await tierList.zen.gotoInLayout(TANKS, LONG_LIST, '16:9');
 
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.chooseRankingOrder('In order');
 
-      await expect(tierList.upNextItem).toHaveAccessibleName('Ana');
-      await expect(tierList.queueItems).toHaveText(LONG_TRAY.slice(1, 13));
+      await expect(tierList.zen.upNextItem).toHaveAccessibleName('Ana');
+      await expect(tierList.zen.queueItems).toHaveText(LONG_TRAY.slice(1, 13));
       await expect(tierList.unranked.getByText('15 left', {exact: true})).toBeVisible();
     });
 
     test('renders the next item up next when the user drags the item up next to row A', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '16:9');
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
+      await tierList.zen.chooseRankingOrder('In order');
 
       await tierList.dragItemToTier('Mauga', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
-      await expect(tierList.upNextItem).toHaveAccessibleName('Winston');
-      await expect(tierList.zenFrame).toBeVisible();
+      await expect(tierList.zen.upNextItem).toHaveAccessibleName('Winston');
+      await expect(tierList.zen.zenFrame).toBeVisible();
     });
 
     test('renders 120 px tiles when the tile size is Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
       await tierList.chooseTileSize('Compact');
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
 
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.chooseLayout('16:9');
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
     });
@@ -253,28 +254,28 @@ test.describe('zen layouts', () => {
     // Owner decision, 2026-11-01: the frame keeps its size for recording; the tray scrolls.
     test('renders the frame at 1920 x 1080 with a scrolling Unranked tray when the list has 77 items in Pick freely', async ({tierList}) => {
       await tierList.goto(FULL_TEMPLATE);
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
 
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.chooseLayout('16:9');
 
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
-      expect(await tierList.frameOverflows()).toBe(false);
-      expect(await tierList.unrankedItemsScroll()).toBe(true);
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(FULL_HD);
+      expect(await tierList.zen.frameOverflows()).toBe(false);
+      expect(await tierList.zen.unrankedItemsScroll()).toBe(true);
       // The rows keep their size: a tile and the row's 1 px border.
       expect(await tierList.sizeOf(tierList.tier('S'))).toEqual({width: 1920 - 2 * 72, height: 121});
     });
 
     test('writes 1 history entry and renders the item in row S when the user drags the last of 77 Unranked items to row S', async ({tierList}) => {
       await tierList.goto(FULL_TEMPLATE);
-      await tierList.setZenMode(true);
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseLayout('16:9');
       const last = (await tierList.itemsIn(tierList.unranked).last().getAttribute('aria-label'))!;
       const entries = await tierList.countNewHistoryEntries();
 
       await dropByHand(tierList, entries, last, 'S');
 
       expect(await entries()).toBe(1);
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(FULL_HD);
     });
   });
 
@@ -286,20 +287,20 @@ test.describe('zen layouts', () => {
     for (const order of ['Pick freely', 'In order', 'Shuffle'] as const) {
       test(`renders the 9:16 frame at 1080 x 1920 with no overflow when the list has 77 items with ranking ${order}`, async ({tierList, page}) => {
         await page.setViewportSize(TALL_WINDOW);
-        await tierList.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
+        await tierList.zen.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
 
-        if (order !== 'Pick freely') await tierList.chooseRankingOrder(order);
+        if (order !== 'Pick freely') await tierList.zen.chooseRankingOrder(order);
 
-        expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
-        expect(await tierList.frameOverflows()).toBe(false);
+        expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+        expect(await tierList.zen.frameOverflows()).toBe(false);
         expect((await tierList.sizeOf(tierList.tier('S'))).height).toBe(121);
-        if (order === 'Pick freely') expect(await tierList.unrankedItemsScroll()).toBe(true);
+        if (order === 'Pick freely') expect(await tierList.zen.unrankedItemsScroll()).toBe(true);
       });
 
       test(`writes 1 history entry per drop when the user drags 2 of 77 items into rows in 9:16 with ranking ${order}`, async ({tierList, page}) => {
         await page.setViewportSize(TALL_WINDOW);
-        await tierList.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
-        if (order !== 'Pick freely') await tierList.chooseRankingOrder(order);
+        await tierList.zen.gotoInLayout(FULL_TEMPLATE, undefined, '9:16');
+        if (order !== 'Pick freely') await tierList.zen.chooseRankingOrder(order);
         const entries = await tierList.countNewHistoryEntries();
 
         if (order === 'Pick freely') {
@@ -311,19 +312,19 @@ test.describe('zen layouts', () => {
         }
 
         expect(await entries()).toBe(2);
-        expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
-        expect(await tierList.frameOverflows()).toBe(false);
+        expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+        expect(await tierList.zen.frameOverflows()).toBe(false);
       });
     }
 
     test('renders the panel within the frame and a scrolling Unranked tray when the list has 77 items in the overlay', async ({tierList, page}) => {
       await page.setViewportSize(WIDE_WINDOW);
-      await tierList.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
+      await tierList.zen.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
 
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
-      expect(await tierList.frameOverflows()).toBe(false);
-      expect(await tierList.unrankedItemsScroll()).toBe(true);
-      const frame = (await tierList.zenFrame.boundingBox())!;
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(FULL_HD);
+      expect(await tierList.zen.frameOverflows()).toBe(false);
+      expect(await tierList.zen.unrankedItemsScroll()).toBe(true);
+      const frame = (await tierList.zen.zenFrame.boundingBox())!;
       const tray = (await tierList.unranked.boundingBox())!;
       // The panel keeps its 40 px margin to the frame's bottom, and its 24 px padding.
       expect(tray.y + tray.height).toBeLessThanOrEqual(frame.y + frame.height - 40 - 24 + 1);
@@ -334,7 +335,7 @@ test.describe('zen layouts', () => {
       tierList, page,
     }) => {
       await page.setViewportSize(WIDE_WINDOW);
-      await tierList.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
+      await tierList.zen.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
       // The first tile of the tray's last line: at its left, clear of the "Entered Zen Mode" toast.
       const item = (await tierList.itemsIn(tierList.unranked).nth(70).getAttribute('aria-label'))!;
       const entries = await tierList.countNewHistoryEntries();
@@ -342,17 +343,17 @@ test.describe('zen layouts', () => {
       await dropByHand(tierList, entries, item, 'S');
 
       expect(await entries()).toBe(1);
-      expect(await tierList.frameOverflows()).toBe(false);
-      expect(await tierList.frameCoverColour()).toBe('rgb(0, 177, 64)');
+      expect(await tierList.zen.frameOverflows()).toBe(false);
+      expect(await tierList.zen.frameCoverColour()).toBe('rgb(0, 177, 64)');
     });
 
     for (const layout of CREATOR_LAYOUTS) {
       test(`renders the frame with no overflow and scrolling rows when the list has 19 rows in ${layout}`, async ({tierList, page}) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
+        await tierList.zen.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
 
-        expect(await tierList.frameOverflows()).toBe(false);
-        expect(await tierList.rowsScroll()).toBe(true);
+        expect(await tierList.zen.frameOverflows()).toBe(false);
+        expect(await tierList.zen.rowsScroll()).toBe(true);
         await expect(tierList.item('Mauga')).toBeInViewport();
       });
 
@@ -360,13 +361,13 @@ test.describe('zen layouts', () => {
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
+        await tierList.zen.gotoInLayout(TANKS, NINETEEN_ROWS, layout);
         const entries = await tierList.countNewHistoryEntries();
 
         await dropByHand(tierList, entries, 'Mauga', 'R19');
 
         expect(await entries()).toBe(1);
-        expect(await tierList.frameOverflows()).toBe(false);
+        expect(await tierList.zen.frameOverflows()).toBe(false);
       });
     }
   });
@@ -375,10 +376,10 @@ test.describe('zen layouts', () => {
     test.use({viewport: TALL_WINDOW});
 
     test('renders the 9:16 frame, 120 px tiles, a 60 px row stack and 64 px tier letters when the window is 1080 x 2024', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '9:16');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
-      await expect(tierList.zenFrame).toHaveAccessibleName('Frame 9:16');
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+      await expect(tierList.zen.zenFrame).toHaveAccessibleName('Frame 9:16');
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
       expect((await tierList.sizeOf(tierList.rowStack('S'))).width).toBe(60);
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '64px');
@@ -386,19 +387,19 @@ test.describe('zen layouts', () => {
 
     // Owner decision, 2026-11-01: one and a half tiles, its name in proportion.
     test('renders the item up next at 180 px with its name under it at 28 px when the user chooses In order', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '9:16');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.chooseRankingOrder('In order');
 
-      await expect(tierList.upNextItem).toHaveAccessibleName('Mauga');
-      expect(await tierList.sizeOf(tierList.upNextItem)).toEqual({width: 180, height: 180});
+      await expect(tierList.zen.upNextItem).toHaveAccessibleName('Mauga');
+      expect(await tierList.sizeOf(tierList.zen.upNextItem)).toEqual({width: 180, height: 180});
       await expect(tierList.unranked.getByText('Mauga', {exact: true})).toHaveCSS('font-size', '28px');
-      await expect(tierList.queueItems).toHaveText(['Winston', 'Sigma', 'Orisa']);
-      expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
+      await expect(tierList.zen.queueItems).toHaveText(['Winston', 'Sigma', 'Orisa']);
+      expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
     });
 
     test('renders 160 px tiles in the Unranked tray when the ranking order is Pick freely', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, '9:16');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
       expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 160, height: 160});
       await expect(tierList.unranked.getByText('· 4 left')).toBeVisible();
@@ -409,16 +410,16 @@ test.describe('zen layouts', () => {
     test('renders the 9:16 frame and the strip above it as large as the phone allows when the user chooses 9:16', {tag: '@mobile'}, async ({
       tierList, page,
     }) => {
-      await tierList.gotoInLayout(TANKS, LIST, '9:16');
+      await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
       const viewport = page.viewportSize();
       if (!viewport) throw new Error('No viewport');
-      const frame = await tierList.sizeOf(tierList.zenFrame);
+      const frame = await tierList.sizeOf(tierList.zen.zenFrame);
       const expected = Math.min(viewport.width, viewport.height * 1080 / (1920 + TALL_STRIP));
       expect(Math.abs(frame.width - expected)).toBeLessThanOrEqual(1);
       expect(Math.abs(frame.height - expected * 16 / 9)).toBeLessThanOrEqual(2);
       await expect(tierList.item('Reinhardt')).toBeVisible();
-      expect(await tierList.listPartsUnderZenBar()).toEqual([]);
+      expect(await tierList.zen.listPartsUnderZenBar()).toEqual([]);
     });
   });
 
@@ -426,9 +427,9 @@ test.describe('zen layouts', () => {
     test.use({viewport: WIDE_WINDOW});
 
     test('renders the list in a 780 px panel over the green key when the user chooses Overlay · green key', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, 'Overlay · green key');
+      await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
 
-      expect(await tierList.frameCoverColour()).toBe('rgb(0, 177, 64)');
+      expect(await tierList.zen.frameCoverColour()).toBe('rgb(0, 177, 64)');
       expect((await tierList.sizeOf(tierList.tier('S'))).width).toBe(780 - 2 * 24);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 96, height: 96});
       expect((await tierList.sizeOf(tierList.rowStack('S'))).width).toBe(48);
@@ -436,16 +437,16 @@ test.describe('zen layouts', () => {
     });
 
     test('renders the item up next and 2 more at 72 px when the user chooses In order', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, 'Overlay · green key');
+      await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
 
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.chooseRankingOrder('In order');
 
-      await expect(tierList.upNextItem).toHaveAccessibleName('Mauga');
-      expect(await tierList.sizeOf(tierList.upNextItem)).toEqual({width: 72, height: 72});
+      await expect(tierList.zen.upNextItem).toHaveAccessibleName('Mauga');
+      expect(await tierList.sizeOf(tierList.zen.upNextItem)).toEqual({width: 72, height: 72});
       // The overlay's strip has no labels on its tiles; each tile keeps its name.
-      await expect(tierList.queueItems).toHaveCount(2);
-      await expect(tierList.queueItems.nth(0)).toHaveAccessibleName('Winston');
-      await expect(tierList.queueItems.nth(1)).toHaveAccessibleName('Sigma');
+      await expect(tierList.zen.queueItems).toHaveCount(2);
+      await expect(tierList.zen.queueItems.nth(0)).toHaveAccessibleName('Winston');
+      await expect(tierList.zen.queueItems.nth(1)).toHaveAccessibleName('Sigma');
     });
   });
 
@@ -459,7 +460,7 @@ test.describe('zen layouts', () => {
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, LIST, layout);
+        await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
         await tierList.dragRowItemsOnto('S', 'A');
@@ -467,14 +468,14 @@ test.describe('zen layouts', () => {
         await expect(tierList.itemsIn('A')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         await expect(tierList.itemsIn('S')).toHaveCount(0);
         expect(await entries()).toBe(1);
-        await expect(tierList.zenFrame).toBeVisible();
+        await expect(tierList.zen.zenFrame).toBeVisible();
       });
 
       test(`writes 1 history entry and renders the items of row S in row B when the user moves its stack down twice in ${layout}`, async ({
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, LIST, layout);
+        await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
         await tierList.moveRowItemsWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
@@ -488,17 +489,17 @@ test.describe('zen layouts', () => {
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
-        await tierList.gotoInLayout(TANKS, LIST, layout);
+        await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
         // Inside the frame: the grip is a column at the row's left edge.
-        expect(await tierList.isInside(tierList.rowGrip('S'), tierList.zenFrame)).toBe(true);
+        expect(await tierList.isInside(tierList.rowGrip('S'), tierList.zen.zenFrame)).toBe(true);
 
         await tierList.dragRowOnto('S', 'A');
 
         await expect(tierList.tiers.nth(1)).toHaveAccessibleName('S');
         await expect(tierList.itemsIn('S')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         expect(await entries()).toBe(1);
-        await expect(tierList.zenFrame).toBeVisible();
+        await expect(tierList.zen.zenFrame).toBeVisible();
       });
     }
   });
@@ -508,11 +509,11 @@ test.describe('zen layouts', () => {
 
     test('renders only menu Layout when the user clicks button Layout while menu Ranking order is open', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
-      await tierList.openRankingOrderMenu();
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.openRankingOrderMenu();
       await expect(tierList.openMenus).toHaveCount(1);
 
-      await tierList.clickZenBarMenuButtonOverOpenMenu('Layout');
+      await tierList.zen.clickZenBarMenuButtonOverOpenMenu('Layout');
 
       await expect(tierList.openMenus).toHaveCount(1);
       await expect(tierList.openMenus).toHaveAccessibleName('Layout: Editor');
@@ -522,17 +523,17 @@ test.describe('zen layouts', () => {
       tierList, page,
     }) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
-      await tierList.openLayoutMenu();
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.openLayoutMenu();
 
-      await tierList.clickZenBarMenuButtonOverOpenMenu('Ranking order');
+      await tierList.zen.clickZenBarMenuButtonOverOpenMenu('Ranking order');
 
       await expect(tierList.openMenus).toHaveCount(1);
       await expect(tierList.openMenus).toHaveAccessibleName('Ranking order: Pick freely');
       await expect(tierList.menuItemRadio('In order')).toBeVisible();
       await tierList.pressKey('Escape');
       await expect(tierList.openMenus).toHaveCount(0);
-      await expect(tierList.zenBar).toBeVisible();
+      await expect(tierList.zen.zenBar).toBeVisible();
     });
   });
 
@@ -546,9 +547,9 @@ test.describe('zen layouts', () => {
         tierList,
       }) => {
         await tierList.goto(TANKS, LIST);
-        await tierList.setZenMode(true);
-        await tierList.chooseRankingOrder('In order');
-        if (layout !== 'Editor') await tierList.chooseLayout(layout);
+        await tierList.zen.setZenMode(true);
+        await tierList.zen.chooseRankingOrder('In order');
+        if (layout !== 'Editor') await tierList.zen.chooseLayout(layout);
         const entries = await tierList.countNewHistoryEntries();
 
         expect(await dropUpNextByHand(tierList, entries, 'S')).toBe('Mauga');
@@ -561,13 +562,13 @@ test.describe('zen layouts', () => {
 
     test('renders each item in its row and writes 1 history entry per drop when the user drags after each layout change', async ({tierList}) => {
       await tierList.goto(TANKS, LONG_LIST);
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseRankingOrder('In order');
       const entries = await tierList.countNewHistoryEntries();
 
       const steps = [['16:9', 'S'], ['9:16', 'A'], ['Overlay · green key', 'B'], ['Editor', 'C']] as const;
       for (const [layout, tier] of steps) {
-        await tierList.chooseLayout(layout);
+        await tierList.zen.chooseLayout(layout);
         await dropUpNextByHand(tierList, entries, tier);
       }
 
@@ -580,15 +581,15 @@ test.describe('zen layouts', () => {
     }) => {
       await tierList.goto(TANKS, LONG_LIST);
       await tierList.chooseTileSize('Compact');
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseRankingOrder('In order');
       const entries = await tierList.countNewHistoryEntries();
 
       await dropUpNextByHand(tierList, entries, 'S');
       await dropUpNextByHand(tierList, entries, 'A');
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.chooseLayout('16:9');
       await dropUpNextByHand(tierList, entries, 'B');
-      await tierList.chooseLayout('Editor');
+      await tierList.zen.chooseLayout('Editor');
       await dropUpNextByHand(tierList, entries, 'C');
 
       expect(await entries()).toBe(4);
@@ -598,9 +599,9 @@ test.describe('zen layouts', () => {
       tierList,
     }) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
-      await tierList.chooseLayout('9:16');
-      await expect(tierList.rankingOrderButton).toHaveAccessibleName('Ranking order: Pick freely');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseLayout('9:16');
+      await expect(tierList.zen.rankingOrderButton).toHaveAccessibleName('Ranking order: Pick freely');
       const entries = await tierList.countNewHistoryEntries();
 
       await dropByHand(tierList, entries, 'Sigma', 'S');
@@ -614,9 +615,9 @@ test.describe('zen layouts', () => {
         tierList,
       }) => {
         await tierList.goto(TANKS, LIST);
-        await tierList.setZenMode(true);
-        await tierList.chooseLayout('9:16');
-        await tierList.chooseRankingOrder(order);
+        await tierList.zen.setZenMode(true);
+        await tierList.zen.chooseLayout('9:16');
+        await tierList.zen.chooseRankingOrder(order);
         const entries = await tierList.countNewHistoryEntries();
 
         const first = await dropUpNextByHand(tierList, entries, 'A');
@@ -631,14 +632,14 @@ test.describe('zen layouts', () => {
       tierList,
     }) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
-      await tierList.chooseRankingOrder('In order');
-      await tierList.chooseLayout('16:9');
+      await tierList.zen.setZenMode(true);
+      await tierList.zen.chooseRankingOrder('In order');
+      await tierList.zen.chooseLayout('16:9');
       const entries = await tierList.countNewHistoryEntries();
       await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
       expect(await entries()).toBe(1);
 
-      await tierList.chooseLayout('9:16');
+      await tierList.zen.chooseLayout('9:16');
       await tierList.moveItemWithKeyboard('Winston', ['ArrowUp']);
 
       await expect(tierList.itemsIn('F')).toHaveText(['Mauga', 'Winston']);
@@ -651,29 +652,29 @@ test.describe('zen layouts', () => {
 
     test('writes no history entry and leaves the address as it is when the user chooses each layout', async ({tierList, page}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       const address = page.url();
       const newEntries = await tierList.countNewHistoryEntries();
 
       for (const layout of [...CREATOR_LAYOUTS, 'Editor'] as const) {
-        await tierList.chooseLayout(layout);
+        await tierList.zen.chooseLayout(layout);
       }
 
       await tierList.settled();
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
-      await expect(tierList.zenStepCount).toHaveText('1 / 1');
+      await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
     });
 
     test('renders the frame and the list before the drag when the user drags an item in the overlay and clicks button "Back"', async ({tierList}) => {
-      await tierList.gotoInLayout(TANKS, LIST, 'Overlay · green key');
+      await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
 
       await tierList.dragItemToTier('Mauga', 'A');
 
-      await expect(tierList.zenFrame).toBeVisible();
-      await tierList.stepInZenBar('Back');
+      await expect(tierList.zen.zenFrame).toBeVisible();
+      await tierList.zen.stepInZenBar('Back');
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await expect(tierList.zenFrame).toBeVisible();
+      await expect(tierList.zen.zenFrame).toBeVisible();
     });
   });
 
@@ -695,13 +696,13 @@ test.describe('zen layouts', () => {
           changed = '';
         },
         events: {
-          TOGGLE_ZEN: () => tierList.setZenMode(true),
-          EXIT_ZEN: () => tierList.setZenMode(false),
+          TOGGLE_ZEN: () => tierList.zen.setZenMode(true),
+          EXIT_ZEN: () => tierList.zen.setZenMode(false),
           PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
-          CHOOSE_EDITOR: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.editor),
-          CHOOSE_WIDE: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.wide),
-          CHOOSE_TALL: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.tall),
-          CHOOSE_OVERLAY: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
+          CHOOSE_EDITOR: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.editor),
+          CHOOSE_WIDE: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.wide),
+          CHOOSE_TALL: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.tall),
+          CHOOSE_OVERLAY: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
           CHANGE_LIST: async () => {
             await tierList.rankFirstUnrankedItem('A');
             changed = page.url();
@@ -717,21 +718,21 @@ test.describe('zen layouts', () => {
             await expect(tierList.itemsIn('A')).toHaveText(listChanged ? [TRAY[0]] : []);
             await expect(page).toHaveURL(listChanged ? changed : opened);
             if (!layout) {
-              await expect(tierList.zenBar).toHaveCount(0);
-              await expect(tierList.zenFrame).toHaveCount(0);
+              await expect(tierList.zen.zenBar).toHaveCount(0);
+              await expect(tierList.zen.zenFrame).toHaveCount(0);
               return;
             }
-            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${ZEN_LAYOUT_NAMES[layout]}`);
+            await expect(tierList.zen.layoutButton).toHaveAccessibleName(`Layout: ${ZEN_LAYOUT_NAMES[layout]}`);
             const frame = ZEN_FRAME_NAMES[layout];
             if (!frame) {
-              await expect(tierList.zenFrame).toHaveCount(0);
+              await expect(tierList.zen.zenFrame).toHaveCount(0);
               return;
             }
-            await expect(tierList.zenFrame).toHaveAccessibleName(frame);
-            const {width, height} = await tierList.sizeOf(tierList.zenFrame);
+            await expect(tierList.zen.zenFrame).toHaveAccessibleName(frame);
+            const {width, height} = await tierList.sizeOf(tierList.zen.zenFrame);
             expect(width > height, `${frame} should be ${layout === 'tall' ? 'taller than wide' : 'wider than tall'}`).toBe(layout !== 'tall');
-            if (layout === 'overlay') expect(await tierList.frameCoverColour()).toBe(GREEN_KEY);
-            else expect(await tierList.frameCoverColour()).not.toBe(GREEN_KEY);
+            if (layout === 'overlay') expect(await tierList.zen.frameCoverColour()).toBe(GREEN_KEY);
+            else expect(await tierList.zen.frameCoverColour()).not.toBe(GREEN_KEY);
           },
         },
         testInfo,
