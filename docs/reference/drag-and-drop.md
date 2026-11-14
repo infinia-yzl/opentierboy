@@ -397,8 +397,8 @@ later render passes another item id (`assertSameTileItem` in `ids.ts`).
 `tests/unit/rules/dnd-item-tiles.test.ts` checks this wiring. The tile renders
 `aria-roledescription="draggable"` only while dnd-kit holds its draggable, and the page object's
 drop helpers check after every drop that every item tile has it
-(`TierListPage.expectEveryItemDraggable`), so any test that drops something fails on a tile that
-cannot be dragged.
+(`DragAndDrop.expectEveryItemDraggable` in `tests/pages/drag-and-drop.ts`), so any test that
+drops something fails on a tile that cannot be dragged.
 
 The drag state sits in two React contexts: the instructions (`describedBy`, read by every
 tile) never change, and the drop target and drag flags (read only by rows and the row list)

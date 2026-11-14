@@ -58,7 +58,7 @@ Projects (see `playwright.config.ts`):
 ```
 tests/
   e2e/            Playwright specs: one file per UI area or route (see "Where a test goes")
-  pages/          page objects: every selector and every user action (tier-list-page.ts, site-page.ts)
+  pages/          page objects: every selector and every user action (see "Page objects")
   machines/       XState v6 machines of UI areas, one per file, ready to paste into Stately
   models/         what the model-based tests send and check for each machine (see "Model-based tests")
   support/        Playwright fixtures and helpers: links, image sites, snapshot files
@@ -124,6 +124,35 @@ tests/
   (`tier-list-page.ts` holds the class `TierListPage`), helpers (`image-sites.ts`) and fixtures.
 - `tests/unit/rules/test-file-names.test.ts` checks both rules on every file.
 
+## Page objects
+
+`tests/pages/` holds a page object for each part of the site. Specs get `tierList` (the editor) and
+`site` (the other pages) from the fixtures in `tests/support/test.ts`; `tips.ts` is built by the
+spec that needs it (`new Tips(tierList.page)`).
+
+`TierListPage` (`tier-list-page.ts`) is the core of the editor: opening it (`goto`, `reload`,
+`settled`), Back and Forward, the rows and items (`tier`, `unranked`, `itemsIn`, `item`), the
+title, menus, toasts, and the buttons that are always on screen. Each area of the editor has its
+own page object, reached through a property of `TierListPage`, also on a visitor's page from
+`openAsVisitor`:
+
+| Property | File | Area |
+| --- | --- | --- |
+| `tierList.rows` | `rows.ts` | row names, the Row options menu (row count, labels, tile size), adding and removing rows |
+| `tierList.items` | `editor-items.ts` | the Add images menu, the template picker, Reset, Remove All, Delete, and their toasts with Undo |
+| `tierList.drag` | `drag-and-drop.ts` | mouse, keyboard and touch drags of items and rows; the drag announcer |
+| `tierList.linkImages` | `link-images.ts` | the "From a link" dialog, dropped or pasted addresses, the notice about other sites |
+| `tierList.deviceImages` | `device-images.ts` | the "From your device" dialog, pasted pictures, the device image store |
+| `tierList.files` | `snapshot-files.ts` | opening snapshot files, the dialog "Open the list in this file?" |
+| `tierList.share` | `share-panel.ts` | the share panel and Freeze Frame |
+| `tierList.zen` | `zen.ts` | the Zen bar, the ranking order, the item up next and the queue, the creator layouts |
+
+An area object gets the `TierListPage` it belongs to (`this.tierList`) and its `page`, and uses
+the core for rows and items. What several page objects need lives in `helpers.ts` (boxes on
+screen, scroll positions, `changeAndWaitForLink`, `menuClosedOnto`) and `toasts.ts` (`toasts`,
+`expectOnlyNewToast`, `letClosedToastLeave`). The model campaigns call the same methods: a step
+that only a model needs goes in the object of its area too.
+
 ## Writing tests
 
 - **Import `test` and `expect` from `tests/support/test.ts`.** It provides the `tierList`,
@@ -131,9 +160,9 @@ tests/
   friend who receives it), and `consoleErrors`: the errors the page logged to the browser
   console during the test.
 - **Name each test `<verb> <result> when <condition>`** (see "Test names" below).
-- **Put page knowledge in the page objects.** Specs call `tierList.dragItemToTier('Mauga', 'S')`
-  and never touch selectors directly. Add a method to the page object when a spec needs a
-  new action.
+- **Put page knowledge in the page objects.** Specs call `tierList.drag.dragItemToTier('Mauga', 'S')`
+  and never touch selectors directly. Add a method to the page object of its area when a spec
+  needs a new action (see "Page objects").
 - **Locate by role and accessible name**, the way assistive technology sees the page: a tier
   row is a `group` named after its label (the unnamed last row is `Unranked`, another row
   without a label is `Row <n>`, its position), an item is a `button` named after its label. Each
@@ -165,9 +194,9 @@ tests/
 - **Lint guards the specs.** ESLint refuses `waitForTimeout`, `'networkidle'`, `.locator`, `$`,
   `$$`, `$eval` and `waitForSelector` in `tests/e2e/**`; selectors live in the page objects.
 - **The server answers when the test says so.** Where timing matters, a test holds the
-  server's answers to a navigation to another `/rank` page (`holdRankPages`, for example a
+  server's answers to a navigation to another `/rank` page (`files.holdRankPages`, for example a
   list file of another template) or to the trip home (`holdTripHome`), or holds the device
-  image store as a slow disk would (`holdDeviceStore`), acts, then calls `release()`. No route
+  image store as a slow disk would (`deviceImages.holdDeviceStore`), acts, then calls `release()`. No route
   delays answers by a time. A change to the list asks nothing of the server, so there is no
   answer to hold.
 - **Timers run on the page clock.** A toast ends by itself after a time (4 s, a tip's 10 s). A
@@ -215,11 +244,12 @@ tests/
 
 ### Drag and drop
 
-The editor's drag and drop runs on dnd-kit through `lib/dnd` (`docs/reference/drag-and-drop.md`). During a
+The editor's drag and drop runs on dnd-kit through `lib/dnd` (`docs/reference/drag-and-drop.md`). The
+helpers below are methods of `DragAndDrop` (`tests/pages/drag-and-drop.ts`, `tierList.drag`). During a
 drag the editor shows the list as it would be after the drop: rows and items move out of the
 way of the dragged one. The list itself changes only on the drop, with one history entry.
 
-- **Mouse.** `TierListPage.dragWithMouse` presses, moves a few pixels (a mouse drag starts
+- **Mouse.** `DragAndDrop.dragWithMouse` presses, moves a few pixels (a mouse drag starts
   after 5 px) and waits for the lift announcement. After the drop it waits until the drop has
   ended (the rows drop `data-dragging`), its animation included where motion is not reduced:
   until then a press starts no drag and the drag library blocks text selection on the page, so
@@ -251,15 +281,15 @@ way of the dragged one. The list itself changes only on the drop, with one histo
 ### Zen's creator layouts
 
 `tests/e2e/zen-layouts.spec.ts` opens a layout the way a person does: Zen on, then the Layout
-menu (`TierListPage.gotoInLayout`); no address opens one. A creator layout draws a frame under a
+menu (`Zen.gotoInLayout`, `tests/pages/zen.ts`); no address opens one. A creator layout draws a frame under a
 strip that holds the Zen bar, and the two together fit the window. A frame pixel is a CSS pixel
 when the window is as wide as the frame and as high as the frame plus the strip: 1920 x 1168 for
 16:9 and the overlay (an 88 px strip), 1080 x 2024 for 9:16 (a 104 px strip). The Zen bar is
-always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item under it.
+always shown; `Zen.listPartsUnderZenBar` lists any title, row or item under it.
 
-No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
+No creator layout scrolls its frame or the cover around it (`Zen.frameOverflows`): the
 Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
-the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
+the frame holds the rows scroll too (`rowsScroll`). `DragAndDrop.dragItemToTierByHand` scrolls the target row
 into view, then the item, before it drags; at the row it moves the pointer by a pixel and back
 (still one press), as a hand does, so the drag library reads the drop point again after the rows
 have made room. The long-list tests use the full THE FINALS template
