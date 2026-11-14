@@ -79,6 +79,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "1.63.0",
     "@statelyai/sdk": "0.47.0",
     "@tailwindcss/postcss": "^4.3.3",

@@ -110,6 +110,7 @@ tests/
   | `routes` | template pages (and `.api` for status codes and redirects) |
   | `link-previews.api` | the link preview image (`/api/og`) |
   | `security` | the Content Security Policy, user text as plain text, device pictures kept local (and `.api` for the security headers on every kind of page) |
+  | `accessibility` | automatic axe-core scans for the WCAG 2.1 A and AA rules: each page, and the dialogs and menus that matter, in light and dark mode (see "Accessibility scans") |
   | `journeys` | long scenarios over several areas, with Back and Forward |
   | `tile-shapes` | tiles of other shapes (needs a special build) |
 
@@ -268,6 +269,22 @@ git checkout imageset.config.json              # back to the real config, then b
 
 While the made-up config is in place, the guard in `tests/unit/rules/image-shapes.test.ts` fails on
 purpose.
+
+### Accessibility scans
+
+`tests/e2e/accessibility.spec.ts` opens each page, dialog and menu in its list (`SCANS`), in light
+and dark mode, and scans it with [axe-core](https://github.com/dequelabs/axe-core) for the WCAG 2.1
+A and AA rules (`scanForViolations` in `tests/support/accessibility.ts`). The scan starts once the
+page has settled, its fonts have loaded and its animations have ended. The violations found when
+the spec was added are listed in `OPEN_VIOLATIONS`, each with its own test in `Known bugs`; a scan
+leaves out only those elements, in the scans and modes listed there.
+
+A failing scan prints the violations it did not expect: for each, the axe-core rule id (its page is
+`https://dequeuniversity.com/rules/axe/<version>/<rule>`), its impact, what the rule asks for, and
+each element as a CSS path followed by its opening tag. Find the element on the page from the tag,
+read the rule's page, and fix the app or ask the owner; a confirmed bug the owner keeps for later
+goes into `OPEN_VIOLATIONS` with its own `Known bugs` test. When a Known bugs test passes, the
+violation is gone: remove its entry and its test.
 
 ## Model-based tests
 
