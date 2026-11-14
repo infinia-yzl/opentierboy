@@ -189,12 +189,12 @@ test.describe('zen layouts', () => {
   test.describe('16:9', () => {
     test.use({viewport: WIDE_WINDOW});
 
-    test('renders 120 px tiles, 76 px tier letters, a 60 px row handle and a 68 px title when the window is 1920 x 1168', async ({tierList}) => {
+    test('renders 120 px tiles, 76 px tier letters, a 60 px row stack and a 68 px title when the window is 1920 x 1168', async ({tierList}) => {
       await tierList.gotoInLayout(TANKS, LIST, '16:9');
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
       expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 120, height: 120});
-      expect((await tierList.sizeOf(tierList.rowHandle('S'))).width).toBe(60);
+      expect((await tierList.sizeOf(tierList.rowStack('S'))).width).toBe(60);
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '76px');
       await expect(tierList.title).toHaveCSS('font-size', '68px');
     });
@@ -374,13 +374,13 @@ test.describe('zen layouts', () => {
   test.describe('9:16', () => {
     test.use({viewport: TALL_WINDOW});
 
-    test('renders the 9:16 frame, 120 px tiles, a 60 px row handle and 64 px tier letters when the window is 1080 x 2024', async ({tierList}) => {
+    test('renders the 9:16 frame, 120 px tiles, a 60 px row stack and 64 px tier letters when the window is 1080 x 2024', async ({tierList}) => {
       await tierList.gotoInLayout(TANKS, LIST, '9:16');
 
       await expect(tierList.zenFrame).toHaveAccessibleName('Frame 9:16');
       expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(PORTRAIT_FULL_HD);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
-      expect((await tierList.sizeOf(tierList.rowHandle('S'))).width).toBe(60);
+      expect((await tierList.sizeOf(tierList.rowStack('S'))).width).toBe(60);
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '64px');
     });
 
@@ -431,7 +431,7 @@ test.describe('zen layouts', () => {
       expect(await tierList.frameCoverColour()).toBe('rgb(0, 177, 64)');
       expect((await tierList.sizeOf(tierList.tier('S'))).width).toBe(780 - 2 * 24);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 96, height: 96});
-      expect((await tierList.sizeOf(tierList.rowHandle('S'))).width).toBe(48);
+      expect((await tierList.sizeOf(tierList.rowStack('S'))).width).toBe(48);
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '48px');
     });
 
@@ -449,18 +449,20 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Owner decision, 2026-11-01: rows move in every creator layout, as in the editor. Labels stay
-  // in place: dropping row S on A's place moves the contents (product rule 6).
+  // Owner decision, 2026-11-01: rows move in every creator layout, as in the editor. A row's stack
+  // moves its items and the labels stay in place (product rule 6); its grip moves the whole row,
+  // name included (owner decision, 2026-11-14). The frames have no space beside the list, so the
+  // grip is a column at the row's left edge, inside the frame.
   test.describe('moving rows', () => {
     for (const layout of CREATOR_LAYOUTS) {
-      test(`writes 1 history entry and renders the items of row S in row A when the user drags row S onto row A in ${layout}`, async ({
+      test(`writes 1 history entry and renders the items of row S in row A when the user drags the stack of row S onto row A in ${layout}`, async ({
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
         await tierList.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
-        await tierList.dragTierOnto('S', 'A');
+        await tierList.dragRowItemsOnto('S', 'A');
 
         await expect(tierList.itemsIn('A')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         await expect(tierList.itemsIn('S')).toHaveCount(0);
@@ -468,18 +470,35 @@ test.describe('zen layouts', () => {
         await expect(tierList.zenFrame).toBeVisible();
       });
 
-      test(`writes 1 history entry and renders the items of row S in row B when the user moves row S down twice by keyboard in ${layout}`, async ({
+      test(`writes 1 history entry and renders the items of row S in row B when the user moves its stack down twice in ${layout}`, async ({
         tierList, page,
       }) => {
         await page.setViewportSize(WINDOWS[layout]);
         await tierList.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
-        await tierList.moveTierWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
+        await tierList.moveRowItemsWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
 
         await expect(tierList.itemsIn('B')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         await expect(tierList.itemsIn('S')).toHaveCount(0);
         expect(await entries()).toBe(1);
+      });
+
+      test(`writes 1 history entry and renders row S second when the user drags the grip of row S onto row A in ${layout}`, async ({
+        tierList, page,
+      }) => {
+        await page.setViewportSize(WINDOWS[layout]);
+        await tierList.gotoInLayout(TANKS, LIST, layout);
+        const entries = await tierList.countNewHistoryEntries();
+        // Inside the frame: the grip is a column at the row's left edge.
+        expect(await tierList.isInside(tierList.rowGrip('S'), tierList.zenFrame)).toBe(true);
+
+        await tierList.dragRowOnto('S', 'A');
+
+        await expect(tierList.tiers.nth(1)).toHaveAccessibleName('S');
+        await expect(tierList.itemsIn('S')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
+        expect(await entries()).toBe(1);
+        await expect(tierList.zenFrame).toBeVisible();
       });
     }
   });

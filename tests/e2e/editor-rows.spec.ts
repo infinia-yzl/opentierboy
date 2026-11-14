@@ -1,5 +1,5 @@
 import {expect, expectTierList, expectTierNames, test} from '../support/test';
-import {packageItemId, rankingState, v3State} from '../support/links';
+import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
@@ -8,29 +8,58 @@ import {editorRowsModel, editorRowsViewOf, type EditorRowsEvent, type EditorRows
 
 const TANKS = '/rank/overwatch/tank';
 
+/** The row names a v3 link holds, top to bottom: rows are [id, label, items] or [label, items]. */
+const linkRowNames = (link: string) => (v3LinkJson(link) as {r: unknown[][]}).r.map((row) => row[row.length - 2]);
+
 test.describe('editor rows', () => {
-  test('renders row Tier 6 above Unranked and writes 1 history entry when the user clicks Add row', async ({tierList}) => {
+  test('renders row Row 6 above Unranked and writes 1 history entry when the user clicks Add row', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
     const entries = await tierList.historyLength();
 
     await tierList.addTierRow();
 
-    // The new row is labelled after its position.
+    // The new row has no name: it shows its position as a hint (owner decision, 2026-11-14).
     await expect(tierList.tiers).toHaveCount(7);
-    await expect(tierList.tiers.nth(5)).toHaveAccessibleName('Tier 6');
+    await expect(tierList.tiers.nth(5)).toHaveAccessibleName('Row 6');
+    await expect(tierList.tierLabel('Row 6')).toHaveText('Row 6');
     await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
     await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
     await tierList.goBack();
     await expect(tierList.tiers).toHaveCount(6);
-    await expect(tierList.tier('Tier 6')).toHaveCount(0);
+    await expect(tierList.tier('Row 6')).toHaveCount(0);
+  });
+
+  test('writes an empty name for the added row into the state parameter when the user clicks Add row', async ({tierList, page}) => {
+    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
+
+    await tierList.addTierRow();
+
+    expect(linkRowNames(page.url())).toEqual(['S', 'A', 'B', 'C', 'F', '', '']);
+  });
+
+  test('renders the hint of the unnamed row after its new position when the user drags the row by its grip onto row S', async ({tierList}) => {
+    await tierList.goto(TANKS, v3State({r: [['tier-s', 'S', []], ['tier-a', 'A', []], ['tier-1', '', [packageItemId('image-overwatch', 'Mauga')]], ['uncategorized', '', []]]}));
+    await expect(tierList.tierLabel('Row 3')).toHaveText('Row 3');
+
+    await tierList.dragRowOnto('Row 3', 'S');
+
+    await expectTierNames(tierList, ['Row 1', 'S', 'A', 'Unranked']);
+    await expect(tierList.itemsIn('Row 1')).toHaveText(['Mauga']);
+  });
+
+  test('renders the label Tier 5 when the page opens a link whose added row has the name Tier 5', async ({tierList}) => {
+    await tierList.goto(TANKS, v3State({r: [['tier-s', 'S', []], ['tier-1', 'Tier 5', []], ['uncategorized', '', []]]}));
+
+    await expectTierNames(tierList, ['S', 'Tier 5', 'Unranked']);
+    await expect(tierList.tierLabel('Tier 5')).toHaveText('Tier 5');
   });
 
   test('renders the added row with its name and item for a visitor of the share link when the user fills it', async ({tierList, openAsVisitor}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 
     await tierList.addTierRow();
-    await tierList.renameTier('Tier 6', 'D');
+    await tierList.renameTier('Row 6', 'D');
     await tierList.dragItemToTier('Mauga', 'D');
 
     const friend = await openAsVisitor(await tierList.shareLink());
@@ -118,8 +147,8 @@ test.describe('editor rows', () => {
 
     test('renders the same 7 rows for the user and a share link visitor when both choose 7 Rows after a row move', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
-      // Moving row S onto A's place moves the items and the tier id; the labels stay in place.
-      await tierList.dragTierOnto('S', 'A');
+      // Moving the items of row S onto A's place moves the items and the tier id; the labels stay in place.
+      await tierList.dragRowItemsOnto('S', 'A');
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
       const friend = await openAsVisitor(await tierList.shareLink());
@@ -164,7 +193,7 @@ test.describe('editor rows', () => {
         events: {
           ADD_ROW: () => tierList.addTierRow(),
           REMOVE_FIRST_ROW: () => removeFirstTierRow(tierList),
-          CLEAR_SECOND_LABEL: () => tierList.renameTier('A', '', 'Tier 2'),
+          CLEAR_SECOND_LABEL: () => tierList.renameTier('A', '', 'Row 2'),
           CHOOSE_3_ROWS: () => chooseRowCountAndSettle(tierList, 3),
           CHOOSE_5_ROWS: () => chooseRowCountAndSettle(tierList, 5),
           CHOOSE_7_ROWS: () => chooseRowCountAndSettle(tierList, 7),

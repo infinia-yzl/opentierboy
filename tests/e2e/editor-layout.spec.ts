@@ -78,12 +78,14 @@ test.describe('editor layout', () => {
   // The Clean rows (owner decisions, 2026-10-28 and 2026-10-31): flush rows, then Add row and Row
   // options, then Unranked as a fixed tray with the hints and an "Add images" tile.
   test.describe('Unranked tray', () => {
-    test('renders Unranked last, under button "Add row", with no row handle when the page opens', {tag: '@mobile'}, async ({tierList}) => {
+    test('renders Unranked last, under button "Add row", with no row grip or stack when the page opens', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
       await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-      await expect(tierList.rowHandle('Unranked')).toHaveCount(0);
-      await expect(tierList.rowHandle('F')).toBeVisible();
+      await expect(tierList.rowGrip('Unranked')).toHaveCount(0);
+      await expect(tierList.rowStack('Unranked')).toHaveCount(0);
+      await expect(tierList.rowGrip('F')).toBeAttached();
+      await expect(tierList.rowStack('F')).toBeVisible();
 
       await expect(async () => {
         const lastRanked = await tierList.tier('F').boundingBox();

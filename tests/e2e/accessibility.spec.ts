@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {expect, test} from '../support/test';
 import {scanForViolations, violationsBesides, violationsOf, type KnownViolation} from '../support/accessibility';
-import {rankingState} from '../support/links';
+import {packageItemId, rankingState, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import type {SitePage, ThemeMode} from '../pages/site-page';
@@ -11,6 +11,10 @@ import type {TierListPage} from '../pages/tier-list-page';
 
 const TANKS = '/rank/overwatch/tank';
 const SHARED_LIST = rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma', 'Orisa']}, 'Shared tanks');
+/** A list with a row without a name (it shows its position, "Row 2", as a hint) and items to move. */
+const UNNAMED_ROW_LIST = v3State({r: [
+  ['tier-s', 'S', [packageItemId('image-overwatch', 'Mauga')]], ['tier-1', '', [packageItemId('image-overwatch', 'Winston')]], ['tier-b', 'B', []], ['uncategorized', '', []],
+]});
 const SNAPSHOT = path.resolve(__dirname, '../fixtures/snapshots/chromium-2026-10-31.png');
 
 /** What one scan looks at, and how the test gets there. */
@@ -38,6 +42,16 @@ const SCANS: readonly Scan[] = [
   {name: 'the editor on an empty list', by: 'page', phone: true, open: ({tierList}) => tierList.goto('/rank')},
   {name: 'the editor on a template', by: 'page', phone: true, open: ({tierList}) => tierList.goto(TANKS)},
   {name: 'the editor with a shared list', by: 'page', phone: true, open: ({tierList}) => tierList.goto(TANKS, SHARED_LIST)},
+  {name: 'the editor with a row without a name', by: 'page', phone: true, open: ({tierList}) => tierList.goto(TANKS, UNNAMED_ROW_LIST)},
+  // The row handles (owner decision, 2026-11-14): focus on a handle shows what it moves.
+  {name: 'the focused grip of a row', by: 'user', phone: false, open: async ({tierList}) => {
+    await tierList.goto(TANKS, UNNAMED_ROW_LIST);
+    await tierList.focusWithKeyboard(tierList.rowGrip('S'));
+  }},
+  {name: 'the focused stack of a row', by: 'user', phone: false, open: async ({tierList}) => {
+    await tierList.goto(TANKS, UNNAMED_ROW_LIST);
+    await tierList.focusWithKeyboard(tierList.rowStack('S'));
+  }},
   {name: 'Zen on a shared list', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.setZenMode(true))},
   {name: 'the Appearance menu', by: 'user', phone: true, open: onSharedList(({site}) => site.openAppearance())},
   {name: 'the Add images menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openManageItemsMenu())},
@@ -95,7 +109,7 @@ const OPEN_VIOLATIONS: Readonly<Record<OpenViolationKey, OpenViolation>> = {
   addImagesTileName: {
     rule: 'label-content-name-mismatch',
     element: /aria-label="Add images to Unrank/,
-    scans: ['the editor on a template', 'the editor with a shared list', 'the share panel'],
+    scans: ['the editor on a template', 'the editor with a shared list', 'the share panel', 'the editor with a row without a name', 'the focused grip of a row', 'the focused stack of a row'],
     modes: MODES,
     reason: 'WCAG 2.5.3 Label in Name: the tile shows "Add images" and "drop or paste", but its name is "Add images to Unranked" (components/ItemManager.tsx), without "drop or paste". Phones hide that line.',
   },

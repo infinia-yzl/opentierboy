@@ -1,7 +1,7 @@
 /** Moving items and rows: mouse drags, the keyboard, touch, and what screen readers hear. */
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
-import {expect, expectTierList, test} from '../support/test';
+import {expect, expectTierList, expectTierNames, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
@@ -18,7 +18,6 @@ import {
 import {
   MOUSE_DRAG_ITEM,
   MOUSE_DRAG_OTHER_ITEM,
-  MOUSE_DRAG_ROWS,
   mouseDragModel,
   mouseDragViewOf,
   type MouseDragEvent,
@@ -159,6 +158,103 @@ test.describe('drag and drop', () => {
     });
   });
 
+  // Each ranked row has two handles (owner decision, 2026-11-14): its grip moves the whole row,
+  // name included; its stack moves only its items, and the labels stay in place (product rule 6).
+  test.describe('rows', () => {
+    test('renders row S with its items after row A and writes 1 history entry when the user drags row S by its grip onto row A', async ({
+      tierList,
+    }) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
+      const entries = await tierList.countNewHistoryEntries();
+
+      await tierList.dragRowOnto('S', 'A');
+
+      await expectTierList(tierList, {tiers: [
+        {name: 'A', items: ['Winston']}, {name: 'S', items: ['Mauga']}, {name: 'B', items: []},
+        {name: 'C', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: ['Sigma']},
+      ]});
+      expect(await entries()).toBe(1);
+    });
+
+    test('renders the row colours by position when the user drags row S by its grip onto row B', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
+      const colours = await tierList.rowColours();
+
+      await tierList.dragRowOnto('S', 'B');
+
+      await expectTierNames(tierList, ['A', 'B', 'S', 'C', 'F', 'Unranked']);
+      expect(await tierList.rowColours()).toEqual(colours);
+    });
+
+    test('renders row S first again when the user goes Back after dragging row S by its grip onto row A', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      await tierList.dragRowOnto('S', 'A');
+      await expectTierNames(tierList, ['A', 'S', 'B', 'C', 'F', 'Unranked']);
+
+      await tierList.goBack();
+
+      await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    });
+
+    test('renders the same rows for a visitor of the share link when the user drags row S by its grip onto row B', async ({tierList, openAsVisitor}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], B: ['Winston']}));
+
+      await tierList.dragRowOnto('S', 'B');
+
+      const friend = await openAsVisitor(await tierList.shareLink());
+      await expectTierList(friend, {tiers: [
+        {name: 'A', items: []}, {name: 'B', items: ['Winston']}, {name: 'S', items: ['Mauga']},
+        {name: 'C', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
+      ]});
+    });
+
+    test('renders the items of row S in row A, the labels in place, when the user drags the stack of row S onto row A', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma'], A: ['Winston']}));
+
+      await tierList.dragRowItemsOnto('S', 'A');
+
+      await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
+      await expect(tierList.itemsIn('A')).toHaveText(['Mauga', 'Sigma']);
+    });
+
+    test('renders the stack of an empty row unavailable and no pick-up when the user presses Space on it', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
+      const announcement = await tierList.dragAnnouncer.textContent();
+
+      await expect(tierList.rowStack('C')).toHaveAccessibleName('Row C has 0 items to move');
+      await expect(tierList.rowStack('C')).toHaveAttribute('aria-disabled', 'true');
+      await tierList.rowStack('C').focus();
+      await tierList.pressKey('Space');
+
+      await tierList.settled();
+      expect(await tierList.dragAnnouncer.textContent()).toBe(announcement);
+    });
+
+    test('renders the stack name with the item count when the page opens with 2 items in row S', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma']}));
+
+      await expect(tierList.rowStack('S')).toHaveAccessibleName('Move the 2 items of row S');
+      await expect(tierList.rowGrip('S')).toHaveAccessibleName('Move row S');
+    });
+
+    test('renders the grip, then the items, then the stack in Tab order when the user tabs through row S', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma']}));
+
+      expect(await tierList.tabOrderIn('S')).toEqual(['Move row S', 'Mauga', 'Sigma', 'Move the 2 items of row S']);
+    });
+
+    test('renders row S back at its place and the cancel announcement when the user presses Escape during a grip drag', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
+
+      await tierList.moveRowWithKeyboardThenCancel('S', ['ArrowDown']);
+
+      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Row S is back at position 1 of 5.');
+      await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
+    });
+  });
+
   test.describe('announcements', () => {
     test('renders announcements with the item name and row labels when the user moves an item with the keyboard', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
@@ -167,20 +263,37 @@ test.describe('drag and drop', () => {
 
       expect(heard).toEqual([
         'Sigma moves to Unranked, position 1 of 2.',
-        'Sigma moves to tier F, position 1 of 1.',
-        'Dropped Sigma in tier F, position 1 of 1.',
+        'Sigma moves to row F, position 1 of 1.',
+        'Dropped Sigma in row F, position 1 of 1.',
       ]);
     });
 
-    test('renders the drop announcement and the labels S, A in order when the user moves row S down with the keyboard', async ({tierList}) => {
+    test('renders announcements with the item count and row labels, labels in place, when the user moves the stack of row S down', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      await tierList.moveTierWithKeyboard('S', ['ArrowDown']);
+      const heard = await tierList.moveRowWithKeyboardAndListen('S', 'stack', ['ArrowDown']);
 
-      await expect(tierList.dragAnnouncer).toHaveText('Dropped. The items of tier S are now in tier A.');
+      expect(heard).toEqual([
+        'The 1 item, over row A.',
+        "Dropped the 1 item in row A. Row A's items are now in row S.",
+      ]);
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
+    });
+
+    test('renders announcements with the row label and its position, and row S third, when the user moves row S down by its grip', async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+
+      const heard = await tierList.moveRowWithKeyboardAndListen('S', 'grip', ['ArrowDown', 'ArrowDown']);
+
+      expect(heard).toEqual([
+        'Row S, position 2 of 5, below row A.',
+        'Row S, position 3 of 5, below row B.',
+        'Dropped row S at position 3 of 5.',
+      ]);
+      await expectTierNames(tierList, ['A', 'B', 'S', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     });
   });
 
@@ -193,7 +306,7 @@ test.describe('drag and drop', () => {
 
       await tierList.dragItemToTierThenCancel('Mauga', 'A');
 
-      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in tier S, position 1 of 2.');
+      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in row S, position 1 of 2.');
       await tierList.settled();
       expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
       expect(await tierList.itemNamesIn('A')).toEqual([]);
@@ -260,10 +373,10 @@ test.describe('drag and drop', () => {
   });
 
   test.describe('long press', () => {
-    test('renders user-select none and -webkit-touch-callout none on item Mauga and row handle S when the page opens', {tag: '@mobile'}, async ({tierList}) => {
+    test('renders user-select none and -webkit-touch-callout none on item Mauga and the grip and stack of S when the page opens', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      for (const element of [tierList.item('Mauga'), tierList.rowHandle('S')]) {
+      for (const element of [tierList.item('Mauga'), tierList.rowGrip('S'), tierList.rowStack('S')]) {
         // Only Safari knows the touch callout; other browsers return nothing for it.
         await expect.poll(() => tierList.textSelectionStyle(element)).toEqual({userSelect: 'none', callout: expect.stringMatching(/^(none)?$/)});
       }
@@ -288,7 +401,7 @@ test.describe('drag and drop', () => {
 
         await tierList.settled();
         expect(await nativeDrags()).toBe(0);
-        await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in tier S,|Winston\. It stays in Unranked,)/);
+        await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in row S,|Winston\. It stays in Unranked,)/);
         expect(await newEntries()).toBe(1);
         await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
         await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
@@ -323,6 +436,12 @@ test.describe('drag and drop', () => {
     const ITEM_ID = packageItemId('image-overwatch', KEYBOARD_DRAG_ITEM);
     const LIST = v3State({r: [['tier-s', 'S', []], ['tier-a', 'A', []], ['uncategorized', '', [ITEM_ID]]]});
 
+    /** The row labels of a v3 link, top to bottom ('Unranked' for the tray). */
+    const linkOrderOf = (link: string): string[] => {
+      const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
+      return rows.map((entry) => (entry[entry.length - 2] as string) || 'Unranked');
+    };
+
     /** The row that holds the tile in a v3 link: rows are [id, label, items] or [label, items]. */
     const linkRowOf = (link: string): KeyboardDragRow | null => {
       const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
@@ -337,7 +456,8 @@ test.describe('drag and drop', () => {
       // Each change of the list in the link adds one history entry; a cancel and a drop in place add none.
       let entries = 0;
       let linkRow: KeyboardDragRow = 'Unranked';
-      /** The address the last drop that moved the tile wrote, or the link as opened. */
+      let linkOrder = 'S,A,Unranked';
+      /** The address the last drop that moved the tile or a row wrote, or the link as opened. */
       let address = '';
       return modelSut<KeyboardDragSnapshot, KeyboardDragEvent>(page, {
         reset: async () => {
@@ -346,6 +466,7 @@ test.describe('drag and drop', () => {
           await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           entries = await tierList.historyLength();
           linkRow = 'Unranked';
+          linkOrder = 'S,A,Unranked';
           address = page.url();
         },
         events: {
@@ -354,19 +475,31 @@ test.describe('drag and drop', () => {
           PRESS_UP: () => tierList.pressKey('ArrowUp'),
           PRESS_DOWN: () => tierList.pressKey('ArrowDown'),
           PRESS_ESCAPE: () => tierList.pressKey('Escape'),
+          // Row S moves whole by its grip, then the keyboard user tabs back to the tile.
+          MOVE_ROW_S_DOWN: async () => {
+            await tierList.moveRowWithKeyboard('S', ['ArrowDown']);
+            await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+          },
+          MOVE_ROW_S_UP: async () => {
+            await tierList.moveRowWithKeyboard('S', ['ArrowUp']);
+            await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+          },
         },
         // Web-first checks: the preview draws at once, but a move is read out 500 ms later.
         states: {
           '*': async (_page, snapshot) => {
-            const {shownIn, linkIn, carried, heard} = keyboardDragViewOf(snapshot);
+            const {shownIn, linkIn, carried, heard, order} = keyboardDragViewOf(snapshot);
+            await expectTierNames(tierList, [...order]);
             for (const row of KEYBOARD_DRAG_ROWS) {
               await expect(tierList.itemsIn(row)).toHaveText(row === shownIn ? [KEYBOARD_DRAG_ITEM] : []);
             }
             await expect(tierList.dragAnnouncer).toHaveText(heard);
             await expect.poll(() => linkRowOf(page.url()), {message: 'the link should hold the tile in its row'}).toBe(linkIn);
-            if (linkIn !== linkRow) {
+            await expect.poll(() => linkOrderOf(page.url()).join(','), {message: 'the link should hold the rows in order'}).toBe(order.join(','));
+            if (linkIn !== linkRow || order.join(',') !== linkOrder) {
               entries += 1;
               linkRow = linkIn;
+              linkOrder = order.join(',');
               address = page.url();
             } else {
               // A pick-up, a move before the drop, a drop in place and a cancel leave the address exactly as it was.
@@ -443,16 +576,18 @@ test.describe('drag and drop', () => {
           DROP_MAUGA_AFTER_WINSTON: () => tierList.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'after'),
           DROP_MAUGA_IN_PLACE: () => tierList.dragItemAndDropInPlace(MOUSE_DRAG_ITEM),
           RELEASE_MAUGA_OUTSIDE_ROWS: () => tierList.dragItemOutOfTheRows(MOUSE_DRAG_ITEM),
-          DRAG_ROW_S_ONTO_A: () => tierList.dragTierOnto('S', 'A'),
-          DRAG_ROW_A_ONTO_S: () => tierList.dragTierOnto('A', 'S'),
+          DRAG_ITEMS_OF_S_ONTO_A: () => tierList.dragRowItemsOnto('S', 'A'),
+          DRAG_ITEMS_OF_A_ONTO_S: () => tierList.dragRowItemsOnto('A', 'S'),
+          DRAG_ROW_S_ONTO_A: () => tierList.dragRowOnto('S', 'A'),
+          DRAG_ROW_A_ONTO_S: () => tierList.dragRowOnto('A', 'S'),
         },
         states: {
           '*': async (_page, snapshot) => {
             const view = mouseDragViewOf(snapshot);
-            // The labels stay S, A, Unranked from top to bottom; only the tiles move.
-            await expectTierList(tierList, {tiers: MOUSE_DRAG_ROWS.map((row) => ({name: row, items: [...view[row]]}))});
+            // A stack drag moves only the tiles and the labels stay; a grip drag moves a row, label included.
+            await expectTierList(tierList, {tiers: view.order.map((row) => ({name: row, items: [...view.items[row]]}))});
             await expect.poll(() => linkRowsOf(page.url()), {message: 'the link should hold the rows as they show'})
-              .toEqual(MOUSE_DRAG_ROWS.map((row) => ({label: row, items: view[row].map((name) => ITEM_IDS[name])})));
+              .toEqual(view.order.map((row) => ({label: row, items: view.items[row].map((name) => ITEM_IDS[name])})));
             const rows = JSON.stringify(view);
             if (shown !== '' && rows !== shown) entries += 1;
             // A drop that changes nothing leaves the address exactly as it was.

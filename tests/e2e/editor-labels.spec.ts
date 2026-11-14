@@ -73,19 +73,19 @@ test.describe('editor labels', () => {
       await expect(tierList.tierNameInput('Must pick')).toHaveCount(0);
     });
 
-    test('renders the label Tier 2 and the row items, also from the share link, when the user clears row label A', async ({
+    test('renders the hint Row 2 and the row items, also from the share link, when the user clears row label A', async ({
       tierList,
       openAsVisitor,
     }) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {A: ['Winston']}));
 
-      await tierList.renameTier('A', '', 'Tier 2');
+      await tierList.renameTier('A', '', 'Row 2');
 
-      await expectTierNames(tierList, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
-      await expect(tierList.itemsIn('Tier 2')).toHaveText(['Winston']);
+      await expectTierNames(tierList, ['S', 'Row 2', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('Row 2')).toHaveText(['Winston']);
       const friend = await openAsVisitor(await tierList.shareLink());
-      await expectTierNames(friend, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
-      await expect(friend.itemsIn('Tier 2')).toHaveText(['Winston']);
+      await expectTierNames(friend, ['S', 'Row 2', 'B', 'C', 'F', 'Unranked']);
+      await expect(friend.itemsIn('Row 2')).toHaveText(['Winston']);
     });
   });
 

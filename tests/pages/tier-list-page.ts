@@ -39,6 +39,26 @@ export interface CapturedImage {
 }
 
 /**
+ * A ranked row inside a button name or an announcement, as the editor says it
+ * (lib/dnd/labels.ts): "row S", or as it is for "Row 4" (a row without a label) and labels that
+ * start with "Row" or "Tier".
+ */
+export function rowPhrase(tierName: string): string {
+  return /^(?:row|tier)\b/i.test(tierName) ? tierName : `row ${tierName}`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * The buttons in a row that are not items: the grip ("Move row S", "Move Row 4"), the stack ("Move
+ * the 3 items of row S", "Row C has 0 items to move"), the tray's "Add images to" tile and the
+ * Template, Upload and Link buttons of an empty list's drop area.
+ */
+const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|.* has 0 items to move$|Add images to\b|(?:Template|Upload|Link)$)/;
+
+/**
  * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
  * one), so a test cannot paste files there. Paste tests skip Firefox with this reason.
  */
@@ -52,9 +72,13 @@ export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a n
  * Locators follow https://playwright.dev/docs/locators#quick-guide: they use roles and
  * accessible names, the same handles that a screen-reader user relies on.
  *
- * - A tier row is a `group` named after its label. The unnamed last row is "Unranked".
+ * - A tier row is a `group` named after its label. The unnamed last row is "Unranked", another
+ *   row without a label is "Row <n>", its position.
  * - An item is a `button` named after its label (it is the drag handle as well).
- * - The handle that reorders a row is a `button` named "Move tier <label>".
+ * - Each ranked row has two handles: its grip, a `button` named "Move row <label>" ("Move Row 4"
+ *   for a row without a label), which moves the whole row; and its stack, a `button` named "Move
+ *   the 3 items of row <label>" ("Row <label> has 0 items to move" when it is empty), which moves
+ *   only the items.
  */
 /** Files for the file picker: paths, or files made in the test. */
 type DeviceFiles = string[] | {name: string; mimeType: string; buffer: Buffer}[];
@@ -181,12 +205,12 @@ export class TierListPage {
   }
 
   /**
-   * All items in a tier, in display order. Not items: the row handle, the tray's "Add images to
-   * Unranked" tile, and the Template, Upload and Link buttons of an empty list's drop area.
+   * All items in a tier, in display order. Not items: the row's grip and stack, the tray's "Add
+   * images to Unranked" tile, and the Template, Upload and Link buttons of an empty list's drop area.
    */
   itemsIn(tier: string | Locator): Locator {
     const row = typeof tier === 'string' ? this.tier(tier) : tier;
-    return row.getByRole('button', {name: /^(?!Move tier\b|Add images to\b|(?:Template|Upload|Link)$)/});
+    return row.getByRole('button', {name: NOT_AN_ITEM});
   }
 
   item(name: string): Locator {
@@ -318,8 +342,15 @@ export class TierListPage {
     }
   }
 
-  rowHandle(tierName: string): Locator {
-    return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
+  /** A row's grip, beside the row: it moves the whole row, its name included. */
+  rowGrip(tierName: string): Locator {
+    return this.main.getByRole('button', {name: `Move ${rowPhrase(tierName)}`, exact: true});
+  }
+
+  /** A row's stack, at the row's end: it moves only the row's items; the names stay in place. */
+  rowStack(tierName: string): Locator {
+    const phrase = escapeRegExp(rowPhrase(tierName));
+    return this.main.getByRole('button', {name: new RegExp(`^(?:Move the \\d+ items? of ${phrase}|${capitalise(phrase)} has 0 items to move)$`)});
   }
 
   /** Leaves the editor for the landing page with the site's logo link in the header. */
@@ -467,7 +498,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toHaveText(/^Picked up /);
       await mouse.move(row.x + 150, row.y + row.height / 2, {steps: 16});
       // The drop target follows the pointer within a few frames. A wrong row stays wrong.
-      await expect(this.dragAnnouncer).toHaveText(/ moves to tier /);
+      await expect(this.dragAnnouncer).toHaveText(/ moves to row /);
       await this.scrollPositionAfterFrames();
       await mouse.up();
       await this.dropEnded();
@@ -598,10 +629,23 @@ export class TierListPage {
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\. It stays in `));
   }
 
-  /** Drags a whole row by its handle and drops it on the position of another row. */
-  async dragTierOnto(tierName: string, targetTierName: string) {
+  /**
+   * Drags a whole row by its grip and drops it on the place of another row: the row moves with
+   * its name and items, and the rows between make room.
+   */
+  async dragRowOnto(tierName: string, targetTierName: string) {
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.rowHandle(tierName), this.rowHandle(targetTierName), centerOfBox),
+      this.dragWithMouse(this.rowGrip(tierName), this.tier(targetTierName), centerOfBox),
+    );
+  }
+
+  /**
+   * Drags the items of a row by its stack and drops them on the place of another row: the items
+   * move and the labels stay S, A, B... from top to bottom (product rule 6).
+   */
+  async dragRowItemsOnto(tierName: string, targetTierName: string) {
+    await this.dropAndWaitForLink(() =>
+      this.dragWithMouse(this.rowStack(tierName), this.tier(targetTierName), centerOfBox),
     );
   }
 
@@ -768,10 +812,89 @@ export class TierListPage {
     return heard;
   }
 
-  /** Moves a whole row with the keyboard, using its row handle. */
-  async moveTierWithKeyboard(tierName: string, keys: string[]) {
-    // The labels stay in place, so the moved row's handle has the name of its new position.
-    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.rowHandle(tierName), keys, /^Move tier /));
+  /** Moves a whole row with the keyboard, using its grip. Focus comes back to the grip. */
+  async moveRowWithKeyboard(tierName: string, keys: string[]) {
+    // The name moves with the row, but a row without a name is named by its new position.
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.rowGrip(tierName), keys, /^Move (?:row |Row \d+$)/));
+  }
+
+  /**
+   * Moves the items of a row with the keyboard, using its stack. Focus comes back to the stack,
+   * which the labels in place name after its new position.
+   */
+  async moveRowItemsWithKeyboard(tierName: string, keys: string[]) {
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.rowStack(tierName), keys, /^Move the \d+ items? of /));
+  }
+
+  /**
+   * Lifts a whole row by its grip with the keyboard (Space), moves it with the given keys, then
+   * presses Escape. Returns once the cancel is announced and focus is back on the grip.
+   */
+  async moveRowWithKeyboardThenCancel(tierName: string, keys: string[]) {
+    const keyboard = this.page.keyboard;
+    await this.dropEnded();
+    await this.rowGrip(tierName).focus();
+    await keyboard.press('Space');
+    await expect(this.dragAnnouncer).toContainText('Picked up');
+    for (const key of keys) {
+      const before = await this.dragAnnouncer.textContent();
+      await keyboard.press(key);
+      await expect(this.dragAnnouncer).not.toHaveText(before ?? '');
+    }
+    await keyboard.press('Escape');
+    await expect(this.dragAnnouncer).toContainText('Move cancelled.');
+    await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(`Move ${rowPhrase(tierName)}`);
+    await this.expectEveryItemDraggable();
+  }
+
+  /**
+   * The names of what Tab reaches inside a row, in order: from the element before the row, Tab
+   * until the focus leaves the row.
+   */
+  async tabOrderIn(tierName: string): Promise<string[]> {
+    const row = this.tier(tierName);
+    await this.settled();
+    const first = row.getByRole('button').first();
+    await first.focus();
+    await this.page.keyboard.press('Shift+Tab');
+    const names: string[] = [];
+    for (;;) {
+      await this.page.keyboard.press('Tab');
+      const inRow = await row.evaluate((element) => element.contains(document.activeElement));
+      if (!inRow) return names;
+      names.push(await this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''));
+    }
+  }
+
+  /**
+   * Gives an element focus as the keyboard does, so it shows its focus ring (:focus-visible):
+   * focus the element before it, then Tab.
+   */
+  async focusWithKeyboard(element: Locator) {
+    await element.focus();
+    await this.page.keyboard.press('Shift+Tab');
+    await this.page.keyboard.press('Tab');
+    await expect(element).toBeFocused();
+  }
+
+  /** The colour of each ranked row from top to bottom (its gradient), as computed CSS. */
+  async rowColours(): Promise<string[]> {
+    const rows = await this.tiers.all();
+    const colours = await Promise.all(rows.slice(0, -1).map((row) => row.evaluate((element) => getComputedStyle(element).backgroundImage)));
+    return colours;
+  }
+
+  /**
+   * Moves a whole row or its items with the keyboard and returns what screen readers hear after
+   * each arrow key and the drop.
+   */
+  async moveRowWithKeyboardAndListen(tierName: string, handle: 'grip' | 'stack', keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    const [locator, focusAfter] = handle === 'grip'
+      ? [this.rowGrip(tierName), /^Move (?:row |Row \d+$)/]
+      : [this.rowStack(tierName), /^Move the \d+ items? of /];
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(locator, keys, focusAfter, heard));
+    return heard;
   }
 
   private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
@@ -823,7 +946,7 @@ export class TierListPage {
         await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
         await this.scrollPositionAfterFrames(2);
       }
-      await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
+      await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : rowPhrase(tierName))},`));
       await touch('touchEnd', null, start + 0.7);
       await this.dropEnded();
       await this.expectEveryItemDraggable();
@@ -2152,7 +2275,7 @@ export class TierListPage {
       await mouse.move(to.x + 1, to.y);
       await this.scrollPositionAfterFrames();
       await mouse.move(to.x, to.y);
-      const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`);
+      const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to ${escapeRegExp(rowPhrase(tierName))},`);
       await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow);
       await mouse.up();
       await this.dropEnded();
@@ -2167,6 +2290,13 @@ export class TierListPage {
   /** The frame of a creator layout: "Frame 16:9" (16:9 and the overlays) or "Frame 9:16". */
   get zenFrame(): Locator {
     return this.page.getByRole('region', {name: /^Frame /});
+  }
+
+  /** True when the box of `inner` lies within the box of `outer` on screen (to the nearest pixel). */
+  async isInside(inner: Locator, outer: Locator): Promise<boolean> {
+    const [a, b] = await Promise.all([boxOf(inner), boxOf(outer)]);
+    return Math.round(a.x) >= Math.round(b.x) && Math.round(a.y) >= Math.round(b.y)
+      && Math.round(a.x + a.width) <= Math.round(b.x + b.width) && Math.round(a.y + a.height) <= Math.round(b.y + b.height);
   }
 
   /** The size of an element on screen, in CSS pixels, rounded. */

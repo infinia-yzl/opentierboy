@@ -31,12 +31,12 @@ const ranked = (rows: readonly EditorRow[], canAdd = true, canRemove = true): Ed
 const VIEWS: Readonly<Record<EditorRowsState, EditorRowsView>> = {
   nineteen: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'F'), ...MIDDLE_ROWS, {name: 'R19', items: ['Winston']}, unranked('Sigma')], false),
   eighteen: ranked([...empty('A', 'B', 'C', 'F'), ...MIDDLE_ROWS, {name: 'R19', items: ['Winston']}, unranked('Sigma', 'Mauga')]),
-  nineteenAdded: ranked([...empty('A', 'B', 'C', 'F'), ...MIDDLE_ROWS, {name: 'R19', items: ['Winston']}, ...empty('Tier 19'), unranked('Sigma', 'Mauga')], false),
+  nineteenAdded: ranked([...empty('A', 'B', 'C', 'F'), ...MIDDLE_ROWS, {name: 'R19', items: ['Winston']}, ...empty('Row 19'), unranked('Sigma', 'Mauga')], false),
   three: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B'), unranked('Winston', 'Sigma')]),
-  threeCleared: ranked([{name: 'S', items: ['Mauga']}, ...empty('Tier 2', 'B'), unranked('Winston', 'Sigma')]),
-  twoCleared: ranked([...empty('Tier 1', 'B'), unranked('Winston', 'Sigma', 'Mauga')]),
+  threeCleared: ranked([{name: 'S', items: ['Mauga']}, ...empty('Row 2', 'B'), unranked('Winston', 'Sigma')]),
+  twoCleared: ranked([...empty('Row 1', 'B'), unranked('Winston', 'Sigma', 'Mauga')]),
   one: ranked([...empty('B'), unranked('Winston', 'Sigma', 'Mauga')], true, false),
-  twoAdded: ranked([...empty('B', 'Tier 2'), unranked('Winston', 'Sigma', 'Mauga')]),
+  twoAdded: ranked([...empty('B', 'Row 2'), unranked('Winston', 'Sigma', 'Mauga')]),
   five: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'F'), unranked('Winston', 'Sigma')]),
   seven: ranked([...empty('SS'), {name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'D', 'F'), unranked('Winston', 'Sigma')]),
 };

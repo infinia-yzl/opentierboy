@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const editorRowsMachine = createMachine({
   id: 'editorRows',
-  description: 'Adding and removing rows, and switching the row template, from a list that opens with 19 ranked rows: S holds Mauga, the last ranked row R19 holds Winston, and Unranked holds Sigma. A list has at most 20 rows, Unranked included, and keeps at least 1 ranked row. Add row puts a row labelled Tier n above Unranked. Row options › Remove a row › the first row removes the top row, and its items go to the end of Unranked. Choosing 3, 5 or 7 Rows gives the template rows and labels: items stay in a row of the same id, and the items of rows that disappear go to Unranked, before its own items. A cleared label reads Tier n, after its place. Every change that changes the list adds one history entry; a choice that changes nothing adds none.',
+  description: 'Adding and removing rows, and switching the row template, from a list that opens with 19 ranked rows: S holds Mauga, the last ranked row R19 holds Winston, and Unranked holds Sigma. A list has at most 20 rows, Unranked included, and keeps at least 1 ranked row. Add row puts a row without a name above Unranked: it reads Row n, its position, and the link holds no name for it. Row options › Remove a row › the first row removes the top row, and its items go to the end of Unranked. Choosing 3, 5 or 7 Rows gives the template rows and labels: items stay in a row of the same id, and the items of rows that disappear go to Unranked, before its own items. A cleared label reads Row n, after its place. Every change that changes the list adds one history entry; a choice that changes nothing adds none.',
   initial: 'nineteen',
   states: {
     nineteen: {
@@ -19,7 +19,7 @@ export const editorRowsMachine = createMachine({
       on: {ADD_ROW: {target: 'nineteenAdded'}},
     },
     nineteenAdded: {
-      description: 'A new empty row, Tier 19, above Unranked: 20 rows again, so Add row is off.',
+      description: 'A new empty row without a name, Row 19, above Unranked: 20 rows again, so Add row is off.',
     },
     three: {
       description: 'The 3-row template: S (Mauga), A and B. Winston, whose row R19 is gone, went to Unranked before Sigma (Winston, Sigma). Choosing 3 Rows again changes nothing.',
@@ -30,14 +30,14 @@ export const editorRowsMachine = createMachine({
       },
     },
     threeCleared: {
-      description: 'The label of the second row, A, was cleared: the row reads Tier 2. S (Mauga), Tier 2 and B. Choosing 3 Rows puts the template labels back.',
+      description: 'The label of the second row, A, was cleared: the row reads Row 2. S (Mauga), Row 2 and B. Choosing 3 Rows puts the template labels back.',
       on: {
         REMOVE_FIRST_ROW: {target: 'twoCleared'},
         CHOOSE_3_ROWS: {target: 'three'},
       },
     },
     twoCleared: {
-      description: 'Row S is gone, so the cleared row is now first and reads Tier 1: Tier 1 and B. Mauga went to the end of Unranked (Winston, Sigma, Mauga).',
+      description: 'Row S is gone, so the cleared row is now first and reads Row 1: Row 1 and B. Mauga went to the end of Unranked (Winston, Sigma, Mauga).',
       on: {REMOVE_FIRST_ROW: {target: 'one'}},
     },
     one: {
@@ -45,7 +45,7 @@ export const editorRowsMachine = createMachine({
       on: {ADD_ROW: {target: 'twoAdded'}},
     },
     twoAdded: {
-      description: 'A new empty row, Tier 2, below B: Remove a row is on again.',
+      description: 'A new empty row without a name, Row 2, below B: Remove a row is on again.',
     },
     five: {
       description: 'The 5-row template: S (Mauga), A, B, C and F, and Unranked (Winston, Sigma). Choosing 5 Rows again changes nothing.',

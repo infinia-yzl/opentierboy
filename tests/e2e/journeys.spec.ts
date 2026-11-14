@@ -89,9 +89,9 @@ test.describe('journeys', () => {
         // Keyboard: Up from Unranked goes to the last ranked row, and Up again to the row above it.
         {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], F: ['Sigma'], Unranked: ['Orisa']})},
         {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
-        // Rows: the labels describe positions, so moving row S down moves its items into A.
-        {act: () => tierList.moveTierWithKeyboard('S', ['ArrowDown']), list: rows({A: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
-        {act: () => tierList.dragTierOnto('C', 'S'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], Unranked: ['Orisa']})},
+        // A row's stack: the labels describe positions, so moving the items of row S down moves them into A.
+        {act: () => tierList.moveRowItemsWithKeyboard('S', ['ArrowDown']), list: rows({A: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
+        {act: () => tierList.dragRowItemsOnto('C', 'S'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], Unranked: ['Orisa']})},
         {act: () => tierList.dragItemToTier('Orisa', 'F'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], F: ['Orisa']})},
       ]);
     });
@@ -117,8 +117,8 @@ test.describe('journeys', () => {
 
       const sixRows = (items: Parameters<typeof rows>[0], name: string, sixth: string[]) => rows(items, [{name, items: sixth}]);
       await walkJourney(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}), [
-        {act: () => tierList.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Tier 6', [])},
-        {act: () => tierList.renameTier('Tier 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
+        {act: () => tierList.addTierRow(), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'Row 6', [])},
+        {act: () => tierList.renameTier('Row 6', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}, 'D', [])},
         {act: () => tierList.dragItemToTier('Winston', 'D'), list: sixRows({S: ['Mauga'], Unranked: ['Sigma']}, 'D', ['Winston'])},
         {act: () => tierList.renameTier('S', 'Best'), list: {tiers: [{name: 'Best', items: ['Mauga']}, ...sixRows({Unranked: ['Sigma']}, 'D', ['Winston']).tiers.slice(1)]}},
         // A removed row's items go to Unranked.
@@ -148,8 +148,13 @@ test.describe('journeys', () => {
         {act: () => tierList.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Mauga'], A: ['Winston'], F: ['Sigma']})},
         // Down keeps the item's place across the row, so Mauga lands before Winston.
         {act: () => tierList.moveItemWithKeyboard('Mauga', ['ArrowDown']), list: rows({A: ['Mauga', 'Winston'], F: ['Sigma']})},
-        {act: () => tierList.moveTierWithKeyboard('A', ['ArrowUp']), list: rows({S: ['Mauga', 'Winston'], F: ['Sigma']})},
-        {act: () => tierList.moveTierWithKeyboard('F', ['ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga', 'Winston'], B: ['Sigma']})},
+        {act: () => tierList.moveRowItemsWithKeyboard('A', ['ArrowUp']), list: rows({S: ['Mauga', 'Winston'], F: ['Sigma']})},
+        {act: () => tierList.moveRowItemsWithKeyboard('F', ['ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga', 'Winston'], B: ['Sigma']})},
+        // A row's grip: the whole row moves, its name included.
+        {act: () => tierList.moveRowWithKeyboard('B', ['ArrowUp']), list: {tiers: [
+          {name: 'S', items: ['Mauga', 'Winston']}, {name: 'B', items: ['Sigma']}, {name: 'A', items: []},
+          {name: 'C', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
+        ]}},
       ]);
     });
   });

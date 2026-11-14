@@ -63,7 +63,7 @@ export interface StageSizes {
   /** Tiles of the queue after the item up next, and how many of them show. */
   readonly queueTile: number;
   readonly queueLimit: number;
-  /** The row handle's width and its icon (rows move by mouse and keyboard in every layout). */
+  /** The width of a row's stack and its icon; the grip's column is 0.6 of it (rows move by mouse and keyboard in every layout). */
   readonly handle: number;
   readonly handleIcon: number;
   /** The strip above the frame that holds the Zen bar (its height), and the bar in it. */
