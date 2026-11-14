@@ -46,6 +46,9 @@ export default defineConfig({
     trace: secret ? 'off' : 'on-first-retry',
     screenshot: 'only-on-failure',
     extraHTTPHeaders: sharedHeaders,
+    // As people who ask their system for less motion: nothing slides while a test measures the
+    // page (app/globals.css). A test about an animation turns it back on with test.use.
+    reducedMotion: 'reduce',
   },
 
   projects: [

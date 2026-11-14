@@ -423,3 +423,19 @@ html.zen-mode .show-in-zen {
 html[data-zen-layout] body {
   overflow: hidden;
 }
+
+/* People who ask their system for less motion get none: animations and transitions end at once.
+   The drag library already skips its drop animation for them (lib/dnd/dndKit.ts). The tests run
+   this way (playwright.config.ts), so nothing slides while they measure the page. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
