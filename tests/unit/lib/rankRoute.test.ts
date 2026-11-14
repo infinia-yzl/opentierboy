@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import imagesetConfig from '@/imageset.config.json';
 import type ImageSetConfig from '@/models/ImageSet';
-import {findRankSet, findRankTag, rankRoute} from '@/lib/rankRoute';
+import {findRankSet, findRankTag, rankItemSet, rankItemSetTitle, rankRoute, rankSegments} from '@/lib/rankRoute';
 
 const config = imagesetConfig as ImageSetConfig;
 /** The answer for a path such as /rank/overwatch/tank (rankRoute takes the segments after /rank). */
@@ -69,5 +69,48 @@ describe('rankRoute', () => {
     expect(route('/rank/nope/nope', true)).toEqual({kind: 'page', legacy: false});
     expect(route('/rank/overwatch/nope', true)).toEqual({kind: 'page', legacy: false});
     expect(route('/rank/nope', true)).toEqual({kind: 'page', legacy: false});
+  });
+});
+
+describe('rankSegments', () => {
+  it('returns the decoded segments after /rank when the path is plain or percent-encoded', () => {
+    expect(rankSegments('/rank')).toEqual([]);
+    expect(rankSegments('/rank/')).toEqual([]);
+    expect(rankSegments('/rank/overwatch/h-all')).toEqual(['overwatch', 'h-all']);
+    expect(rankSegments('/rank/caf%C3%A9/all')).toEqual(['café', 'all']);
+  });
+
+  it('returns null when the path has a malformed escape', () => {
+    expect(rankSegments('/rank/%E0%A4%A')).toBeNull();
+  });
+});
+
+describe('rankItemSet', () => {
+  it('returns the set, the tag title and every file when the path names a set and all', () => {
+    const itemSet = rankItemSet(config, ['overwatch', 'all']);
+    expect(itemSet).toMatchObject({packageName: 'image-overwatch', tagName: 'all', tagTitle: 'All Items'});
+    expect(itemSet?.images).toEqual(config.packages['image-overwatch'].images.map((image) => image.filename));
+  });
+
+  it('returns the files of the tag in template order when the path names a tag by its URL form', () => {
+    const itemSet = rankItemSet(config, ['image-overwatch', 'h-all']);
+    expect(itemSet?.tagName).toBe('h_all');
+    expect(itemSet?.images).toEqual(config.packages['image-overwatch'].images
+      .filter((image) => image.tags.includes('h_all')).map((image) => image.filename));
+  });
+
+  it('returns null when the path is /rank, has no tag, or names an unknown set or tag', () => {
+    expect(rankItemSet(config, [])).toBeNull();
+    expect(rankItemSet(config, ['overwatch'])).toBeNull();
+    expect(rankItemSet(config, ['nope', 'all'])).toBeNull();
+    expect(rankItemSet(config, ['overwatch', 'nope'])).toBeNull();
+    expect(rankItemSet(config, ['constructor', 'all'])).toBeNull();
+  });
+});
+
+describe('rankItemSetTitle', () => {
+  it('returns "<set> - <tag>" for a template and "Custom Tier List" when there is none', () => {
+    expect(rankItemSetTitle(rankItemSet(config, ['overwatch', 'tank']))).toBe(`OVERWATCH - ${config.packages['image-overwatch'].tags.tank.title}`);
+    expect(rankItemSetTitle(null)).toBe('Custom Tier List');
   });
 });

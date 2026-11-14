@@ -100,27 +100,26 @@ export const useTierContext = () => {
 interface TierListProviderProps {
   /** The template of this page (/rank/<set>/<tag>), if any. */
   initialItemSet?: ItemSet;
-  /** The `state` parameter the page was opened with. */
-  initialState?: string;
   /** The page title: the title of a list whose link has none. */
   pageTitle: string;
   children: React.ReactNode;
 }
 
-export function TierListProvider({initialItemSet, initialState, pageTitle, children}: TierListProviderProps) {
+export function TierListProvider({initialItemSet, pageTitle, children}: TierListProviderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // The `state` parameter of the address. The editor starts with it: the server's copy of the page
+  // reads the same address (app/rank/layout.tsx), so the first render in the browser matches it.
+  const address = stateParam(searchParams.get('state'));
 
   const [{tierCortex, encode, reducer}] = useState(() => {
     const cortex = createTierCortex();
     const encodeList: ListEncoder = (title, tiers, layout) => cortex.encodeListForURL(title, tiers, layout);
     return {tierCortex: cortex, encode: encodeList, reducer: createTierListReducer(encodeList)};
   });
-  const [state, dispatch] = useReducer(reducer, null, () => {
-    const address = stateParam(initialState);
-    return initialTierListState(loadList(tierCortex, address, initialItemSet, pageTitle), address, encode);
-  });
+  const [state, dispatch] = useReducer(reducer, null, () =>
+    initialTierListState(loadList(tierCortex, address, initialItemSet, pageTitle), address, encode));
 
   // Recently viewed: a list opened fresh (this editor started with a link that holds a list) is
   // recorded once. Edits, Back and Forward are not.
@@ -131,7 +130,6 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
   }, [openedLink]);
 
   // Address to store, during render, so the screen never shows a list from another address.
-  const address = stateParam(searchParams.get('state'));
   if (address !== state.address) {
     const loaded = addressNeedsLoading(state, address) ? loadList(tierCortex, address, initialItemSet, pageTitle) : null;
     dispatch({type: 'addressChanged', address, loaded});

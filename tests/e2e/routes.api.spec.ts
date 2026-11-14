@@ -57,6 +57,31 @@ test.describe('routes', () => {
   });
 
   /**
+   * The template pages and /rank are built ahead, so a CDN serves them as they are; an address
+   * with a list in its link renders on request, for the list's title and link preview
+   * (lib/rankRoute.ts).
+   */
+  test.describe('built pages', () => {
+    test('returns a Cache-Control without no-store or private when the request has /rank or a template path', async ({request}) => {
+      for (const path of ['/rank', '/rank/overwatch/tank', '/rank/the-finals/all']) {
+        const response = await request.get(path, {maxRedirects: 0});
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['cache-control'], path).not.toMatch(/no-store|private/);
+      }
+    });
+
+    test('returns the list title and a Cache-Control with no-store when the request has a state parameter', async ({request}) => {
+      const state = rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks by feel');
+      for (const path of ['/rank', '/rank/overwatch/tank']) {
+        const response = await request.get(`${path}?state=${state}`, {maxRedirects: 0});
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['cache-control'], path).toMatch(/no-store/);
+        expect(await response.text(), path).toContain('<title>Tanks by feel</title>');
+      }
+    });
+  });
+
+  /**
    * The tier list page as search engines and chat apps fetch it. These tests call the page
    * directly, so they run once and need no browser.
    */
