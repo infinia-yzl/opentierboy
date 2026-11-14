@@ -152,7 +152,7 @@ export class SitePage {
     return this.card(setName).getByRole('navigation', {name: `${setName} templates`}).getByRole('link');
   }
 
-  /** A template button by its accessible name, for example "Tank, about 10 items". */
+  /** A template button by its accessible name, for example "Tank, 10+ items". */
   templateButton(setName: string, name: string): Locator {
     return this.card(setName).getByRole('navigation', {name: `${setName} templates`}).getByRole('link', {name, exact: true});
   }

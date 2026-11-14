@@ -287,16 +287,15 @@ purpose.
 `tests/e2e/accessibility.spec.ts` opens each page, dialog and menu in its list (`SCANS`), in light
 and dark mode, and scans it with [axe-core](https://github.com/dequelabs/axe-core) for the WCAG 2.1
 A and AA rules (`scanForViolations` in `tests/support/accessibility.ts`). The scan starts once the
-page has settled, its fonts have loaded and its animations have ended. The violations found when
-the spec was added are listed in `OPEN_VIOLATIONS`, each with its own test in `Known bugs`; a scan
-leaves out only those elements, in the scans and modes listed there.
+page has settled, its fonts have loaded and its animations have ended. Every scan expects no
+violation at all.
 
-A failing scan prints the violations it did not expect: for each, the axe-core rule id (its page is
+A failing scan prints its violations: for each, the axe-core rule id (its page is
 `https://dequeuniversity.com/rules/axe/<version>/<rule>`), its impact, what the rule asks for, and
 each element as a CSS path followed by its opening tag. Find the element on the page from the tag,
-read the rule's page, and fix the app or ask the owner; a confirmed bug the owner keeps for later
-goes into `OPEN_VIOLATIONS` with its own `Known bugs` test. When a Known bugs test passes, the
-violation is gone: remove its entry and its test.
+read the rule's page, and fix the app, or ask the owner when the fix changes what people see. A
+confirmed bug the owner keeps for later gets a test of the correct behaviour in `Known bugs`
+(marked `test.fail`), and the scan leaves out that element until it is fixed.
 
 ## Model-based tests
 

@@ -242,7 +242,8 @@ interface ItemManagerProps {
   openFocusRef?: React.RefObject<HTMLButtonElement | null>;
   /**
    * What opens the menu: the toolbar button, or the dashed tile that ends the Unranked tray
-   * ("Add images to Unranked", owner decision 2026-10-28: the decided editor board).
+   * ("Add images to Unranked", owner decision 2026-10-28: the decided editor board). Its name
+   * holds what it shows: "Add images, drop or paste, to Unranked".
    */
   trigger?: 'button' | 'tile';
 }
@@ -272,12 +273,15 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {trigger === 'tile' ? (
-          <Button variant="ghost" ref={setTriggerRef} aria-label="Add images to Unranked"
+          <Button variant="ghost" ref={setTriggerRef} aria-label="Add images, drop or paste, to Unranked"
                   className={`${TILE_SIZES.square.className} ${COMPACT_TILE_CLASSES.square} p-0 flex-col gap-0.5 whitespace-normal leading-tight text-center rounded-md border border-dashed border-muted-foreground/40 text-[11px] text-muted-foreground hover:text-foreground`}
           >
-            <PlusIcon className="h-4 w-4"/>
-            {/* Compact tiles (48 px) keep only the icon; the button keeps its name. */}
+            <PlusIcon aria-hidden="true" className="h-4 w-4"/>
+            {/* The name holds the words the tile shows (WCAG 2.5.3, label in name), in their order.
+                Compact tiles (48 px) keep only the icon. */}
             <span className="compact:sr-only">Add images</span>
+            {/* A space between the lines, so their words stay apart as text. */}
+            {' '}
             {/* Dropping and pasting need a mouse and a keyboard: hidden on touch screens, and in
                 Compact tiles, which keep only the icon. */}
             <span className="tooltip-mouse compact:hidden text-[9px] font-normal leading-tight">drop or paste</span>

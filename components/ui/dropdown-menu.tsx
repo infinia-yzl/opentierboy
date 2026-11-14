@@ -10,7 +10,14 @@ import {
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+/**
+ * Menus are not modal: a modal Radix menu sets aria-hidden on the rest of the page while it is
+ * open, which hides links and buttons that can still take focus (WCAG 4.1.2, axe
+ * aria-hidden-focus). Focus still moves into the menu, and Escape or a press outside closes it.
+ */
+const DropdownMenu = ({modal = false, ...props}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) => (
+  <DropdownMenuPrimitive.Root modal={modal} {...props}/>
+)
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 

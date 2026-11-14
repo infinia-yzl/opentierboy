@@ -46,7 +46,7 @@ const TEMPLATES = [
 function countOf(count: number): {text: string; words: string} {
   if (count < 10) return {text: String(count), words: `${count} ${count === 1 ? 'item' : 'items'}`};
   const rounded = count - (count % 10);
-  return {text: `${rounded}+`, words: `about ${rounded} items`};
+  return {text: `${rounded}+`, words: `${rounded}+ items`};
 }
 
 /** Opens two lists, Tanks list then Support list. The editor records a list once it has started in the browser. */

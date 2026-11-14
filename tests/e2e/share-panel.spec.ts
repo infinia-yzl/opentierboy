@@ -172,20 +172,12 @@ test.describe('share panel', () => {
     });
   });
 
-  /**
-   * Known bugs. Each test describes the correct behaviour and is marked `test.fail`, so the
-   * suite stays green while the bug exists. See editor-items.spec.ts for the convention.
-   */
-  test.describe('Known bugs', () => {
-    test('renders the Facebook and X share buttons with accessible names when the user opens the share panel', {tag: '@mobile'}, async ({tierList}) => {
-      await tierList.goto(TANKS);
-      await tierList.openSharePanel();
-      // Marked here, after the steps that must work: a failure above fails the test as usual.
-      test.fail(true, 'The two buttons hold only an icon (components/ShareButton.tsx), so they have no accessible name.');
-      await tierList.settled();
-      expect(await tierList.socialShareButton(/Facebook/).isVisible()).toBe(true);
-      expect(await tierList.socialShareButton(/\bX\b|Twitter/).isVisible()).toBe(true);
-    });
+  test('renders the Facebook and X share buttons by their names when the user opens the share panel', {tag: '@mobile'}, async ({tierList}) => {
+    await tierList.goto(TANKS);
+    await tierList.openSharePanel();
+
+    await expect(tierList.socialShareButton('Share on Facebook')).toBeVisible();
+    await expect(tierList.socialShareButton('Share on X')).toBeVisible();
   });
 
   test.describe('model', () => {

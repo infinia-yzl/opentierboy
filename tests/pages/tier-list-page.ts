@@ -57,7 +57,7 @@ export function rowPhrase(tierName: string): string {
  * the 3 items of row S"; an empty row has none), the tray's "Add images to" tile and the
  * Template, Upload and Link buttons of an empty list's drop area.
  */
-const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images to\b|(?:Template|Upload|Link)$)/;
+const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images\b|(?:Template|Upload|Link)$)/;
 
 /**
  * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
@@ -125,7 +125,7 @@ export class TierListPage {
     this.editTitleButton = this.main.getByRole('button', {name: 'Edit title'});
     this.titleInput = this.main.getByRole('textbox', {name: 'Title'});
     this.hints = this.main.getByText('Drag to reorder.');
-    this.addImagesTile = this.main.getByRole('button', {name: 'Add images to Unranked'});
+    this.addImagesTile = this.main.getByRole('button', {name: 'Add images, drop or paste, to Unranked'});
     // Rows are the groups with a row handle; the title row's "Editor tools" is a group too.
     // Rows are the groups with a tier heading: the ranked rows and the Unranked tray (which has
     // no handle). The title row's "Editor tools" group has none.
@@ -1675,7 +1675,7 @@ export class TierListPage {
     return this.unranked.getByText(/^(?:Drop or paste images here|Add images here)$/).filter({visible: true});
   }
 
-  /** The line "drop or paste" on the tray's "Add images to Unranked" tile (mouse only). */
+  /** The line "drop or paste" on the tray's "Add images" tile (mouse only). */
   get addImagesTileHint(): Locator {
     return this.addImagesTile.getByText('drop or paste', {exact: true});
   }
@@ -2206,6 +2206,17 @@ export class TierListPage {
     await this.rankingOrderButton.click();
     await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
     await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
+    await this.menuClosedOnto(this.rankingOrderButton);
+  }
+
+  /**
+   * Waits until the menu has closed and given focus back to its button. The menu gives it back a
+   * moment after it closes: a key pressed before that would go to the element focused meanwhile,
+   * and then lose its focus.
+   */
+  private async menuClosedOnto(button: Locator) {
+    await expect(this.page.getByRole('menu')).toHaveCount(0);
+    await expect(button).toBeFocused();
   }
 
   /** Turns "Hide the queue" on or off in the Zen bar's menu. */
@@ -2251,6 +2262,7 @@ export class TierListPage {
     await this.layoutButton.click();
     await this.page.getByRole('menuitemradio', {name, exact: true}).click();
     await expect(this.layoutButton).toHaveAccessibleName(`Layout: ${name}`);
+    await this.menuClosedOnto(this.layoutButton);
   }
 
   /** Opens the Zen bar's Layout menu, and returns it. */
@@ -2259,18 +2271,12 @@ export class TierListPage {
     return this.page.getByRole('menu');
   }
 
-  /**
-   * Every open menu. An open menu hides the rest of the page from assistive technology, also
-   * another open menu, so this counts the hidden ones too.
-   */
+  /** Every open menu, also one that another open menu hides from assistive technology. */
   get openMenus(): Locator {
     return this.page.getByRole('menu', {includeHidden: true});
   }
 
-  /**
-   * Clicks a menu button of the Zen bar while one of its menus is open, as a person can: the
-   * open menu hides the bar from assistive technology, but the bar still takes clicks.
-   */
+  /** Clicks a menu button of the Zen bar while one of its menus is open, as a person can. */
   async clickZenBarMenuButtonOverOpenMenu(menu: 'Ranking order' | 'Layout') {
     const bar = this.page.getByRole('toolbar', {name: 'Zen', includeHidden: true});
     await bar.getByRole('button', {name: new RegExp(`^${menu}: `), includeHidden: true}).click();

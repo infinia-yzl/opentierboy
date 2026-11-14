@@ -19,7 +19,7 @@ const DARK_BACKGROUND = 'rgb(12, 10, 9)';
 
 const BRAND_BLUE = 'rgb(13, 98, 181)';
 
-const OVERWATCH_ORANGE = 'rgb(194, 65, 12)';
+const OVERWATCH_ORANGE = 'rgb(182, 61, 11)';
 
 /** The Share button's primary colour in dark mode, without and with OVERWATCH's colours (app/globals.css). */
 const DARK_BRAND_BLUE = 'rgb(138, 182, 240)';

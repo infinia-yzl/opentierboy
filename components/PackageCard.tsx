@@ -90,6 +90,8 @@ const PackageCard: React.FC<PackageCardProps> = ({packageName, packageData, temp
                     <span aria-hidden="true" className="size-6 shrink-0 rounded-[4px] bg-muted"/>
                   )}
                   <span className="min-w-0 grow truncate">{template.title}</span>
+                  {/* A space between the title and the count, so their words stay apart as text. */}
+                  {' '}
                   <span
                     aria-hidden="true"
                     className="shrink-0 text-[13px] font-normal tabular-nums text-muted-foreground transition-colors duration-300 group-hover:text-white/70"

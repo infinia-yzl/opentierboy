@@ -79,7 +79,7 @@ test.describe('editor layout', () => {
   // options, then Unranked as a fixed tray with the hints and an "Add images" tile.
   test.describe('Unranked tray', () => {
     test('renders Unranked last, under button "Add row", with no row grip or stack when the page opens', {tag: '@mobile'}, async ({tierList}) => {
-      await tierList.goto(TANKS);
+      await tierList.goto(TANKS, rankingState('image-overwatch', {F: ['Mauga'], '': ['Winston']}));
       await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
       await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
       await expect(tierList.rowGrip('Unranked')).toHaveCount(0);
@@ -97,7 +97,7 @@ test.describe('editor layout', () => {
       }).toPass();
     });
 
-    test('renders the Add images menu when the user clicks the tile "Add images to Unranked"', async ({tierList}) => {
+    test('renders the Add images menu when the user clicks the tile "Add images"', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.addImagesTile.click();
       await expect(tierList.menuItem('From template')).toBeVisible();

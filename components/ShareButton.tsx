@@ -363,8 +363,8 @@ What do you think? 🤔
                   <span>As URL</span>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger>
-                        <QuestionMarkCircledIcon className="h-4 w-4"/>
+                      <TooltipTrigger aria-label="Tips for sharing the link">
+                        <QuestionMarkCircledIcon aria-hidden="true" className="h-4 w-4"/>
                       </TooltipTrigger>
                       <TooltipContent>
                         Consider using URL shorteners for ease of sharing.
@@ -390,11 +390,11 @@ What do you think? 🤔
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex flex-row space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('facebook')}>
-                      <FaFacebookF className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on Facebook" onClick={() => shareToSocial('facebook')}>
+                      <FaFacebookF aria-hidden="true" className="h-4 w-4"/>
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('twitter')}>
-                      <FaXTwitter className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on X" onClick={() => shareToSocial('twitter')}>
+                      <FaXTwitter aria-hidden="true" className="h-4 w-4"/>
                     </Button>
                   </div>
                 </div>

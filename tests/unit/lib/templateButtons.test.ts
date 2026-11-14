@@ -27,13 +27,13 @@ describe('roundedItemCount', () => {
     [0, '0', '0 items'],
     [1, '1', '1 item'],
     [9, '9', '9 items'],
-    [10, '10+', 'about 10 items'],
-    [13, '10+', 'about 10 items'],
-    [19, '10+', 'about 10 items'],
-    [20, '20+', 'about 20 items'],
-    [29, '20+', 'about 20 items'],
-    [77, '70+', 'about 70 items'],
-    [100, '100+', 'about 100 items'],
+    [10, '10+', '10+ items'],
+    [13, '10+', '10+ items'],
+    [19, '10+', '10+ items'],
+    [20, '20+', '20+ items'],
+    [29, '20+', '20+ items'],
+    [77, '70+', '70+ items'],
+    [100, '100+', '100+ items'],
   ])('returns the text and label for %i items when the count is rounded down to the nearest 10', (count, text, label) => {
     expect(roundedItemCount(count)).toEqual({text, label});
   });
