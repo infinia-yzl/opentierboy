@@ -4,7 +4,7 @@ import {expect, test} from '../support/test';
 import type {SitePage, ThemeMode} from '../pages/site-page';
 import type {TierListPage} from '../pages/tier-list-page';
 import {rankingState} from '../support/links';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   appearanceModel, appearanceViewOf, STORED_THEME, type AppearanceEvent, type AppearanceSnapshot, type AppearanceView,
 } from '../models/appearance';
@@ -40,7 +40,7 @@ test.describe('appearance', () => {
       await site.chooseMode('dark');
       await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
 
-      await page.reload();
+      await site.reload();
       await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
 
       await site.chooseMode('light');
@@ -60,7 +60,7 @@ test.describe('appearance', () => {
       await page.emulateMedia({colorScheme: 'light'});
       await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
 
-      await page.reload();
+      await site.reload();
       await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
       await page.emulateMedia({colorScheme: 'dark'});
       await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
@@ -84,7 +84,7 @@ test.describe('appearance', () => {
       await site.chooseFont('Classic');
       await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
 
-      await page.reload();
+      await site.reload();
       await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
 
       await site.chooseFont('Modern');
@@ -101,7 +101,7 @@ test.describe('appearance', () => {
       await site.setGameColours(false);
       await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
 
-      await page.reload();
+      await tierList.reload();
       await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
     });
   });
@@ -200,7 +200,7 @@ test.describe('appearance', () => {
       test(`renders each state of the appearance machine when the user walks every transition (${part.name})`, async ({site, tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(appearanceModel, appearanceSut(site, tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, appearanceModel, coverage, part);
+        await attachCoverage(testInfo, appearanceModel, coverage, part);
       });
     }
   });

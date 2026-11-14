@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import {expect, type Locator, type Page, type Route} from '@playwright/test';
+import {type BrowserContext, expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectSettled} from '../support/settled';
 import {escapeRegExp} from '../support/regexp';
-import {letToastTimeOut, runPageClock} from '../support/page-clock';
+import {letToastTimeOut, pageTimePaused, runPageClock, TOAST_UNMOUNT_MS} from '../support/page-clock';
 import type {HeldImageSite} from '../support/image-sites';
 
 export type RowCount = 3 | 5 | 7;
@@ -93,7 +93,10 @@ export class TierListPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.main = page.getByRole('main');
+    // An open dialog or menu hides <main> from assistive technology, but <main> still says
+    // aria-busy and still takes events, so it is found also while hidden. What it holds is
+    // looked up by role as usual, so a hidden title or row is still not found.
+    this.main = page.getByRole('main', {includeHidden: true});
     this.title = this.main.getByRole('heading', {level: 1});
     this.editTitleButton = this.main.getByRole('button', {name: 'Edit title'});
     this.titleInput = this.main.getByRole('textbox', {name: 'Title'});
@@ -123,12 +126,23 @@ export class TierListPage {
   }
 
   /**
-   * Opens a link that might break the page. Unlike goto(), it does not wait for the editor:
-   * it waits until the page has loaded and the network is idle, so the page has started in
-   * the browser (and would have crashed by then).
+   * Opens a link that might crash the page in the browser. Unlike goto(), it does not wait for
+   * the editor: it returns once Next.js shows its crash message, or once the page has started
+   * and settled (a crash while it starts comes before that).
    */
-  async gotoAndSettle(path: string, state: string) {
-    await this.page.goto(`${path}?state=${state}`, {waitUntil: 'networkidle'});
+  async gotoPageThatMayCrash(path: string, state: string) {
+    await this.page.goto(`${path}?state=${state}`);
+    await expect.poll(async () => await this.crashMessage.isVisible() || await this.startedAndIdle(), {
+      message: 'the page should crash, or start and settle',
+    }).toBe(true);
+  }
+
+  /**
+   * True when the page has a <main> that is not busy (lib/busy.ts), read once, without waiting
+   * for a <main> to show (a crashed page has none).
+   */
+  private async startedAndIdle(): Promise<boolean> {
+    return this.main.evaluateAll((mains) => mains.length > 0 && mains.every((main) => main.getAttribute('aria-busy') !== 'true'));
   }
 
   /** The message Next.js shows instead of the page when the page crashed in the browser. */
@@ -141,6 +155,14 @@ export class TierListPage {
     await this.page.reload();
     await expect(this.tiers.first()).toBeVisible();
     await this.settled();
+  }
+
+  /**
+   * Reloads the page and returns once it has loaded, without waiting for the editor: for a
+   * speed budget that times what the page shows after the reload.
+   */
+  async reloadNow() {
+    await this.page.reload();
   }
 
   /** Opens a full link, for example one copied from another page. */
@@ -618,18 +640,22 @@ export class TierListPage {
     // drop position. Only the latest message stays in the live region.
     await expect(this.dragAnnouncer, 'the drag should start').toHaveText(/^Picked up /);
 
-    // toPass reports only a timeout: the last failed check is kept to say what never settled.
-    let lastProblem = '';
-    await expect(async () => {
+    // Each try moves the pointer and waits a few frames; auto-scroll and items that slide out of
+    // the way settle within a number of tries, not a time. The last failed check says what did not.
+    let lastProblem: unknown = null;
+    for (let tryNumber = 1; tryNumber <= DROP_POINT_TRIES; tryNumber++) {
       try {
         await this.moveToDropPoint(target, pointIn, {followTarget, dropAtOnPage, onPage, viewport});
+        lastProblem = null;
+        break;
       } catch (error) {
-        lastProblem = error instanceof Error ? error.message.split('\n').slice(0, 3).join(' ') : String(error);
-        throw error;
+        lastProblem = error;
       }
-    }).toPass().catch((error: unknown) => {
-      throw new Error(`The drag never settled on its drop point. Last check: ${lastProblem}`, {cause: error});
-    });
+    }
+    if (lastProblem !== null) {
+      const check = lastProblem instanceof Error ? lastProblem.message.split('\n').slice(0, 3).join(' ') : String(lastProblem);
+      throw new Error(`The drag did not settle on its drop point in ${DROP_POINT_TRIES} tries. Last check: ${check}`, {cause: lastProblem});
+    }
     if (cancel) {
       // Escape ends the drag where it is; the button is released after that.
       await this.page.keyboard.press('Escape');
@@ -849,7 +875,14 @@ export class TierListPage {
       await input.press('Enter');
       await expect(this.tier(nameAfter)).toBeVisible();
     };
-    await (waitForLink ? this.changeAndWaitForLink(rename) : rename());
+    if (!waitForLink) {
+      await rename();
+      return;
+    }
+    // From a page that has finished the last step (a drop, a link write): text typed while the
+    // drag library still blocks text selection could land beside the old name (WebKit).
+    await this.settled();
+    await this.changeAndWaitForLink(rename);
   }
 
   /** Opens the editor of a tier label and types a new name, without confirming it. */
@@ -858,10 +891,12 @@ export class TierListPage {
     await row.getByRole('heading', {name: currentName, exact: true}).click();
     const input = row.getByRole('textbox');
     await input.fill(newName);
+    await expect(input, 'the text box should hold the typed name').toHaveValue(newName);
     return input;
   }
 
   async setTitle(newTitle: string) {
+    await this.settled();
     await this.changeAndWaitForLink(async () => {
       const input = await this.typeTitle(newTitle);
       await input.press('Enter');
@@ -874,6 +909,7 @@ export class TierListPage {
     await this.title.click();
     const input = this.main.getByPlaceholder('Enter title');
     await input.fill(newTitle);
+    await expect(input, 'the text box should hold the typed title').toHaveValue(newTitle);
     return input;
   }
 
@@ -901,10 +937,14 @@ export class TierListPage {
     return this.page.getByRole('menuitem', {name: 'Remove a row'});
   }
 
-  /** Opens the Row options menu, once the page has settled (a test may come from page.goBack()). */
+  /**
+   * Opens the Row options menu, once the page has settled (a test may come from Back) and no
+   * menu is open: a click on Row options with its menu open would close it.
+   */
   async openRowOptions() {
     await this.settled();
-    if (!(await this.removeRowMenuItem.isVisible())) await this.rowOptionsButton.click();
+    await expect(this.openMenus, 'no menu should be open before Row options opens').toHaveCount(0);
+    await this.rowOptionsButton.click();
     await expect(this.removeRowMenuItem).toBeVisible();
   }
 
@@ -917,11 +957,14 @@ export class TierListPage {
     return rows;
   }
 
-  /** Closes every open menu with Escape. */
+  /**
+   * Closes the open menu, and its open submenu, with Escape: the first Escape closes them all.
+   * A menu must be open.
+   */
   async closeMenus() {
-    const menus = this.page.getByRole('menu');
-    if (await menus.count() > 0) await this.page.keyboard.press('Escape');
-    await expect(menus).toHaveCount(0);
+    await expect(this.openMenus.first(), 'a menu should be open to close').toBeVisible();
+    await this.page.keyboard.press('Escape');
+    await expect(this.openMenus).toHaveCount(0);
   }
 
   async chooseRowCount(count: RowCount) {
@@ -1144,16 +1187,35 @@ export class TierListPage {
     return this.page.getByRole('dialog', {name: 'Add an Image from a Link'});
   }
 
+  /** Opens "From a link" in the Add images menu, and waits for its dialog. */
+  async openLinkImageDialog() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'From a link'}).click();
+    await expect(this.linkImageDialog).toBeVisible();
+  }
+
   /** Opens "From a link", fills in the address (and a name), and presses the add button. Leaves the dialog open. */
   async submitLinkImage(address: string, name?: string) {
-    if (!(await this.linkImageDialog.isVisible())) {
-      await this.openItemsMenu();
-      await this.page.getByRole('menuitem', {name: 'From a link'}).click();
-    }
+    await this.openLinkImageDialog();
+    await this.submitInLinkImageDialog(address, name);
+  }
+
+  /**
+   * In the open "From a link" dialog (for example after an address it refused), fills in the
+   * address (and a name) and presses the add button. Leaves the dialog open.
+   */
+  async submitInLinkImageDialog(address: string, name?: string) {
     const dialog = this.linkImageDialog;
     await dialog.getByLabel('Image address').fill(address);
     if (name !== undefined) await dialog.getByLabel('Name (optional)').fill(name);
     await dialog.getByRole('button', {name: /^Add (Item|Anyway)$/}).click();
+  }
+
+  /** Closes the open "From a link" dialog with Escape. */
+  async closeLinkImageDialog() {
+    await expect(this.linkImageDialog).toBeVisible();
+    await this.page.keyboard.press('Escape');
+    await expect(this.linkImageDialog).toBeHidden();
   }
 
   /** Adds an image from a link and waits until the dialog has closed. */
@@ -1202,16 +1264,19 @@ export class TierListPage {
     await expectSettled(this.page);
   }
 
-  /** The text an item's right-click (or long-press) menu shows about the image's site, if any. */
+  /**
+   * The text an item's right-click (or long-press) menu shows about the image's site, if any.
+   * The menu renders whole: once its last item, Delete, shows, the site line is there or not.
+   */
   async itemImageSite(itemName: string): Promise<string | null> {
+    await this.settled();
     await this.item(itemName).click({button: 'right'});
     const menu = this.page.getByRole('menu');
-    await expect(menu).toBeVisible();
-    const site = menu.getByText(/^Image from /);
-    const text = (await site.count()) > 0 ? await site.textContent() : null;
+    await expect(menu.getByRole('menuitem', {name: 'Delete'})).toBeVisible();
+    const lines = await menu.getByText(/^Image from /).allTextContents();
     await this.page.keyboard.press('Escape');
     await expect(menu).toBeHidden();
-    return text;
+    return lines[0] ?? null;
   }
 
   /**
@@ -1555,9 +1620,12 @@ export class TierListPage {
     return {name: file.suggestedFilename(), buffer: await fs.readFile(await file.path())};
   }
 
+  /** Deletes an item with its right-click menu, and returns once the new link is in the address bar. */
   async deleteItem(itemName: string) {
-    await this.item(itemName).click({button: 'right'});
-    await this.page.getByRole('menuitem', {name: 'Delete'}).click();
+    await this.changeAndWaitForLink(async () => {
+      await this.item(itemName).click({button: 'right'});
+      await this.page.getByRole('menuitem', {name: 'Delete'}).click();
+    });
   }
 
   async resetRankings() {
@@ -1592,10 +1660,15 @@ export class TierListPage {
     await expect(this.sharePanel).toBeVisible();
   }
 
-  /** Opens the Image tab of the share panel (Freeze Frame), where a capture stays until the next one. */
+  /**
+   * Opens the Image tab of the share panel (Freeze Frame), where a capture stays until the next
+   * one, opening the panel first when it is closed. The panel opens and closes in the event that
+   * asks for it, so once the page has settled one look tells whether it is open.
+   */
   async openImageTab() {
+    await this.settled();
     if (!(await this.sharePanel.isVisible())) await this.openSharePanel();
-    await this.sharePanel.getByRole('tab', {name: 'Image'}).click();
+    await this.chooseShareTab('Image');
   }
 
   /** Copies the Markdown share text. The browser must allow clipboard access. */
@@ -1614,10 +1687,10 @@ export class TierListPage {
     return this.sharePanel.getByRole('button', {name: 'Copy Markdown'});
   }
 
+  /** Opens the share panel and clicks Copy Markdown (see copyMarkdownInOpenPanel). */
   async copyMarkdown() {
     await this.openSharePanel();
-    await this.sharePanel.getByRole('button', {name: 'Copy Markdown'}).click();
-    await expect(this.toast('Markdown copied to clipboard')).toBeVisible();
+    await this.copyMarkdownInOpenPanel();
   }
 
   /**
@@ -1689,8 +1762,33 @@ export class TierListPage {
       await this.page.getByRole('option', {name: method, exact: true}).click();
       await expect(methodSelect).toHaveText(method);
     }
-    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
-    await expect(this.toast(/Image captured successfully|Failed to capture image/)).toBeVisible();
+    await this.captureAndExpectSuccess();
+  }
+
+  /**
+   * Clicks Capture Preview in the open Image tab, and waits until this capture has shown the
+   * toast "Image captured successfully" and no other toast (a failed capture shows "Failed to
+   * capture image" instead, and then this fails).
+   */
+  private async captureAndExpectSuccess() {
+    await this.expectOnlyNewToast(() => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
+  }
+
+  /**
+   * Runs an action, and waits until the toasts it showed are exactly one toast that contains
+   * `text`. The toasts already on screen are marked first, so an older toast with the same text
+   * does not count, and a toast of another outcome (an error) fails the wait. It waits for the
+   * toast, not for the page to settle: the page may be busy on purpose, for example while list
+   * writes wait for a held server answer.
+   */
+  private async expectOnlyNewToast(action: () => Promise<void>, text: string) {
+    const marker = 'data-shown-before-step';
+    await toasts(this.page).evaluateAll((items, name) => items.forEach((item) => item.setAttribute(name, '')), marker);
+    await action();
+    await expect.poll(() => toasts(this.page).evaluateAll((items, name) => items
+      .filter((item) => !item.hasAttribute(name))
+      .map((item) => item.textContent ?? ''), marker), {message: `the toasts this step showed should be one "${text}"`})
+      .toEqual([expect.stringContaining(text)]);
   }
 
   /**
@@ -1763,6 +1861,31 @@ export class TierListPage {
   /** The Zen bar at the top centre: Back, the step count, Forward, Ranking order, Exit Zen. */
   get zenBar(): Locator {
     return this.page.getByRole('toolbar', {name: 'Zen'});
+  }
+
+  /** Every button of the Zen bar, in order. */
+  get zenBarButtons(): Locator {
+    return this.zenBar.getByRole('button');
+  }
+
+  /** The site header (its banner), which Zen hides. */
+  get siteHeader(): Locator {
+    return this.page.getByRole('banner');
+  }
+
+  /** A choice of the open menu that is a radio item, such as a ranking order or a layout. */
+  menuItemRadio(name: string): Locator {
+    return this.page.getByRole('menuitemradio', {name, exact: true});
+  }
+
+  /** A choice of the open menu that is a check box, such as "Hide the queue". */
+  menuItemCheckbox(name: string): Locator {
+    return this.page.getByRole('menuitemcheckbox', {name, exact: true});
+  }
+
+  /** Moves the mouse to a point of the window and leaves it there. */
+  async restMouseAt(x: number, y: number) {
+    await this.page.mouse.move(x, y);
   }
 
   zenBarButton(name: 'Back' | 'Forward' | 'Exit Zen'): Locator {
@@ -1883,7 +2006,9 @@ export class TierListPage {
   /** Opens the Zen bar's Ranking order menu, and returns it. */
   async openRankingOrderMenu(): Promise<Locator> {
     await this.rankingOrderButton.click();
-    return this.page.getByRole('menu');
+    const menu = this.page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    return menu;
   }
 
   // ---- Zen layouts (16:9, 9:16, stream overlay) -----------------------------------------
@@ -2041,17 +2166,16 @@ export class TierListPage {
 
   // ---- Tile size (the dense editor) ------------------------------------------------------
 
-  /** Chooses a tile size in the Row options menu. A view setting: it writes no link. */
+  /**
+   * Chooses a tile size in the Row options menu. A view setting: it writes no link of its own.
+   * Choosing Compact with Show Labels on also turns Show Labels off, which rewrites the link in
+   * place; the page is busy until that link is written, so this returns once it has settled.
+   */
   async chooseTileSize(name: TileSizeName) {
-    await this.rowOptionsButton.click();
-    const choice = this.rowOption(name);
-    // Choosing Compact turns Show Labels off, which rewrites the link in place: wait for it.
-    const turnsLabelsOff = name === 'Compact'
-      && await choice.getAttribute('aria-checked') !== 'true'
-      && await this.rowOption('Show Labels').getAttribute('aria-checked') === 'true';
-    if (turnsLabelsOff) await this.changeAndWaitForLink(() => choice.click());
-    else await choice.click();
-    await expect(this.page.getByRole('menu')).toHaveCount(0);
+    await this.openRowOptions();
+    await this.rowOption(name).click();
+    await expect(this.openMenus).toHaveCount(0);
+    await this.settled();
   }
 
   /** The name tag that a Compact tile shows under itself on hover or keyboard focus. */
@@ -2066,9 +2190,9 @@ export class TierListPage {
 
   // ---- Notifications ---------------------------------------------------------------------
 
-  /** A toast notification that contains the given text. */
+  /** A toast notification that contains the given text, in Sonner's region "Notifications". */
   toast(text: string | RegExp): Locator {
-    return this.page.getByRole('listitem').filter({hasText: text});
+    return toasts(this.page).filter({hasText: text});
   }
 
   /** The toast with this title whose text also names `detail`, such as a file name. */
@@ -2099,19 +2223,34 @@ export class TierListPage {
     await this.dragItemToTier(name, tierName);
   }
 
-  /** The browser's Back button. Returns once the address of the entry before is in the address bar. */
+  /**
+   * The browser's Back button. Returns once the address of the entry before is in the address bar
+   * and the page has settled: Back to another version of the list keeps the page busy until the
+   * router shows it (components/NavigationBusy.tsx), Back to another page until it has started.
+   */
   async goBack() {
     await this.changeAndWaitForLink(async () => {
       await this.page.goBack();
     });
+    await this.settled();
   }
 
   /**
-   * The browser's Forward button. With an entry after this one, page.goForward returns once its
-   * address is in the address bar; with none, the browser stays where it is and so does the address.
+   * The browser's Forward button. Returns once the page has settled. With an entry after this
+   * one, the address is the entry's then (see goBack); with none, the browser stays where it is,
+   * and so do the address and the page.
    */
   async goForward() {
     await this.page.goForward();
+    await this.settled();
+  }
+
+  /**
+   * Back with the browser while the page may be busy on purpose, for example while a list write
+   * waits for a held server answer: it returns once Back has been sent, without waiting for anything.
+   */
+  async goBackNow() {
+    await this.page.goBack();
   }
 
   /**
@@ -2147,8 +2286,13 @@ export class TierListPage {
     await this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
   }
 
-  /** Waits until the server is asked for a list write that `hold` holds: the editor has pushed its link. */
-  async untilListWriteHeld(hold: HeldListWrites) {
+  /**
+   * Waits until `hold` holds a list write: the editor has pushed the link of the oldest change
+   * that waits. The editor pushes one link at a time (contexts/TierContext.tsx): the links of
+   * later changes wait in the editor until the server answers the first, so after a second
+   * change this returns at once, with the first write still the one held.
+   */
+  async untilFirstListWriteHeld(hold: HeldListWrites) {
     await expect.poll(() => hold.isHolding(), {message: 'a list write should wait for the server'}).toBe(true);
   }
 
@@ -2222,16 +2366,13 @@ export class TierListPage {
   /**
    * Chooses a tile size in Row options with the keyboard (see chooseLabelPositionWithKeyboard:
    * Tile Size is the menu's last group). Choosing Compact with Show Labels on also turns Show
-   * Labels off, which rewrites the link in place: then this waits for the new link.
+   * Labels off, which rewrites the link in place: the page is busy until that link is written,
+   * so this returns once it has settled.
    */
   async chooseTileSizeWithKeyboard(name: TileSizeName) {
     await this.openRowOptions();
-    const turnsLabelsOff = name === 'Compact'
-      && await this.rowOption('Compact').getAttribute('aria-checked') !== 'true'
-      && await this.rowOption('Show Labels').getAttribute('aria-checked') === 'true';
-    const choose = () => this.chooseOpenRowOption(this.rowOption(name));
-    if (turnsLabelsOff) await this.changeAndWaitForLink(choose);
-    else await choose();
+    await this.chooseOpenRowOption(this.rowOption(name));
+    await this.settled();
   }
 
   /** Chooses an option of the open Row options menu with the keyboard, and waits until the menu closes. */
@@ -2277,23 +2418,20 @@ export class TierListPage {
     await expect(this.shareTab(name)).toHaveAttribute('aria-selected', 'true');
   }
 
-  /** Clicks Copy Markdown in the open share panel, and waits for its toast. */
+  /** Clicks Copy Markdown in the open share panel, and checks that this click showed the toast "Markdown copied to clipboard". */
   async copyMarkdownInOpenPanel() {
-    await this.copyMarkdownButton.click();
-    await expect(this.toast('Markdown copied to clipboard').first()).toBeVisible();
+    await this.expectOnlyNewToast(() => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
   }
 
   /**
    * Clicks Capture Preview in the open Image tab, and waits until the capture has ended: the
-   * button reads "Capture Preview" again (it reads "Capturing..." meanwhile), with the picture
-   * and no error toast.
+   * button reads "Capture Preview" again (it reads "Capturing..." meanwhile), with the picture,
+   * and this capture showed the toast "Image captured successfully" and no error toast.
    */
   async captureInOpenPanel() {
-    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await this.captureAndExpectSuccess();
     await this.settled();
     await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled();
-    await expect(this.toast('Image captured successfully').first()).toBeVisible();
-    await expect(this.toast('Failed to capture image')).toHaveCount(0);
     await expect(this.capturedImage).toBeVisible();
   }
 
@@ -2434,6 +2572,11 @@ export class TierListPage {
    */
   async dropFileWherePointed(file: {name: string; mimeType: string; buffer: Buffer}) {
     const before = this.page.url();
+    // The dialog shows once a dropped list file has been read, which keeps the page busy, and it
+    // stays until the visitor answers it: once it shows or the page has settled, one look tells.
+    await expect.poll(async () => await this.openListDialog.isVisible() || await this.startedAndIdle(), {
+      message: 'the dialog should show, or the page settle',
+    }).toBe(true);
     if (await this.openListDialog.isVisible()) await this.dropFile(file, {onto: this.openListDialog});
     else await this.dropFile(file);
     await this.untilAddressChangesOrDialogShows(before);
@@ -2600,23 +2743,24 @@ export class TierListPage {
   }
 
   /** The button Undo in the toast `title`. */
-  undoButtonIn(title: string): Locator {
+  undoButtonIn(title: string | RegExp): Locator {
     return this.toast(title).getByRole('button', {name: 'Undo'});
   }
 
   /**
-   * Rests the pointer on a toast. Sonner, the toast library, pauses the toasts' 4 s timers while
-   * the pointer is over them, as when a person reads one, so the toast stays while the test goes
-   * on with Back, Forward and Undo, which do not move the pointer.
+   * Rests the pointer on a toast with an Undo. Sonner, the toast library, pauses the toasts' 4 s
+   * timers while the pointer is over them, as when a person reads one, so the toast stays while
+   * the test goes on with Back, Forward and Undo, which do not move the pointer. Call it right
+   * after the action that shows the toast.
    */
-  private async restOnToast(title: string) {
+  async restOnToast(title: string | RegExp) {
     await expect(this.undoButtonIn(title)).toBeVisible();
-    await this.toast(title).hover();
+    await this.restOnMessage(this.toast(title));
   }
 
   /** Deletes an item with its right-click menu, waits for the new link, and rests on the toast "Item deleted". */
   async deleteItemAndRestOnToast(itemName: string) {
-    await this.changeAndWaitForLink(() => this.deleteItem(itemName));
+    await this.deleteItem(itemName);
     await this.restOnToast('Item deleted');
   }
 
@@ -2731,6 +2875,21 @@ export interface HeldListWrites {
 type Box = {x: number; y: number; width: number; height: number};
 
 /**
+ * Every toast on the page. Sonner puts them in a list in a region named "Notifications" with
+ * its keyboard shortcut ("Notifications alt+T"). The region says aria-live, so an open dialog
+ * does not hide it.
+ */
+export function toasts(page: Page): Locator {
+  return page.getByRole('region', {name: /^Notifications\b/}).getByRole('listitem');
+}
+
+/**
+ * How many times dragWithMouse moves the pointer to its drop point before it gives up. Each try
+ * waits five frames, so 100 tries let the page auto-scroll for about 500 frames.
+ */
+const DROP_POINT_TRIES = 100;
+
+/**
  * True when the nearest box around an element that scrolls (overflow auto or scroll) has more
  * content than room. False when no box around it scrolls.
  */
@@ -2807,3 +2966,145 @@ async function centerOf(locator: Locator): Promise<Point> {
   return centerOfBox(await boxOf(locator));
 }
 
+
+// ---- Model helpers: editor rows, Zen steps, leaving, label writes, "From a link" ------------
+// Plain functions over TierListPage, for the models in tests/models/editor-rows.ts,
+// zen-steps.ts, leaving-writes.ts, label-writes.ts and link-dialog.ts.
+
+/** Removes the top row with Row options › Remove a row, and returns once its link is written. */
+export async function removeFirstTierRow(tierList: TierListPage) {
+  const before = tierList.page.url();
+  const rows = await tierList.openRemoveRowMenu();
+  await rows.first().click();
+  await expect(tierList.page, 'the shareable link should update').not.toHaveURL(before);
+}
+
+/**
+ * Chooses a row count in Row options, and returns once the page has settled. The count the list
+ * has already changes nothing when the rows are the template's, so this waits for no new link.
+ */
+export async function chooseRowCountAndSettle(tierList: TierListPage, count: RowCount) {
+  await tierList.openRowOptions();
+  await tierList.rowOption(`${count} Rows`).click();
+  await expect(tierList.openMenus).toHaveCount(0);
+  await tierList.settled();
+}
+
+
+/**
+ * Chooses a label position in Row options while the page may be busy on purpose, for example
+ * while a list write waits for a held server answer (holdListWrites). Returns once the menu has
+ * closed, without waiting for the link.
+ */
+export async function chooseLabelPositionNow(tierList: TierListPage, position: LabelPosition) {
+  await tierList.rowOptionsButton.click();
+  await tierList.rowOption(position).click();
+  await expect(tierList.openMenus).toHaveCount(0);
+}
+
+/**
+ * Clicks the logo link to Home while the trip home may wait for a held server answer
+ * (holdTripHome). Returns once the click is made, without waiting for Home.
+ */
+export async function clickHomeNow(tierList: TierListPage) {
+  await tierList.homeLink.click();
+}
+
+/**
+ * Drops an image address on the first row, as a link dragged from another page, while the page
+ * may be busy on purpose (dropText waits until it is not). Returns once the item `name` shows in
+ * Unranked. A drop is neither a click nor a key.
+ */
+export async function dropImageAddressNow(tierList: TierListPage, address: string, name: string) {
+  const transfer = await tierList.page.evaluateHandle((uri) => {
+    const data = new DataTransfer();
+    data.setData('text/uri-list', uri);
+    data.setData('text/plain', uri);
+    return data;
+  }, address);
+  const row = tierList.tiers.first();
+  await row.dispatchEvent('dragenter', {dataTransfer: transfer});
+  await row.dispatchEvent('dragover', {dataTransfer: transfer});
+  await row.dispatchEvent('drop', {dataTransfer: transfer});
+  await expect(tierList.itemIn(tierList.unranked, name)).toBeVisible();
+}
+
+/** The "Image address" field of the open "From a link" dialog. */
+export function linkDialogAddressField(tierList: TierListPage): Locator {
+  return tierList.linkImageDialog.getByLabel('Image address');
+}
+
+/** The dialog's one button: "Add Item", "Checking the image…" or "Add Anyway". */
+export function linkDialogButton(tierList: TierListPage): Locator {
+  return tierList.linkImageDialog.getByRole('button', {name: /^(Add Item|Add Anyway|Checking the image…)$/});
+}
+
+// ---- Model campaigns: Zen ranking order (tests/machines/zen-order.ts) ----------------------
+
+/**
+ * Presses "Hide the queue" in the Zen bar's Ranking order menu while it is unavailable (Pick
+ * freely). Checks that the box says so and holds `checked`, that the press changes nothing and
+ * leaves the menu open, then closes the menu with Escape, which the menu takes: Zen stays on.
+ */
+export async function pressUnavailableHideQueue(tierList: TierListPage, checked: boolean) {
+  const menu = await tierList.openRankingOrderMenu();
+  const box = tierList.menuItemCheckbox('Hide the queue');
+  await expect(box).toHaveAttribute('aria-disabled', 'true');
+  await expect(box).toHaveAttribute('aria-checked', String(checked));
+  // A person can still click it; Playwright waits for an enabled element unless forced. Forced, it
+  // skips its other checks too, so the test waits until the menu has placed the box on screen.
+  await expect(box).toBeInViewport();
+  await box.click({force: true});
+  await expect(menu).toBeVisible();
+  await expect(box).toHaveAttribute('aria-checked', String(checked));
+  await tierList.closeMenus();
+}
+
+// ---- Model campaigns: toasts while page time stands still (`pageTime: 'paused'`) ------------
+
+/**
+ * Waits until a toast that a click closed has left the page. Sonner keeps a closed toast for its
+ * exit (TOAST_UNMOUNT_MS, `data-removed="true"`) on a timer, so while page time stands still
+ * (pausePageTime) the page clock runs that long. The pointer is still on the toasts then, which
+ * holds the timers of the toasts that stay (letToastTimeOut checks them later to the ms).
+ */
+export async function letClosedToastLeave(page: Page, toast: Locator) {
+  if (pageTimePaused(page)) {
+    await expect(toast).toHaveAttribute('data-removed', 'true');
+    await runPageClock(page, TOAST_UNMOUNT_MS);
+  }
+  await expect(toast).toHaveCount(0);
+}
+
+/** Chooses Undo in the toast "Items Added", and returns once the link changed and the toast left (letClosedToastLeave). */
+export async function undoAddedItemsAndLetToastLeave(tierList: TierListPage) {
+  const before = tierList.page.url();
+  await tierList.itemsAddedToast.getByRole('button', {name: 'Undo'}).click();
+  await expect(tierList.page, 'Undo should write a new link').not.toHaveURL(before);
+  await letClosedToastLeave(tierList.page, tierList.itemsAddedToast);
+}
+
+/** Clicks Undo in the toast "Items Added" of a template add, and returns once the toast left (the link may stay). */
+export async function undoTemplateAddAndLetToastLeave(tierList: TierListPage) {
+  await tierList.undoButtonIn('Items Added').click();
+  await letClosedToastLeave(tierList.page, tierList.toast('Items Added'));
+}
+
+/**
+ * Clicks Undo in the toast `title`, as TierListPage.undoInToast does, and returns once the toast
+ * left (letClosedToastLeave). The Undo of "Item deleted" also shows the toast "Item restored".
+ */
+export async function undoInToastAndLetItLeave(tierList: TierListPage, title: string, {changesList}: {changesList: boolean}) {
+  const before = tierList.page.url();
+  await tierList.undoButtonIn(title).click();
+  if (title === 'Item deleted') await expect(tierList.toast('Item restored')).toBeVisible();
+  if (changesList) await expect(tierList.page, 'Undo should write a new link').not.toHaveURL(before);
+  await letClosedToastLeave(tierList.page, tierList.toast(title));
+}
+
+// ---- Model campaigns: snapshot files (tests/machines/snapshot-files.ts) ---------------------
+
+/** The toasts on screen other than "Items Added", which each picture that is added shows: the messages. */
+export function messageToasts(page: Page): Locator {
+  return toasts(page).filter({hasNotText: 'Items Added'});
+}

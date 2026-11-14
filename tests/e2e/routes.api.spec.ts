@@ -68,13 +68,15 @@ test.describe('routes', () => {
       const link = lzWithRun('{"tiers":[{"i":"tier-s","n":"S","t":[]},{"i":"uncategorized","n":"","t":[]}],"title":"{run}"}', 'x', title.length).input;
       expect(link.length).toBeLessThan(3_000);
 
-      // The time bound is generous on purpose: CI runners and the agents' sandbox can be slow and
-      // busy. It still catches a page that takes many seconds to build a 9 MB response.
+      // A speed budget, one of the few named times in the tests (tests/README.md). It is generous
+      // on purpose: CI runners and the agents' sandbox can be slow and busy. It still catches a
+      // page that takes many seconds to build a 9 MB response.
+      const PAGE_BUDGET_MS = 15_000;
       const started = Date.now();
-      const response = await request.get(`/rank/overwatch/tank?state=${link}`, {timeout: 15_000});
+      const response = await request.get(`/rank/overwatch/tank?state=${link}`);
       expect(response.status()).toBe(200);
       const html = await response.text();
-      expect(Date.now() - started).toBeLessThan(15_000);
+      expect(Date.now() - started, `the page should arrive within ${PAGE_BUDGET_MS} ms`).toBeLessThan(PAGE_BUDGET_MS);
 
       const short = `${'x'.repeat(99)}…`;
       expect(html).toContain(`<title>${short}</title>`);

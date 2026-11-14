@@ -61,11 +61,10 @@ export function keyboardDragViewOf(snapshot: KeyboardDragSnapshot): KeyboardDrag
 }
 
 const constant = fc.constant({});
-/** Up and Down are sent while Mauga is picked up, also at the top and bottom rows, where the page must ignore them. */
-const carried = ({snapshot}: When) => snapshot.matches('carrying');
 /**
- * Escape is sent while Mauga is picked up, and at rest once focus came back to the tile after a
- * drop or a cancel: there the page must ignore it. The list as opened has nothing focused.
+ * Up, Down and Escape are sent while Mauga is picked up, also Up and Down at the top and bottom
+ * rows, and at rest once focus came back to the tile after a drop or a cancel: where the machine
+ * takes none of them, the page must ignore them. The list as opened has nothing focused.
  */
 const onFocusedTile = ({snapshot}: When) => !snapshot.matches({resting: {inUnranked: 'opened'}});
 
@@ -75,8 +74,8 @@ export const keyboardDragModel = defineModel({
   events: {
     PRESS_SPACE: {generate: constant, when: offered('PRESS_SPACE')},
     PRESS_ENTER: {generate: constant, when: offered('PRESS_ENTER')},
-    PRESS_UP: {generate: constant, when: carried},
-    PRESS_DOWN: {generate: constant, when: carried},
+    PRESS_UP: {generate: constant, when: onFocusedTile},
+    PRESS_DOWN: {generate: constant, when: onFocusedTile},
     PRESS_ESCAPE: {generate: constant, when: onFocusedTile},
   },
 });

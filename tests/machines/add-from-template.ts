@@ -10,12 +10,14 @@ export const addFromTemplateMachine = createMachine({
       initial: 'closed',
       states: {
         closed: {
+          description: 'The picker is closed.',
           on: {
             OPEN_FROM_MENU: {target: 'picker.lastPage'},
             OPEN_FROM_DROP_AREA: {target: 'picker.lastPage'},
           },
         },
         picker: {
+          description: 'The template picker is open, on the page it showed last.',
           initial: 'packages',
           on: {PRESS_ESCAPE: {target: 'closed'}},
           states: {
@@ -39,7 +41,7 @@ export const addFromTemplateMachine = createMachine({
       description: 'Unranked holds the 13 tanks.',
       initial: 'closed',
       states: {
-        closed: {on: {OPEN_FROM_MENU: {target: 'picker'}}},
+        closed: {description: 'The picker is closed.', on: {OPEN_FROM_MENU: {target: 'picker'}}},
         picker: {
           description: 'The picker lists OVERWATCH’s sets, the page it was on.',
           on: {
@@ -62,7 +64,7 @@ export const addFromTemplateMachine = createMachine({
       description: 'Unranked holds the 11 supports.',
       initial: 'closed',
       states: {
-        closed: {on: {OPEN_FROM_MENU: {target: 'picker'}}},
+        closed: {description: 'The picker is closed.', on: {OPEN_FROM_MENU: {target: 'picker'}}},
         picker: {
           description: 'The picker lists OVERWATCH’s sets, the page it was on.',
           on: {
@@ -85,7 +87,7 @@ export const addFromTemplateMachine = createMachine({
       description: 'Unranked holds the 13 tanks and the 11 supports, each once.',
       initial: 'closed',
       states: {
-        closed: {on: {OPEN_FROM_MENU: {target: 'picker'}}},
+        closed: {description: 'The picker is closed.', on: {OPEN_FROM_MENU: {target: 'picker'}}},
         picker: {
           description: 'The picker lists OVERWATCH’s sets, the page it was on.',
           on: {

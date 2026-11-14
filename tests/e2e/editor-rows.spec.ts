@@ -1,5 +1,10 @@
 import {expect, expectTierList, expectTierNames, test} from '../support/test';
-import {rankingState, v3State} from '../support/links';
+import {packageItemId, rankingState, v3State} from '../support/links';
+import type {Page, TestInfo} from '@playwright/test';
+import {modelSut} from '../support/model-sut';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {chooseRowCountAndSettle, removeFirstTierRow, type TierListPage} from '../pages/tier-list-page';
+import {editorRowsModel, editorRowsViewOf, type EditorRowsEvent, type EditorRowsSnapshot} from '../models/editor-rows';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -16,7 +21,7 @@ test.describe('editor rows', () => {
     await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
     await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
-    await tierList.page.goBack();
+    await tierList.goBack();
     await expect(tierList.tiers).toHaveCount(6);
     await expect(tierList.tier('Tier 6')).toHaveCount(0);
   });
@@ -53,7 +58,7 @@ test.describe('editor rows', () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va', 'Winston', 'Sigma']);
     await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
 
-    await tierList.page.goBack();
+    await tierList.goBack();
     await expect(tierList.itemsIn('B')).toHaveText(['Winston', 'Sigma']);
     await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va']);
   });
@@ -129,5 +134,74 @@ test.describe('editor rows', () => {
       await friend.chooseRowCount(7);
       await expectTierList(friend, expected);
     });
+  });
+
+  /**
+   * The editor rows machine (tests/machines/editor-rows.ts): rows added and removed up to both
+   * limits, and the row templates, from a list of 19 ranked rows. Each state checks the rows,
+   * Add row and Remove a row, and the history entries: a step that moves the machine to another
+   * state adds exactly one (product rule 2), a step that leaves it where it is adds none.
+   */
+  test.describe('model: rows', () => {
+    const id = (name: string) => packageItemId('image-overwatch', name);
+    const middle = Array.from({length: 13}, (_, index) => [`row-${index + 6}`, `R${index + 6}`, []]);
+    const LIST = v3State({r: [
+      ['tier-s', 'S', [id('Mauga')]], ['tier-a', 'A', []], ['tier-b', 'B', []], ['tier-c', 'C', []], ['tier-f', 'F', []],
+      ...middle, ['row-19', 'R19', [id('Winston')]], ['uncategorized', '', [id('Sigma')]],
+    ]});
+
+    /** The editor rows machine's events and checks, run on this test's page (modelSut). */
+    const rowsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      let pushes: () => Promise<number> = async () => 0;
+      /** The state at the last check, and the history entries the page had added then. */
+      let last: {state: string; entries: number} | null = null;
+      return modelSut<EditorRowsSnapshot, EditorRowsEvent>(page, {
+        reset: async () => {
+          await tierList.openAfterBlankPage(TANKS, LIST);
+          pushes = await tierList.countNewHistoryEntries();
+          last = null;
+        },
+        events: {
+          ADD_ROW: () => tierList.addTierRow(),
+          REMOVE_FIRST_ROW: () => removeFirstTierRow(tierList),
+          CLEAR_SECOND_LABEL: () => tierList.renameTier('A', '', 'Tier 2'),
+          CHOOSE_3_ROWS: () => chooseRowCountAndSettle(tierList, 3),
+          CHOOSE_5_ROWS: () => chooseRowCountAndSettle(tierList, 5),
+          CHOOSE_7_ROWS: () => chooseRowCountAndSettle(tierList, 7),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const {rows, canAdd, canRemove} = editorRowsViewOf(snapshot);
+            await expectTierList(tierList, {tiers: rows.map(({name, items}) => ({name, items: [...items]}))});
+            if (canAdd) await expect(tierList.addRowButton).toBeEnabled();
+            else await expect(tierList.addRowButton).toBeDisabled();
+            await tierList.openRowOptions();
+            if (canRemove) await expect(tierList.removeRowMenuItem).toBeEnabled();
+            else await expect(tierList.removeRowMenuItem).toBeDisabled();
+            await tierList.closeMenus();
+            const state = String(snapshot.value);
+            const entries = await pushes();
+            if (last) {
+              const added = state === last.state ? 0 : 1;
+              expect(entries - last.entries, `${added} history entry from ${last.state} to ${state}`).toBe(added);
+            } else {
+              expect(entries, 'no history entry when the list opens').toBe(0);
+            }
+            last = {state, entries};
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(editorRowsModel)) {
+      test(`writes 1 history entry per change and renders each row limit when the user adds, removes and switches rows (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(editorRowsModel, rowsSut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, editorRowsModel, coverage, part);
+      });
+    }
   });
 });

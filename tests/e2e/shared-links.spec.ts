@@ -4,7 +4,7 @@ import {expect, expectTierList, expectTierNames, SHARED_LINKS, test} from '../su
 import {hugeTierNameState, rawState, stateFromJson, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
 import {BLUE_SQUARE, imageFile, serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {
   BLUE,
@@ -41,9 +41,9 @@ test.describe('shared links', () => {
   });
 
   test.describe('link preview tags', () => {
-    test('renders og:title and og:image of the list when the page opens a shared link', async ({page, tierList}) => {
+    test('renders og:title and og:image of the list when the page opens a shared link', async ({tierList}) => {
       const link = SHARED_LINKS.find((entry) => entry.id === 'link-002')!;
-      await page.goto(`${link.path}?state=${link.state}`);
+      await tierList.goto(link.path, link.state);
 
       await expect(tierList.metaTag('og:title'))
         .toHaveAttribute('content', link.expected.title);
@@ -109,9 +109,10 @@ test.describe('shared links', () => {
     ];
     for (const link of badLinks) {
       test(`renders the title and rows, and no Application error, when the page opens a link with ${link.name}`, async ({tierList}) => {
-        await tierList.gotoAndSettle('/rank/overwatch/tank', stateFromJson(link.json));
+        await tierList.gotoPageThatMayCrash('/rank/overwatch/tank', stateFromJson(link.json));
 
-        await expect(tierList.crashMessage).toBeHidden();
+        // The page crashed or settled: one look tells which.
+        expect(await tierList.crashMessage.isVisible(), 'the page should not crash').toBe(false);
         await expect(tierList.title).toBeVisible();
         await expect(tierList.tiers.first()).toBeVisible();
       });
@@ -194,6 +195,7 @@ test.describe('shared links', () => {
       };
       const sinceLoad = () => current.otherSiteRequests.slice(loadedAt);
       return modelSut<SharedLinkSnapshot, SharedLinkEvent>(page, {
+        pages: () => [visitor.tierList.page],
         reset: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
         events: {
           OPEN_IN_MAKER_BROWSER: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
@@ -263,7 +265,7 @@ test.describe('shared links', () => {
         const maker = {tierList, otherSiteRequests: makerSite.requests};
         const visitor = {tierList: visitorPage, otherSiteRequests: visitorRequests};
         const coverage = await walkModel(sharedLinkModel, sharedLinkSut(maker, visitor, deviceId, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, sharedLinkModel, coverage, part);
+        await attachCoverage(testInfo, sharedLinkModel, coverage, part);
       });
     }
   });

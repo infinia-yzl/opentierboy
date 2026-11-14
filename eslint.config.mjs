@@ -147,6 +147,26 @@ const GUARD_BYPASSES = [
 ];
 
 /**
+ * Specs wait for what the visitor sees and find elements by role, with selectors kept in the page
+ * objects (tests/README.md, "Writing tests"): no sleeps, no waiting for the network to go quiet,
+ * and no CSS or XPath locators. Page objects and tests/support keep the few they need.
+ */
+const SPEC_SYNTAX = [
+  ...methodCall('/^waitForTimeout$/').map((selector) => ({
+    selector,
+    message: 'No sleeps in tests: wait for what the visitor sees, or for the page to settle (TierListPage.settled()).',
+  })),
+  {
+    selector: "Literal[value='networkidle']",
+    message: "'networkidle' waits for a quiet network, not for the page: wait for what the visitor sees, or for the page to settle (settled()).",
+  },
+  ...methodCall('/^(locator|waitForSelector|\\$|\\$\\$|\\$eval|\\$\\$eval)$/').map((selector) => ({
+    selector,
+    message: 'No CSS or XPath locators in specs: locate by role and accessible name, in a page object (tests/pages).',
+  })),
+];
+
+/**
  * The no-restricted-syntax setting for a block: its own selectors, plus the zod selectors unless
  * `allow` has 'zod'. Like restrictImports, so that a later block cannot drop them.
  */
@@ -272,6 +292,11 @@ export default defineConfig([
     files: ['tests/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     ignores: ['tests/support/**', ...ZOD_FILES],
     rules: restrictSyntax(GUARD_BYPASSES),
+  },
+  // Specs: also no sleeps, no 'networkidle' and no CSS locators (SPEC_SYNTAX).
+  {
+    files: ['tests/e2e/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+    rules: restrictSyntax([...GUARD_BYPASSES, ...SPEC_SYNTAX]),
   },
   // lib/state: pure code for the browser, the server and the edge runtime.
   {

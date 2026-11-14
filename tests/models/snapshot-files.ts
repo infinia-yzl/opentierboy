@@ -19,11 +19,11 @@ export interface SnapshotFilesView {
 
 /** Each state of the machine, by its path, and what it shows. */
 const SNAPSHOT_FILES_VIEWS: Readonly<Record<string, SnapshotFilesView>> = {
-  'editor.before.ownList.quiet': {list: 'ownList', dialog: null, message: null},
-  'editor.before.ownList.brokenFileMessage': {list: 'ownList', dialog: null, message: 'brokenFile'},
-  'editor.before.ownList.notAPictureMessage': {list: 'ownList', dialog: null, message: 'notAPicture'},
-  'editor.before.withPicture': {list: 'withPicture', dialog: null, message: null},
-  'editor.before.withTwoPictures': {list: 'withTwoPictures', dialog: null, message: null},
+  'editor.before.lists.ownList': {list: 'ownList', dialog: null, message: null},
+  'editor.before.lists.withPicture': {list: 'withPicture', dialog: null, message: null},
+  'editor.before.lists.withTwoPictures': {list: 'withTwoPictures', dialog: null, message: null},
+  'editor.before.brokenFileMessage': {list: 'ownList', dialog: null, message: 'brokenFile'},
+  'editor.before.notAPictureMessage': {list: 'ownList', dialog: null, message: 'notAPicture'},
   'editor.asking.nothingWaits': {list: null, dialog: 'asking', message: null},
   'editor.asking.filesNotAdded': {list: null, dialog: 'asking', message: 'filesNotAdded'},
   'editor.opening': {list: null, dialog: 'opening', message: null},
@@ -32,7 +32,7 @@ const SNAPSHOT_FILES_VIEWS: Readonly<Record<string, SnapshotFilesView>> = {
   left: {list: null, dialog: null, message: null},
 };
 
-/** The dotted path of a snapshot's state, such as 'editor.before.ownList.quiet'. */
+/** The dotted path of a snapshot's state, such as 'editor.before.lists.ownList'. */
 export function statePath(value: unknown): string {
   if (typeof value === 'string') return value;
   const [key, child] = Object.entries(value as Record<string, unknown>)[0];
@@ -48,11 +48,11 @@ export function snapshotFilesViewOf(snapshot: SnapshotFilesSnapshot): SnapshotFi
 
 const constant = fc.constant({});
 /**
- * A dialog shows, and no message. The message of asking.filesNotAdded shows over the dialog,
- * which makes the page ignore the pointer, so the test cannot rest the pointer on it to hold it:
- * there the walk sends only what ends the message (TOAST_TIMES_OUT) or closes the dialog.
+ * A dialog shows. The message of asking.filesNotAdded shows over the dialog, which makes the
+ * page ignore the pointer, so nothing holds it, but page time stands still in the test until
+ * TOAST_TIMES_OUT: a paste or a drop over the dialog meets it there too.
  */
-const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking.nothingWaits') || snapshot.matches('editor.askingAgain')
+const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking') || snapshot.matches('editor.askingAgain')
   || snapshot.matches('editor.opening');
 /** Where the machine takes the event, and where a dialog shows: a paste or a drop there must change nothing. */
 const offeredOrOverDialog = (type: string) => (args: When) => offered(type)(args) || dialogShows(args);
@@ -86,4 +86,28 @@ export const snapshotFilesModel = defineModel({
     LEAVE_WHILE_PICTURES_WAIT: {generate: constant, when: offered('LEAVE_WHILE_PICTURES_WAIT')},
     TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
   },
+});
+
+/** The events that paste files: a script cannot paste files in Firefox (SCRIPTED_PASTE_SKIP). LEAVE pastes the pictures it leaves. */
+export const PASTE_EVENTS = [
+  'PASTE_PICTURE_FILE',
+  'PASTE_TWO_PICTURES_AT_ONCE',
+  'PASTE_LIST_FILE',
+  'DROP_LIST_FILE_AND_PASTE_PICTURE',
+  'PASTE_TEXT_FILE',
+  'LEAVE_WHILE_PICTURES_WAIT',
+] as const;
+
+/**
+ * The same machine without the events that paste, for Firefox. Its walk covers what the other
+ * events reach: every state but the two pictures pasted at once, the message "Files not added"
+ * and the landing page. walkPaths throws when a walk cannot reach an item of its own, so this
+ * walk is complete for its events. It is not in MACHINE_MODELS: walks.test.ts asks every model
+ * there to take every transition of its machine, and the paste transitions are left out here.
+ */
+export const snapshotFilesWithoutPasteModel = defineModel({
+  id: 'snapshot-files-without-paste',
+  machine: snapshotFilesMachine,
+  events: Object.fromEntries(Object.entries(snapshotFilesModel.events)
+    .filter(([type]) => !(PASTE_EVENTS as readonly string[]).includes(type))),
 });

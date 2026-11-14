@@ -1,6 +1,7 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 import {expectSettled} from '../support/settled';
-import {letToastTimeOut} from '../support/page-clock';
+import {letToastTimeOut, runPageClock} from '../support/page-clock';
+import {toasts} from './tier-list-page';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontChoice = 'Modern' | 'Classic';
@@ -19,7 +20,18 @@ export class SitePage {
   }
 
   async gotoHome() {
-    await this.page.goto('/');
+    await this.goto('/');
+  }
+
+  /** Opens a page of the site by its path, and waits until it has started and settled. */
+  async goto(path: string) {
+    await this.page.goto(path);
+    await this.settled();
+  }
+
+  /** Reloads the page, and waits until it has started again and settled. */
+  async reload() {
+    await this.page.reload();
     await this.settled();
   }
 
@@ -306,6 +318,7 @@ export class SitePage {
     await expect(this.pageHeading).toBeVisible();
     await this.page.goBack();
     await expect(this.page).toHaveURL(before);
+    await this.settled();
     await this.appearanceMenuReady();
   }
 
@@ -322,7 +335,7 @@ export class SitePage {
       localStorage.clear();
       localStorage.setItem('otb-recent-links', value);
     }, stored);
-    await this.page.reload();
+    await this.reload();
     await expect(this.recentlyViewed).toBeVisible();
   }
 
@@ -373,7 +386,7 @@ export class SitePage {
 
   /** The toast of a refused pin, such as "You can pin up to 20 lists". */
   recentToast(text: string): Locator {
-    return this.page.getByRole('listitem').filter({hasText: text});
+    return toasts(this.page).filter({hasText: text});
   }
 
   /** The pin toggles in Recently viewed that are pressed (the pinned lists). */
@@ -422,4 +435,48 @@ export class SitePage {
     await this.openFreezeFrame(file);
     await expect(this.openListDialog).toBeVisible();
   }
+}
+
+// ---- Model campaigns: Recently viewed while page time stands still (`pageTime: 'paused'`) ----
+
+/** How far page time moves on before each open of a list: the visitor comes back later, so each open records a later time. */
+const LATER_MS = 60_000;
+
+/**
+ * How far page time moves on once a list starts to open from Home. A move inside the site shows
+ * the route's loading state first, and React keeps it at least 300 ms of page time before the list
+ * replaces it (its fallback throttle), which a timer counts: once page time has moved on, the list
+ * shows as soon as it is ready.
+ */
+const LOADING_MS = 1_000;
+
+/** Waits until Recently viewed records `title` after `before` (SitePage.recentOpenedAt), then goes back to Home. */
+async function recordedAndHome(site: SitePage, title: string, before: number) {
+  await expect(site.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
+  await expect.poll(() => site.recentOpenedAt(title), {message: `Recently viewed records ${title}`}).toBeGreaterThan(before);
+  await site.gotoHome();
+  await expect(site.recentlyViewed).toBeVisible();
+}
+
+/** Opens a list's link from outside Home a minute of page time later (SitePage.openListAndReturnHome). */
+export async function openListLaterAndReturnHome(site: SitePage, href: string, title: string) {
+  const before = await site.recentOpenedAt(title);
+  await runPageClock(site.page, LATER_MS);
+  await site.page.goto(href);
+  await recordedAndHome(site, title, before);
+}
+
+/**
+ * Opens a list from its link in Recently viewed a minute of page time later
+ * (SitePage.reopenRecentLinkAndReturnHome). The link moves inside the site: once the list or its
+ * loading state shows, page time moves on by LOADING_MS.
+ */
+export async function reopenRecentLinkLaterAndReturnHome(site: SitePage, title: string) {
+  const before = await site.recentOpenedAt(title);
+  await runPageClock(site.page, LATER_MS);
+  await site.recentLink(title).click();
+  const heading = site.main.getByRole('heading', {level: 1, name: title, exact: true});
+  await expect(heading.or(site.main.getByText('Loading...', {exact: true}))).toBeVisible();
+  await runPageClock(site.page, LOADING_MS);
+  await recordedAndHome(site, title, before);
 }

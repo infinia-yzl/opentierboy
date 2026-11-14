@@ -109,7 +109,7 @@ tests/
   | `legacy-sets` | the legacy image sets (pages, and `.api` for files, sitemap, shortcuts) |
   | `routes` | template pages (and `.api` for status codes and redirects) |
   | `link-previews.api` | the link preview image (`/api/og`) |
-  | `security` | the Content Security Policy, user text as plain text, device pictures kept local |
+  | `security` | the Content Security Policy, user text as plain text, device pictures kept local (and `.api` for the security headers on every kind of page) |
   | `journeys` | long scenarios over several areas, with Back and Forward |
   | `tile-shapes` | tiles of other shapes (needs a special build) |
 
@@ -147,8 +147,17 @@ tests/
   works on something the visitor started (`lib/busy.ts`): until it has started in the browser,
   while a link is written, during a drag and its drop, and while files or pictures are added or
   captured. `TierListPage.settled()` and `SitePage.settled()` wait until it is done; `goto`,
-  `reload` and `gotoHome` end with it. A test that acts while the page works, on purpose (two
-  quick moves), does not wait for it.
+  `reload`, `goBack`, `goForward` and `gotoHome` end with it, and specs never navigate with a raw
+  `page.goto`/`goBack`/`reload` (`goBackNow` is the one exception, for a test that presses Back
+  while the page works on purpose). A test that acts while the page works, on purpose (two
+  quick moves), does not wait for it. A page that may crash opens with `gotoPageThatMayCrash`.
+- **Toasts are found in Sonner's region** (`toasts(page)`, the region named "Notifications"),
+  and a step that shows a toast waits for its own new toast, never for one already on screen.
+- **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
+  page the test opens, visitors included, and fails on any that is not in `BENIGN_PAGE_ERRORS`
+  (`tests/support/machines.ts`) or in `test.use({allowedPageErrors})`.
+- **Lint guards the specs.** ESLint refuses `waitForTimeout`, `'networkidle'`, `.locator`, `$`,
+  `$$`, `$eval` and `waitForSelector` in `tests/e2e/**`; selectors live in the page objects.
 - **The server answers when the test says so.** Where timing matters, a test holds the
   server's answers to the editor's list writes (`holdListWrites`) or to the trip home
   (`holdTripHome`), acts, then calls `release()`. No route delays answers by a time.
@@ -286,10 +295,13 @@ disagree, and its error lists every step with the machine's state.
   it; `offered(type)` sends it where the machine takes it), and helpers that say what each state
   shows on the page. Add every model to `tests/models/index.ts`.
 - **The walk** is computed from the machine (`walkPaths`): a few event sequences from the start
-  state that together enter every reachable state, take every transition into every state it
-  can lead to, and send each event the page must ignore once in each state that ignores it. A
-  state that a history state remembers counts on its own, so Zen turns on again in each layout.
-  The walk is the same on every run.
+  state that together cover every item of `walkItems`. They enter every reachable state, take
+  every transition into every state it can lead to and from every state below the node that
+  declares it (Escape declared on a parent is pressed in each of its children), and send each
+  event the page must ignore once in each state that ignores it. Below a parallel state, each
+  region's states count one by one, not every combination of them. A state that a history state
+  remembers counts on its own, so Zen turns on again in each layout. The walk is the same on
+  every run.
 - **The walk in parts.** `walkParts` splits the walk into parts of at most `MAX_PART_STEPS`
   steps. Each part is a test of its own (`... (part 2 of 5)`), so a failure names a short part
   and the parts run in parallel. The parts together are the whole walk: shorter parts lose no
@@ -300,8 +312,11 @@ disagree, and its error lists every step with the machine's state.
   before each check it waits until the page is not busy, so a check never sees a page halfway
   through a step. Where the page is busy on purpose (a drag in progress, a held server answer),
   the model names those states (`busyIn`), and there the check waits only for the page to load.
-  `attachAndAssertCoverage` adds the coverage report of the part to the Playwright report, and
-  fails when the run missed a transition of its part. Model tests have no retries
+  Where the events act in a second browser (`openAsVisitor`), `pages` names its page: `modelSut`
+  settles it too, checks it for page errors, console errors and answers of status 400 or more,
+  and keeps its trace and a screenshot of a failing run. `attachCoverage` adds the coverage
+  report of the part to the Playwright report. It checks nothing: a run that passes took every
+  step of its part, since a step that fails throws. Model tests have no retries
   (`test.describe.configure({retries: 0})`): a model test that needs a second try is a bug to
   fix. Give each test `test.setTimeout(MODEL_PART_TIMEOUT)`, the limit of the whole part; the
   steps inside wait for what the page shows. With `testInfo`, a failing part attaches the
@@ -316,13 +331,35 @@ disagree, and its error lists every step with the machine's state.
   - **As an event of its own.** When its timing or its result changes what the visitor sees
     (a change made while a link is still on its way, a message still showing or gone, an image
     site that answers or fails), the machine has a waiting state and an event named after what
-    the outside world does: `SERVER_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`. The test
-    makes it happen at that step: it holds the server's answers and releases them
-    (`holdListWrites`), runs the page clock (`letToastTimeOut`), or holds the image site. The
-    model names its waiting states in `busyIn`, where the page is busy on purpose.
-- **Without a browser.** `tests/unit/machines/walks.test.ts` runs each model's walk on the machine
-  alone, so a walk that misses a state or a transition fails in `npm run check` first. It also
-  checks that the parts hold every sequence of the walk, each part within `MAX_PART_STEPS`.
+    the outside world does: `SERVER_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`,
+    `IMAGE_CHECK_TIMES_OUT`. The test makes it happen at that step: it holds the server's
+    answers and releases them (`holdListWrites`), runs the page clock (`letToastTimeOut`), or
+    holds the image site. The model names its waiting states in `busyIn`, where the page is
+    busy on purpose.
+- **Page time.** With `pageTime: 'paused'`, page time stands still for the whole test
+  (`pausePageTime` in `tests/support/page-clock.ts`): Date, `performance.now()` and every timer
+  with a delay wait until a time event runs the page clock (`runPageClock`). A slow step on a
+  busy runner can no longer let a message close or an image check give up, and a time event
+  checks the app's exact duration: `letToastTimeOut` checks that a message still shows 1 ms
+  before its time and has closed 1 ms later, and `IMAGE_CHECK_TIMES_OUT` that the page still
+  waits for the site 1 ms before it gives up. What the browser runs "as soon as possible" still
+  runs at once: timers of 0 or 1 ms, animation frames and idle callbacks, which React, Sonner,
+  Radix and Next.js need to show a page, a toast or a dialog (`pausePageTime` says why). The
+  models with timed messages or checks use it: link images, the "From a link" dialog, snapshot
+  files, tips, add-from-template, device images, recently viewed and remove-and-undo. The
+  shared-list tip machine cannot (the page clock hides the navigation entry that tip reads), so
+  it keeps the pointer resting on its toast; a few hand-written tests still use `pageClock`,
+  whose time runs with real time. A time event is an event of the machine, not an XState `after`
+  transition: the walk chooses where time passes like any other step, a message that the
+  pointer holds would need a timer the machine pauses, and @xstate/test would learn which
+  `after` events fired only from an `advance` that reads the app's timers.
+- **What is proven where.** `tests/unit/machines/walks.test.ts` runs each model's walk on the
+  machine alone, in `npm run check`, and proves that it is complete twice: @xstate/test's coverage
+  of the whole walk takes every state node, transition and reachable state
+  (`assertFullCoverage`), and the sequences of all the parts together cover every item of
+  `walkItems` (`pathItems`). It also checks that the parts hold every sequence of the walk, each
+  part within `MAX_PART_STEPS`. The Playwright test of a part proves that the page does what the
+  machine says at each step of that part.
 - **Seeing a machine.** Copy the whole file, open the [Stately editor](https://editor.stately.ai)
   and paste it into Import Code. The editor draws the machine as it is in the file. A history
   state shows as **H**; its default target is in the file, and the editor does not draw it.

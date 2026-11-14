@@ -64,22 +64,19 @@ const inEditor = ({snapshot}: When) => snapshot.matches('editor');
 const toastShows = ({snapshot}: When) => snapshot.matches('editor.linkSaveToast') || snapshot.matches('editor.deviceImagesToast');
 /** Every tip shown in the editor: the first-drag tip and the toasts. */
 const tipShows = (args: When) => args.snapshot.matches('editor.firstDragTip') || toastShows(args);
-/**
- * A toast ends by itself 10 s after it shows (EditorTips.tsx, TIP_TOAST_MS), in real time too: the
- * page clock runs. So while a toast shows, the campaign sends only what ends it or leaves the
- * page, and the 10 s never pass inside a run.
- */
-const editsWithoutToast = (args: When) => inEditor(args) && !toastShows(args);
 
 export const tipsModel = defineModel({
   id: 'tips',
   machine: tipsMachine,
   events: {
     OPEN_TEMPLATE: {generate: constant, weight: 0.5},
-    // A run sends fewer than TEMPLATE_ITEMS changes, so Unranked always holds an item to drop.
-    DROP_IN_ROW: {generate: constant, when: editsWithoutToast},
-    CHANGE_TITLE: {generate: constant, when: editsWithoutToast},
-    ADD_DEVICE_IMAGE: {generate: constant, when: editsWithoutToast, weight: 2},
+    // The edits are sent everywhere in the editor, also while a toast shows: a tip that becomes
+    // useful then waits for the toast, and where the machine takes no edit, no tip may change.
+    // A toast ends only in TOAST_TIMES_OUT: page time stands still in the test until then. A run
+    // sends fewer than TEMPLATE_ITEMS drops, so Unranked always holds an item to drop.
+    DROP_IN_ROW: {generate: constant, when: inEditor},
+    CHANGE_TITLE: {generate: constant, when: inEditor},
+    ADD_DEVICE_IMAGE: {generate: constant, when: inEditor, weight: 2},
     CLOSE_TIP: {generate: constant, when: ({snapshot}: When) => snapshot.matches('editor.firstDragTip')},
     CLOSE_TOAST: {generate: constant, when: toastShows, weight: 3},
     TOAST_TIMES_OUT: {generate: constant, when: toastShows, weight: 3},

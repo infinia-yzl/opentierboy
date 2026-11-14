@@ -1,4 +1,5 @@
 import * as fc from 'fast-check';
+import {DEFAULT_IMAGE_CHECK_LIMITS} from '@/lib/images/imageCheck';
 import type {EventFrom, SnapshotFrom} from 'xstate';
 import {linkImagesMachine} from '../machines/link-images';
 import {always, defineModel, offered, type When} from '../support/machines';
@@ -24,7 +25,7 @@ export const GREEN = image(OTHER_SITE, 'Green');
 export const NAVY = image(OTHER_SITE, 'Navy');
 
 type ListKey = 'first' | 'greenAdded' | 'other';
-type Answer = 'answering' | 'answered' | 'failed';
+type Answer = 'answering' | 'answered' | 'failed' | 'gaveUp';
 type SiteValue = 'waiting' | {allowedHere: Answer} | {alwaysAllowed: Answer};
 
 export type LinkImagesSnapshot = SnapshotFrom<typeof linkImagesMachine>;
@@ -45,8 +46,8 @@ export interface LinkImagesView {
   readonly waiting: boolean;
   /**
    * Once the site is allowed, how it answered for the held images on this page: not yet (the
-   * page is busy), with the picture, or with something that is not a picture. Null while the
-   * notice waits: the page asked the site nothing.
+   * page is busy), with the picture, with something that is not a picture, or not in time (the
+   * page gave up). Null while the notice waits: the page asked the site nothing.
    */
   readonly answer: Answer | null;
 }
@@ -68,25 +69,32 @@ export function linkImagesViewOf(snapshot: LinkImagesSnapshot): LinkImagesView {
   return {...LIST_IMAGES[list], waiting: site === 'waiting', answer};
 }
 
+/** How long the page waits for a link image before it gives up (lib/images/imageCheck.ts). */
+export const IMAGE_CHECK_MS = DEFAULT_IMAGE_CHECK_LIMITS.timeoutMs;
+
 /** True where the page waits for the image site's answer on purpose (modelSut's `busyIn`). */
 export const awaitsImageSite = (snapshot: LinkImagesSnapshot) => linkImagesViewOf(snapshot).answer === 'answering';
 
 const constant = fc.constant({});
+/** The page gave up on the held images: a late answer from the site must change nothing. */
+const gaveUp = ({snapshot}: When) => linkImagesViewOf(snapshot as LinkImagesSnapshot).answer === 'gaveUp';
 
 export const linkImagesModel = defineModel({
   id: 'link-images',
   machine: linkImagesMachine,
   // Load and Always allow these sites are buttons of the notice, sent only while it shows. A
   // reload and opening the other list are sent everywhere: the page must keep what the machine
-  // keeps. Green is added once, to the first list. The image site answers only where the page
-  // waits for it.
+  // keeps. Green is added once, to the first list. The image site answers where the page waits
+  // for it, and also after the page gave up, which must change nothing. Time on the page moves
+  // only where the page waits for the site (IMAGE_CHECK_TIMES_OUT).
   events: {
     LOAD_IMAGES: {generate: constant, when: offered('LOAD_IMAGES')},
     ALWAYS_ALLOW_SITES: {generate: constant, when: offered('ALWAYS_ALLOW_SITES')},
     ADD_IMAGE_FROM_LINK: {generate: constant, when: ({snapshot}: When) => snapshot.matches({list: 'first'} as never)},
     RELOAD: {generate: constant, when: always},
     OPEN_OTHER_LIST: {generate: constant, when: always},
-    IMAGE_SITE_ANSWERS: {generate: constant, when: offered('IMAGE_SITE_ANSWERS')},
+    IMAGE_SITE_ANSWERS: {generate: constant, when: (args: When) => offered('IMAGE_SITE_ANSWERS')(args) || gaveUp(args)},
     IMAGE_SITE_FAILS: {generate: constant, when: offered('IMAGE_SITE_FAILS')},
+    IMAGE_CHECK_TIMES_OUT: {generate: constant, when: offered('IMAGE_CHECK_TIMES_OUT')},
   },
 });

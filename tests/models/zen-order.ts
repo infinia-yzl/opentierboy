@@ -24,19 +24,21 @@ export function queueHiddenIn(snapshot: ZenOrderSnapshot): boolean {
 }
 
 const constant = fc.constant({});
+const inZen = ({snapshot}: When) => snapshot.matches('on');
 
 export const zenOrderModel = defineModel({
   id: 'zen-order',
   machine: zenOrderMachine,
   // The page object clicks the "Hide the queue" box, so each event is sent only when the box
-  // has the other value.
+  // has the other value. In Pick freely the box is unavailable: it is pressed there too, and the
+  // page must change nothing.
   events: {
     TOGGLE_ZEN: {generate: constant, when: offered('TOGGLE_ZEN')},
     EXIT_ZEN: {generate: constant, when: offered('EXIT_ZEN')},
     CHOOSE_PICK_FREELY: {generate: constant, when: offered('CHOOSE_PICK_FREELY')},
     CHOOSE_IN_ORDER: {generate: constant, when: offered('CHOOSE_IN_ORDER')},
     CHOOSE_SHUFFLE: {generate: constant, when: offered('CHOOSE_SHUFFLE')},
-    HIDE_QUEUE: {generate: constant, when: (args: When) => offered('HIDE_QUEUE')(args) && !queueHiddenIn(args.snapshot as ZenOrderSnapshot)},
-    SHOW_QUEUE: {generate: constant, when: (args: When) => offered('SHOW_QUEUE')(args) && queueHiddenIn(args.snapshot as ZenOrderSnapshot)},
+    HIDE_QUEUE: {generate: constant, when: (args: When) => inZen(args) && !queueHiddenIn(args.snapshot as ZenOrderSnapshot)},
+    SHOW_QUEUE: {generate: constant, when: (args: When) => inZen(args) && queueHiddenIn(args.snapshot as ZenOrderSnapshot)},
   },
 });

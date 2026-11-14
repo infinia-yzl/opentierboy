@@ -4,6 +4,10 @@ export const mouseDragMachine = createMachine({
   id: 'mouseDrag',
   description: 'Ranking with the mouse in a list of rows S and A and the Unranked tray, with two tiles: Mauga, which the user drags, and Winston, which starts in row S and moves only with its row. Each drag is one press, move and release. A tile dropped on the free space of another row goes to its end; dropped on the left or right half of Winston, it goes just before or just after him. A row dragged by its handle onto the other row takes its place: the contents swap and the labels stay S, A from top to bottom. Each drop that changes the list writes a new link and one new history entry. A drop where the tile started, or a release outside the rows, changes nothing.',
   initial: 'winstonInS',
+  on: {
+    DROP_MAUGA_IN_PLACE: {description: 'Mauga dropped where it started: the list, the link and the history stay as they are.'},
+    RELEASE_MAUGA_OUTSIDE_ROWS: {description: 'Mauga released outside the rows: the list, the link and the history stay as they are.'},
+  },
   states: {
     winstonInS: {
       description: 'Winston is in row S.',

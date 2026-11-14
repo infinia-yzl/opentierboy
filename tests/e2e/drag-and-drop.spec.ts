@@ -4,7 +4,7 @@ import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {
   KEYBOARD_DRAG_ITEM,
@@ -215,9 +215,12 @@ test.describe('drag and drop', () => {
       await tierList.moveItemWithKeyboard('Winston', ['ArrowRight', 'ArrowLeft'], {waitForLink: false});
       await expect(tierList.dragAnnouncer).toHaveText('Dropped Winston. It stays in tier S, position 2 of 3.');
 
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston', 'Sigma']);
-      await expect(tierList.page).toHaveURL(address);
-      await expect.poll(() => tierList.historyLength()).toBe(entries);
+      // A link written by mistake would keep the page busy until it is in the address: settle,
+      // then read once.
+      await tierList.settled();
+      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston', 'Sigma']);
+      expect(tierList.page.url()).toBe(address);
+      expect(await tierList.historyLength()).toBe(entries);
     });
   });
 
@@ -256,10 +259,11 @@ test.describe('drag and drop', () => {
       await tierList.dragItemToTierThenCancel('Mauga', 'A');
 
       await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in tier S, position 1 of 2.');
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
-      await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await expect(page).toHaveURL(before);
-      await expect.poll(() => tierList.historyLength()).toBe(entries);
+      await tierList.settled();
+      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
+      expect(await tierList.itemNamesIn('A')).toEqual([]);
+      expect(page.url()).toBe(before);
+      expect(await tierList.historyLength()).toBe(entries);
     });
 
     test('renders the item in row A when the user drags it there after a cancelled mouse drag', async ({tierList}) => {
@@ -282,10 +286,11 @@ test.describe('drag and drop', () => {
       await tierList.moveItemWithKeyboardThenCancel('Sigma', ['ArrowUp', 'ArrowUp']);
 
       await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Sigma is back in Unranked, position 1 of 1.');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
-      await expect(page).toHaveURL(before);
-      await expect.poll(() => tierList.historyLength()).toBe(entries);
+      await tierList.settled();
+      expect(await tierList.itemNamesIn('Unranked')).toEqual(['Sigma']);
+      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
+      expect(page.url()).toBe(before);
+      expect(await tierList.historyLength()).toBe(entries);
     });
   });
 
@@ -329,8 +334,9 @@ test.describe('drag and drop', () => {
 
       await tierList.swipeUpFromItem('Mercy', 200);
 
-      await expect(tierList.page).toHaveURL(address);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(many);
+      await tierList.settled();
+      expect(tierList.page.url()).toBe(address);
+      expect(await tierList.itemNamesIn('Unranked')).toEqual(many);
     });
   });
 
@@ -361,6 +367,7 @@ test.describe('drag and drop', () => {
 
         await tierList.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
 
+        await tierList.settled();
         expect(await nativeDrags()).toBe(0);
         await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in tier S,|Winston\. It stays in Unranked,)/);
         expect(await newEntries()).toBe(1);
@@ -442,6 +449,8 @@ test.describe('drag and drop', () => {
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
             // Focus stays on the tile while it moves between rows, and after a drop or a cancel.
             await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
+            // The drag holds the page busy until the drop (busyIn below).
+            if (carried) await expect(tierList.main, 'the page should be busy while the tile is carried').toHaveAttribute('aria-busy', 'true');
             if (!carried) {
               // At rest, it takes the next drag.
               await tierList.expectEveryItemDraggable();
@@ -459,7 +468,7 @@ test.describe('drag and drop', () => {
       test(`renders each state of the keyboard drag machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(keyboardDragModel, keyboardDragSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, keyboardDragModel, coverage, part);
+        await attachCoverage(testInfo, keyboardDragModel, coverage, part);
       });
     }
   });
@@ -531,7 +540,7 @@ test.describe('drag and drop', () => {
       test(`renders each state of the mouse drag machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(mouseDragModel, mouseDragSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, mouseDragModel, coverage, part);
+        await attachCoverage(testInfo, mouseDragModel, coverage, part);
       });
     }
   });

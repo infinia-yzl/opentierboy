@@ -29,7 +29,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: isCI ? '50%' : undefined,
+  // Four workers in CI (owner decision).
+  workers: isCI ? 4 : undefined,
   reporter: isCI
     ? [['github'], ['html', {open: 'never'}]]
     : [['list'], ['html', {open: 'never'}]],

@@ -61,17 +61,17 @@ async function walkJourney(tierList: TierListPage, start: ExpectedList, steps: S
   const lists = [start, ...steps.map((step) => step.list)];
   const pictures = [startPictures, ...steps.map((step) => step.pictures ?? [])];
   for (let index = steps.length - 1; index >= 0; index--) {
-    await page.goBack();
+    await tierList.goBack();
     await expect(page, `Back to step ${index}`).toHaveURL(addresses[index]);
     await expectListAndPictures(tierList, lists[index], pictures[index]);
   }
   for (let index = 1; index <= steps.length; index++) {
-    await page.goForward();
+    await tierList.goForward();
     await expect(page, `Forward to step ${index}`).toHaveURL(addresses[index]);
     await expectListAndPictures(tierList, lists[index], pictures[index]);
   }
   // Walking the history writes nothing new.
-  await expect.poll(() => tierList.historyLength()).toBe(entries + steps.length);
+  expect(await tierList.historyLength()).toBe(entries + steps.length);
 }
 
 test.describe('journeys', () => {
@@ -98,11 +98,7 @@ test.describe('journeys', () => {
 
     test('writes 1 history entry per change when the user uploads, ranks, deletes and uploads device images again', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      const deleteItem = async (label: string) => {
-        const before = tierList.page.url();
-        await tierList.deleteItem(label);
-        await expect(tierList.page).not.toHaveURL(before);
-      };
+      const deleteItem = (label: string) => tierList.deleteItem(label);
 
       await walkJourney(tierList, rows({S: ['Mauga']}), [
         {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], Unranked: ['red-square']}), pictures: ['red-square']},
@@ -169,8 +165,8 @@ test.describe('journeys', () => {
       await tierList.dragItemToTier('Sigma', 'B');
 
       // Back twice: only Mauga is ranked again.
-      await page.goBack();
-      await page.goBack();
+      await tierList.goBack();
+      await tierList.goBack();
       await expect(page).toHaveURL(afterMauga);
       await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
 
@@ -179,14 +175,14 @@ test.describe('journeys', () => {
       await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
       const afterSigma = page.url();
 
-      await page.goBack();
+      await tierList.goBack();
       await expect(page).toHaveURL(afterMauga);
       await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
-      await page.goForward();
+      await tierList.goForward();
       await expect(page).toHaveURL(afterSigma);
       await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
       // Nothing is ahead any more: Forward stays on the newest version.
-      await page.goForward();
+      await tierList.goForward();
       await expect(page).toHaveURL(afterSigma);
       await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
     });

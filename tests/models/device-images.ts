@@ -1,7 +1,7 @@
 import * as fc from 'fast-check';
 import type {EventFrom, SnapshotFrom} from 'xstate';
 import {deviceImagesMachine} from '../machines/device-images';
-import {defineModel, offered} from '../support/machines';
+import {defineModel, offered, type When} from '../support/machines';
 
 /** The two images of the machine, by their state names: the item names their files give. */
 export const DEVICE_IMAGE_NAMES = {red: 'red-square', blue: 'blue-square'} as const;
@@ -29,6 +29,9 @@ const view = (browser: DeviceImagesView['browser'], ranked: DeviceImageKey[], un
 const DEVICE_IMAGES_VIEWS: Readonly<Record<string, DeviceImagesView>> = {
   'thisBrowser.noImages': view('this', [], []),
   'thisBrowser.redAdded': view('this', [], ['red'], true),
+  'thisBrowser.redUndone': view('this', [], []),
+  'thisBrowser.redBackAfterUndo': view('this', [], ['red']),
+  'thisBrowser.asOpenedBeforeRed': view('this', [], []),
   'thisBrowser.redUnranked': view('this', [], ['red']),
   'thisBrowser.redRanked': view('this', ['red'], []),
   'thisBrowser.blueAdded': view('this', ['red'], ['blue'], true),
@@ -60,12 +63,17 @@ export const deviceImagesModel = defineModel({
   // Upload is offered in every list, but the walk follows the life of two images: Red into the
   // empty list, then Blue next to a ranked Red. Reload, the new browser and its closing are sent
   // in the first browser's lists without a toast (a toast state reloads too, and ends the toast).
+  // Back is sent after the upload of Red and after its Undo. Forward is sent in every list of the
+  // first browser: where the machine takes none, no later version is left, and the page must
+  // stay as it is.
   events: {
     UPLOAD_RED: {generate: constant, when: offered('UPLOAD_RED')},
     UPLOAD_BLUE: {generate: constant, when: offered('UPLOAD_BLUE')},
     UNDO: {generate: constant, when: offered('UNDO')},
     TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
     RANK_RED: {generate: constant, when: offered('RANK_RED')},
+    BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
+    BROWSER_FORWARD: {generate: constant, when: ({snapshot}: When) => snapshot.matches('thisBrowser')},
     RELOAD: {generate: constant, when: offered('RELOAD')},
     OPEN_IN_NEW_BROWSER: {generate: constant, when: offered('OPEN_IN_NEW_BROWSER')},
     CLOSE_NEW_BROWSER: {generate: constant, when: offered('CLOSE_NEW_BROWSER')},

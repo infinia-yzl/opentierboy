@@ -77,7 +77,7 @@ test.describe('link previews', () => {
     for (const id of ['constructor', 'toString', '__proto__']) {
       test(`returns the unknown-item preview when the state parameter has an item with the id "${id}"`, async ({request}) => {
         const unknown = await request.get(previewPath(oddIdLink('unknown-item-x')));
-        const odd = await request.get(previewPath(oddIdLink(id)), {timeout: 10_000});
+        const odd = await request.get(previewPath(oddIdLink(id)));
 
         expect(odd.status()).toBe(200);
         expect((await odd.body()).equals(await unknown.body()), 'same preview as an unknown item').toBe(true);
@@ -100,7 +100,7 @@ test.describe('link previews', () => {
             ['S', [packageItemId('image-overwatch', 'Mauga'), ...addresses.map((u, index) => ({u, c: `Link ${index + 1}`}))]],
             ['A', [{d: 'k3j9x0a1b', c: 'Upload'}]], ['B', []], ['', []],
           ]};
-          const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`, {timeout: 10_000});
+          const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`);
           expect(response.status()).toBe(200);
           expect(response.headers()['content-type']).toBe('image/png');
           return response.body();
@@ -128,7 +128,7 @@ test.describe('link previews', () => {
     /** The preview of a 3-row v3 list with Mauga and the given link images in S. */
     async function linkImagePreview(request: import('@playwright/test').APIRequestContext, images: {u: string; c?: string}[]) {
       const json = {t: 'Link images', tp: 3, r: [['S', [packageItemId('image-overwatch', 'Mauga'), ...images]], ['A', []], ['B', []], ['', []]]};
-      const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`, {timeout: 15_000});
+      const response = await request.get(`/api/og?state=${encodeURIComponent(v3State(json))}`);
       expect(response.status()).toBe(200);
       expect(response.headers()['content-type']).toBe('image/png');
       return response.body();
@@ -149,7 +149,7 @@ test.describe('link previews', () => {
 
     test('returns the default preview when the state parameter has a row name that is an object', async ({request}) => {
       const json = {title: 'Bad tier name', tiers: [{i: 'tier-s', n: {text: 'S'}, t: [{i: 'image-overwatch-mau.webp'}]}, UNRANKED]};
-      const response = await request.get(previewPath(json), {timeout: 10_000});
+      const response = await request.get(previewPath(json));
 
       expect(response.status()).toBe(200);
       expect(response.headers()['content-type']).toBe('image/png');
@@ -162,7 +162,8 @@ test.describe('link previews', () => {
     // Links made to hang or crash the server (A29). Each one must get the default preview quickly,
     // and the server must keep answering other requests. The links are built here in milliseconds
     // (tests/unit/support/lz-stream.ts); lz-string itself would take seconds to compress them.
-    const HOSTILE_TIMEOUT = 5_000;
+    // A speed budget, one of the few named times in the tests (tests/README.md).
+    const HOSTILE_BUDGET_MS = 5_000;
     const hostileLinks = [
       {name: 'a 5-million-character tier name', state: () => lzWithRun(HUGE_NAME_JSON, 'x', 5_000_000).input},
       {name: 'data that expands to 12 million characters', state: () => lzBomb(5_000).input},
@@ -173,16 +174,22 @@ test.describe('link previews', () => {
         {i: 'tier-s', n: 'S', t: Array.from({length: 5_001}, () => ({i: 'x'}))}, UNRANKED,
       ]})},
     ];
-    for (const link of hostileLinks) {
-      test(`returns the default preview within 5 s, and 200 to the next request, when the state parameter has ${link.name}`, async ({request}) => {
-        const response = await request.get(`/api/og?state=${encodeURIComponent(link.state())}`, {timeout: HOSTILE_TIMEOUT});
+    test.describe('hostile links', () => {
+      // One after another, in one worker: the budget times the server, not the other tests of
+      // this file running beside it on a small runner. Unlike 'serial', a failure skips no other test.
+      test.describe.configure({mode: 'default'});
 
-        expect(response.status()).toBe(200);
-        expect((await response.body()).equals(defaultImage), 'default preview').toBe(true);
-        const next = await request.get(previewPath(oddIdLink('unknown-item-x')), {timeout: HOSTILE_TIMEOUT});
-        expect(next.status(), 'the server still answers').toBe(200);
-      });
-    }
+      for (const link of hostileLinks) {
+        test(`returns the default preview within 5 s, and 200 to the next request, when the state parameter has ${link.name}`, async ({request}) => {
+          const response = await request.get(`/api/og?state=${encodeURIComponent(link.state())}`, {timeout: HOSTILE_BUDGET_MS});
+
+          expect(response.status()).toBe(200);
+          expect((await response.body()).equals(defaultImage), 'default preview').toBe(true);
+          const next = await request.get(previewPath(oddIdLink('unknown-item-x')), {timeout: HOSTILE_BUDGET_MS});
+          expect(next.status(), 'the server still answers').toBe(200);
+        });
+      }
+    });
   });
 
   /**
@@ -227,12 +234,16 @@ test.describe('link previews', () => {
   test.describe('lists at the limits', () => {
     test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
       'Preview images need the local server on port 3000, see defaultBaseUrl in lib/linkPreview.ts.');
+    // One after another, in one worker (see "hostile links"): two requests at a time already.
+    test.describe.configure({mode: 'default'});
+    // A speed budget, one of the few named times in the tests (tests/README.md).
+    const LIMITS_BUDGET_MS = 5_000;
 
     for (const list of listsAtLimits) {
       test(`returns a 1200×630 PNG within 5 s, and a plain preview at the same time, when the list has ${list.name}`, async ({request}) => {
         const [preview, plain] = await Promise.all([
-          request.get(previewPath(list.json()), {timeout: 5_000}),
-          request.get('/api/og', {timeout: 5_000}),
+          request.get(previewPath(list.json()), {timeout: LIMITS_BUDGET_MS}),
+          request.get('/api/og', {timeout: LIMITS_BUDGET_MS}),
         ]);
 
         expect(preview.status()).toBe(200);

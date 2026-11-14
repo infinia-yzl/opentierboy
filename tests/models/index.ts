@@ -17,6 +17,11 @@ import {sharedLinkModel} from './shared-link';
 import {addFromTemplateModel} from './add-from-template';
 import {removeAndUndoModel} from './remove-and-undo';
 import {linkWritesModel} from './link-writes';
+import {editorRowsModel} from './editor-rows';
+import {zenStepsModel} from './zen-steps';
+import {leavingWritesModel} from './leaving-writes';
+import {labelWritesModel} from './label-writes';
+import {linkDialogModel} from './link-dialog';
 
 /**
  * The model of every machine in tests/machines/. tests/unit/machines/walks.test.ts walks each one
@@ -42,4 +47,9 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   addFromTemplateModel,
   removeAndUndoModel,
   linkWritesModel,
+  editorRowsModel,
+  zenStepsModel,
+  leavingWritesModel,
+  labelWritesModel,
+  linkDialogModel,
 ] as MachineModel[]);

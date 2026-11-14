@@ -4,15 +4,17 @@ import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
 import {imageFile} from '../support/image-sites';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
-import type {TierListPage} from '../pages/tier-list-page';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {type TierListPage} from '../pages/tier-list-page';
 import type {SitePage} from '../pages/site-page';
 import {TIP_IDS, tipsModel, tipsViewOf, type TipsEvent, type TipsSnapshot, type TipsView} from '../models/tips';
 import {sharedListViewOf, tipsSharedListModel, type TipsSharedListEvent, type TipsSharedListSnapshot} from '../models/tips-shared-list';
 import {
+  closeTipToastAndLetItLeave,
   FIRST_DRAG_KEYBOARD,
   FIRST_DRAG_MOUSE,
   FIRST_DRAG_TOUCH,
+  hideTipsAndLetToastLeave,
   LINK_SAVE_TITLE,
   Tips,
 } from '../pages/tips';
@@ -310,13 +312,16 @@ test.describe('tips', () => {
     };
 
     /**
-     * The tips machine's events and checks (modelSut). Each run starts as a new
-     * browser on the template; the page clock lets a toast time out without waiting 10 s.
+     * The tips machine's events and checks (modelSut). Each run starts as a new browser on the
+     * template. Page time stands still (`pageTime: 'paused'`): a toast stays however long the
+     * steps take, also while the list changes under it, and closes only in TOAST_TIMES_OUT, which
+     * checks that it closes after exactly 10 s (letToastTimeOut).
      */
     const tipsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       const tips = new Tips(page);
       let changes = 0;
       return modelSut<TipsSnapshot, TipsEvent>(page, {
+        pageTime: 'paused',
         reset: async () => {
           await tips.forgetThisBrowser();
           await tierList.goto(TANKS);
@@ -327,9 +332,9 @@ test.describe('tips', () => {
           CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
           ADD_DEVICE_IMAGE: () => tierList.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
           CLOSE_TIP: () => tips.close(),
-          CLOSE_TOAST: () => tips.closeTipToast(),
+          CLOSE_TOAST: () => closeTipToastAndLetItLeave(tips),
           TOAST_TIMES_OUT: () => tips.waitOutTipToast(),
-          HIDE_TIPS: () => tips.hideTips(),
+          HIDE_TIPS: () => hideTipsAndLetToastLeave(tips),
           SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
         },
         states: {
@@ -377,24 +382,24 @@ test.describe('tips', () => {
     test.describe.configure({retries: 0});
 
     test.describe('from a new browser', () => {
-      // Installed before the first page opens, so TOAST_TIMES_OUT can run the page clock.
-      test.use({pageClock: true});
       for (const part of walkParts(tipsModel)) {
         test(`renders each state of the tips machine when the user walks every transition from a new browser (${part.name})`, async ({tierList, page}, testInfo) => {
           test.setTimeout(MODEL_PART_TIMEOUT);
           const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo), part);
-          await attachAndAssertCoverage(testInfo, tipsModel, coverage, part);
+          await attachCoverage(testInfo, tipsModel, coverage, part);
         });
       }
     });
 
-    // No page clock here: Playwright's clock gives the page no navigation entry
-    // (performance.getEntriesByType('navigation') is empty), so the shared-list tip never shows.
+    // No page clock here, neither `pageClock` nor `pageTime: 'paused'`: Playwright's clock gives
+    // the page no navigation entry (performance.getEntriesByType('navigation') is empty), so the
+    // shared-list tip never shows. The pointer rests on the link-save toast instead (CHANGE_TITLE),
+    // which holds it while page time runs.
     for (const part of walkParts(tipsSharedListModel)) {
       test(`renders each state of the shared-list tip machine when the user walks every transition from a friend's link (${part.name})`, async ({tierList, site, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage, part);
+        await attachCoverage(testInfo, tipsSharedListModel, coverage, part);
       });
     }
   });

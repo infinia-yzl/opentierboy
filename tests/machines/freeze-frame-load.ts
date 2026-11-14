@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const freezeFrameLoadMachine = createMachine({
   id: 'freezeFrameLoad',
-  description: 'A Freeze Frame file on its way: made in the editor, downloaded, and opened again. The list “Mixed bag” holds Mauga and Winston from OVERWATCH, a picture from the device, an image from i.imgur.com (a trusted site) and one from images.example.org (a site OpenTierBoy does not know, loaded for this page). The file opens in the same browser, from the editor or from Home, and in a new browser that never held the picture. Open list adds one Back step, unless the address shows that list already.',
+  description: 'A Freeze Frame file on its way: made in the editor, downloaded, and opened again. The list “Mixed bag” holds Mauga and Winston from OVERWATCH, a picture from the device, an image from i.imgur.com (a trusted site) and one from images.example.org (a site OpenTierBoy does not know, loaded for this page). The file opens in the same browser, from the editor or from Home, and in a new browser that never held the picture. Open list adds one Back step, unless the address shows that list already. The file must exist before it can be opened, so every walk starts with the same two steps, Capture Preview and Download; the choices come after them.',
   initial: 'sameBrowser',
   states: {
     sameBrowser: {
@@ -10,6 +10,7 @@ export const freezeFrameLoadMachine = createMachine({
       initial: 'editor',
       states: {
         editor: {
+          description: 'The editor of the browser that made the list.',
           initial: 'listMade',
           states: {
             listMade: {
@@ -54,6 +55,7 @@ export const freezeFrameLoadMachine = createMachine({
           },
         },
         home: {
+          description: 'The landing page of the same browser, and the editor it opens.',
           initial: 'landing',
           states: {
             landing: {

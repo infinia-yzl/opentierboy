@@ -6,9 +6,9 @@ import {expect, expectTierList, test} from '../support/test';
 import {rankingState, templateItemCount} from '../support/links';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
-import type {TierListPage} from '../pages/tier-list-page';
-import type {SitePage} from '../pages/site-page';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {type TierListPage} from '../pages/tier-list-page';
+import {openListLaterAndReturnHome, reopenRecentLinkLaterAndReturnHome, type SitePage} from '../pages/site-page';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   OTHER_PINNED_LISTS,
   OTHER_RECENT_LISTS,
@@ -168,7 +168,7 @@ test.describe('home', () => {
 
     await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'true');
     await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
-    await page.reload();
+    await site.reload();
     await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
     await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'true');
   });
@@ -192,7 +192,7 @@ test.describe('home', () => {
     await site.removeRecentLink('Support list');
 
     await expect(site.recentLinks).toHaveText(['Tanks list']);
-    await page.reload();
+    await site.reload();
     await expect(site.recentLinks).toHaveText(['Tanks list']);
   });
 
@@ -238,7 +238,7 @@ test.describe('home', () => {
         for (const label of entry.pictures) {
           await expect.poll(() => tierList.itemImageHasLoaded(label), {message: `the picture ${label} loads`}).toBe(true);
         }
-        await page.goBack();
+        await tierList.goBack();
         await expect(site.heading('Create a New Tier List')).toBeVisible();
       });
     }
@@ -263,7 +263,7 @@ test.describe('home', () => {
       await expect(page).toHaveURL(/\/rank\?state=3\./);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-      await page.goBack();
+      await tierList.goBack();
       await expect(site.heading('Create a New Tier List')).toBeVisible();
     });
 
@@ -312,14 +312,23 @@ test.describe('home', () => {
       await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(view.pinRefused ? 1 : 0);
     };
 
-    /** The Recently viewed machine's events and checks (modelSut). Each run starts on Home with the seeded lists. */
+    /**
+     * The Recently viewed machine's events and checks (modelSut). Each run starts on Home with the
+     * seeded lists. Page time stands still (`pageTime: 'paused'`): the pin-limit toast closes only
+     * in TOAST_TIMES_OUT, which checks that it closes after exactly 4 s (letToastTimeOut). Page
+     * time also moves on before each open and reopen, while no toast shows (the machine sends
+     * nothing else while one does), so Recently viewed records each one at a later time.
+     */
     const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => modelSut<RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
-      reset: () => site.seedRecentLinks(seededRecentLinks()),
+      pageTime: 'paused',
+      reset: async () => {
+        await site.seedRecentLinks(seededRecentLinks());
+      },
       events: {
-        OPEN_TANKS: () => site.openListAndReturnHome(hrefOf('tanks'), WALK_LISTS.tanks),
-        OPEN_SUPPORT: () => site.openListAndReturnHome(hrefOf('support'), WALK_LISTS.support),
-        REOPEN_TANKS: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.tanks),
-        REOPEN_SUPPORT: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.support),
+        OPEN_TANKS: () => openListLaterAndReturnHome(site, hrefOf('tanks'), WALK_LISTS.tanks),
+        OPEN_SUPPORT: () => openListLaterAndReturnHome(site, hrefOf('support'), WALK_LISTS.support),
+        REOPEN_TANKS: () => reopenRecentLinkLaterAndReturnHome(site, WALK_LISTS.tanks),
+        REOPEN_SUPPORT: () => reopenRecentLinkLaterAndReturnHome(site, WALK_LISTS.support),
         PIN_TANKS: () => site.pinRecentLink(WALK_LISTS.tanks, PIN_LIMIT_TOAST),
         PIN_SUPPORT: () => site.pinRecentLink(WALK_LISTS.support, PIN_LIMIT_TOAST),
         UNPIN_TANKS: () => site.unpinRecentLink(WALK_LISTS.tanks),
@@ -335,13 +344,12 @@ test.describe('home', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test.use({pageClock: true});
     test.describe.configure({retries: 0});
     for (const part of walkParts(recentlyViewedModel)) {
       test(`renders each state of the Recently viewed machine when the user walks every transition (${part.name})`, async ({site, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(recentlyViewedModel, recentlyViewedSut(site, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, recentlyViewedModel, coverage, part);
+        await attachCoverage(testInfo, recentlyViewedModel, coverage, part);
       });
     }
   });

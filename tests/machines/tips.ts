@@ -2,10 +2,11 @@ import {createMachine} from 'xstate';
 
 export const tipsMachine = createMachine({
   id: 'tips',
-  description: 'The first-drag tip and the link-save and device-images toasts of a new browser on a template. One tip shows at a time and the others wait for it. A tip that ended is seen and does not return. Hide tips turns the tips off, and About’s “Show the tips again” turns them on.',
+  description: 'The first-drag tip and the link-save and device-images toasts of a new browser on a template. One tip shows at a time: a tip that becomes useful while another shows waits for it, also while a toast shows. A tip that ended is seen and does not return. A toast ends by itself after 10 seconds (TOAST_TIMES_OUT). Hide tips turns the tips off, and About’s “Show the tips again” turns them on.',
   initial: 'editor',
   states: {
     editor: {
+      description: 'The editor, opened on the OVERWATCH Tank template with its 13 tanks in Unranked.',
       initial: 'firstDragTip',
       on: {SHOW_TIPS_AGAIN: {target: 'about'}},
       states: {
@@ -18,6 +19,7 @@ export const tipsMachine = createMachine({
           },
           states: {
             nothingWaits: {
+              description: 'No other tip waits.',
               on: {
                 CHANGE_TITLE: {target: 'linkSaveWaits'},
                 ADD_DEVICE_IMAGE: {target: 'linkSaveAndDeviceImagesWait'},
@@ -26,6 +28,7 @@ export const tipsMachine = createMachine({
               },
             },
             linkSaveWaits: {
+              description: 'The title changed: the link-save toast waits for this tip.',
               on: {
                 ADD_DEVICE_IMAGE: {target: 'linkSaveAndDeviceImagesWait'},
                 DROP_IN_ROW: {target: '#tips.editor.linkSaveToast.nothingWaits'},
@@ -33,6 +36,7 @@ export const tipsMachine = createMachine({
               },
             },
             linkSaveAndDeviceImagesWait: {
+              description: 'An image from the device was added: the link-save toast and then the device-images toast wait for this tip.',
               on: {
                 DROP_IN_ROW: {target: '#tips.editor.linkSaveToast.deviceImagesWaits'},
                 CLOSE_TIP: {target: '#tips.editor.linkSaveToast.deviceImagesWaits'},
@@ -41,7 +45,7 @@ export const tipsMachine = createMachine({
           },
         },
         linkSaveToast: {
-          description: 'The first-drag and link-save tips are seen. A toast ends by itself after 10 seconds, so the model makes no change to the list while a toast shows.',
+          description: 'The link-save toast shows. The first-drag and link-save tips are seen. A drop or a new title changes no tip.',
           initial: 'nothingWaits',
           on: {
             HIDE_TIPS: {target: 'tipsOff'},
@@ -49,12 +53,15 @@ export const tipsMachine = createMachine({
           },
           states: {
             nothingWaits: {
+              description: 'No other tip waits.',
               on: {
+                ADD_DEVICE_IMAGE: {target: 'deviceImagesWaits'},
                 CLOSE_TOAST: {target: '#tips.editor.noTip.linkSaveSeen'},
                 TOAST_TIMES_OUT: {target: '#tips.editor.noTip.linkSaveSeen'},
               },
             },
             deviceImagesWaits: {
+              description: 'An image from the device was added: the device-images toast waits for this one. Another image changes nothing.',
               on: {
                 CLOSE_TOAST: {target: '#tips.editor.deviceImagesToast'},
                 TOAST_TIMES_OUT: {target: '#tips.editor.deviceImagesToast'},
@@ -63,7 +70,7 @@ export const tipsMachine = createMachine({
           },
         },
         deviceImagesToast: {
-          description: 'Every tip is seen.',
+          description: 'The device-images toast shows. Every tip is seen, so a change shows no other tip.',
           on: {
             CLOSE_TOAST: {target: 'noTip.allSeen'},
             TOAST_TIMES_OUT: {target: 'noTip.allSeen'},
@@ -72,6 +79,7 @@ export const tipsMachine = createMachine({
           },
         },
         noTip: {
+          description: 'No tip shows.',
           initial: 'firstDragSeen',
           states: {
             firstDragSeen: {
@@ -83,9 +91,10 @@ export const tipsMachine = createMachine({
               },
             },
             linkSaveSeen: {
+              description: 'The first-drag and link-save tips are seen. A drop or a new title shows no tip.',
               on: {ADD_DEVICE_IMAGE: {target: '#tips.editor.deviceImagesToast'}},
             },
-            allSeen: {},
+            allSeen: {description: 'Every tip is seen: no change shows a tip.'},
           },
         },
         tipsOff: {description: 'Hide tips turned every tip off.'},

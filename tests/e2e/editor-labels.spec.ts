@@ -27,7 +27,7 @@ test.describe('editor labels', () => {
     test('renders the new title when the user opens Edit title with Enter, types a title and presses Enter', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.editTitleButton.focus();
-      await tierList.page.keyboard.press('Enter');
+      await tierList.pressKey('Enter');
       await expect(tierList.titleInput).toBeFocused();
       await expect(tierList.titleInput).toHaveValue('OVERWATCH - Tank');
 
@@ -73,11 +73,11 @@ test.describe('editor labels', () => {
 
       await tierList.renameTier('S', longName);
       await tierList.dragItemToTier('Winston', 'A');
-      await page.goBack();
+      await tierList.goBack();
 
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await page.reload();
+      await tierList.reload();
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
     });
@@ -128,7 +128,7 @@ test.describe('editor labels', () => {
       await tierList.hints.click();
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
       await tierList.dragItemToTier('Mauga', 'A');
-      await page.goBack();
+      await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });
 
@@ -144,7 +144,7 @@ test.describe('editor labels', () => {
       await tierList.hints.click();
       await expect(tierList.title).toHaveText('OVERWATCH - Tank');
       await tierList.dragItemToTier('Mauga', 'A');
-      await page.goBack();
+      await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });
   });

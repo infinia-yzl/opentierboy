@@ -6,6 +6,7 @@ export const tipsSharedListMachine = createMachine({
   initial: 'editor',
   states: {
     editor: {
+      description: 'The editor on the friend’s list “Tanks by a friend”, with Mauga in S and Winston in A.',
       initial: 'sharedListTip',
       on: {SHOW_TIPS_AGAIN: {target: 'about'}},
       states: {
@@ -20,11 +21,12 @@ export const tipsSharedListMachine = createMachine({
           },
         },
         linkSaveToast: {
-          description: 'The first change ends the first-drag tip without showing it, because the rows already hold items. A toast ends by itself after 10 seconds, so the model makes no change while it shows.',
+          description: 'The link-save toast shows. The first change ends the first-drag tip without showing it, because the rows already hold items. The toast ends by itself after 10 seconds, but not while the pointer rests on it.',
           initial: 'afterSharedListTip',
           on: {HIDE_TIPS: {target: 'tipsOff'}},
           states: {
             afterSharedListTip: {
+              description: 'The shared-list tip was seen before the change.',
               on: {
                 CLOSE_TOAST: {target: '#tipsSharedList.editor.noTip.allSeen'},
                 OPEN_SHARED_LINK: {target: '#tipsSharedList.editor.noTip.allSeen'},
@@ -32,6 +34,7 @@ export const tipsSharedListMachine = createMachine({
               },
             },
             withoutSharedListTip: {
+              description: 'The list was opened from Recently viewed, so the shared-list tip never showed.',
               on: {
                 CLOSE_TOAST: {target: '#tipsSharedList.editor.noTip.linkSaveSeen'},
                 OPEN_SHARED_LINK: {target: '#tipsSharedList.editor.noTip.linkSaveSeen'},
@@ -41,6 +44,7 @@ export const tipsSharedListMachine = createMachine({
           },
         },
         noTip: {
+          description: 'No tip shows.',
           initial: 'nothingSeen',
           states: {
             nothingSeen: {
@@ -51,10 +55,11 @@ export const tipsSharedListMachine = createMachine({
               },
             },
             sharedListSeen: {
+              description: 'The shared-list tip is seen; the link-save toast is not.',
               on: {CHANGE_TITLE: {target: '#tipsSharedList.editor.linkSaveToast.afterSharedListTip'}},
             },
             linkSaveSeen: {description: 'The link-save toast is seen, so the shared-list tip does not show any more.'},
-            allSeen: {},
+            allSeen: {description: 'The shared-list tip and the link-save toast are seen.'},
           },
         },
         tipsOff: {description: 'Hide tips turned every tip off.'},

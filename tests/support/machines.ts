@@ -2,7 +2,7 @@ import * as fc from 'fast-check';
 import type {TestInfo} from '@playwright/test';
 import {assertTestCoverage, formatTestCoverage, formatTestCoverageHTML, testPaths, type TestCoverage} from '@xstate/test';
 import type {createInspector} from '@statelyai/sdk';
-import {createActor, type AnyMachineSnapshot, type AnyStateMachine, type EventObject} from 'xstate';
+import {createActor, initialTransition, transition, type AnyMachineSnapshot, type AnyStateMachine, type EventObject} from 'xstate';
 import {getAdjacencyMap, getPathsFromEvents, type AdjacencyValue} from 'xstate/graph';
 import {modelInspectOn} from './model-inspect';
 
@@ -67,7 +67,7 @@ const ABORTED_PREFETCH = /\?_rsc=[^\s]+ due to access control checks\.$/;
 const RESIZE_OBSERVER_LOOP = /ResizeObserver loop completed with undelivered notifications\.$/;
 
 /** The page errors the walks pass over: browser notices, not failures of the app. */
-const BENIGN_PAGE_ERRORS: readonly RegExp[] = [ABORTED_PREFETCH, RESIZE_OBSERVER_LOOP];
+export const BENIGN_PAGE_ERRORS: readonly RegExp[] = [ABORTED_PREFETCH, RESIZE_OBSERVER_LOOP];
 
 interface SutSession {
   check?: () => unknown;
@@ -304,41 +304,114 @@ function valueInRegion(node: AnyStateMachine['root'], value: unknown): unknown {
 }
 
 /**
- * The walk of a model: event sequences, each from the initial state, that together enter every
- * reachable state (walkKey), take every transition of the machine into every state it can lead
- * to (so Zen turns on again in each layout it can remember), and send each event that the page
- * must ignore once in each state that ignores it. The machines are small and static,
- * so xstate/graph's getAdjacencyMap lists every step the model's events can take. The walk
- * starts at the initial state and goes, by the shortest route, to the nearest step that reaches
- * something not yet covered. When nothing uncovered is reachable from where it stands, or the
- * sequence would grow past `maxSteps`, a new sequence starts. The result is deterministic: the same machine and events give the same walk.
+ * Where `node` stands in `snapshot`, below itself: the active child, and its active child, down
+ * to an atomic state. A parallel state gives one key per region instead of their product, so a
+ * transition declared above parallel regions needs each state of each region once, not every
+ * combination. An atomic node gives one empty key.
  */
-export function walkPaths(model: MachineModel, {maxSteps = MAX_PART_STEPS}: {maxSteps?: number} = {}): EventObject[][] {
+function sourceKeys(node: AnyStateMachine['root'], snapshot: AnyMachineSnapshot): string[] {
+  const children = Object.values(node.states).filter((child) => child.type !== 'history');
+  const below = (child: AnyStateMachine['root']) => sourceKeys(child, snapshot).map((key) => (key ? `${child.key}.${key}` : child.key));
+  if (children.length === 0) return [''];
+  if (node.type === 'parallel') return children.flatMap(below);
+  return children.filter((child) => snapshot.matches(`#${child.id}` as never)).flatMap(below);
+}
+
+/**
+ * What one step of a walk covers, from `state` with `event` to `next`:
+ * - `state <key>`: the state it enters (walkKey);
+ * - `transition <node> <event> to <value>`: each transition it takes, by the node that declares
+ *   it and where it leads in that node's region (valueInRegion);
+ * - `transition <node> <event> from <key>`: the same transition, by where it starts below the
+ *   node that declares it (sourceKeys), so a transition declared on a compound state is taken
+ *   from each of its children, not only from the first one the walk reaches;
+ * - `ignored <event> in <value>`: an event that no transition takes, where the page must ignore it.
+ */
+export function stepItems(machine: AnyStateMachine, state: AnyMachineSnapshot, event: EventObject, next: AnyMachineSnapshot): string[] {
+  const taken = transitionsTaken(machine, state, event.type);
+  if (taken.length === 0) return [`state ${walkKey(next)}`, `ignored ${event.type} in ${JSON.stringify(state.value)}`];
+  return [`state ${walkKey(next)}`, ...taken.flatMap((node) => [
+    `transition ${node.id} ${event.type} to ${JSON.stringify(valueInRegion(node, next.value))}`,
+    ...(Object.keys(node.states).length > 0
+      ? sourceKeys(node, state).map((key) => `transition ${node.id} ${event.type} from ${key}`)
+      : []),
+  ])];
+}
+
+/** One step the model's events can take: from a walkKey, with an event, to a walkKey. */
+interface WalkStep {
+  readonly from: string;
+  readonly event: EventObject;
+  readonly to: string;
+  readonly covers: readonly string[];
+}
+
+/** Every step the model's events can take (xstate/graph's getAdjacencyMap), and the initial walkKey. */
+function walkGraph(model: MachineModel): {initial: string; steps: WalkStep[]} {
   const {machine} = model;
   const adjacency = getAdjacencyMap(machine, {
     events: ((snapshot: AnyMachineSnapshot) => eventsIn(model, snapshot)) as never,
     serializeState: walkKey as never,
   });
-  interface Step {readonly from: string; readonly event: EventObject; readonly to: string; readonly covers: readonly string[]}
-  const stepsFrom = new Map<string, Step[]>();
-  const uncovered = new Set<string>();
-  for (const [from, {state, transitions}] of Object.entries(adjacency) as [string, AdjacencyValue<AnyMachineSnapshot, EventObject>][]) {
-    for (const {event, state: next} of Object.values(transitions) as {event: EventObject; state: AnyMachineSnapshot}[]) {
-      const to = walkKey(next);
-      const taken = transitionsTaken(machine, state, event.type);
-      const covers = [`state ${to}`, ...(taken.length > 0
-        ? taken.map((node) => `transition ${node.id} ${event.type} to ${JSON.stringify(valueInRegion(node, next.value))}`)
-        : [`ignored ${event.type} in ${JSON.stringify(state.value)}`])];
-      covers.forEach((item) => uncovered.add(item));
-      stepsFrom.set(from, [...(stepsFrom.get(from) ?? []), {from, event, to, covers}]);
-    }
-  }
+  const steps = (Object.entries(adjacency) as [string, AdjacencyValue<AnyMachineSnapshot, EventObject>][])
+    .flatMap(([from, {state, transitions}]) => (Object.values(transitions) as {event: EventObject; state: AnyMachineSnapshot}[])
+      .map(({event, state: next}) => ({from, event, to: walkKey(next), covers: stepItems(machine, state, event, next)})));
   const [initial] = Object.keys(adjacency);
-  uncovered.delete(`state ${initial}`);
-  const useful = (step: Step) => step.covers.some((item) => uncovered.has(item));
+  return {initial, steps};
+}
+
+/**
+ * What the walk of a model must cover (stepItems): every item that a step the model's events
+ * can take covers, except entering the initial state, where every sequence starts.
+ */
+export function walkItems(model: MachineModel): string[] {
+  return itemsOf(walkGraph(model));
+}
+
+function itemsOf({initial, steps}: {initial: string; steps: readonly WalkStep[]}): string[] {
+  const items = new Set(steps.flatMap((step) => step.covers));
+  items.delete(`state ${initial}`);
+  return [...items].sort();
+}
+
+/**
+ * What one event sequence covers when it runs on the machine alone, from the initial state
+ * (xstate's initialTransition and transition), by the same rules as the walk (stepItems).
+ */
+export function pathItems(model: MachineModel, path: readonly EventObject[]): string[] {
+  const {machine} = model;
+  const items = new Set<string>();
+  let state = initialTransition(machine)[0] as AnyMachineSnapshot;
+  for (const event of path) {
+    const next = transition(machine, state, event)[0] as AnyMachineSnapshot;
+    stepItems(machine, state, event, next).forEach((item) => items.add(item));
+    state = next;
+  }
+  return [...items].sort();
+}
+
+/**
+ * The walk of a model: event sequences, each from the initial state, that together cover every
+ * item of walkItems. They enter every reachable state (walkKey), take every transition of the
+ * machine into every state it can lead to (so Zen turns on again in each layout it can remember)
+ * and from every state below the node that declares it, and send each event that the page must
+ * ignore once in each state that ignores it. The machines are small and static, so
+ * xstate/graph's getAdjacencyMap lists every step the model's events can take. The walk starts
+ * at the initial state and goes, by the shortest route, to the nearest step that reaches
+ * something not yet covered. When nothing uncovered is reachable from where it stands, or the
+ * sequence would grow past `maxSteps`, a new sequence starts. The result is deterministic: the
+ * same machine and events give the same walk.
+ */
+export function walkPaths(model: MachineModel, {maxSteps = MAX_PART_STEPS}: {maxSteps?: number} = {}): EventObject[][] {
+  const graph = walkGraph(model);
+  const {initial} = graph;
+  const stepsFrom = new Map<string, WalkStep[]>();
+  for (const step of graph.steps) stepsFrom.set(step.from, [...(stepsFrom.get(step.from) ?? []), step]);
+  const uncovered = new Set(itemsOf(graph));
+  const useful = (step: WalkStep) => step.covers.some((item) => uncovered.has(item));
   /** The shortest route from `start` that ends with a useful step, or null. */
-  const routeFrom = (start: string): Step[] | null => {
-    const reachedBy = new Map<string, Step | null>([[start, null]]);
+  const routeFrom = (start: string): WalkStep[] | null => {
+    const reachedBy = new Map<string, WalkStep | null>([[start, null]]);
     const queue = [start];
     for (let at = queue.shift(); at !== undefined; at = queue.shift()) {
       const steps = stepsFrom.get(at) ?? [];
@@ -430,13 +503,14 @@ export function assertFullCoverage(model: MachineModel, coverage: TestCoverage) 
 }
 
 /**
- * Attaches the coverage report to the Playwright report (formatTestCoverageHTML and the text of
- * formatTestCoverage). With a part, it then fails unless the run covered what that part covers
- * without a browser; the parts together cover the machine (tests/unit/machines/walks.test.ts).
- * Without a part, it fails unless the run took every state node and transition.
+ * Attaches the coverage report of one part of a model's walk (walkParts) to the Playwright report:
+ * formatTestCoverageHTML and the text of formatTestCoverage. It checks nothing: a run that
+ * passes covers what its part covers on the machine alone, since a step that fails throws. That
+ * the parts together cover the machine is proven without a browser, in
+ * tests/unit/machines/walks.test.ts.
  */
-export async function attachAndAssertCoverage(testInfo: TestInfo, model: MachineModel, coverage: TestCoverage, part?: WalkPart) {
-  const title = part ? `${model.id}-${part.number}-of-${part.count}` : model.id;
+export async function attachCoverage(testInfo: TestInfo, model: MachineModel, coverage: TestCoverage, part: WalkPart) {
+  const title = `${model.id}-${part.number}-of-${part.count}`;
   await testInfo.attach(`${title}-coverage.html`, {
     body: formatTestCoverageHTML(coverage, {title: model.machine.id}),
     contentType: 'text/html',
@@ -445,13 +519,6 @@ export async function attachAndAssertCoverage(testInfo: TestInfo, model: Machine
     body: formatTestCoverage(coverage, {format: 'markdown'}),
     contentType: 'text/markdown',
   });
-  if (!part) {
-    assertFullCoverage(model, coverage);
-    return;
-  }
-  const expected = await walkModel(model, IDLE_SUT, part);
-  const missed = expected.transitions.covered.filter((id) => !coverage.transitions.covered.includes(id));
-  if (missed.length > 0) throw new Error(`The ${part.name} of ${model.id} missed these transitions: ${missed.join(', ')}`);
 }
 
 /** A system under test that does nothing: the walk follows the machine alone. */

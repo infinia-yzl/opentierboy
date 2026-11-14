@@ -6,6 +6,7 @@ export const appearanceMachine = createMachine({
   type: 'parallel',
   states: {
     mode: {
+      description: 'Appearance › Mode: the colours of the page.',
       initial: 'system',
       on: {
         CHOOSE_LIGHT: {target: '.light'},
@@ -22,6 +23,7 @@ export const appearanceMachine = createMachine({
       },
     },
     font: {
+      description: 'Appearance › Font: the font of the page.',
       initial: 'modern',
       on: {
         CHOOSE_MODERN: {target: '.modern'},
@@ -36,6 +38,7 @@ export const appearanceMachine = createMachine({
       },
     },
     gameColours: {
+      description: 'Appearance › Game colours: the game’s colour on the page’s buttons.',
       initial: 'on',
       on: {
         RELOAD: {target: '.lastGameColours', reenter: true},

@@ -7,6 +7,8 @@ import {SitePage} from '../pages/site-page';
 import sharedLinks from '../fixtures/shared-links.json';
 import {sendBypassOnlyToSite} from './vercel-bypass';
 import {INSPECTOR_HOSTNAMES, modelInspectOn} from './model-inspect';
+import {expectSettled} from './settled';
+import {BENIGN_PAGE_ERRORS} from './machines';
 
 export interface SharedLinkFixture {
   id: string;
@@ -62,8 +64,22 @@ type Fixtures = {
   /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
   /**
-   * Reads the Content Security Policy violations that the page reported so far (the
-   * `securitypolicyviolation` events of every page load in this test).
+   * Page errors (exceptions a page threw and nothing caught) that a test expects, besides the
+   * benign browser notices every test passes over. Set it with `test.use({allowedPageErrors: [...]})`.
+   */
+  allowedPageErrors: RegExp[];
+  /**
+   * The page errors of every page this test opened (its own, openAsVisitor's and
+   * openInChromiumProfile's). After the test, any error that is neither a benign browser notice
+   * (BENIGN_PAGE_ERRORS, tests/support/machines.ts) nor in allowedPageErrors fails it.
+   */
+  pageErrors: string[];
+  /**
+   * Reads, once, the Content Security Policy violations that the page reported in this test (the
+   * `securitypolicyviolation` events of every page load). It first waits until the page has
+   * settled, then breaks the policy once on purpose (an <object>, which `object-src 'none'`
+   * blocks before any request) and waits for that report: reports arrive in order, so every
+   * earlier one has arrived too. The test's own report is left out of the list.
    */
   cspViolations: () => Promise<string[]>;
 };
@@ -216,6 +232,13 @@ const guardedFetch = Object.assign((input: string | URL | Request, init?: Reques
 }, {guardsExternalRequests: true});
 if (!(globalThis.fetch as Partial<typeof guardedFetch>).guardsExternalRequests) globalThis.fetch = guardedFetch;
 
+/** Records the page errors of every page of a context, the ones it has and the ones it opens later. */
+function watchPageErrors(context: BrowserContext, errors: string[]) {
+  const watch = (page: Page) => page.on('pageerror', (error) => void errors.push(`${error.name}: ${error.message}`));
+  context.pages().forEach(watch);
+  context.on('page', watch);
+}
+
 export const test = base.extend<Fixtures, WorkerFixtures>({
   externalRequests: [async ({}, use, testInfo) => {
     const blocked: string[] = [];
@@ -246,7 +269,18 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   },
   // Against a protected Vercel deployment, send the bypass secret to that site only.
   tips: [false, {option: true}],
-  context: async ({context, baseURL, externalRequests, tips}, use) => {
+  allowedPageErrors: [[], {option: true}],
+  pageErrors: async ({allowedPageErrors}, use) => {
+    const errors: string[] = [];
+    await use(errors);
+    // Runs after every fixture that opened a page has closed it.
+    const unexpected = errors.filter((message) => ![...BENIGN_PAGE_ERRORS, ...allowedPageErrors].some((allowed) => allowed.test(message)));
+    if (unexpected.length > 0) {
+      throw new Error(`The page threw errors that nothing caught (allow an expected one with test.use({allowedPageErrors})):\n${unexpected.join('\n')}`);
+    }
+  },
+  context: async ({context, baseURL, externalRequests, pageErrors, tips}, use) => {
+    watchPageErrors(context, pageErrors);
     await guardContext(context, baseURL, externalRequests);
     await sendBypassOnlyToSite(context, baseURL);
     if (!tips) await turnTipsOff(context);
@@ -263,11 +297,12 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   site: async ({page}, use) => {
     await use(new SitePage(page));
   },
-  openAsVisitor: async ({browser, baseURL, externalRequests, tips}, use) => {
+  openAsVisitor: async ({browser, baseURL, externalRequests, pageErrors, tips}, use) => {
     const contexts: Awaited<ReturnType<Browser['newContext']>>[] = [];
     await use(async (link: string, options: VisitorOptions = {}) => {
       const context = await browser.newContext();
       contexts.push(context);
+      watchPageErrors(context, pageErrors);
       await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
       if (!tips) await turnTipsOff(context);
@@ -278,13 +313,14 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     });
     await Promise.all(contexts.map((context) => context.close()));
   },
-  openInChromiumProfile: async ({playwright, baseURL, externalRequests, browserName, tips}, use) => {
+  openInChromiumProfile: async ({playwright, baseURL, externalRequests, pageErrors, browserName, tips}, use) => {
     const opened: {context: BrowserContext; directory: string}[] = [];
     await use(async () => {
       if (browserName !== 'chromium') throw new Error('openInChromiumProfile works in Chromium only.');
       const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'otb-profile-'));
       const context = await playwright.chromium.launchPersistentContext(directory, {baseURL});
       opened.push({context, directory});
+      watchPageErrors(context, pageErrors);
       await guardContext(context, baseURL, externalRequests);
       await sendBypassOnlyToSite(context, baseURL);
       if (!tips) await turnTipsOff(context);
@@ -305,7 +341,25 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
           .__reportCspViolation(`${event.violatedDirective} blocked ${event.blockedURI || 'inline code'} on ${location.pathname}`);
       });
     });
-    await use(async () => [...violations]);
+    let probes = 0;
+    await use(async () => {
+      await page.waitForLoadState('load');
+      await expectSettled(page);
+      probes += 1;
+      const probe = `/csp-reporting-probe-${probes}`;
+      const object = await page.evaluateHandle((data) => {
+        const element = document.createElement('object');
+        element.data = data;
+        element.style.cssText = 'position: fixed; width: 0; height: 0;';
+        document.body.append(element);
+        return element;
+      }, probe);
+      const isProbe = (text: string) => text.includes(probe);
+      await expect.poll(() => violations.some(isProbe), {message: 'the test report should come back through the reporting path'}).toBe(true);
+      await object.evaluate((element) => element.remove());
+      await object.dispose();
+      return violations.filter((text) => !/\/csp-reporting-probe-\d+/.test(text));
+    });
   },
   consoleErrors: async ({page}, use) => {
     const errors: string[] = [];
@@ -327,11 +381,16 @@ export async function expectTierNames(tierList: TierListPage, names: string[]) {
   }
 }
 
-/** Asserts that a page shows exactly the expected tiers and items, in order. */
+/**
+ * Asserts that a page shows exactly the expected tiers and items, in order. It waits until the
+ * page has settled first: each row has a check of its own, so on a page still on its way from one
+ * version of the list to another (after Back), the rows could pass on a mix of the two.
+ */
 export async function expectTierList(
   tierList: TierListPage,
   expected: {title?: string; tiers: {name: string; items: string[]}[]},
 ) {
+  await tierList.settled();
   if (expected.title !== undefined) {
     await expect(tierList.title).toHaveText(expected.title);
   }

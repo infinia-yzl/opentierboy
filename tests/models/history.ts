@@ -10,12 +10,15 @@ export type HistorySnapshot = SnapshotFrom<typeof historyMachine>;
 export type HistoryEvent = EventFrom<typeof historyMachine>;
 type Value = {list: string; labelPosition: 'left' | 'top'; itemLabels: 'shown' | 'hidden'};
 
-/** What a snapshot shows: the version on screen (1 is the list as opened), the label position and the item labels. */
+/**
+ * What a snapshot shows: the version on screen and in the address (1 is the list as opened), the
+ * versions in the tab's history, the label position and the item labels.
+ */
 export function historyViewOf(snapshot: HistorySnapshot) {
   const {list, labelPosition, itemLabels} = snapshot.value as Value;
   const match = /^version(\d)of(\d)$/.exec(list);
   if (!match) throw new RangeError(`Not a version state: ${list}`);
-  return {version: Number(match[1]), labelPosition, itemLabels: itemLabels === 'shown'};
+  return {version: Number(match[1]), versions: Number(match[2]), labelPosition, itemLabels: itemLabels === 'shown'};
 }
 
 const constant = fc.constant({});

@@ -2,9 +2,9 @@ import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
-import {layoutOf, ZEN_LAYOUT_NAMES, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutSnapshot} from '../models/zen-layout';
+import {layoutOf, listChangedIn, ZEN_FRAME_NAMES, ZEN_LAYOUT_NAMES, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutSnapshot} from '../models/zen-layout';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -76,11 +76,11 @@ test.describe('zen layouts', () => {
 
       await expect(tierList.zenFrame).toHaveAccessibleName('Frame 16:9');
       expect(await tierList.sizeOf(tierList.zenFrame)).toEqual(FULL_HD);
-      await expect(page.getByRole('banner')).toBeHidden();
+      await expect(tierList.siteHeader).toBeHidden();
       await expect(tierList.editorTools).toBeHidden();
       await expect(tierList.title).toBeVisible();
       await expect(tierList.zenWordmark).toBeVisible();
-      await expect(tierList.zenBar.getByRole('button')).toHaveCount(5);
+      await expect(tierList.zenBarButtons).toHaveCount(5);
     });
 
     test('renders the editor and no frame when the user chooses Editor after 16:9', async ({tierList}) => {
@@ -99,7 +99,7 @@ test.describe('zen layouts', () => {
       await tierList.setZenMode(false);
 
       await expect(tierList.zenFrame).toHaveCount(0);
-      await expect(page.getByRole('banner')).toBeVisible();
+      await expect(tierList.siteHeader).toBeVisible();
       await expect(tierList.editorTools).toBeVisible();
 
       await tierList.setZenMode(true);
@@ -113,7 +113,7 @@ test.describe('zen layouts', () => {
       // Escape there would close the button's tooltip first.
       await tierList.clickFrameCorner();
 
-      await page.keyboard.press('Escape');
+      await tierList.pressKey('Escape');
 
       await expect(tierList.zenFrame).toHaveCount(0);
       await expect(tierList.zenBar).toHaveCount(0);
@@ -125,7 +125,7 @@ test.describe('zen layouts', () => {
       await tierList.gotoAddress(`${TANKS}?state=${LIST}&layout=16x9`);
 
       await expect(tierList.editorTools).toBeVisible();
-      await expect(page.getByRole('banner')).toBeVisible();
+      await expect(tierList.siteHeader).toBeVisible();
       await expect(tierList.zenBar).toHaveCount(0);
       await expect(tierList.zenFrame).toHaveCount(0);
       await expect(tierList.zenModeToggle).toHaveAttribute('aria-pressed', 'false');
@@ -177,7 +177,7 @@ test.describe('zen layouts', () => {
       await page.clock.install();
       await page.setViewportSize(WIDE_WINDOW);
       await tierList.gotoInLayout(TANKS, LIST, '16:9');
-      await page.mouse.move(20, 600);
+      await tierList.restMouseAt(20, 600);
 
       await tierList.letTimePass(10_000);
 
@@ -510,8 +510,8 @@ test.describe('zen layouts', () => {
 
       await expect(tierList.openMenus).toHaveCount(1);
       await expect(tierList.openMenus).toHaveAccessibleName('Ranking order: Pick freely');
-      await expect(page.getByRole('menuitemradio', {name: 'In order'})).toBeVisible();
-      await page.keyboard.press('Escape');
+      await expect(tierList.menuItemRadio('In order')).toBeVisible();
+      await tierList.pressKey('Escape');
       await expect(tierList.openMenus).toHaveCount(0);
       await expect(tierList.zenBar).toBeVisible();
     });
@@ -640,6 +640,7 @@ test.describe('zen layouts', () => {
         await tierList.chooseLayout(layout);
       }
 
+      await tierList.settled();
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
       await expect(tierList.zenStepCount).toHaveText('1 / 1');
@@ -660,38 +661,71 @@ test.describe('zen layouts', () => {
   // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/zen-layout.ts walked
   // through the Playwright adapter of @xstate/test.
   test.describe('model', () => {
+    /** The colour of the green key behind the overlay's frame. */
+    const GREEN_KEY = 'rgb(0, 177, 64)';
+
     /** The Zen layout machine's events and checks, run on this test's page (modelSut). */
-    const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenLayoutSnapshot, ZenLayoutEvent>(page, {
-      reset: () => tierList.goto(TANKS, LIST),
-      events: {
-        TOGGLE_ZEN: () => tierList.setZenMode(true),
-        EXIT_ZEN: () => tierList.setZenMode(false),
-        PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
-        CHOOSE_EDITOR: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.editor),
-        CHOOSE_WIDE: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.wide),
-        CHOOSE_TALL: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.tall),
-        CHOOSE_OVERLAY: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
-      },
-      states: {
-        '*': async (_page, snapshot) => {
-          const layout = layoutOf(snapshot);
-          if (layout) {
-            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${ZEN_LAYOUT_NAMES[layout]}`);
-          } else {
-            await expect(tierList.zenBar).toHaveCount(0);
-          }
+    const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      /** The address of the list as opened, and of the list after the change: a layout writes neither. */
+      let opened = '';
+      let changed = '';
+      return modelSut<ZenLayoutSnapshot, ZenLayoutEvent>(page, {
+        reset: async () => {
+          await tierList.openAfterBlankPage(TANKS, LIST);
+          opened = page.url();
+          changed = '';
         },
-      },
-      testInfo,
-      step: (name, body) => test.step(name, body),
-    });
+        events: {
+          TOGGLE_ZEN: () => tierList.setZenMode(true),
+          EXIT_ZEN: () => tierList.setZenMode(false),
+          PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
+          CHOOSE_EDITOR: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.editor),
+          CHOOSE_WIDE: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.wide),
+          CHOOSE_TALL: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.tall),
+          CHOOSE_OVERLAY: () => tierList.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
+          CHANGE_LIST: async () => {
+            await tierList.rankFirstUnrankedItem('A');
+            changed = page.url();
+          },
+          BROWSER_BACK: () => tierList.goBack(),
+          BROWSER_FORWARD: () => tierList.goForward(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const layout = layoutOf(snapshot);
+            const listChanged = listChangedIn(snapshot);
+            // The list on screen and in the address: a layout never writes the link.
+            await expect(tierList.itemsIn('A')).toHaveText(listChanged ? [TRAY[0]] : []);
+            await expect(page).toHaveURL(listChanged ? changed : opened);
+            if (!layout) {
+              await expect(tierList.zenBar).toHaveCount(0);
+              await expect(tierList.zenFrame).toHaveCount(0);
+              return;
+            }
+            await expect(tierList.layoutButton).toHaveAccessibleName(`Layout: ${ZEN_LAYOUT_NAMES[layout]}`);
+            const frame = ZEN_FRAME_NAMES[layout];
+            if (!frame) {
+              await expect(tierList.zenFrame).toHaveCount(0);
+              return;
+            }
+            await expect(tierList.zenFrame).toHaveAccessibleName(frame);
+            const {width, height} = await tierList.sizeOf(tierList.zenFrame);
+            expect(width > height, `${frame} should be ${layout === 'tall' ? 'taller than wide' : 'wider than tall'}`).toBe(layout !== 'tall');
+            if (layout === 'overlay') expect(await tierList.frameCoverColour()).toBe(GREEN_KEY);
+            else expect(await tierList.frameCoverColour()).not.toBe(GREEN_KEY);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
 
     test.describe.configure({retries: 0});
     for (const part of walkParts(zenLayoutModel)) {
       test(`renders each state of the Zen layout machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage, part);
+        await attachCoverage(testInfo, zenLayoutModel, coverage, part);
       });
     }
   });

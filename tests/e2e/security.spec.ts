@@ -56,36 +56,18 @@ function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
 
 /**
  * The Content Security Policy (lib/security/csp.ts, A11). A page that breaks it shows a
- * `securitypolicyviolation` event; every test here expects none.
+ * `securitypolicyviolation` event; every test here expects none. The headers themselves, on
+ * every kind of route, are checked in security.api.spec.ts.
  */
 test.describe('security', () => {
   test.describe('Content Security Policy', () => {
-    test('returns the Content-Security-Policy header, without unsafe-eval, when the page opens /', async ({page}) => {
-      const response = await page.goto('/');
-      const policy = response?.headers()['content-security-policy'] ?? '';
-      expect(policy).toContain("default-src 'self'");
-      expect(policy).toContain("img-src 'self' https: data: blob:");
-      expect(policy).toContain("frame-ancestors 'none'");
-      expect(policy).not.toContain('unsafe-eval');
-    });
-
-    test('returns the Referrer-Policy, X-Content-Type-Options, Permissions-Policy and COOP headers when the page opens /rank', async ({page}) => {
-      const headers = (await page.goto('/rank'))?.headers() ?? {};
-      expect(headers['referrer-policy']).toBe('no-referrer');
-      expect(headers['x-content-type-options']).toBe('nosniff');
-      expect(headers['permissions-policy']).toContain('camera=()');
-      expect(headers['cross-origin-opener-policy']).toBe('same-origin-allow-popups');
-    });
-
-    test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
-      await page.goto('/', {waitUntil: 'networkidle'});
-      await expect(site.main).toBeVisible();
+    test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({tierList, site, cspViolations}) => {
+      await site.gotoHome();
       await tierList.goto('/rank/overwatch/tank');
-      await page.goto('/blog/overwatch-2-karq-tier-list-season-11', {waitUntil: 'networkidle'});
+      await site.goto('/blog/overwatch-2-karq-tier-list-season-11');
       await expect(site.pageHeading).toBeVisible();
       await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
-      await page.waitForLoadState('networkidle');
-      await expect.poll(() => cspViolations()).toEqual([]);
+      expect(await cspViolations()).toEqual([]);
     });
 
     test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
@@ -105,8 +87,7 @@ test.describe('security', () => {
 
       await site.gotoHome();
       await expect(site.recentLinks.first()).toHaveText('CSP snapshot');
-      await page.waitForLoadState('networkidle');
-      await expect.poll(() => cspViolations()).toEqual([]);
+      expect(await cspViolations()).toEqual([]);
     });
 
     for (const method of ['html2canvas-pro', 'Original html2canvas'] as CaptureMethod[]) {
@@ -124,7 +105,7 @@ test.describe('security', () => {
         await tierList.capturePreview(method);
 
         await expect(tierList.toast('Image captured successfully')).toBeVisible();
-        await expect.poll(() => cspViolations()).toEqual([]);
+        expect(await cspViolations()).toEqual([]);
       });
     }
   });

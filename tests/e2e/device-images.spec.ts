@@ -2,12 +2,12 @@
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
-import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/tier-list-page';
+import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage, undoAddedItemsAndLetToastLeave} from '../pages/tier-list-page';
 import {FIVE_ROW_TIERS, packageItemId, rawState, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/image-sites';
 import {letToastTimeOut} from '../support/page-clock';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   DEVICE_IMAGE_NAMES,
   deviceImagesModel,
@@ -80,7 +80,7 @@ test.describe('device images', () => {
 
       await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
       expect(await tierList.openImageInNewTab(tierList.itemImage('evil'))).toEqual({contentType: 'image/png', pwned: null});
-      await tierList.page.reload();
+      await tierList.reload();
       await expect.poll(() => tierList.itemImageHasLoaded('evil')).toBe(true);
       expect(await tierList.openImageInNewTab(tierList.itemImage('evil'))).toEqual({contentType: 'image/png', pwned: null});
     });
@@ -127,23 +127,33 @@ test.describe('device images', () => {
 
     test('renders 300 device images within 20 s when the page reloads a list with 300 uploads', async ({tierList}) => {
       test.slow();
+      // A speed budget, one of the few named times in the tests (tests/README.md): adding 300
+      // pictures may take up to a minute on a slow runner; showing them again after a reload must
+      // take at most 20 s. The images of a list are read in one go, and each tile renders once.
+      const ADD_BUDGET_MS = 60_000;
+      const RELOAD_BUDGET_MS = 20_000;
       const count = 300;
       const files = Array.from({length: count}, (_, index) => imageFile(`upload-${String(index + 1).padStart(3, '0')}.png`, RED_SQUARE));
       await tierList.goto('/rank');
 
       const addStarted = Date.now();
-      await tierList.addItemsFromDevice(files, {timeout: 60_000});
-      await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
+      await tierList.addItemsFromDevice(files, {timeout: ADD_BUDGET_MS});
+      await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: ADD_BUDGET_MS}).toBe(count);
       const addMs = Date.now() - addStarted;
+      expect(addMs, `${count} uploads should be added within ${ADD_BUDGET_MS} ms`).toBeLessThan(ADD_BUDGET_MS);
+      await tierList.settled();
 
       const loadStarted = Date.now();
-      await tierList.reload();
-      await expect.poll(() => tierList.loadedUploadImageCount(), {timeout: 60_000}).toBe(count);
+      await tierList.reloadNow();
+      await expect.poll(() => tierList.loadedUploadImageCount(), {
+        timeout: RELOAD_BUDGET_MS,
+        message: `${count} uploads should show within ${RELOAD_BUDGET_MS} ms of a reload`,
+      }).toBe(count);
       const loadMs = Date.now() - loadStarted;
 
       test.info().annotations.push({type: 'timing', description: `${count} uploads: added in ${addMs} ms, shown after a reload in ${loadMs} ms`});
-      // A generous bound: the images of a list are read in one go, and each tile renders once.
-      expect(loadMs, `${count} uploads should show within 20 s of a reload`).toBeLessThan(20_000);
+      expect(loadMs, `${count} uploads should show within ${RELOAD_BUDGET_MS} ms of a reload`).toBeLessThan(RELOAD_BUDGET_MS);
+      await tierList.settled();
     });
 
     test('renders the red centre of the drawing when the user uploads an SVG file', async ({tierList}) => {
@@ -212,8 +222,9 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.itemShowsUpload('old 2')).toBe(true);
       // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
       await expect.poll(() => tierList.oldUploadIds()).toEqual(['legacyUp3']);
-      await expect.poll(() => tierList.itemShowsUpload('old 3')).toBe(false);
-      await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
+      await expect.poll(() => tierList.itemShowsPlaceholder('old 3')).toBe(true);
+      await tierList.settled();
+      expect(await tierList.evictedImageIds()).toEqual([]);
     });
 
     test('writes the first paste and evicts no device image on screen when 2 pastes at once exceed the storage quota', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
@@ -233,7 +244,8 @@ test.describe('device images', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['base', 'first']);
       await expect.poll(() => tierList.itemShowsUpload('first')).toBe(true);
       await expect.poll(() => tierList.itemShowsUpload('base')).toBe(true);
-      await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
+      await tierList.settled();
+      expect(await tierList.evictedImageIds()).toEqual([]);
     });
 
     test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList, page}) => {
@@ -319,7 +331,9 @@ test.describe('device images', () => {
       const input = await tierList.typeTitle('My list');
       await tierList.pasteImages([imageFile('image.png')], input);
       await input.press('Escape');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+      // A picture that the editor took would keep the page busy until it is added.
+      await tierList.settled();
+      expect(await tierList.itemNamesIn('Unranked')).toEqual([]);
       // The same paste outside the field adds the picture, so the empty list above is no accident.
       await tierList.pasteImages([imageFile('image.png')]);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);
@@ -406,7 +420,9 @@ test.describe('device images', () => {
     /**
      * The device images machine's events and checks (modelSut). Each run starts as a
      * new browser on START. A new browser is a new browser context, open until the walk closes it
-     * or the next run starts.
+     * or the next run starts. Page time stands still in the first browser (`pageTime: 'paused'`):
+     * the toast "Items Added" stays however long the steps take, and closes only in
+     * TOAST_TIMES_OUT, which checks that it closes after exactly 4 s (letToastTimeOut).
      */
     const deviceImagesSut = (
       tierList: TierListPage,
@@ -420,6 +436,8 @@ test.describe('device images', () => {
         visitor = null;
       };
       return modelSut<DeviceImagesSnapshot, DeviceImagesEvent>(page, {
+        pageTime: 'paused',
+        pages: () => [visitor?.page],
         reset: async () => {
           await closeVisitor();
           await tierList.openAsNewBrowser(TANKS, START);
@@ -427,10 +445,12 @@ test.describe('device images', () => {
         events: {
           UPLOAD_RED: () => tierList.addItemsFromDeviceAndHoldToast([FILES.red]),
           UPLOAD_BLUE: () => tierList.addItemsFromDeviceAndHoldToast([FILES.blue]),
-          UNDO: () => tierList.undoAddedItems(),
+          UNDO: () => undoAddedItemsAndLetToastLeave(tierList),
           TOAST_TIMES_OUT: () => tierList.waitOutItemsAddedToast(),
           RANK_RED: () => tierList.dragItemToTierWhenReady(DEVICE_IMAGE_NAMES.red, 'S'),
           RELOAD: () => tierList.reload(),
+          BROWSER_BACK: () => tierList.goBack(),
+          BROWSER_FORWARD: () => tierList.goForward(),
           OPEN_IN_NEW_BROWSER: async () => {
             visitor = await openAsVisitor(await tierList.shareLink());
           },
@@ -449,13 +469,12 @@ test.describe('device images', () => {
       });
     };
 
-    test.use({pageClock: true});
     test.describe.configure({retries: 0});
     for (const part of walkParts(deviceImagesModel)) {
       test(`renders each state of the device images machine when the user walks every transition (${part.name})`, async ({tierList, page, openAsVisitor}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(deviceImagesModel, deviceImagesSut(tierList, page, testInfo, openAsVisitor), part);
-        await attachAndAssertCoverage(testInfo, deviceImagesModel, coverage, part);
+        await attachCoverage(testInfo, deviceImagesModel, coverage, part);
       });
     }
   });

@@ -15,8 +15,8 @@ import {
   type RemoveAndUndoSnapshot,
   type RemoveAndUndoView,
 } from '../models/remove-and-undo';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
-import type {TierListPage} from '../pages/tier-list-page';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {type TierListPage, undoInToastAndLetItLeave, undoTemplateAddAndLetToastLeave} from '../pages/tier-list-page';
 import {
   addFromTemplateModel,
   addFromTemplateViewOf,
@@ -38,7 +38,7 @@ test.describe('editor items', () => {
     test('renders the restored item at its old position when the user clicks Undo after a delete', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 
-      await tierList.deleteItem('Mauga');
+      await tierList.deleteItemAndRestOnToast('Mauga');
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
       await tierList.undoFromToast('Item deleted');
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
@@ -47,7 +47,7 @@ test.describe('editor items', () => {
     test('renders the item again in row S when the user deletes it and clicks Undo in the toast "Item deleted"', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 
-      await tierList.deleteItem('Mauga');
+      await tierList.deleteItemAndRestOnToast('Mauga');
       await expect(tierList.toast('Item deleted')).toBeVisible();
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
 
@@ -61,6 +61,7 @@ test.describe('editor items', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
 
       await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
+      await tierList.restOnToast('Items Added');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
 
       await tierList.undoFromToast('Items Added');
@@ -110,7 +111,7 @@ test.describe('editor items', () => {
 
     test('renders the previous ranking when the user clicks Undo after Reset', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-      await tierList.resetRankings();
+      await tierList.resetRankingsAndRestOnToast();
 
       await tierList.undoFromToast('Items Reset');
 
@@ -121,6 +122,8 @@ test.describe('editor items', () => {
     test('renders the items from before the add when the user clicks Undo after adding a template set', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
+      // The pointer rests on the toast, so its 4 s timer waits for the Undo.
+      await tierList.restOnToast('Items Added');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
 
       await tierList.undoFromToast('Items Added');
@@ -129,23 +132,27 @@ test.describe('editor items', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
-    test('renders each item once when the user goes Back after a delete and clicks Undo in the toast', async ({tierList, page}) => {
+    test('renders each item once when the user goes Back after a delete and clicks Undo in the toast', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-      const opened = page.url();
-      await tierList.deleteItem('Mauga');
-      await expect(page).not.toHaveURL(opened);
+      // The pointer rests on the toast, so its 4 s timer waits while the test goes Back.
+      await tierList.deleteItemAndRestOnToast('Mauga');
 
-      await page.goBack();
+      await tierList.goBack();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+      const back = tierList.page.url();
       await tierList.undoFromToast('Item deleted');
 
       await expect(tierList.toast('Item restored')).toBeVisible();
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
+      // The Undo found the item in the list already: it writes no new link.
+      await tierList.settled();
+      expect(tierList.page.url()).toBe(back);
+      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
     });
 
     test('renders the items again when the user clicks Undo after Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.removeAllItems();
+      await tierList.restOnToast('All Items Deleted');
 
       await tierList.undoFromToast('All Items Deleted');
 
@@ -298,7 +305,8 @@ test.describe('editor items', () => {
 
       await tierList.emptyListAction('Link').click();
       await expect(tierList.linkImageDialog).toBeVisible();
-      await tierList.addItemFromLink('https://i.imgur.com/red.png', 'Red square');
+      await tierList.submitInLinkImageDialog('https://i.imgur.com/red.png', 'Red square');
+      await expect(tierList.linkImageDialog).toBeHidden();
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
       // The drop area went away with the add, so focus goes to the toolbar's Add images.
@@ -382,8 +390,13 @@ test.describe('editor items', () => {
       }
     };
 
-    /** The add-from-template machine's events and checks. Each run starts on a new empty list. */
+    /**
+     * The add-from-template machine's events and checks. Each run starts on a new empty list.
+     * Page time stands still (`pageTime: 'paused'`): a toast closes only in TOAST_TIMES_OUT, which
+     * checks that it closes after exactly 4 s (letToastTimeOut).
+     */
     const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
+      pageTime: 'paused',
       reset: async () => {
         await tierList.goto('/rank');
         await expect(tierList.emptyListAction('Template')).toBeVisible();
@@ -395,7 +408,7 @@ test.describe('editor items', () => {
         CHOOSE_TANK: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.tank.title),
         CHOOSE_SUPPORT: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.support.title),
         PRESS_ESCAPE: () => tierList.pressEscapeForTemplatePicker(),
-        UNDO: () => tierList.undoTemplateAdd(),
+        UNDO: () => undoTemplateAddAndLetToastLeave(tierList),
         TOAST_TIMES_OUT: () => tierList.waitOutTemplateAddToast(),
       },
       states: {
@@ -405,23 +418,22 @@ test.describe('editor items', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test.use({pageClock: true});
     test.describe.configure({retries: 0});
     for (const part of walkParts(addFromTemplateModel)) {
       test(`renders each state of the add-from-template machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(addFromTemplateModel, addFromTemplateSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, addFromTemplateModel, coverage, part);
+        await attachCoverage(testInfo, addFromTemplateModel, coverage, part);
       });
     }
   });
 
   /**
    * The remove-and-undo machine (tests/machines/remove-and-undo.ts): Delete, Reset and Remove
-   * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. The
-   * pointer rests on the toast after each removal, which pauses its 4 s timer: Back, Forward and
-   * Undo do not move it, so the toast stays until TOAST_TIMES_OUT moves the pointer off and runs
-   * the page clock by the 4 s.
+   * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. Page
+   * time stands still (`pageTime: 'paused'`), so the toast stays over Back, Forward and Undo until
+   * TOAST_TIMES_OUT moves the pointer off and checks that it closes after exactly 4 s
+   * (letToastTimeOut).
    */
   test.describe('model: removing', () => {
     const LIST = rankingState('image-overwatch', {S: [...OPENED_ROWS.S], A: [...OPENED_ROWS.A], '': [...OPENED_ROWS.Unranked]});
@@ -443,6 +455,7 @@ test.describe('editor items', () => {
         return onScreen;
       };
       return modelSut<RemoveAndUndoSnapshot, RemoveAndUndoEvent>(page, {
+        pageTime: 'paused',
         reset: async () => {
           onScreen = null;
           await tierList.openAfterBlankPage(TANKS, LIST);
@@ -455,7 +468,7 @@ test.describe('editor items', () => {
           OPEN_REMOVE_ALL: () => tierList.openRemoveAll(),
           CONFIRM_REMOVE_ALL: () => tierList.confirmRemoveAllAndRestOnToast(),
           CANCEL_REMOVE_ALL: () => tierList.cancelRemoveAll(),
-          CLICK_UNDO: () => tierList.undoInToast(removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
+          CLICK_UNDO: () => undoInToastAndLetItLeave(tierList, removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
           BROWSER_BACK: () => tierList.goBack(),
           BROWSER_FORWARD: () => tierList.goForward(),
           TOAST_TIMES_OUT: () => tierList.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
@@ -480,13 +493,11 @@ test.describe('editor items', () => {
     };
 
     test.describe.configure({retries: 0});
-    // The toast ends by itself on the page clock (TOAST_TIMES_OUT).
-    test.use({pageClock: true});
     for (const part of walkParts(removeAndUndoModel)) {
       test(`renders each state of the remove-and-undo machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(removeAndUndoModel, removeAndUndoSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, removeAndUndoModel, coverage, part);
+        await attachCoverage(testInfo, removeAndUndoModel, coverage, part);
       });
     }
   });

@@ -1,13 +1,14 @@
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
-import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {pressUnavailableHideQueue, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {rankingState} from '../support/links';
-import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   orderOf, queueHiddenIn, RANKING_ORDER_NAMES, zenOrderModel, type ZenOrderEvent, type ZenOrderSnapshot,
 } from '../models/zen-order';
+import {MAX_ZEN_STEPS, zenStepsModel, zenStepsViewOf, type ZenStepsEvent, type ZenStepsSnapshot} from '../models/zen-steps';
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
@@ -108,11 +109,11 @@ test.describe('zen', () => {
 
       await tierList.setZenMode(true);
 
-      await expect(page.getByRole('banner')).toBeHidden();
+      await expect(tierList.siteHeader).toBeHidden();
       await expect(tierList.editorTools).toBeHidden();
       await expect(tierList.title).toBeVisible();
       await expect(tierList.zenWordmark).toBeVisible();
-      await expect(tierList.zenBar.getByRole('button')).toHaveCount(5);
+      await expect(tierList.zenBarButtons).toHaveCount(5);
       for (const button of [tierList.zenBarButton('Back'), tierList.zenBarButton('Forward'), tierList.rankingOrderButton, tierList.layoutButton, tierList.zenBarButton('Exit Zen')]) {
         await expect(button).toBeAttached();
       }
@@ -128,7 +129,7 @@ test.describe('zen', () => {
       await tierList.setZenMode(false);
 
       await expect(tierList.toast('Exited Zen Mode')).toBeVisible();
-      await expect(page.getByRole('banner')).toBeVisible();
+      await expect(tierList.siteHeader).toBeVisible();
       await expect(tierList.editorTools).toBeVisible();
       await expect(tierList.zenWordmark).toBeHidden();
     });
@@ -137,7 +138,7 @@ test.describe('zen', () => {
       await tierList.goto(TANKS);
       await tierList.setZenMode(true);
 
-      await page.keyboard.press('Escape');
+      await tierList.pressKey('Escape');
 
       await expect(tierList.zenBar).toHaveCount(0);
       await expect(tierList.editorTools).toBeVisible();
@@ -150,7 +151,7 @@ test.describe('zen', () => {
       const menu = await tierList.openRankingOrderMenu();
       await expect(menu).toBeVisible();
 
-      await page.keyboard.press('Escape');
+      await tierList.pressKey('Escape');
 
       await expect(menu).toHaveCount(0);
       await expect(tierList.zenBar).toBeVisible();
@@ -163,7 +164,7 @@ test.describe('zen', () => {
       await tierList.tierLabel('S').click();
       await expect(tierList.tierNameInput('S')).toBeVisible();
 
-      await page.keyboard.press('Escape');
+      await tierList.pressKey('Escape');
 
       await expect(tierList.tierNameInput('S')).toHaveCount(0);
       await expect(tierList.zenBar).toBeVisible();
@@ -250,7 +251,7 @@ test.describe('zen', () => {
       await page.clock.install();
       await tierList.goto(TANKS);
       await tierList.setZenMode(true);
-      await page.mouse.move(20, 400);
+      await tierList.restMouseAt(20, 400);
 
       await tierList.letTimePass(10_000);
 
@@ -419,8 +420,8 @@ test.describe('zen', () => {
 
       await tierList.openRankingOrderMenu();
 
-      await expect(page.getByRole('menuitemradio', {name: 'Pick freely'})).toHaveAttribute('aria-checked', 'true');
-      await expect(page.getByRole('menuitemcheckbox', {name: 'Hide the queue'})).toHaveAttribute('aria-disabled', 'true');
+      await expect(tierList.menuItemRadio('Pick freely')).toHaveAttribute('aria-checked', 'true');
+      await expect(tierList.menuItemCheckbox('Hide the queue')).toHaveAttribute('aria-disabled', 'true');
     });
 
     test('writes no history entry and leaves the address as it is when the user chooses each ranking order and "Hide the queue"', async ({
@@ -436,6 +437,7 @@ test.describe('zen', () => {
       await tierList.chooseRankingOrder('Shuffle');
       await tierList.chooseRankingOrder('Pick freely');
 
+      await tierList.settled();
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
       await expect(tierList.zenStepCount).toHaveText('1 / 1');
@@ -466,38 +468,110 @@ test.describe('zen', () => {
     };
 
     /** The Zen ranking order machine's events and checks, run on this test's page (modelSut). */
-    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenOrderSnapshot, ZenOrderEvent>(page, {
-      reset: () => tierList.goto(TANKS, TRAY_STATE),
-      events: {
-        TOGGLE_ZEN: () => tierList.setZenMode(true),
-        EXIT_ZEN: () => tierList.setZenMode(false),
-        CHOOSE_PICK_FREELY: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.pickFreely),
-        CHOOSE_IN_ORDER: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.inOrder),
-        CHOOSE_SHUFFLE: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.shuffle),
-        HIDE_QUEUE: () => tierList.setHideQueue(true),
-        SHOW_QUEUE: () => tierList.setHideQueue(false),
+    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      /** The address and the history entries as the run opened the list: view settings change neither. */
+      let address = '';
+      let entries = 0;
+      /** The state on screen, as the last check saw it: in Pick freely the box is unavailable. */
+      let onScreen: ZenOrderSnapshot | null = null;
+      const pressHideQueue = async (on: boolean) => {
+        if (!onScreen) throw new Error('No state was checked yet');
+        if (orderOf(onScreen) === 'pickFreely') await pressUnavailableHideQueue(tierList, !on);
+        else await tierList.setHideQueue(on);
+      };
+      return modelSut<ZenOrderSnapshot, ZenOrderEvent>(page, {
+        reset: async () => {
+          onScreen = null;
+          await tierList.goto(TANKS, TRAY_STATE);
+          address = page.url();
+          entries = await tierList.historyLength();
+        },
+        events: {
+          TOGGLE_ZEN: () => tierList.setZenMode(true),
+          EXIT_ZEN: () => tierList.setZenMode(false),
+          CHOOSE_PICK_FREELY: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.pickFreely),
+          CHOOSE_IN_ORDER: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.inOrder),
+          CHOOSE_SHUFFLE: () => tierList.chooseRankingOrder(RANKING_ORDER_NAMES.shuffle),
+          HIDE_QUEUE: () => pressHideQueue(true),
+          SHOW_QUEUE: () => pressHideQueue(false),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            onScreen = snapshot;
+            // View settings: no new link and no history entry.
+            await expect(page).toHaveURL(address);
+            expect(await tierList.historyLength(), 'view settings should add no history entry').toBe(entries);
+            const order = orderOf(snapshot);
+            if (!order) {
+              // Out of Zen the tray is the editor's, whatever the order.
+              await expect(tierList.zenBar).toHaveCount(0);
+              await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
+              await expect(tierList.hints).toBeVisible();
+              await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
+              return;
+            }
+            await expect(tierList.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${RANKING_ORDER_NAMES[order]}`);
+            if (order !== 'pickFreely') {
+              await expectUpNext(tierList, snapshot);
+              return;
+            }
+            // Pick freely: the whole tray, with no queue, also with "Hide the queue" left on.
+            await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
+            await expect(tierList.unranked.getByText(`· ${TRAY.length} left`)).toBeVisible();
+            await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
+            await expect(tierList.unranked.getByRole('list')).toHaveCount(0);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(zenOrderModel)) {
+      test(`renders each state of the Zen ranking order machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, zenOrderModel, coverage, part);
+      });
+    }
+  });
+
+  /**
+   * The Zen steps machine (tests/machines/zen-steps.ts): the Zen bar's Back and Forward and its
+   * step count, beside the browser's own Back and Forward, over the list as opened and two
+   * changes made in Zen. Each change ranks the next Unranked item into row A, so version n has
+   * n - 1 items in row A.
+   */
+  test.describe('model: steps', () => {
+    const STEPS_TRAY = TRAY.slice(0, MAX_ZEN_STEPS - 1);
+    const STEPS_LIST = rankingState('image-overwatch', {'': STEPS_TRAY});
+
+    /** The Zen steps machine's events and checks, run on this test's page (modelSut). */
+    const zenStepsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenStepsSnapshot, ZenStepsEvent>(page, {
+      reset: async () => {
+        await tierList.openAfterBlankPage(TANKS, STEPS_LIST);
+        await tierList.setZenMode(true);
       },
+      events: {
+        CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
+        ZEN_BACK: () => tierList.stepInZenBar('Back'),
+        ZEN_FORWARD: () => tierList.stepInZenBar('Forward'),
+        BROWSER_BACK: () => tierList.goBack(),
+        BROWSER_FORWARD: () => tierList.goForward(),
+      },
+      // Web-first checks: after Back or Forward the address changes before the list on screen does.
       states: {
         '*': async (_page, snapshot) => {
-          const order = orderOf(snapshot);
-          if (!order) {
-            // Out of Zen the tray is the editor's, whatever the order.
-            await expect(tierList.zenBar).toHaveCount(0);
-            await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-            await expect(tierList.hints).toBeVisible();
-            await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
-            return;
-          }
-          await expect(tierList.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${RANKING_ORDER_NAMES[order]}`);
-          if (order !== 'pickFreely') {
-            await expectUpNext(tierList, snapshot);
-            return;
-          }
-          // Pick freely: the whole tray, with no queue, also with "Hide the queue" left on.
-          await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-          await expect(tierList.unranked.getByText(`· ${TRAY.length} left`)).toBeVisible();
-          await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
-          await expect(tierList.unranked.getByRole('list')).toHaveCount(0);
+          const {step, total} = zenStepsViewOf(snapshot);
+          await expect(tierList.zenBar).toBeVisible();
+          await expect(tierList.zenStepCount).toHaveText(`${step} / ${total}`);
+          await expect(tierList.itemsIn('A')).toHaveText(STEPS_TRAY.slice(0, step - 1));
+          await expect(tierList.itemsIn(tierList.unranked)).toHaveText(STEPS_TRAY.slice(step - 1));
+          if (step > 1) await expect(tierList.zenBarButton('Back')).toBeEnabled();
+          else await expect(tierList.zenBarButton('Back')).toBeDisabled();
+          if (step < total) await expect(tierList.zenBarButton('Forward')).toBeEnabled();
+          else await expect(tierList.zenBarButton('Forward')).toBeDisabled();
         },
       },
       testInfo,
@@ -505,11 +579,11 @@ test.describe('zen', () => {
     });
 
     test.describe.configure({retries: 0});
-    for (const part of walkParts(zenOrderModel)) {
-      test(`renders each state of the Zen ranking order machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+    for (const part of walkParts(zenStepsModel)) {
+      test(`renders the step count and Back and Forward on or off when the user steps with the Zen bar and the browser (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
-        const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo), part);
-        await attachAndAssertCoverage(testInfo, zenOrderModel, coverage, part);
+        const coverage = await walkModel(zenStepsModel, zenStepsSut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, zenStepsModel, coverage, part);
       });
     }
   });
