@@ -5,7 +5,7 @@ import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} fro
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {historyModel, historyViewOf, MAX_VERSIONS, type HistoryEvent, type HistorySnapshot} from '../models/history';
-import {clickHomeNow, dropImageAddressNow} from '../pages/tier-list-page';
+import {clickHomeNow} from '../pages/tier-list-page';
 import {leavingBusy, leavingModel, leavingViewOf, type LeavingEvent, type LeavingSnapshot} from '../models/leaving';
 import {serveImageSite} from '../support/image-sites';
 
@@ -365,7 +365,7 @@ test.describe('history', () => {
         events: {
           CHANGE_LIST: () => tierList.moveFirstUnrankedItemUpWithKeyboard(),
           CLICK_HOME: () => clickHomeNow(tierList),
-          DROP_IMAGE_LINK: () => dropImageAddressNow(tierList, DROPPED),
+          DROP_IMAGE_LINK: () => tierList.linkImages.dropImageAddressNow(DROPPED),
           HOME_ANSWERS: () => releaseTrip(),
           BROWSER_BACK: () => tierList.goBack(),
         },

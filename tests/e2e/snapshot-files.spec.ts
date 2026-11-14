@@ -1199,7 +1199,7 @@ test.describe('snapshot files', () => {
           loadedAt = otherSite.requests.length;
           await tierList.openAsNewBrowser(TANKS, MIXED_STATE);
           await tierList.settled();
-          await tierList.loadImagesFromOtherSites();
+          await tierList.linkImages.loadImagesFromOtherSites();
           await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${PICTURE}.png`, BLUE_SQUARE)]);
           [pictureId] = deviceIdsOf(page.url());
         },
@@ -1251,7 +1251,7 @@ test.describe('snapshot files', () => {
             loadedAt = visitorOtherSite.requests.length;
             await here().reload();
           },
-          LOAD_IMAGES: () => here().loadImagesFromOtherSites(),
+          LOAD_IMAGES: () => here().linkImages.loadImagesFromOtherSites(),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -1283,10 +1283,10 @@ test.describe('snapshot files', () => {
               await expect.poll(() => shown.itemShowsUpload(PICTURE), {message: 'the picture comes from the device store'}).toBe(true);
               await expect.poll(() => shown.itemImageHasLoaded(TRUSTED_IMAGE.label), {message: `${TRUSTED_SITE} loads`}).toBe(true);
               if (view.otherSite === 'loads') {
-                await expect(shown.imageSitesNotice).toHaveCount(0);
+                await expect(shown.linkImages.imageSitesNotice).toHaveCount(0);
                 await expect.poll(() => shown.itemImageHasLoaded(OTHER_IMAGE.label), {message: `${OTHER_SITE} loads`}).toBe(true);
               } else {
-                await expect(shown.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+                await expect(shown.linkImages.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
                 await expect(shown.item(OTHER_IMAGE.label)).toContainText(OTHER_SITE);
                 await expect(shown.itemImage(OTHER_IMAGE.label)).toHaveCount(0);
                 expect(requests.slice(loadedAt), `no request should reach ${OTHER_SITE} while its image waits`).toEqual([]);

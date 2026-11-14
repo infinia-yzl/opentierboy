@@ -200,7 +200,7 @@ test.describe('shared links', () => {
         events: {
           OPEN_IN_MAKER_BROWSER: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
           OPEN_IN_NEW_BROWSER: () => openIn(visitor, () => visitor.tierList.openAsNewBrowser(TANKS, shared)),
-          LOAD_IMAGES: () => current.tierList.loadImagesFromOtherSites(),
+          LOAD_IMAGES: () => current.tierList.linkImages.loadImagesFromOtherSites(),
           DRAG_BLUE_TO_ROW_B: () => current.tierList.dragItemToTierWhenReady(BLUE.label, 'B'),
           BROWSER_BACK: () => current.tierList.goBack(),
         },
@@ -228,12 +228,12 @@ test.describe('shared links', () => {
               expect(await tierList.itemShowsUpload(MY_CAT), `a new browser has no picture for ${MY_CAT}`).toBe(false);
             }
             if (view.waiting) {
-              await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+              await expect(tierList.linkImages.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
               await expect(tierList.item(BLUE.label)).toContainText(OTHER_SITE);
               await expect(tierList.itemImage(BLUE.label)).toHaveCount(0);
               expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
             } else {
-              await expect(tierList.imageSitesNotice).toHaveCount(0);
+              await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
               await expect.poll(() => tierList.itemImageHasLoaded(BLUE.label), {message: `${BLUE.label} should load`}).toBe(true);
               await expect.poll(sinceLoad).toContain(BLUE.url);
             }

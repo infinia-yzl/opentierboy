@@ -106,7 +106,7 @@ test.describe('editor items', () => {
       await tierList.goto(TANKS);
       await expect(tierList.items.dropOverlay).toHaveCount(0);
 
-      await tierList.dragLinkOver('https://i.imgur.com/red.png');
+      await tierList.linkImages.dragLinkOver('https://i.imgur.com/red.png');
 
       await expect(tierList.items.dropOverlay).toBeVisible();
       await expect(tierList.items.dropOverlayNote).toBeVisible();
@@ -114,10 +114,10 @@ test.describe('editor items', () => {
 
     test('renders no drop overlay when the user drags a link over the editor and away again', async ({tierList}) => {
       await tierList.goto(TANKS);
-      await tierList.dragLinkOver('https://i.imgur.com/red.png');
+      await tierList.linkImages.dragLinkOver('https://i.imgur.com/red.png');
       await expect(tierList.items.dropOverlay).toBeVisible();
 
-      await tierList.dragLinkAway('https://i.imgur.com/red.png');
+      await tierList.linkImages.dragLinkAway('https://i.imgur.com/red.png');
 
       await expect(tierList.items.dropOverlay).toHaveCount(0);
     });
@@ -202,9 +202,9 @@ test.describe('editor items', () => {
       await tierList.goto('/rank');
 
       await tierList.items.emptyListAction('Link').click();
-      await expect(tierList.linkImageDialog).toBeVisible();
-      await tierList.submitInLinkImageDialog('https://i.imgur.com/red.png', 'Red square');
-      await expect(tierList.linkImageDialog).toBeHidden();
+      await expect(tierList.linkImages.linkImageDialog).toBeVisible();
+      await tierList.linkImages.submitInLinkImageDialog('https://i.imgur.com/red.png', 'Red square');
+      await expect(tierList.linkImages.linkImageDialog).toBeHidden();
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
       // The drop area went away with the add, so focus goes to the toolbar's Add images.

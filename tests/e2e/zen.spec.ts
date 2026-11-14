@@ -63,7 +63,7 @@ test.describe('zen', () => {
       await tierList.goto(TANKS);
       await tierList.zen.setZenMode(true);
 
-      await tierList.dragLinkOver('https://i.imgur.com/red.png');
+      await tierList.linkImages.dragLinkOver('https://i.imgur.com/red.png');
       // The overlay would stay until the drag ends: turning Zen off first lets the page render.
       await tierList.zen.setZenMode(false);
 
@@ -76,7 +76,7 @@ test.describe('zen', () => {
       await tierList.zen.setZenMode(true);
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
+      await tierList.linkImages.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
       await tierList.files.dropFile(imageFile('blue-square.png'));
 
       await expect(tierList.item('blue-square')).toBeVisible();
@@ -91,7 +91,7 @@ test.describe('zen', () => {
       await tierList.zen.setZenMode(true);
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.pasteText('https://i.imgur.com/red.png');
+      await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
       await tierList.pasteImages([imageFile('blue-square.png')]);
 
       await expect(tierList.item('blue-square')).toBeVisible();
