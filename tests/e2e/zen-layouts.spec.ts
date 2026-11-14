@@ -50,7 +50,7 @@ const WINDOWS: Record<typeof CREATOR_LAYOUTS[number], {width: number; height: nu
  */
 async function dropByHand(tierList: TierListPage, entries: () => Promise<number>, item: string, tier: string) {
   const before = await entries();
-  await tierList.dragItemToTierByHand(item, tier);
+  await tierList.drag.dragItemToTierByHand(item, tier);
   await expect(tierList.itemsIn(tier).last()).toHaveAccessibleName(item);
   expect(await entries()).toBe(before + 1);
 }
@@ -234,7 +234,7 @@ test.describe('zen layouts', () => {
       await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
       await tierList.zen.chooseRankingOrder('In order');
 
-      await tierList.dragItemToTier('Mauga', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
       await expect(tierList.zen.upNextItem).toHaveAccessibleName('Winston');
@@ -463,7 +463,7 @@ test.describe('zen layouts', () => {
         await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
-        await tierList.dragRowItemsOnto('S', 'A');
+        await tierList.drag.dragRowItemsOnto('S', 'A');
 
         await expect(tierList.itemsIn('A')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         await expect(tierList.itemsIn('S')).toHaveCount(0);
@@ -478,7 +478,7 @@ test.describe('zen layouts', () => {
         await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
 
-        await tierList.moveRowItemsWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
+        await tierList.drag.moveRowItemsWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
 
         await expect(tierList.itemsIn('B')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
         await expect(tierList.itemsIn('S')).toHaveCount(0);
@@ -494,7 +494,7 @@ test.describe('zen layouts', () => {
         // Inside the frame: the grip is a column at the row's left edge.
         expect(await tierList.isInside(tierList.rowGrip('S'), tierList.zen.zenFrame)).toBe(true);
 
-        await tierList.dragRowOnto('S', 'A');
+        await tierList.drag.dragRowOnto('S', 'A');
 
         await expect(tierList.tiers.nth(1)).toHaveAccessibleName('S');
         await expect(tierList.itemsIn('S')).toHaveText(['Reinhardt', 'Zarya', 'D.Va']);
@@ -636,11 +636,11 @@ test.describe('zen layouts', () => {
       await tierList.zen.chooseRankingOrder('In order');
       await tierList.zen.chooseLayout('16:9');
       const entries = await tierList.countNewHistoryEntries();
-      await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
+      await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp']);
       expect(await entries()).toBe(1);
 
       await tierList.zen.chooseLayout('9:16');
-      await tierList.moveItemWithKeyboard('Winston', ['ArrowUp']);
+      await tierList.drag.moveItemWithKeyboard('Winston', ['ArrowUp']);
 
       await expect(tierList.itemsIn('F')).toHaveText(['Mauga', 'Winston']);
       expect(await entries()).toBe(2);
@@ -669,7 +669,7 @@ test.describe('zen layouts', () => {
     test('renders the frame and the list before the drag when the user drags an item in the overlay and clicks button "Back"', async ({tierList}) => {
       await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
 
-      await tierList.dragItemToTier('Mauga', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'A');
 
       await expect(tierList.zen.zenFrame).toBeVisible();
       await tierList.zen.stepInZenBar('Back');
@@ -704,7 +704,7 @@ test.describe('zen layouts', () => {
           CHOOSE_TALL: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.tall),
           CHOOSE_OVERLAY: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
           CHANGE_LIST: async () => {
-            await tierList.rankFirstUnrankedItem('A');
+            await tierList.drag.rankFirstUnrankedItem('A');
             changed = page.url();
           },
           BROWSER_BACK: () => tierList.goBack(),

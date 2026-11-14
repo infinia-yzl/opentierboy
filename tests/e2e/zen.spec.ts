@@ -174,8 +174,8 @@ test.describe('zen', () => {
   test.describe('Zen bar', () => {
     test('renders the step count 3 / 3 with button "Back" on and "Forward" off when the user turns on Zen after 2 drags', async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       await tierList.zen.setZenMode(true);
 
@@ -186,8 +186,8 @@ test.describe('zen', () => {
 
     test('renders each earlier version and its step count when the user clicks button "Back" and then "Forward"', async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       await tierList.zen.setZenMode(true);
 
       await tierList.zen.stepInZenBar('Back');
@@ -210,8 +210,8 @@ test.describe('zen', () => {
 
     test('renders the step count 3 / 3 when the user reloads the page after 2 drags and turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       await tierList.reload();
       await tierList.zen.setZenMode(true);
@@ -234,13 +234,13 @@ test.describe('zen', () => {
 
     test('renders the step count 2 / 2 when the user drags an item in Zen after going Back', async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       await tierList.zen.setZenMode(true);
       await tierList.zen.stepInZenBar('Back');
       await tierList.zen.stepInZenBar('Back');
 
-      await tierList.dragItemToTier('Sigma', 'B');
+      await tierList.drag.dragItemToTier('Sigma', 'B');
 
       await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
       await expect(tierList.zen.zenBarButton('Forward')).toBeDisabled();
@@ -319,7 +319,7 @@ test.describe('zen', () => {
       await tierList.zen.setZenMode(true);
       await tierList.zen.chooseRankingOrder('In order');
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.zen.upNextItem).toHaveAccessibleName('Winston');
@@ -332,9 +332,9 @@ test.describe('zen', () => {
       await tierList.zen.setZenMode(true);
       await tierList.zen.chooseRankingOrder('In order');
 
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
-      await tierList.dragItemToTier('Sigma', 'B');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Sigma', 'B');
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
@@ -356,7 +356,7 @@ test.describe('zen', () => {
 
         for (const [drop, row] of RANKED_ROWS.entries()) {
           const name = await tierList.zen.upNextItem.getAttribute('aria-label') ?? '';
-          await tierList.dragItemToTier(name, row);
+          await tierList.drag.dragItemToTier(name, row);
           ranked[row] = name;
 
           expect(await newEntries()).toBe(drop + 1);
@@ -386,7 +386,7 @@ test.describe('zen', () => {
         await expect(tierList.zen.upNextItem).toHaveAccessibleName(TRAY[drop]);
         // The Up arrow goes one row up per press, from the tray: row F first, then C... up to S.
         const presses = ALL_RANKED_ROWS.length - ALL_RANKED_ROWS.indexOf(row);
-        await tierList.moveItemWithKeyboard(TRAY[drop], Array(presses).fill('ArrowUp'));
+        await tierList.drag.moveItemWithKeyboard(TRAY[drop], Array(presses).fill('ArrowUp'));
 
         expect(await newEntries()).toBe(drop + 1);
         await expect(tierList.itemsIn(row)).toHaveText([TRAY[drop]]);
@@ -539,7 +539,7 @@ test.describe('zen', () => {
         await tierList.zen.setZenMode(true);
       },
       events: {
-        CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
+        CHANGE_LIST: () => tierList.drag.rankFirstUnrankedItem('A'),
         ZEN_BACK: () => tierList.zen.stepInZenBar('Back'),
         ZEN_FORWARD: () => tierList.zen.stepInZenBar('Forward'),
         BROWSER_BACK: () => tierList.goBack(),

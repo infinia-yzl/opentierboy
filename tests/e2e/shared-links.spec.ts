@@ -81,7 +81,7 @@ test.describe('shared links', () => {
         await expect.poll(() => tierList.itemImageHasLoaded('Mystery'), {message: 'placeholder image'}).toBe(true);
 
         // The tile can be dragged like any other, and the next saved link keeps the item.
-        await tierList.dragItemToTier('Mystery', 'Unranked');
+        await tierList.drag.dragItemToTier('Mystery', 'Unranked');
         await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston', 'Mystery']);
         await tierList.rows.renameTier('S', 'Top');
         const visitor = await openAsVisitor(await tierList.shareLink());
@@ -129,7 +129,7 @@ test.describe('shared links', () => {
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
       // Each tile has its own drag id again, so dragging works.
-      await tierList.dragItemToTier('Mauga', 'Unranked');
+      await tierList.drag.dragItemToTier('Mauga', 'Unranked');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma', 'Mauga']);
     });
 
@@ -142,8 +142,8 @@ test.describe('shared links', () => {
         ],
       }));
 
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
@@ -201,7 +201,7 @@ test.describe('shared links', () => {
           OPEN_IN_MAKER_BROWSER: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
           OPEN_IN_NEW_BROWSER: () => openIn(visitor, () => visitor.tierList.openAsNewBrowser(TANKS, shared)),
           LOAD_IMAGES: () => current.tierList.linkImages.loadImagesFromOtherSites(),
-          DRAG_BLUE_TO_ROW_B: () => current.tierList.dragItemToTierWhenReady(BLUE.label, 'B'),
+          DRAG_BLUE_TO_ROW_B: () => current.tierList.drag.dragItemToTierWhenReady(BLUE.label, 'B'),
           BROWSER_BACK: () => current.tierList.goBack(),
         },
         states: {

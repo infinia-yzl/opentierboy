@@ -45,7 +45,7 @@ test.describe('tile shapes', () => {
     await expect.poll(async () => (await tierList.itemLines('S')).length, {message: 'row S should wrap'}).toBeGreaterThan(1);
     const target = (await tierList.itemLines('S'))[1][0];
 
-    await tierList.dragItemNextTo(SQUARE[8], target, 'before');
+    await tierList.drag.dragItemNextTo(SQUARE[8], target, 'before');
 
     const expected = [...mixed];
     expected.splice(mixed.indexOf(target), 0, SQUARE[8]);
@@ -57,13 +57,13 @@ test.describe('tile shapes', () => {
     await tierList.goto(ALL, rankingState('image-overwatch', {S: mixed}));
     const before = (await tierList.item(LANDSCAPE[0]).boundingBox())!;
 
-    await tierList.moveItemWithKeyboard(LANDSCAPE[0], ['ArrowDown']);
+    await tierList.drag.moveItemWithKeyboard(LANDSCAPE[0], ['ArrowDown']);
 
     await expect.poll(async () => (await tierList.item(LANDSCAPE[0]).boundingBox())!.y, {message: 'the tile should be on a lower line'})
       .toBeGreaterThan(before.y + before.height / 2);
     await expect(tierList.itemsIn('S')).toHaveCount(mixed.length);
 
-    await tierList.moveItemWithKeyboard(LANDSCAPE[0], ['ArrowUp']);
+    await tierList.drag.moveItemWithKeyboard(LANDSCAPE[0], ['ArrowUp']);
 
     await expect.poll(async () => (await tierList.item(LANDSCAPE[0]).boundingBox())!.y).toBeCloseTo(before.y, 0);
   });

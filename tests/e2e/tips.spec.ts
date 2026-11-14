@@ -53,12 +53,12 @@ test.describe('tips', () => {
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await expect(tips.firstDrag).toBeHidden();
       await expect(tierList.hints).toBeVisible();
 
       await tierList.reload();
-      await tierList.dragItemToTier('Mauga', 'Unranked');
+      await tierList.drag.dragItemToTier('Mauga', 'Unranked');
       await expect(tierList.hints).toBeVisible();
       await expect(tips.firstDrag).toBeHidden();
     });
@@ -81,7 +81,7 @@ test.describe('tips', () => {
       await tips.hideTips();
       expect(await tips.stored()).toEqual({seen: [], off: true});
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await tierList.reload();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tips.all).toHaveCount(0);
@@ -123,7 +123,7 @@ test.describe('tips', () => {
       await expect(tips.firstDrag).toBeVisible();
       const plain = await tips.ringOf(tips.shareButton);
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
 
       await expect(tips.linkSaveToast).toContainText(LINK_SAVE_TITLE);
       await expect(tips.linkSaveToast).toContainText('Bookmark this page, or press Share to copy its link. Back undoes a change.');
@@ -137,7 +137,7 @@ test.describe('tips', () => {
     test('renders the share panel when the user presses Share in the toast', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
 
       await tips.linkSaveToast.getByRole('button', {name: 'Share', exact: true}).click();
 
@@ -148,12 +148,12 @@ test.describe('tips', () => {
     test('writes link-save as seen and renders no second toast when the user makes a second change after closing it', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await tips.closeToast(tips.linkSaveToast);
       await expect.poll(() => tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
 
       await tierList.reload();
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
       await expect(tips.linkSaveToast).toHaveCount(0);
@@ -177,7 +177,7 @@ test.describe('tips', () => {
       await tierList.goto(TANKS, SHARED);
       await expect(tips.sharedList).toBeVisible();
 
-      await tierList.dragItemToTier('Winston', 'B');
+      await tierList.drag.dragItemToTier('Winston', 'B');
 
       await expect(tips.sharedList).toBeHidden();
       await expect(tips.linkSaveToast).toBeVisible();
@@ -212,7 +212,7 @@ test.describe('tips', () => {
       await expect(tierList.title).toHaveText('Tanks by a friend');
       await expect(tips.sharedList).toBeHidden();
       // A shared-list tip that showed would be seen, and the first change ends it.
-      await tierList.dragItemToTier('Winston', 'B');
+      await tierList.drag.dragItemToTier('Winston', 'B');
       await expect(tips.linkSaveToast).toBeVisible();
 
       expect(await tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
@@ -221,7 +221,7 @@ test.describe('tips', () => {
     test('renders no shared-list tip when the page opens a link after this browser made a change', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await expect(tips.linkSaveToast).toBeVisible();
 
       await tierList.goto(TANKS, SHARED);
@@ -241,7 +241,7 @@ test.describe('tips', () => {
       const historyLength = await tierList.historyLength();
 
       await tips.close();
-      await tierList.dragItemToTier('Winston', 'Unranked');
+      await tierList.drag.dragItemToTier('Winston', 'Unranked');
       const changed = tierList.page.url();
       await expect(tips.linkSaveToast).toBeVisible();
       await tips.hideTips(tips.linkSaveToast);
@@ -328,7 +328,7 @@ test.describe('tips', () => {
         },
         events: {
           OPEN_TEMPLATE: () => tierList.goto(TANKS),
-          DROP_IN_ROW: () => tierList.dragFirstUnrankedItemToTier('S'),
+          DROP_IN_ROW: () => tierList.drag.dragFirstUnrankedItemToTier('S'),
           CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
           ADD_DEVICE_IMAGE: () => tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
           CLOSE_TIP: () => tips.close(),

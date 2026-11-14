@@ -350,7 +350,7 @@ test.describe('device images', () => {
       await keepUploadInThisBrowser(tierList, {i: 'ab3c9', c: 'My cat', d: redSquareDataUrl()});
 
       await tierList.goto(TANKS, linkWithUpload('ab3c9', 'My cat'));
-      await tierList.dragItemToTier('My cat', 'S');
+      await tierList.drag.dragItemToTier('My cat', 'S');
       // The upload moved from localStorage into the device image store, under "legacy-ab3c9".
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
 
@@ -358,7 +358,7 @@ test.describe('device images', () => {
       expect(JSON.stringify(v3LinkJson(link))).toContain('{"d":"legacy-ab3c9","c":"My cat"}');
       await tierList.gotoLink(link);
       await expect(tierList.itemsIn('S')).toHaveText(['My cat']);
-      await tierList.dragItemToTier('My cat', 'A');
+      await tierList.drag.dragItemToTier('My cat', 'A');
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
     });
   });
@@ -447,7 +447,7 @@ test.describe('device images', () => {
           UPLOAD_BLUE: () => tierList.deviceImages.addItemsFromDeviceAndHoldToast([FILES.blue]),
           UNDO: () => tierList.deviceImages.undoAddedItemsAndLetToastLeave(),
           TOAST_TIMES_OUT: () => tierList.deviceImages.waitOutItemsAddedToast(),
-          RANK_RED: () => tierList.dragItemToTierWhenReady(DEVICE_IMAGE_NAMES.red, 'S'),
+          RANK_RED: () => tierList.drag.dragItemToTierWhenReady(DEVICE_IMAGE_NAMES.red, 'S'),
           RELOAD: () => tierList.reload(),
           BROWSER_BACK: () => tierList.goBack(),
           BROWSER_FORWARD: () => tierList.goForward(),

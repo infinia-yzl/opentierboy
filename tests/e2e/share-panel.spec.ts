@@ -48,7 +48,7 @@ test.describe('share panel', () => {
     }) => {
       await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await tierList.rows.chooseLabelPosition('Top');
       // Back: Mauga leaves S, and the labels stay on Top, while the address holds the entry
       // before (labels on the left).
@@ -75,7 +75,7 @@ test.describe('share panel', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
       // The copy comes right after the moves: the share text is the list on screen (A46).
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
-        await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
+        await tierList.drag.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await tierList.share.copyMarkdown();
 

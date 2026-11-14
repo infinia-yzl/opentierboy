@@ -97,7 +97,7 @@ test.describe('editor labels', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
       await tierList.rows.renameTier('S', longName);
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       await tierList.goBack();
 
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
@@ -133,7 +133,7 @@ test.describe('editor labels', () => {
       // Nothing was saved: clicking elsewhere keeps the old name, and the link is unchanged.
       await tierList.hints.click();
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
-      await tierList.dragItemToTier('Mauga', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'A');
       await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });
@@ -149,7 +149,7 @@ test.describe('editor labels', () => {
       await expect(tierList.openTextBoxes).toHaveCount(0);
       await tierList.hints.click();
       await expect(tierList.title).toHaveText('OVERWATCH - Tank');
-      await tierList.dragItemToTier('Mauga', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'A');
       await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });

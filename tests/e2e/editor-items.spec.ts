@@ -235,7 +235,7 @@ test.describe('editor items', () => {
       await tierList.goto(TANKS, oldLink);
       await expect(tierList.item('Gone hero')).toBeVisible();
 
-      await tierList.dragItemToTier('Gone hero', 'S');
+      await tierList.drag.dragItemToTier('Gone hero', 'S');
 
       const link = await tierList.shareLink();
       expect(JSON.stringify(v3LinkJson(link))).toContain('{"i":"image-overwatch-gone.webp","c":"Gone hero"}');
@@ -253,7 +253,7 @@ test.describe('editor items', () => {
       }))});
       await tierList.goto(TANKS, handMade);
 
-      await tierList.dragItemToTier('No id', 'S');
+      await tierList.drag.dragItemToTier('No id', 'S');
       await tierList.reload();
 
       await expect(tierList.itemsIn('S')).toHaveText(['No id']);

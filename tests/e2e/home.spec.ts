@@ -198,7 +198,7 @@ test.describe('home', () => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Edited list'));
     await tierList.setTitle('New title');
     await tierList.rows.renameTier('A', 'Great');
-    await tierList.dragItemToTier('Winston', 'S');
+    await tierList.drag.dragItemToTier('Winston', 'S');
 
     await site.gotoHome();
     await expect(site.recentLinks).toHaveText(['Edited list']);

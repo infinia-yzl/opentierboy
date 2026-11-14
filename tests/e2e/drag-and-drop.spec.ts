@@ -44,7 +44,7 @@ test.describe('drag and drop', () => {
       test('renders the item in row S when the user sweeps it up from Unranked into the left part of row S', async ({tierList}) => {
         await tierList.goto(TANKS);
 
-        await tierList.dragItemToTierStartInOneSweep('D.Va', 'S');
+        await tierList.drag.dragItemToTierStartInOneSweep('D.Va', 'S');
 
         await expect(tierList.itemsIn('S')).toHaveText(['D.Va']);
         await expect(tierList.itemsIn('A')).toHaveCount(0);
@@ -53,8 +53,8 @@ test.describe('drag and drop', () => {
 
     test('renders the same title and rows for a visitor of the share link when the user drags 2 items into rows', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
 
       const friend = await openAsVisitor(await tierList.shareLink());
@@ -68,7 +68,7 @@ test.describe('drag and drop', () => {
     test('renders the dragged item before the target item when the user drags it onto an item of the same row', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
 
-      await tierList.dragItemOnto('Sigma', 'Mauga');
+      await tierList.drag.dragItemOnto('Sigma', 'Mauga');
 
       await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
     });
@@ -78,7 +78,7 @@ test.describe('drag and drop', () => {
     test('renders the item first in its row when the user moves it with the Left arrow key twice', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
 
-      await tierList.moveItemWithKeyboard('Sigma', ['ArrowLeft', 'ArrowLeft']);
+      await tierList.drag.moveItemWithKeyboard('Sigma', ['ArrowLeft', 'ArrowLeft']);
 
       await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
     });
@@ -94,7 +94,7 @@ test.describe('drag and drop', () => {
       const [, secondLine] = await tierList.itemLines('S');
       const target = secondLine[1];
 
-      await tierList.dragItemNextTo('Mauga', target, 'before');
+      await tierList.drag.dragItemNextTo('Mauga', target, 'before');
 
       const expected = [...WRAPPED];
       expected.splice(WRAPPED.indexOf(target), 0, 'Mauga');
@@ -103,7 +103,7 @@ test.describe('drag and drop', () => {
     });
 
     test('renders the item last in the row when the user drops it after the last item of a wrapping row', async ({tierList}) => {
-      await tierList.dragItemNextTo('Winston', WRAPPED[WRAPPED.length - 1], 'after');
+      await tierList.drag.dragItemNextTo('Winston', WRAPPED[WRAPPED.length - 1], 'after');
 
       await expect(tierList.itemsIn('S')).toHaveText([...WRAPPED, 'Winston']);
     });
@@ -112,7 +112,7 @@ test.describe('drag and drop', () => {
       const [, secondLine] = await tierList.itemLines('S');
       const target = secondLine[1];
 
-      await tierList.dragItemNextTo('Ana', target, 'before');
+      await tierList.drag.dragItemNextTo('Ana', target, 'before');
 
       const expected = WRAPPED.filter((name) => name !== 'Ana');
       expected.splice(expected.indexOf(target), 0, 'Ana');
@@ -123,7 +123,7 @@ test.describe('drag and drop', () => {
       const [firstLine] = await tierList.itemLines('S');
       const last = firstLine[firstLine.length - 1];
 
-      await tierList.moveItemWithKeyboard(last, ['ArrowRight']);
+      await tierList.drag.moveItemWithKeyboard(last, ['ArrowRight']);
 
       const expected = WRAPPED.filter((name) => name !== last);
       expected.splice(firstLine.length, 0, last);
@@ -134,7 +134,7 @@ test.describe('drag and drop', () => {
     test('renders the item on the next line at the same x, and back, when the user presses the Down, then Up arrow key', async ({tierList}) => {
       const before = await tierList.item('Baptiste').boundingBox();
 
-      await tierList.moveItemWithKeyboard('Baptiste', ['ArrowDown']);
+      await tierList.drag.moveItemWithKeyboard('Baptiste', ['ArrowDown']);
 
       await expect.poll(async () => (await tierList.itemLines('S'))[1], {message: 'Baptiste should be on the second line'}).toContain('Baptiste');
       await expect(tierList.itemsIn('S')).toHaveCount(WRAPPED.length);
@@ -143,7 +143,7 @@ test.describe('drag and drop', () => {
         expect(Math.abs(after.x - before!.x), 'Baptiste should keep its place across').toBeLessThan(after.width);
       }).toPass();
 
-      await tierList.moveItemWithKeyboard('Baptiste', ['ArrowUp']);
+      await tierList.drag.moveItemWithKeyboard('Baptiste', ['ArrowUp']);
 
       await expect.poll(async () => (await tierList.itemLines('S'))[0]).toContain('Baptiste');
     });
@@ -152,7 +152,7 @@ test.describe('drag and drop', () => {
       const lines = await tierList.itemLines('S');
       const onLastLine = lines[lines.length - 1][0];
 
-      await tierList.moveItemWithKeyboard(onLastLine, ['ArrowDown']);
+      await tierList.drag.moveItemWithKeyboard(onLastLine, ['ArrowDown']);
 
       await expect(tierList.itemsIn('A')).toHaveText([onLastLine]);
     });
@@ -167,7 +167,7 @@ test.describe('drag and drop', () => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
       const entries = await tierList.countNewHistoryEntries();
 
-      await tierList.dragRowOnto('S', 'A');
+      await tierList.drag.dragRowOnto('S', 'A');
 
       await expectTierList(tierList, {tiers: [
         {name: 'A', items: ['Winston']}, {name: 'S', items: ['Mauga']}, {name: 'B', items: []},
@@ -180,7 +180,7 @@ test.describe('drag and drop', () => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
       const colours = await tierList.rowColours();
 
-      await tierList.dragRowOnto('S', 'B');
+      await tierList.drag.dragRowOnto('S', 'B');
 
       await expectTierNames(tierList, ['A', 'B', 'S', 'C', 'F', 'Unranked']);
       expect(await tierList.rowColours()).toEqual(colours);
@@ -188,7 +188,7 @@ test.describe('drag and drop', () => {
 
     test('renders row S first again when the user goes Back after dragging row S by its grip onto row A', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-      await tierList.dragRowOnto('S', 'A');
+      await tierList.drag.dragRowOnto('S', 'A');
       await expectTierNames(tierList, ['A', 'S', 'B', 'C', 'F', 'Unranked']);
 
       await tierList.goBack();
@@ -200,7 +200,7 @@ test.describe('drag and drop', () => {
     test('renders the same rows for a visitor of the share link when the user drags row S by its grip onto row B', async ({tierList, openAsVisitor}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], B: ['Winston']}));
 
-      await tierList.dragRowOnto('S', 'B');
+      await tierList.drag.dragRowOnto('S', 'B');
 
       const friend = await openAsVisitor(await tierList.shareLink());
       await expectTierList(friend, {tiers: [
@@ -212,7 +212,7 @@ test.describe('drag and drop', () => {
     test('renders the items of row S in row A, the labels in place, when the user drags the stack of row S onto row A', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma'], A: ['Winston']}));
 
-      await tierList.dragRowItemsOnto('S', 'A');
+      await tierList.drag.dragRowItemsOnto('S', 'A');
 
       await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
@@ -225,7 +225,7 @@ test.describe('drag and drop', () => {
       await expect(tierList.rowStack('C')).toHaveCount(0);
       expect(await tierList.tabOrderIn('C')).toEqual(['Move row C']);
 
-      await tierList.dragItemToTier('Winston', 'C');
+      await tierList.drag.dragItemToTier('Winston', 'C');
 
       await expect(tierList.rowStack('C')).toHaveAccessibleName('Move the 1 item of row C');
       expect(await tierList.tabOrderIn('C')).toEqual(['Move row C', 'Winston', 'Move the 1 item of row C']);
@@ -247,9 +247,9 @@ test.describe('drag and drop', () => {
     test('renders row S back at its place and the cancel announcement when the user presses Escape during a grip drag', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.moveRowWithKeyboardThenCancel('S', ['ArrowDown']);
+      await tierList.drag.moveRowWithKeyboardThenCancel('S', ['ArrowDown']);
 
-      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Row S is back at position 1 of 5.');
+      await expect(tierList.drag.dragAnnouncer).toHaveText('Move cancelled. Row S is back at position 1 of 5.');
       await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
     });
   });
@@ -258,7 +258,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the item name and row labels when the user moves an item with the keyboard', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
 
-      const heard = await tierList.moveItemWithKeyboardAndListen('Sigma', ['ArrowLeft', 'ArrowUp']);
+      const heard = await tierList.drag.moveItemWithKeyboardAndListen('Sigma', ['ArrowLeft', 'ArrowUp']);
 
       expect(heard).toEqual([
         'Sigma moves to Unranked, position 1 of 2.',
@@ -270,7 +270,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the item count and row labels, labels in place, when the user moves the stack of row S down', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      const heard = await tierList.moveRowWithKeyboardAndListen('S', 'stack', ['ArrowDown']);
+      const heard = await tierList.drag.moveRowWithKeyboardAndListen('S', 'stack', ['ArrowDown']);
 
       expect(heard).toEqual([
         'The 1 item, over row A.',
@@ -284,7 +284,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the row label and its position, and row S third, when the user moves row S down by its grip', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      const heard = await tierList.moveRowWithKeyboardAndListen('S', 'grip', ['ArrowDown', 'ArrowDown']);
+      const heard = await tierList.drag.moveRowWithKeyboardAndListen('S', 'grip', ['ArrowDown', 'ArrowDown']);
 
       expect(heard).toEqual([
         'Row S, position 2 of 5, below row A.',
@@ -303,9 +303,9 @@ test.describe('drag and drop', () => {
       const before = page.url();
       const entries = await tierList.historyLength();
 
-      await tierList.dragItemToTierThenCancel('Mauga', 'A');
+      await tierList.drag.dragItemToTierThenCancel('Mauga', 'A');
 
-      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in row S, position 1 of 2.');
+      await expect(tierList.drag.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in row S, position 1 of 2.');
       await tierList.settled();
       expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
       expect(await tierList.itemNamesIn('A')).toEqual([]);
@@ -316,10 +316,10 @@ test.describe('drag and drop', () => {
     test('renders the item in row A when the user drags it there after a cancelled mouse drag', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
       await tierList.settled();
-      await tierList.dragItemToTierThenCancel('Mauga', 'A');
-      await expect(tierList.dragAnnouncer).toContainText('Move cancelled.');
+      await tierList.drag.dragItemToTierThenCancel('Mauga', 'A');
+      await expect(tierList.drag.dragAnnouncer).toContainText('Move cancelled.');
 
-      await tierList.dragItemToTier('Mauga', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
     });
@@ -331,7 +331,7 @@ test.describe('drag and drop', () => {
     test('renders the item in row S when the user long-presses it and drags it to row S', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 
-      await tierList.touchDragItemToTier('Mauga', 'S');
+      await tierList.drag.touchDragItemToTier('Mauga', 'S');
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
@@ -340,7 +340,7 @@ test.describe('drag and drop', () => {
     test('renders row S after row A when the user long-presses the grip of row S and drags it onto row A', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      await tierList.touchDragRowOnto('S', 'A');
+      await tierList.drag.touchDragRowOnto('S', 'A');
 
       await expectTierNames(tierList, ['A', 'S', 'B', 'C', 'F', 'Unranked']);
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -348,12 +348,12 @@ test.describe('drag and drop', () => {
 
     test('renders the item menu with no drag and no text selection when the user long-presses an item', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-      const announcement = await tierList.dragAnnouncer.textContent();
+      const announcement = await tierList.drag.dragAnnouncer.textContent();
 
-      const menu = await tierList.longPressItem('Mauga');
+      const menu = await tierList.drag.longPressItem('Mauga');
 
       // No drag started, and no text is selected.
-      await expect(tierList.dragAnnouncer).toHaveText(announcement ?? '');
+      await expect(tierList.drag.dragAnnouncer).toHaveText(announcement ?? '');
       await expect.poll(() => tierList.selectedText()).toBe('');
       await expect(menu).toBeVisible();
     });
@@ -361,7 +361,7 @@ test.describe('drag and drop', () => {
     test('renders row S without the item when the user long-presses it and taps Delete in the item menu', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
 
-      await tierList.longPressItem('Mauga');
+      await tierList.drag.longPressItem('Mauga');
       await tierList.menuItem('Delete').tap();
 
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
@@ -372,7 +372,7 @@ test.describe('drag and drop', () => {
       await tierList.goto(ALL, rankingState('image-overwatch', {'': many}));
       const address = tierList.page.url();
 
-      await tierList.swipeUpFromItem('Mercy', 200);
+      await tierList.drag.swipeUpFromItem('Mercy', 200);
 
       await tierList.settled();
       expect(tierList.page.url()).toBe(address);
@@ -402,14 +402,14 @@ test.describe('drag and drop', () => {
         tierList,
       }) => {
         await tierList.goto(TANKS);
-        const nativeDrags = await tierList.countNativeDrags();
+        const nativeDrags = await tierList.drag.countNativeDrags();
         const newEntries = await tierList.countNewHistoryEntries();
 
-        await tierList.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
+        await tierList.drag.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
 
         await tierList.settled();
         expect(await nativeDrags()).toBe(0);
-        await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in row S,|Winston\. It stays in Unranked,)/);
+        await expect(tierList.drag.dragAnnouncer).toHaveText(/^Dropped (Mauga in row S,|Winston\. It stays in Unranked,)/);
         expect(await newEntries()).toBe(1);
         await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
         await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
@@ -419,7 +419,7 @@ test.describe('drag and drop', () => {
     test('writes a cancelled dragstart event when a dragstart event starts on an item image', async ({tierList}) => {
       await tierList.goto(TANKS);
 
-      expect(await tierList.dragStartFromItemImageIsCancelled('Mauga')).toBe(true);
+      expect(await tierList.drag.dragStartFromItemImageIsCancelled('Mauga')).toBe(true);
     });
 
     test('renders every tile image not draggable, in rows, up next and the queue, when the page opens in Zen with In order', async ({
@@ -471,7 +471,7 @@ test.describe('drag and drop', () => {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
           // A keyboard user tabs to the tile first.
-          await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+          await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           entries = await tierList.historyLength();
           linkRow = 'Unranked';
           linkOrder = 'S,A,Unranked';
@@ -485,12 +485,12 @@ test.describe('drag and drop', () => {
           PRESS_ESCAPE: () => tierList.pressKey('Escape'),
           // Row S moves whole by its grip, then the keyboard user tabs back to the tile.
           MOVE_ROW_S_DOWN: async () => {
-            await tierList.moveRowWithKeyboard('S', ['ArrowDown']);
-            await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+            await tierList.drag.moveRowWithKeyboard('S', ['ArrowDown']);
+            await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           },
           MOVE_ROW_S_UP: async () => {
-            await tierList.moveRowWithKeyboard('S', ['ArrowUp']);
-            await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
+            await tierList.drag.moveRowWithKeyboard('S', ['ArrowUp']);
+            await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           },
         },
         // Web-first checks: the preview draws at once, but a move is read out 500 ms later.
@@ -501,7 +501,7 @@ test.describe('drag and drop', () => {
             for (const row of KEYBOARD_DRAG_ROWS) {
               await expect(tierList.itemsIn(row)).toHaveText(row === shownIn ? [KEYBOARD_DRAG_ITEM] : []);
             }
-            await expect(tierList.dragAnnouncer).toHaveText(heard);
+            await expect(tierList.drag.dragAnnouncer).toHaveText(heard);
             await expect.poll(() => linkRowOf(page.url()), {message: 'the link should hold the tile in its row'}).toBe(linkIn);
             await expect.poll(() => linkOrderOf(page.url()).join(','), {message: 'the link should hold the rows in order'}).toBe(order.join(','));
             if (linkIn !== linkRow || order.join(',') !== linkOrder) {
@@ -520,7 +520,7 @@ test.describe('drag and drop', () => {
             if (carried) await expect(tierList.main, 'the page should be busy while the tile is carried').toHaveAttribute('aria-busy', 'true');
             if (!carried) {
               // At rest, it takes the next drag.
-              await tierList.expectEveryItemDraggable();
+              await tierList.drag.expectEveryItemDraggable();
             }
           },
         },
@@ -569,7 +569,7 @@ test.describe('drag and drop', () => {
       return modelSut<MouseDragSnapshot, MouseDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
-          await tierList.expectEveryItemDraggable();
+          await tierList.drag.expectEveryItemDraggable();
           // A long walk changes the list more often than history.length can count (50 entries).
           newEntries = await tierList.countNewHistoryEntries();
           entries = 0;
@@ -577,17 +577,17 @@ test.describe('drag and drop', () => {
           address = '';
         },
         events: {
-          DRAG_MAUGA_TO_S: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'S'),
-          DRAG_MAUGA_TO_A: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'A'),
-          DRAG_MAUGA_TO_UNRANKED: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'Unranked'),
-          DROP_MAUGA_BEFORE_WINSTON: () => tierList.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'before'),
-          DROP_MAUGA_AFTER_WINSTON: () => tierList.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'after'),
-          DROP_MAUGA_IN_PLACE: () => tierList.dragItemAndDropInPlace(MOUSE_DRAG_ITEM),
-          RELEASE_MAUGA_OUTSIDE_ROWS: () => tierList.dragItemOutOfTheRows(MOUSE_DRAG_ITEM),
-          DRAG_ITEMS_OF_S_ONTO_A: () => tierList.dragRowItemsOnto('S', 'A'),
-          DRAG_ITEMS_OF_A_ONTO_S: () => tierList.dragRowItemsOnto('A', 'S'),
-          DRAG_ROW_S_ONTO_A: () => tierList.dragRowOnto('S', 'A'),
-          DRAG_ROW_A_ONTO_S: () => tierList.dragRowOnto('A', 'S'),
+          DRAG_MAUGA_TO_S: () => tierList.drag.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'S'),
+          DRAG_MAUGA_TO_A: () => tierList.drag.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'A'),
+          DRAG_MAUGA_TO_UNRANKED: () => tierList.drag.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'Unranked'),
+          DROP_MAUGA_BEFORE_WINSTON: () => tierList.drag.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'before'),
+          DROP_MAUGA_AFTER_WINSTON: () => tierList.drag.dragItemBeside(MOUSE_DRAG_ITEM, MOUSE_DRAG_OTHER_ITEM, 'after'),
+          DROP_MAUGA_IN_PLACE: () => tierList.drag.dragItemAndDropInPlace(MOUSE_DRAG_ITEM),
+          RELEASE_MAUGA_OUTSIDE_ROWS: () => tierList.drag.dragItemOutOfTheRows(MOUSE_DRAG_ITEM),
+          DRAG_ITEMS_OF_S_ONTO_A: () => tierList.drag.dragRowItemsOnto('S', 'A'),
+          DRAG_ITEMS_OF_A_ONTO_S: () => tierList.drag.dragRowItemsOnto('A', 'S'),
+          DRAG_ROW_S_ONTO_A: () => tierList.drag.dragRowOnto('S', 'A'),
+          DRAG_ROW_A_ONTO_S: () => tierList.drag.dragRowOnto('A', 'S'),
         },
         states: {
           '*': async (_page, snapshot) => {

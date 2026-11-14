@@ -30,7 +30,7 @@ test.describe('history', () => {
       const opened = page.url();
       const entries = await tierList.historyLength();
 
-      await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
+      await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
       // Back at once, before the page has done anything more, on purpose.
       await tierList.goBackNow();
       await tierList.settled();
@@ -46,7 +46,7 @@ test.describe('history', () => {
     test('writes the change before Home when the user clicks the link to Home right after a change', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 
-      await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
+      await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
       await tierList.leaveForHome();
       await tierList.goBack();
 
@@ -65,7 +65,7 @@ test.describe('history', () => {
       const entries = await tierList.historyLength();
 
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
-        await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
+        await tierList.drag.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await expect(tierList.itemsIn('F')).toHaveCount(3);
       await tierList.settled();
@@ -96,8 +96,8 @@ test.describe('history', () => {
   test.describe('template pages', () => {
     test('renders the template items, and writes no history entry, when the user goes Back to the template path', async ({tierList, page}) => {
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       const entries = await tierList.historyLength();
 
       await tierList.goBack();
@@ -177,7 +177,7 @@ test.describe('history', () => {
       await tierList.settled();
       expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
       const withSettings = page.url();
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       // Back after the one change to the list goes straight back to the page as opened, whose
       // link now holds the settings.
@@ -193,9 +193,9 @@ test.describe('history', () => {
     test('renders the label position Top when the user goes Back and Forward after a list change', async ({tierList, page}) => {
       // The owner's example: Mauga to S, Winston to A, labels on Top, then Back.
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       const firstChange = page.url();
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Winston', 'A');
       await tierList.rows.chooseLabelPosition('Top');
       const withTop = page.url();
 
@@ -277,7 +277,7 @@ test.describe('history', () => {
           wrote = false;
         },
         events: {
-          CHANGE_LIST: step(true, () => tierList.rankFirstUnrankedItem('A')),
+          CHANGE_LIST: step(true, () => tierList.drag.rankFirstUnrankedItem('A')),
           BROWSER_BACK: step(false, () => tierList.goBack()),
           BROWSER_FORWARD: step(false, () => tierList.goForward()),
           CHOOSE_TOP: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Top')),
@@ -363,7 +363,7 @@ test.describe('history', () => {
           entries = await tierList.historyLength();
         },
         events: {
-          CHANGE_LIST: () => tierList.moveFirstUnrankedItemUpWithKeyboard(),
+          CHANGE_LIST: () => tierList.drag.moveFirstUnrankedItemUpWithKeyboard(),
           CLICK_HOME: () => clickHomeNow(tierList),
           DROP_IMAGE_LINK: () => tierList.linkImages.dropImageAddressNow(DROPPED),
           HOME_ANSWERS: () => releaseTrip(),

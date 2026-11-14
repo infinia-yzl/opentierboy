@@ -42,7 +42,7 @@ test.describe('editor rows', () => {
     await tierList.goto(TANKS, v3State({r: [['tier-s', 'S', []], ['tier-a', 'A', []], ['tier-1', '', [packageItemId('image-overwatch', 'Mauga')]], ['uncategorized', '', []]]}));
     await expect(tierList.tierLabel('Row 3')).toHaveText('Row 3');
 
-    await tierList.dragRowOnto('Row 3', 'S');
+    await tierList.drag.dragRowOnto('Row 3', 'S');
 
     await expectTierNames(tierList, ['Row 1', 'S', 'A', 'Unranked']);
     await expect(tierList.itemsIn('Row 1')).toHaveText(['Mauga']);
@@ -60,7 +60,7 @@ test.describe('editor rows', () => {
 
     await tierList.rows.addTierRow();
     await tierList.rows.renameTier('Row 6', 'D');
-    await tierList.dragItemToTier('Mauga', 'D');
+    await tierList.drag.dragItemToTier('Mauga', 'D');
 
     const friend = await openAsVisitor(await tierList.shareLink());
     await expectTierList(friend, {
@@ -148,7 +148,7 @@ test.describe('editor rows', () => {
     test('renders the same 7 rows for the user and a share link visitor when both choose 7 Rows after a row move', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
       // Moving the items of row S onto A's place moves the items and the tier id; the labels stay in place.
-      await tierList.dragRowItemsOnto('S', 'A');
+      await tierList.drag.dragRowItemsOnto('S', 'A');
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
       const friend = await openAsVisitor(await tierList.shareLink());
