@@ -67,7 +67,7 @@ test.describe('zen', () => {
       // The overlay would stay until the drag ends: turning Zen off first lets the page render.
       await tierList.zen.setZenMode(false);
 
-      await expect(tierList.dropOverlay).toHaveCount(0);
+      await expect(tierList.items.dropOverlay).toHaveCount(0);
     });
 
     test('writes 1 history entry, for the picture only, when the user drops a link and then a picture in Zen', async ({tierList, page}) => {

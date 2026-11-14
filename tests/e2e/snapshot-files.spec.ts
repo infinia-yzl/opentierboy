@@ -804,7 +804,7 @@ test.describe('snapshot files', () => {
 
     test('renders no new item when the user drops a picture on an open menu', async ({tierList}) => {
       await tierList.goto('/rank');
-      await tierList.openManageItemsMenu();
+      await tierList.items.openManageItemsMenu();
 
       await tierList.files.dropFile(imageFile('red-square.png'), {onto: tierList.openMenu});
 

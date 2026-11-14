@@ -16,7 +16,7 @@ import {
   type RemoveAndUndoView,
 } from '../models/remove-and-undo';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
-import {type TierListPage, undoInToastAndLetItLeave, undoTemplateAddAndLetToastLeave} from '../pages/tier-list-page';
+import {type TierListPage} from '../pages/tier-list-page';
 import {
   addFromTemplateModel,
   addFromTemplateViewOf,
@@ -46,9 +46,9 @@ test.describe('editor items', () => {
 
     test('renders the items from before the add when the user clicks Undo after adding a template set', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
+      await tierList.items.addItemsFromTemplate('OVERWATCH', 'Tank');
       // The pointer rests on the toast, so its 4 s timer waits for the Undo.
-      await tierList.restOnToast('Items Added');
+      await tierList.items.restOnToast('Items Added');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
 
       await tierList.undoFromToast('Items Added');
@@ -60,7 +60,7 @@ test.describe('editor items', () => {
     test('renders button "Share" uncovered and clickable when the user confirms Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.removeAllItems();
+      await tierList.items.removeAllItems();
       await tierList.settled();
 
       // A trial click runs every check of a real click, including that nothing covers the button.
@@ -70,7 +70,7 @@ test.describe('editor items', () => {
     test('renders focus on button "Add images" when the user confirms Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.removeAllItems();
+      await tierList.items.removeAllItems();
 
       await expect(tierList.manageItemsButton).toBeFocused();
     });
@@ -78,7 +78,7 @@ test.describe('editor items', () => {
     test('renders focus on button "Add images" when the user cancels Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.cancelRemoveAllItems();
+      await tierList.items.cancelRemoveAllItems();
 
       await expect(tierList.manageItemsButton).toBeFocused();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -90,45 +90,45 @@ test.describe('editor items', () => {
   test.describe('adding images', () => {
     test('renders the template picker with its name, a Back button and a Packages button when the user opens a package', async ({tierList}) => {
       await tierList.goto('/rank');
-      await tierList.openTemplatePickerFromDropArea();
-      await expect(tierList.templatePicker).toHaveAccessibleName('Add images from a template');
+      await tierList.items.openTemplatePickerFromDropArea();
+      await expect(tierList.items.templatePicker).toHaveAccessibleName('Add images from a template');
 
-      await tierList.openTemplatePackage('OVERWATCH');
-      await tierList.templatePickerButton('Back').click();
-      await expect(tierList.templatePickerPage('Packages')).toBeVisible();
+      await tierList.items.openTemplatePackage('OVERWATCH');
+      await tierList.items.templatePickerButton('Back').click();
+      await expect(tierList.items.templatePickerPage('Packages')).toBeVisible();
 
-      await tierList.openTemplatePackage('OVERWATCH');
-      await tierList.templatePickerButton('Packages').click();
-      await expect(tierList.templatePickerPage('Packages')).toBeVisible();
+      await tierList.items.openTemplatePackage('OVERWATCH');
+      await tierList.items.templatePickerButton('Packages').click();
+      await expect(tierList.items.templatePickerPage('Packages')).toBeVisible();
     });
 
     test('renders the drop overlay with its two lines when the user drags a link over the editor', async ({tierList}) => {
       await tierList.goto(TANKS);
-      await expect(tierList.dropOverlay).toHaveCount(0);
+      await expect(tierList.items.dropOverlay).toHaveCount(0);
 
       await tierList.dragLinkOver('https://i.imgur.com/red.png');
 
-      await expect(tierList.dropOverlay).toBeVisible();
-      await expect(tierList.dropOverlayNote).toBeVisible();
+      await expect(tierList.items.dropOverlay).toBeVisible();
+      await expect(tierList.items.dropOverlayNote).toBeVisible();
     });
 
     test('renders no drop overlay when the user drags a link over the editor and away again', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.dragLinkOver('https://i.imgur.com/red.png');
-      await expect(tierList.dropOverlay).toBeVisible();
+      await expect(tierList.items.dropOverlay).toBeVisible();
 
       await tierList.dragLinkAway('https://i.imgur.com/red.png');
 
-      await expect(tierList.dropOverlay).toHaveCount(0);
+      await expect(tierList.items.dropOverlay).toHaveCount(0);
     });
 
     test('renders the drop area with Template, Upload and Link and no tile or hints when the page opens an empty list', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto('/rank');
 
-      await expect(tierList.emptyListDropArea).toBeVisible();
-      await expect(tierList.emptyListAction('Template')).toBeVisible();
-      await expect(tierList.emptyListAction('Upload')).toBeVisible();
-      await expect(tierList.emptyListAction('Link')).toBeVisible();
+      await expect(tierList.items.emptyListDropArea).toBeVisible();
+      await expect(tierList.items.emptyListAction('Template')).toBeVisible();
+      await expect(tierList.items.emptyListAction('Upload')).toBeVisible();
+      await expect(tierList.items.emptyListAction('Link')).toBeVisible();
       await expect(tierList.addImagesTile).toHaveCount(0);
       await expect(tierList.hints).toHaveCount(0);
     });
@@ -137,7 +137,7 @@ test.describe('editor items', () => {
       await tierList.goto(TANKS);
 
       await expect(tierList.addImagesTile).toBeVisible();
-      await expect(tierList.emptyListDropArea).toHaveCount(0);
+      await expect(tierList.items.emptyListDropArea).toHaveCount(0);
     });
 
     // Dropping and pasting need a mouse and a keyboard: on touch screens the words about them
@@ -148,13 +148,13 @@ test.describe('editor items', () => {
       test('renders "drop or paste" on the tile when the page opens a list with items', async ({tierList}) => {
         await tierList.goto(TANKS);
 
-        await expect(tierList.addImagesTileHint).toBeVisible();
+        await expect(tierList.items.addImagesTileHint).toBeVisible();
       });
 
       test('renders the heading "Drop or paste images here" when the page opens an empty list', async ({tierList}) => {
         await tierList.goto('/rank');
 
-        await expect(tierList.emptyListDropArea).toHaveText('Drop or paste images here');
+        await expect(tierList.items.emptyListDropArea).toHaveText('Drop or paste images here');
       });
     });
 
@@ -165,34 +165,34 @@ test.describe('editor items', () => {
         await tierList.goto(TANKS);
 
         await expect(tierList.addImagesTile).toBeVisible();
-        await expect(tierList.addImagesTileHint).toBeHidden();
+        await expect(tierList.items.addImagesTileHint).toBeHidden();
       });
 
       test('renders the heading "Add images here" with Template, Upload and Link when the page opens an empty list', {tag: '@mobile'}, async ({tierList}) => {
         await tierList.goto('/rank');
 
-        await expect(tierList.emptyListDropArea).toHaveText('Add images here');
-        await expect(tierList.emptyListAction('Template')).toBeVisible();
-        await expect(tierList.emptyListAction('Upload')).toBeVisible();
-        await expect(tierList.emptyListAction('Link')).toBeVisible();
+        await expect(tierList.items.emptyListDropArea).toHaveText('Add images here');
+        await expect(tierList.items.emptyListAction('Template')).toBeVisible();
+        await expect(tierList.items.emptyListAction('Upload')).toBeVisible();
+        await expect(tierList.items.emptyListAction('Link')).toBeVisible();
       });
 
       test('renders no hints "or drop" and "or paste" when the user opens the Add images menu', {tag: '@mobile'}, async ({tierList}) => {
         await tierList.goto(TANKS);
 
-        await tierList.openManageItemsMenu();
+        await tierList.items.openManageItemsMenu();
 
         await expect(tierList.menuItem('From your device')).toBeVisible();
-        await expect(tierList.menuHint('From your device', 'or drop')).toBeHidden();
-        await expect(tierList.menuHint('From a link', 'or paste')).toBeHidden();
-        await expect(tierList.menuHint('Open a Freeze Frame…', 'or drop')).toBeHidden();
+        await expect(tierList.items.menuHint('From your device', 'or drop')).toBeHidden();
+        await expect(tierList.items.menuHint('From a link', 'or paste')).toBeHidden();
+        await expect(tierList.items.menuHint('Open a Freeze Frame…', 'or drop')).toBeHidden();
       });
     });
 
     test('renders the dialog "Add New Items" when the user clicks Upload in the drop area of an empty list', async ({tierList}) => {
       await tierList.goto('/rank');
 
-      await tierList.emptyListAction('Upload').click();
+      await tierList.items.emptyListAction('Upload').click();
 
       await expect(tierList.uploadDialog).toBeVisible();
     });
@@ -201,7 +201,7 @@ test.describe('editor items', () => {
       await serveImageSite(page, 'i.imgur.com');
       await tierList.goto('/rank');
 
-      await tierList.emptyListAction('Link').click();
+      await tierList.items.emptyListAction('Link').click();
       await expect(tierList.linkImageDialog).toBeVisible();
       await tierList.submitInLinkImageDialog('https://i.imgur.com/red.png', 'Red square');
       await expect(tierList.linkImageDialog).toBeHidden();
@@ -215,7 +215,7 @@ test.describe('editor items', () => {
       test.skip(isMobile, 'The hints show with a mouse.');
       await tierList.goto(TANKS);
 
-      await tierList.openManageItemsMenu();
+      await tierList.items.openManageItemsMenu();
 
       await expect(tierList.menuItem('From template')).toHaveText('From template');
       await expect(tierList.menuItem('From your device')).toHaveText('From your device or drop');
@@ -268,28 +268,28 @@ test.describe('editor items', () => {
     const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
       await expect(tierList.toast('Items Added')).toHaveCount(view.toast === 'Items Added' ? 1 : 0);
       await expect(tierList.toast('No New Items')).toHaveCount(view.toast === 'No New Items' ? 1 : 0);
-      if (view.toast === 'Items Added') await expect(tierList.undoButtonIn('Items Added')).toBeVisible();
+      if (view.toast === 'Items Added') await expect(tierList.items.undoButtonIn('Items Added')).toBeVisible();
       if (view.toast === 'No New Items') {
         // Nothing was added, so there is nothing to undo.
         await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
-        await expect(tierList.undoButtonIn('No New Items')).toHaveCount(0);
+        await expect(tierList.items.undoButtonIn('No New Items')).toHaveCount(0);
       }
       if (view.picker) {
         // The open picker hides the page behind it from the accessibility tree, so only the picker is checked.
-        await expect(tierList.templatePickerPage(view.picker)).toBeVisible();
+        await expect(tierList.items.templatePickerPage(view.picker)).toBeVisible();
         return;
       }
-      await expect(tierList.templatePicker).toBeHidden();
+      await expect(tierList.items.templatePicker).toBeHidden();
       const expected = view.sets.reduce((count, set) => count + templateItemCount('image-overwatch', TEMPLATE_SETS[set].tag), 0);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(expected);
       for (const set of TEMPLATE_SET_KEYS) {
         await expect(tierList.itemIn(tierList.unranked, TEMPLATE_SETS[set].example)).toHaveCount(view.sets.includes(set) ? 1 : 0);
       }
       if (view.sets.length === 0) {
-        await expect(tierList.emptyListDropArea).toBeVisible();
+        await expect(tierList.items.emptyListDropArea).toBeVisible();
         await expect(tierList.addImagesTile).toHaveCount(0);
       } else {
-        await expect(tierList.emptyListDropArea).toHaveCount(0);
+        await expect(tierList.items.emptyListDropArea).toHaveCount(0);
         await expect(tierList.addImagesTile).toBeVisible();
       }
     };
@@ -303,17 +303,17 @@ test.describe('editor items', () => {
       pageTime: 'paused',
       reset: async () => {
         await tierList.goto('/rank');
-        await expect(tierList.emptyListAction('Template')).toBeVisible();
+        await expect(tierList.items.emptyListAction('Template')).toBeVisible();
       },
       events: {
-        OPEN_FROM_MENU: () => tierList.openTemplatePicker(),
-        OPEN_FROM_DROP_AREA: () => tierList.openTemplatePickerFromDropArea(),
-        OPEN_OVERWATCH: () => tierList.openTemplatePackage('OVERWATCH'),
-        CHOOSE_TANK: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.tank.title),
-        CHOOSE_SUPPORT: () => tierList.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.support.title),
-        PRESS_ESCAPE: () => tierList.pressEscapeForTemplatePicker(),
-        UNDO: () => undoTemplateAddAndLetToastLeave(tierList),
-        TOAST_TIMES_OUT: () => tierList.waitOutTemplateAddToast(),
+        OPEN_FROM_MENU: () => tierList.items.openTemplatePicker(),
+        OPEN_FROM_DROP_AREA: () => tierList.items.openTemplatePickerFromDropArea(),
+        OPEN_OVERWATCH: () => tierList.items.openTemplatePackage('OVERWATCH'),
+        CHOOSE_TANK: () => tierList.items.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.tank.title),
+        CHOOSE_SUPPORT: () => tierList.items.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.support.title),
+        PRESS_ESCAPE: () => tierList.items.pressEscapeForTemplatePicker(),
+        UNDO: () => tierList.items.undoTemplateAddAndLetToastLeave(),
+        TOAST_TIMES_OUT: () => tierList.items.waitOutTemplateAddToast(),
       },
       states: {
         '*': (_page, snapshot) => expectView(tierList, addFromTemplateViewOf(snapshot)),
@@ -370,15 +370,15 @@ test.describe('editor items', () => {
           entries = await tierList.historyLength();
         },
         events: {
-          DELETE_ITEM: () => tierList.deleteItemAndRestOnToast(DELETED_ITEM),
-          CHOOSE_RESET: () => tierList.resetRankingsAndRestOnToast(),
-          OPEN_REMOVE_ALL: () => tierList.openRemoveAll(),
-          CONFIRM_REMOVE_ALL: () => tierList.confirmRemoveAllAndRestOnToast(),
-          CANCEL_REMOVE_ALL: () => tierList.cancelRemoveAll(),
-          CLICK_UNDO: () => undoInToastAndLetItLeave(tierList, removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
+          DELETE_ITEM: () => tierList.items.deleteItemAndRestOnToast(DELETED_ITEM),
+          CHOOSE_RESET: () => tierList.items.resetRankingsAndRestOnToast(),
+          OPEN_REMOVE_ALL: () => tierList.items.openRemoveAll(),
+          CONFIRM_REMOVE_ALL: () => tierList.items.confirmRemoveAllAndRestOnToast(),
+          CANCEL_REMOVE_ALL: () => tierList.items.cancelRemoveAll(),
+          CLICK_UNDO: () => tierList.items.undoInToastAndLetItLeave(removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
           BROWSER_BACK: () => tierList.goBack(),
           BROWSER_FORWARD: () => tierList.goForward(),
-          TOAST_TIMES_OUT: () => tierList.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
+          TOAST_TIMES_OUT: () => tierList.items.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
         },
         // Web-first checks: after Back or Forward the address changes before the list on screen does.
         states: {
@@ -387,10 +387,10 @@ test.describe('editor items', () => {
             const view = removeAndUndoViewOf(snapshot);
             if (view.asOpened) await expect(page).toHaveURL(opened);
             else await expect(page).not.toHaveURL(opened);
-            await expect(tierList.removeAllDialog).toHaveCount(view.dialog ? 1 : 0);
+            await expect(tierList.items.removeAllDialog).toHaveCount(view.dialog ? 1 : 0);
             // The dialog is modal: the rows behind it leave the accessibility tree until it closes.
             if (!view.dialog) await expectRows(tierList, view);
-            if (view.toastWithUndo) await expect(tierList.undoButtonIn(view.toastWithUndo)).toBeVisible();
+            if (view.toastWithUndo) await expect(tierList.items.undoButtonIn(view.toastWithUndo)).toBeVisible();
             else if (view.removalToast) await expect(tierList.toast(view.removalToast)).toHaveCount(0);
             // One history entry for the removal, and one more for an Undo that put the list back.
             await expect.poll(() => tierList.historyLength(), {message: `the page should have added ${view.newEntries} history entries`})

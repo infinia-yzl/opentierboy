@@ -98,7 +98,7 @@ test.describe('journeys', () => {
 
     test('writes 1 history entry per change when the user uploads, ranks, deletes and uploads device images again', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      const deleteItem = (label: string) => tierList.deleteItem(label);
+      const deleteItem = (label: string) => tierList.items.deleteItem(label);
 
       await walkJourney(tierList, rows({S: ['Mauga']}), [
         {act: () => tierList.addItemsFromDevice([imageFile('red-square.png')]), list: rows({S: ['Mauga'], Unranked: ['red-square']}), pictures: ['red-square']},
@@ -133,9 +133,9 @@ test.describe('journeys', () => {
       await walkJourney(tierList, rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}), [
         {act: () => tierList.setTitle('My tanks'), list: titled('My tanks', rows({S: ['Mauga'], A: ['Winston'], Unranked: ['Sigma']}))},
         {act: () => tierList.dragItemToTier('Sigma', 'S'), list: titled('My tanks', rows({S: ['Mauga', 'Sigma'], A: ['Winston']}))},
-        {act: () => tierList.resetRankings(), list: titled('My tanks', rows({Unranked: ['Mauga', 'Sigma', 'Winston']}))},
+        {act: () => tierList.items.resetRankings(), list: titled('My tanks', rows({Unranked: ['Mauga', 'Sigma', 'Winston']}))},
         {act: () => tierList.dragItemToTier('Winston', 'S'), list: titled('My tanks', rows({S: ['Winston'], Unranked: ['Mauga', 'Sigma']}))},
-        {act: () => tierList.removeAllItems(), list: titled('My tanks', rows({}))},
+        {act: () => tierList.items.removeAllItems(), list: titled('My tanks', rows({}))},
       ]);
     });
 
