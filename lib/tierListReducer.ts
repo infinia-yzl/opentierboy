@@ -12,21 +12,27 @@ import {addTier, moveItem, removeTier, reorderRows} from "@/lib/dnd/moves";
  *
  * The address is the save and the undo (product rule 2):
  * - Every change to the list (tiers, items, tier names, title) records a write: the new link.
- *   The provider pushes each write as a new history entry, one at a time and in order, never
- *   merged: the next one when the previous one has reached the address.
+ *   The provider puts each write into the browser history at once, in the commit of the render
+ *   that made the change (history.pushState): a new entry each, in order, never merged. An edit
+ *   asks nothing of the server.
  * - A change that leaves the link as it was writes nothing: an unchanged rename, a drop on
  *   the same place.
  * - The layout settings (label position, labels shown) travel in v3 links too. How a change
  *   to them reaches the address is LAYOUT_LINK_WRITE (A3): by default it replaces the current
  *   entry, so it adds no Back step, as before.
- * - Opening a link writes nothing (A1). Back, Forward and opening a link change the address;
- *   the provider then hands the list from that address to `addressChanged`, which never writes.
+ * - Opening a link writes nothing (A1), and neither do Back and Forward. The provider reports
+ *   them: Back and Forward as `browserMoved` (popstate, with the browser's new address), and an
+ *   address the router shows as `routerAddressChanged`. Neither writes.
+ * - The router (Next.js's useSearchParams) learns of each write a moment after the browser's
+ *   address holds it, and may skip some on the way. A write stays in `writes` until the router
+ *   has shown it, so that an earlier write showing up late (`routerIsBehind`) is not read as a
+ *   new address.
  *
  * Layout settings from a link apply only when the link is opened fresh: when the editor
  * starts with it (`initialTierListState`). That is the first load of the page, a reload, or
  * arriving at the editor from another page, also by Back or Forward from another page (each
  * of these starts a new editor). Back and Forward between versions of the list inside the
- * editor (`addressChanged`) keep the layout on screen, as before (owner, 2026-10-25).
+ * editor (`browserMoved`) keep the layout on screen, as before (owner, 2026-10-25).
  */
 
 /**
@@ -70,7 +76,7 @@ export function loadList(tierCortex: TierCortex, address: string | null, itemSet
 
 /** A link the provider writes into the address: a new history entry, or in place of the current one. */
 export interface LinkWrite {
-  /** Increases with every write, so the provider writes each one once. */
+  /** Increases with every write, so the provider puts each one into the history once. */
   id: number;
   link: string;
   /** 'push' adds a history entry (every change to the list); 'replace' replaces the current one. */
@@ -85,12 +91,18 @@ export interface TierListState {
   showLabels: boolean;
   /** The link of the list on screen: what `encode` writes for the title, tiers and layout. */
   link: string;
-  /** The `state` parameter of the address as last seen; null when the address has none. */
+  /**
+   * The `state` parameter of the browser's address, as far as the editor knows: the link it
+   * wrote last, or the address Back, Forward or the router went to. Null when it has none.
+   */
   address: string | null;
-  /** True when `address` holds the list on screen: it decoded, or it is a write of this editor. */
+  /** The `state` parameter of the address the router (useSearchParams) showed last. */
+  routerAddress: string | null;
+  /** True when `address` holds the list on screen: it decoded, or this editor wrote it. */
   addressHoldsList: boolean;
-  /** Writes not seen in the address yet, oldest first. */
+  /** Links this editor wrote that the router has not shown yet, oldest first. */
   writes: LinkWrite[];
+  /** The id of the next write: also the number of links this editor has written. */
   nextWriteId: number;
 }
 
@@ -100,7 +112,13 @@ export interface ItemPosition {
 }
 
 export type TierListAction =
-  | {type: 'addressChanged'; address: string | null; loaded: LoadedList | null}
+  /**
+   * Back or Forward inside the editor (popstate): the browser's address is now `address`.
+   * Writes after `writtenThrough` never reached the history, so they are dropped.
+   */
+  | {type: 'browserMoved'; address: string | null; writtenThrough: number; loaded: LoadedList}
+  /** The router shows a new address. `loaded` is its list when `addressNeedsLoading` says so. */
+  | {type: 'routerAddressChanged'; address: string | null; loaded: LoadedList | null}
   | {type: 'titleChanged'; title: string}
   | {type: 'itemMoved'; from: ItemPosition; to: ItemPosition}
   | {type: 'tierMoved'; from: number; to: number}
@@ -135,7 +153,7 @@ export type ListEncoder = (title: string, tiers: Tier[], layout: ListLayout) => 
 const layoutOf = (state: Pick<TierListState, 'labelPosition' | 'showLabels'>): ListLayout =>
   ({labelPosition: state.labelPosition, showLabels: state.showLabels});
 
-/** Writes waiting to show up in the address. Far more than ever pile up between two renders. */
+/** Writes the router has not shown yet. Far more than ever pile up before it catches up. */
 const MAX_PENDING_WRITES = 50;
 
 /**
@@ -151,6 +169,7 @@ export function initialTierListState(loaded: LoadedList, address: string | null,
     showLabels: layout.showLabels,
     link: encode(loaded.title, loaded.tiers, layout),
     address,
+    routerAddress: address,
     addressHoldsList: loaded.decoded,
     writes: [],
     nextWriteId: 0,
@@ -158,13 +177,29 @@ export function initialTierListState(loaded: LoadedList, address: string | null,
 }
 
 /**
- * True when a new address needs its list loaded. It does not when the address is a write of
- * this editor showing up, or already holds the list on screen.
+ * True when the router shows an earlier write of this editor while the browser's address has
+ * moved on: the router is still catching up, and the list on screen stays.
+ */
+export function routerIsBehind(state: TierListState, address: string | null): boolean {
+  return address !== state.address && state.writes.some(write => write.link === address);
+}
+
+/**
+ * True when a new router address needs its list loaded. It does not when it is the browser's
+ * address as the editor knows it, holds the list on screen, or is a write of this editor on its
+ * way (`routerIsBehind`). What is left is a navigation of the router itself.
  */
 export function addressNeedsLoading(state: TierListState, address: string | null): boolean {
-  if (address === state.address) return false;
-  if (address === state.link) return false;
-  return !state.writes.some(write => write.link === address);
+  if (address === state.address || address === state.link) return false;
+  return !routerIsBehind(state, address);
+}
+
+/** The writes after the last one with this link (all of them when none has it). */
+function writesAfter(writes: LinkWrite[], link: string | null): LinkWrite[] {
+  for (let index = writes.length - 1; index >= 0; index--) {
+    if (writes[index].link === link) return writes.slice(index + 1);
+  }
+  return writes;
 }
 
 type ListChanges = Partial<Pick<TierListState, 'tiers' | 'title' | 'labelPosition' | 'showLabels'>>;
@@ -180,16 +215,17 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
     const next = {...state, ...changes};
     const link = encode(next.title, next.tiers, layoutOf(next));
     if (link === state.link) return state;
-    if (link === state.address && state.writes.length === 0) {
+    if (link === state.address) {
       // The address already holds this link (for example a link without a title, after the
-      // title is cleared). Writing it would not change the address, so the write would never
-      // arrive and would hold up every later write.
+      // title is cleared). Writing it again would add an entry that Back steps over unchanged.
       return {...next, link, addressHoldsList: true};
     }
     const write: LinkWrite = {id: state.nextWriteId, link, mode};
     return {
       ...next,
       link,
+      address: link,
+      addressHoldsList: true,
       writes: [...state.writes, write].slice(-MAX_PENDING_WRITES),
       nextWriteId: state.nextWriteId + 1,
     };
@@ -205,29 +241,38 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
     return change(state, layout, layoutWrite);
   };
 
+  /**
+   * The list an address holds, in place of the one on screen. Back and Forward inside the editor
+   * keep the layout on screen: a link's layout applies only when it is opened fresh
+   * (initialTierListState).
+   */
+  const loadedList = (state: TierListState, {tiers, title, decoded}: LoadedList) => ({
+    tiers,
+    title,
+    link: encode(title, tiers, layoutOf(state)),
+    addressHoldsList: decoded,
+  });
+
   return function tierListReducer(state: TierListState, action: TierListAction): TierListState {
     switch (action.type) {
-      case 'addressChanged': {
-        const landed = state.writes.findIndex(write => write.link === action.address);
-        if (landed !== -1) {
-          // A write of this editor reached the address. Later writes are still on their way.
-          return {...state, address: action.address, addressHoldsList: true, writes: state.writes.slice(landed + 1)};
+      case 'browserMoved': {
+        // Writes that never reached the history go: the visitor left that version.
+        const written = state.writes.filter(write => write.id <= action.writtenThrough);
+        if (action.address === state.address && written.length === state.writes.length) return state;
+        const moved = {...state, writes: written, address: action.address};
+        if (action.address === state.link) return {...moved, addressHoldsList: true};
+        return {...moved, ...loadedList(state, action.loaded)};
+      }
+      case 'routerAddressChanged': {
+        const routerAddress = action.address;
+        if (routerAddress === state.address || routerAddress === state.link || routerIsBehind(state, routerAddress)) {
+          // The router caught up with the browser's address, or with a write on its way.
+          const shown = {...state, routerAddress, writes: writesAfter(state.writes, routerAddress)};
+          return routerAddress === state.link ? {...shown, address: routerAddress, addressHoldsList: true} : shown;
         }
-        if (action.loaded === null) {
-          return {...state, address: action.address, addressHoldsList: state.addressHoldsList || action.address === state.link};
-        }
-        // Back and Forward inside the editor keep the layout on screen: a link's layout applies
-        // only when it is opened fresh (initialTierListState).
-        const {tiers, title, decoded} = action.loaded;
-        return {
-          ...state,
-          tiers,
-          title,
-          link: encode(title, tiers, layoutOf(state)),
-          address: action.address,
-          addressHoldsList: decoded,
-          writes: [],
-        };
+        // A navigation of the router itself, to another list of this page.
+        if (action.loaded === null) return {...state, routerAddress, address: routerAddress};
+        return {...state, ...loadedList(state, action.loaded), routerAddress, address: routerAddress, writes: []};
       }
       case 'titleChanged':
         return edit(state, state.tiers, action.title);

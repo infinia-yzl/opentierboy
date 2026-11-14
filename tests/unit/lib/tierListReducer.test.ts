@@ -69,10 +69,19 @@ function setup(address: string | null, cortex = createTierCortex(), layoutWrite:
       state = reducer(state, action);
       return state;
     },
-    /** The address changed (open, Back, Forward, an own write arriving), as the provider reports it. */
-    visit(to: string | null) {
+    /** The router shows an address: a write of this editor arriving, or a navigation of the router. */
+    routerShows(to: string | null) {
       const loaded = addressNeedsLoading(state, to) ? load(to) : null;
-      return store.dispatch({type: 'addressChanged', address: to, loaded});
+      return store.dispatch({type: 'routerAddressChanged', address: to, loaded});
+    },
+    /** Back or Forward (popstate) to `to`. Writes after `writtenThrough` never reached the history. */
+    browserMoves(to: string | null, writtenThrough = state.nextWriteId - 1) {
+      return store.dispatch({type: 'browserMoved', address: to, writtenThrough, loaded: load(to)});
+    },
+    /** Back or Forward to `to`, then the router shows it. */
+    visit(to: string | null) {
+      store.browserMoves(to);
+      return store.routerShows(to);
     },
     names: () => state.tiers.map(tier => tier.name),
     contents: () => state.tiers.map(tier => tier.items.map(item => item.content)),
@@ -290,14 +299,74 @@ describe('createTierListReducer address changes', () => {
     const [first, second] = store.links();
     const tiers = store.state.tiers;
 
-    // The first write arrives while the second is still on its way: the list stays as it is.
-    store.visit(first);
+    // The router shows the first write while the browser holds the second: the list stays as it is.
+    store.routerShows(first);
     expect(store.state.tiers).toBe(tiers);
     expect(store.links()).toEqual([second]);
-    store.visit(second);
+    expect(store.state.address).toBe(second);
+    store.routerShows(second);
     expect(store.state.tiers).toBe(tiers);
     expect(store.state.writes).toEqual([]);
     expect(store.state.addressHoldsList).toBe(true);
+  });
+
+  it('returns the list as opened and writes no link when the browser goes Back before the router has the change', () => {
+    const start = fiveRowLink({'': [MAU, WIN]});
+    const store = setup(start);
+    store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
+    expect(store.state.address).toBe(store.links()[0]);
+
+    // Back at once: the router never showed the change, and shows the list as opened again.
+    store.browserMoves(start);
+    expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston']]);
+    expect(store.state.address).toBe(start);
+    expect(addressNeedsLoading(store.state, start)).toBe(false);
+    store.routerShows(start);
+    expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston']]);
+    expect(store.state.nextWriteId).toBe(1);
+  });
+
+  it('returns the list of the address and drops the write when Back comes before the write reached the history', () => {
+    const start = fiveRowLink({'': [MAU, WIN]});
+    const store = setup(start);
+    store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
+
+    // The provider had written no link yet (writtenThrough -1): the change goes with the version it changed.
+    store.browserMoves(start, -1);
+    expect(store.state.writes).toEqual([]);
+    expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston']]);
+  });
+
+  it('returns the version Back went to when the router reaches a later write of the editor late', () => {
+    const store = setup(fiveRowLink({'': [MAU, WIN]}));
+    store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
+    store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-a', index: 0}});
+    const [first, second] = store.links();
+
+    store.browserMoves(first);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
+    // The router is still on its way through the writes: the second one shows up after Back.
+    expect(addressNeedsLoading(store.state, second)).toBe(false);
+    store.routerShows(second);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
+    expect(store.state.address).toBe(first);
+    store.routerShows(first);
+    expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
+    expect(store.state.address).toBe(first);
+  });
+
+  it('returns the list of the address when the router itself goes to another list of the page', () => {
+    const store = setup(fiveRowLink({'': [MAU, WIN]}));
+    store.dispatch({type: 'titleChanged', title: 'Mine'});
+    store.routerShows(store.links()[0]);
+    const other = fiveRowV3Link({A: [SIG]}, 'Other');
+
+    store.routerShows(other);
+    expect(store.state.title).toBe('Other');
+    expect(store.contents()).toEqual([[], ['Sigma'], [], [], [], []]);
+    expect(store.state.address).toBe(other);
+    expect(store.state.writes).toEqual([]);
+    expect(store.state.nextWriteId).toBe(1);
   });
 
   it('returns the link with + from stateParam, and no reload, when the address reads + as spaces', () => {
@@ -324,7 +393,7 @@ describe('createTierListReducer address changes', () => {
     expect(store.state.writes).toEqual([]);
     expect(store.state.title).toBe('');
 
-    // With a write still on its way, the same change is a write: the address will move on.
+    // After another write, the browser's address holds that one: the same change is a write again.
     store.dispatch({type: 'titleChanged', title: 'Mine'});
     store.dispatch({type: 'titleChanged', title: ''});
     expect(store.links()).toHaveLength(2);
@@ -351,8 +420,8 @@ describe('createTierListReducer address changes', () => {
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     store.dispatch({type: 'titleChanged', title: 'Mine'});
     store.dispatch({type: 'labelPositionChanged', labelPosition: 'right'});
-    store.visit(store.links()[0]);
-    store.visit(store.links()[0]);
+    // The router catches up with the three writes, then Back goes to the plain template.
+    store.routerShows(store.links()[2]);
 
     store.visit(null);
     expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston', 'Sigma']]);

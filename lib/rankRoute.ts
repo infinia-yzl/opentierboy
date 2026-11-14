@@ -2,6 +2,7 @@ import type ImageSetConfig from "@/models/ImageSet";
 import type {ImageSetPackage} from "@/models/ImageSet";
 import type {ItemSet} from "@/models/ItemSet";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
+import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 
 /**
  * Which image set and tag a /rank path names, and what HTTP answer the path gets. Pure
@@ -133,4 +134,15 @@ export function rankItemSet(config: ImageSetConfig, segments: readonly string[])
 /** The title of an editor page: "<set> - <tag>" for a template, else "Custom Tier List". */
 export function rankItemSetTitle(itemSet: ItemSet | null): string {
   return itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
+}
+
+/**
+ * The tab title of an editor page: the title in the list's link, or the page's own title
+ * (rankItemSetTitle) when the link has none, does not decode or is not there. A long title is
+ * shortened (A43); the editor itself shows the whole title. The server puts it in the page's
+ * metadata (app/rank/rankMetadata.ts), and the editor sets it again after each change and each
+ * Back or Forward (contexts/TierContext.tsx), which ask nothing of the server.
+ */
+export function rankPageTitle(pageTitle: string, listTitle: string | undefined): string {
+  return shorten(listTitle || pageTitle, MAX_TITLE_LENGTH);
 }

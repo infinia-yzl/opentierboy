@@ -1,9 +1,8 @@
 import type {Metadata} from "next";
 import imagesetConfig from "@/imageset.config.json";
 import type ImageSetConfig from "@/models/ImageSet";
-import {rankItemSet, rankItemSetTitle} from "@/lib/rankRoute";
+import {rankItemSet, rankItemSetTitle, rankPageTitle} from "@/lib/rankRoute";
 import {createTierCortex} from "@/lib/TierCortex";
-import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 
 const typedImageSetConfig = imagesetConfig as ImageSetConfig;
 
@@ -16,19 +15,11 @@ export function rankMetadata(slug: string[] | undefined, state: string | undefin
   const [nameOrPackage, tagName] = slug || [];
   const itemSet = nameOrPackage && tagName ? rankItemSet(typedImageSetConfig, [nameOrPackage, tagName]) : null;
 
-  let title = rankItemSetTitle(itemSet);
-
-  // Decode the state and extract the title if available
-  if (state) {
-    const tierCortex = createTierCortex();
-    const decodedState = tierCortex.decodeTierStateFromURL(state);
-    if (decodedState && decodedState.title) {
-      title = decodedState.title;
-    }
-  }
-  // The title repeats in <title>, og:title, twitter:title and the JSON-LD, so a long one is
-  // shortened (A43). The editor itself still shows the whole title.
-  title = shorten(title, MAX_TITLE_LENGTH);
+  // The title of the list in the link, if any. The title repeats in <title>, og:title,
+  // twitter:title and the JSON-LD, so a long one is shortened (A43, rankPageTitle). The editor
+  // sets the same tab title in the browser after each change (contexts/TierContext.tsx).
+  const listTitle = state ? createTierCortex().decodeTierStateFromURL(state)?.title : undefined;
+  const title = rankPageTitle(rankItemSetTitle(itemSet), listTitle);
 
   // Generate the OG image URL
   let ogImageUrl = '/api/og';

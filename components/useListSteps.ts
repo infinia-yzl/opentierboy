@@ -103,6 +103,24 @@ function createListStepsStore() {
     return listSteps(log.addresses.map(address => pathOf(address, base)), log.index);
   };
 
+  /** The fallback log: the address is now `address` (see useStepLog). */
+  const addressSeen = (address: string) => {
+    const current = log?.addresses[log.index];
+    if (!log || pathOf(current, window.location.href) !== window.location.pathname) {
+      log = startLog(address);
+    } else if (current !== address) {
+      let change: AddressChange;
+      if (traversing) change = {kind: 'traverse', address, direction};
+      else if (window.history.length === historyLength && log.index === log.addresses.length - 1) change = {kind: 'replace', address};
+      else change = {kind: 'push', address};
+      log = followAddress(log, change);
+    }
+    traversing = false;
+    direction = undefined;
+    historyLength = window.history.length;
+    publish(readLog());
+  };
+
   return Object.freeze({
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
@@ -126,28 +144,32 @@ function createListStepsStore() {
       const navigation = navigationApi();
       if (navigation) publish(readNavigation(navigation));
     },
+    /** Back or Forward (popstate): the log follows the browser's address at once. */
     popped() {
       traversing = true;
+      addressSeen(currentAddress());
     },
-    /** The fallback log: the address is now `address` (see useStepLog). */
-    addressSeen(address: string) {
+    /**
+     * The editor wrote its address itself (history.pushState or replaceState, contexts/TierContext.tsx):
+     * the log follows each write, also those the router skips on its way to the latest one.
+     */
+    written(kind: 'push' | 'replace') {
+      if (navigationApi()) return;
+      const address = currentAddress();
       const current = log?.addresses[log.index];
-      if (!log || pathOf(current, window.location.href) !== window.location.pathname) {
-        log = startLog(address);
-      } else if (current !== address) {
-        let change: AddressChange;
-        if (traversing) change = {kind: 'traverse', address, direction};
-        else if (window.history.length === historyLength && log.index === log.addresses.length - 1) change = {kind: 'replace', address};
-        else change = {kind: 'push', address};
-        log = followAddress(log, change);
-      }
+      if (!log || pathOf(current, window.location.href) !== window.location.pathname) log = startLog(address);
+      else if (current !== address) log = followAddress(log, {kind, address});
       traversing = false;
       direction = undefined;
       historyLength = window.history.length;
       publish(readLog());
     },
+    addressSeen,
   });
 }
+
+/** The browser's address: its path and query. */
+const currentAddress = () => window.location.pathname + window.location.search;
 
 const store = createListStepsStore();
 const serverSnapshot = () => SINGLE_STEP;
@@ -162,6 +184,9 @@ export const stepBack = () => store.traverse(-1);
 
 /** The next version of the list: the browser's Forward. */
 export const stepForward = () => store.traverse(1);
+
+/** The editor wrote its address with history.pushState ('push') or replaceState ('replace'). */
+export const listAddressWritten = (kind: 'push' | 'replace') => store.written(kind);
 
 /**
  * Writes down the address changes of the editor from its start, so the count knows the list's
@@ -181,6 +206,6 @@ export function useStepLog() {
 
   useEffect(() => {
     if (navigationApi()) store.refresh();
-    else store.addressSeen(window.location.pathname + window.location.search);
+    else store.addressSeen(currentAddress());
   }, [searchParams]);
 }

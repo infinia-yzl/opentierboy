@@ -23,7 +23,9 @@ function linkTarget(event: MouseEvent): URL | null {
  * that starts it, a click on a link of this site or Back and Forward (popstate), until the
  * router shows a new address. Next.js renders the new address in a transition, a task or more
  * after the event. A loading screen on the way keeps the page busy too (app/loading.tsx).
- * A link that goes nowhere ends it with the next press or key.
+ * A link that goes nowhere ends it with the next press or key. The editor's own writes
+ * (history.pushState, contexts/TierContext.tsx) start no wait: they fire no click and no
+ * popstate. A write while a wait runs ends it, as any new address does.
  */
 export function NavigationBusy() {
   const pathname = usePathname();

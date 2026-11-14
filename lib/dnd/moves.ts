@@ -8,7 +8,7 @@ import type {ItemLike, ItemPosition, TierLike} from './model';
  * does not fit the list), so the caller can skip the history entry:
  *
  *   const next = moveItem(tiers, from, to);
- *   if (next !== tiers) onTiersUpdate(next); // router.push: one Back step per real change
+ *   if (next !== tiers) onTiersUpdate(next); // history.pushState: one Back step per real change
  *
  * Rows and items that do not change keep their object identity, so memoised rows do not
  * re-render.

@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import imagesetConfig from '@/imageset.config.json';
 import type ImageSetConfig from '@/models/ImageSet';
-import {findRankSet, findRankTag, rankItemSet, rankItemSetTitle, rankRoute, rankSegments} from '@/lib/rankRoute';
+import {findRankSet, findRankTag, rankItemSet, rankItemSetTitle, rankPageTitle, rankRoute, rankSegments} from '@/lib/rankRoute';
 
 const config = imagesetConfig as ImageSetConfig;
 /** The answer for a path such as /rank/overwatch/tank (rankRoute takes the segments after /rank). */
@@ -112,5 +112,20 @@ describe('rankItemSetTitle', () => {
   it('returns "<set> - <tag>" for a template and "Custom Tier List" when there is none', () => {
     expect(rankItemSetTitle(rankItemSet(config, ['overwatch', 'tank']))).toBe(`OVERWATCH - ${config.packages['image-overwatch'].tags.tank.title}`);
     expect(rankItemSetTitle(null)).toBe('Custom Tier List');
+  });
+});
+
+describe('rankPageTitle', () => {
+  it('returns the list title when the link has one, and the page title when it has none or an empty one', () => {
+    expect(rankPageTitle('OVERWATCH - Tank', 'My picks')).toBe('My picks');
+    expect(rankPageTitle('OVERWATCH - Tank', undefined)).toBe('OVERWATCH - Tank');
+    expect(rankPageTitle('OVERWATCH - Tank', '')).toBe('OVERWATCH - Tank');
+  });
+
+  it('returns the first 99 characters and an ellipsis when the list title has more than 100 (A43)', () => {
+    const title = rankPageTitle('Custom Tier List', 'x'.repeat(5000));
+    expect(Array.from(title)).toHaveLength(100);
+    expect(title).toBe(`${'x'.repeat(99)}…`);
+    expect(rankPageTitle('Custom Tier List', 'y'.repeat(100))).toBe('y'.repeat(100));
   });
 });

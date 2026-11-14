@@ -1,8 +1,10 @@
 /**
- * Whether the page is still working on something the visitor started: a link being written, a
- * drag, files being added, a picture being captured. It never blocks anything: it only counts
- * the work in progress, so the page can say so with `aria-busy` on <main> (components/BusyMain.tsx),
- * for screen readers and for the tests, which wait until the page is not busy after each step.
+ * Whether the page is still working on something the visitor started: a move to another
+ * address, a drag, files being added, a picture being captured. A change to the list is not
+ * counted: the editor writes its link into the address in the same event. It never blocks
+ * anything: it only counts the work in progress, so the page can say so with `aria-busy` on
+ * <main> (components/BusyMain.tsx), for screen readers and for the tests, which wait until the
+ * page is not busy after each step.
  *
  * Work must begin in the same event that starts it (before any await), so the page says it is
  * busy before the event ends.
