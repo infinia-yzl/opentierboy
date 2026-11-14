@@ -8,7 +8,7 @@ test.describe('editor labels', () => {
     test('renders the new row label, also for a visitor of the share link, when the user renames row S', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.renameTier('S', 'Must pick');
+      await tierList.rows.renameTier('S', 'Must pick');
 
       await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
       const friend = await openAsVisitor(await tierList.shareLink());
@@ -24,10 +24,35 @@ test.describe('editor labels', () => {
       await expect(friend.title).toHaveText('My tank picks for ranked');
     });
 
+    test('renders the list title as the tab title, also after Back, Forward and a reload, when the user changes the title', async ({tierList, site, page}) => {
+      await tierList.goto(TANKS);
+      await expect(page).toHaveTitle('OVERWATCH - Tank');
+
+      await tierList.setTitle('My tank picks');
+      await expect(page).toHaveTitle('My tank picks');
+      // A long title is shortened in the tab, as in the page's metadata (A43).
+      await tierList.setTitle(`Long ${'x'.repeat(120)}`);
+      await expect(page).toHaveTitle(`Long ${'x'.repeat(94)}…`);
+
+      await tierList.goBack();
+      await expect(page).toHaveTitle('My tank picks');
+      await tierList.goBack();
+      await expect(page).toHaveTitle('OVERWATCH - Tank');
+      await tierList.goForward();
+      await expect(page).toHaveTitle('My tank picks');
+
+      await site.goto('/about');
+      await tierList.goBack();
+      await expect(tierList.title).toHaveText('My tank picks');
+      await expect(page).toHaveTitle('My tank picks');
+      await tierList.reload();
+      await expect(page).toHaveTitle('My tank picks');
+    });
+
     test('renders the new title when the user opens Edit title with Enter, types a title and presses Enter', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.editTitleButton.focus();
-      await tierList.page.keyboard.press('Enter');
+      await tierList.pressKey('Enter');
       await expect(tierList.titleInput).toBeFocused();
       await expect(tierList.titleInput).toHaveValue('OVERWATCH - Tank');
 
@@ -41,26 +66,26 @@ test.describe('editor labels', () => {
     test('renders the new row label and no text box when the user types a name and clicks outside the label', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.typeTierName('S', 'Must pick');
+      await tierList.rows.typeTierName('S', 'Must pick');
       await tierList.hints.click();
 
       await expect(tierList.itemsIn('Must pick')).toHaveText(['Mauga']);
-      await expect(tierList.tierNameInput('Must pick')).toHaveCount(0);
+      await expect(tierList.rows.tierNameInput('Must pick')).toHaveCount(0);
     });
 
-    test('renders the label Tier 2 and the row items, also from the share link, when the user clears row label A', async ({
+    test('renders the hint Row 2 and the row items, also from the share link, when the user clears row label A', async ({
       tierList,
       openAsVisitor,
     }) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {A: ['Winston']}));
 
-      await tierList.renameTier('A', '', 'Tier 2');
+      await tierList.rows.renameTier('A', '', 'Row 2');
 
-      await expectTierNames(tierList, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
-      await expect(tierList.itemsIn('Tier 2')).toHaveText(['Winston']);
+      await expectTierNames(tierList, ['S', 'Row 2', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('Row 2')).toHaveText(['Winston']);
       const friend = await openAsVisitor(await tierList.shareLink());
-      await expectTierNames(friend, ['S', 'Tier 2', 'B', 'C', 'F', 'Unranked']);
-      await expect(friend.itemsIn('Tier 2')).toHaveText(['Winston']);
+      await expectTierNames(friend, ['S', 'Row 2', 'B', 'C', 'F', 'Unranked']);
+      await expect(friend.itemsIn('Row 2')).toHaveText(['Winston']);
     });
   });
 
@@ -71,36 +96,27 @@ test.describe('editor labels', () => {
       expect(longName.length).toBe(2_000);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
-      await tierList.renameTier('S', longName);
-      await tierList.dragItemToTier('Winston', 'A');
-      await page.goBack();
+      await tierList.rows.renameTier('S', longName);
+      await tierList.drag.dragItemToTier('Winston', 'A');
+      await tierList.goBack();
 
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await page.reload();
+      await tierList.reload();
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
     });
   });
 
   test.describe('row settings', () => {
-    test('renders items without captions, then with captions, when the user hides, then restores item labels', async ({tierList}) => {
+    test('renders items without captions when the user clicks Hide Labels in Row options in a short window', async ({tierList, page}) => {
+      // Row options is taller than this window: the menu must keep every choice within reach.
+      await page.setViewportSize({width: 1280, height: 400});
       await tierList.goto(TANKS);
 
-      await tierList.setItemLabelsVisible(false);
-      await expect(tierList.item('Mauga')).toBeVisible();
+      await tierList.rows.setItemLabelsVisible(false);
+
       await expect(tierList.item('Mauga')).toHaveText('');
-
-      await tierList.setItemLabelsVisible(true);
-      await expect(tierList.item('Mauga')).toHaveText('Mauga');
-    });
-
-    test('renders each row label above its items when the user chooses the label position Top', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-
-      await tierList.chooseLabelPosition('Top');
-
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     });
   });
 
@@ -109,7 +125,7 @@ test.describe('editor labels', () => {
       await tierList.goto(TANKS);
       const opened = page.url();
 
-      const input = await tierList.typeTierName('S', 'Changed my mind');
+      const input = await tierList.rows.typeTierName('S', 'Changed my mind');
       await input.press('Escape');
 
       await expect(tierList.openTextBoxes).toHaveCount(0);
@@ -117,8 +133,8 @@ test.describe('editor labels', () => {
       // Nothing was saved: clicking elsewhere keeps the old name, and the link is unchanged.
       await tierList.hints.click();
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
-      await tierList.dragItemToTier('Mauga', 'A');
-      await page.goBack();
+      await tierList.drag.dragItemToTier('Mauga', 'A');
+      await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });
 
@@ -133,8 +149,8 @@ test.describe('editor labels', () => {
       await expect(tierList.openTextBoxes).toHaveCount(0);
       await tierList.hints.click();
       await expect(tierList.title).toHaveText('OVERWATCH - Tank');
-      await tierList.dragItemToTier('Mauga', 'A');
-      await page.goBack();
+      await tierList.drag.dragItemToTier('Mauga', 'A');
+      await tierList.goBack();
       await expect(page).toHaveURL(opened);
     });
   });

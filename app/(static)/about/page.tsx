@@ -17,6 +17,7 @@ import rankGif from "@/public/about/rank.gif";
 import imagesGif from "@/public/about/images.gif";
 import freezeFrameGif from "@/public/about/freeze-frame.gif";
 import {ShowTipsAgain} from "@/components/ShowTipsAgain";
+import {PageStarted} from '@/components/StartHold';
 
 /** "How it works": the README's GIFs, one line each. */
 const HOW_IT_WORKS = [
@@ -43,6 +44,7 @@ const HOW_IT_WORKS = [
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <PageStarted/>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -211,14 +213,13 @@ const AboutPage = () => {
             </p>
             <div className="flex justify-center space-x-4 mb-6">
               <Button variant="secondary" asChild>
-                <a href="https://github.com/infinia-yzl/opentierboy" className="flex items-center space-x-2"
-                   aria-label="GitHub">
+                <a href="https://github.com/infinia-yzl/opentierboy" className="flex items-center space-x-2">
                   <GitHubLogoIcon className="h-5 w-5"/>
                   <span>Contribute on GitHub</span>
                 </a>
               </Button>
               <Button variant="secondary" asChild>
-                <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2" aria-label="Discord">
+                <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2">
                   <FaDiscord className="h-5 w-5"/>
                   <span>Join our Discord</span>
                 </a>

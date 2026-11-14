@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useEffect, useRef, useState} from 'react';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {usePathname, useSearchParams} from 'next/navigation';
 import {Cross2Icon} from '@radix-ui/react-icons';
 import {Button} from '@/components/ui/button';
@@ -172,7 +172,7 @@ const TOAST_TIPS: Partial<Record<TipId, ToastTip>> = {
  * Renders nothing itself.
  */
 export function EditorTips() {
-  const {tiers, title, writing, urlLength} = useTierContext();
+  const {tiers, title, linkWrites, urlLength} = useTierContext();
   const {current, session, request, withdraw, finish, hide} = useTips();
   const loaded = session !== null;
   const isZenMode = useZenMode();
@@ -183,7 +183,7 @@ export function EditorTips() {
   const pathname = usePathname();
   const stateParam = useSearchParams().get('state');
   const [openedAt] = useState(() => ({pathname, state: stateParam}));
-  const previous = useRef({tiers, title});
+  const previous = useRef({tiers, title, linkWrites});
 
   // The tips end with the editor.
   useEffect(() => endTips, []);
@@ -212,18 +212,18 @@ export function EditorTips() {
     request('shared-list');
   }, [session, openedWithList, request]);
 
-  // A change this browser made: the list or title changed while its write is on the way (Back,
-  // Forward and opened links change the list without a write).
+  // A change this browser made: the list or title changed with a link written (Back, Forward and
+  // opened links change the list without a write).
   useEffect(() => {
     const before = previous.current;
-    previous.current = {tiers, title};
-    if (!session || !writing || (tiers === before.tiers && title === before.title)) return;
+    previous.current = {tiers, title, linkWrites};
+    if (!session || linkWrites === before.linkWrites || (tiers === before.tiers && title === before.title)) return;
     if (hasRankedItem(tiers)) finish('first-drag');
     if (session.current === 'shared-list' || session.waiting.includes('shared-list')) finish('shared-list');
     request('link-save');
     const hadDeviceImages = deviceImageIds(before.tiers);
     if ([...deviceImageIds(tiers)].some(id => !hadDeviceImages.has(id))) request('device-images');
-  }, [tiers, title, writing, session, request, finish]);
+  }, [tiers, title, linkWrites, session, request, finish]);
 
   // First drag: images in Unranked, nothing ranked yet.
   const firstDragUseful = waitsForFirstDrag(tiers);

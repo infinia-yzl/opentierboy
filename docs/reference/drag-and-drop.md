@@ -236,18 +236,19 @@ everywhere (IndexedDB, zod, dnd-kit), so a later config block cannot drop the dn
 | File | What it does |
 | --- | --- |
 | `model.ts` | Types: `ItemPosition`, `ItemMove`, `RowMove`, `Direction` |
-| `moves.ts` | `moveItem`, `reorderRows`, `addTier`, `removeTier`, `findItem`, limits |
+| `moves.ts` | `moveItem`, `moveRow` (a whole row), `reorderRows` (a row's items), `addTier`, `removeTier`, `findItem`, limits |
 | `preview.ts` | The list as a drag shows it, and the move it makes on drop |
 | `keyboard.ts` | Arrow key targets in wrapping rows with mixed tile shapes |
-| `labels.ts` | Row and item names ("tier S", "Unranked", "Tier 3") |
+| `labels.ts` | Row and item names ("row S", "Unranked", "Row 3") and the names of the row handles |
 | `announcements.ts` | Screen reader texts and instructions |
 | `activation.ts` | When a press becomes a drag (mouse, touch hold, long-press menu): rules and a reducer |
-| `ids.ts` | The ids dnd-kit sees: `item:<id>`, `row:<tier id>`, `tier:<tier id>` |
+| `ids.ts` | The ids dnd-kit sees: `item:<id>`, `row:<tier id>`, `tier:<tier id>`, `stack:<tier id>` |
 | `dndKit.ts` | dnd-kit sensors, activation constraint, plugins and page measurements |
 | `react.tsx` | The React components and hooks the editor uses (client module) |
 
-`lib/tierListReducer.ts` (the editor store) applies the moves with `moveItem`, `reorderRows`,
-`addTier` and `removeTier` from `moves.ts`, so the editor has one implementation of each.
+`lib/tierListReducer.ts` (the editor store) applies the moves with `moveItem`, `moveRow`,
+`reorderRows`, `addTier` and `removeTier` from `moves.ts`, so the editor has one implementation of
+each.
 
 **The one class (A47).** Our code has no classes (CLAUDE.md, "Code conventions"), with one
 exception: `HoldThenMoveConstraint` in `dndKit.ts`. dnd-kit's `ActivationConstraint` API needs
@@ -260,8 +261,8 @@ lib/dnd file may declare one.
 
 Decisions in the adapter:
 
-- **History stays the undo.** The list changes only on drop: one `moveItem` or `reorderRows`,
-  one `router.push`. During a drag the editor renders a preview (`preview.ts`): a copy of the
+- **History stays the undo.** The list changes only on drop: one `moveItem`, `moveRow` or
+  `reorderRows`, one new history entry (`history.pushState`, in the commit of the drop). During a drag the editor renders a preview (`preview.ts`): a copy of the
   list that follows the pointer or the arrow keys. React draws every change; dnd-kit's
   optimistic sorting, which moves elements behind React's back (and breaks when an item moves
   to another row), is not used. On drop, `itemMoveFromPreview` or `rowMoveFromPreview` gives
@@ -281,11 +282,28 @@ Decisions in the adapter:
   never registered, `defaultCollisionDetector` in `dndKit.ts`), except that a droppable cut by a
   box that clips its overflow takes no collision while the pointer is over its hidden part. The
   window's edge does not count, so the editor's drags work as before.
-- **Rows** take the place of the row they move onto, with their label while dragging. On drop
-  `reorderRows` moves the contents (items, id and every other field) and leaves each label at
-  its position, exactly as before (product rule 6). Since 2.0.0, Unranked (the last row) is a
-  fixed tray under the rows: it has no handle, and no row moves into its place, by pointer,
-  keyboard or store (owner decision, 2026-10-31).
+- **Rows have two handles** (owner decision, 2026-11-14; the design "Row handles: move items or
+  move the whole row"):
+  - The **grip** (`row:<tier id>`, a sortable): a six-dot grip beside the row's left edge, outside
+    the list. It moves the whole row: name, items, id and every other field. During the drag the
+    row takes the place of the row it moves onto (`previewRowOver`), and on drop `moveRow` puts it
+    there. Colours belong to positions: a row shows the colour of the place it is in, also while
+    it is dragged, and the gap it would leave (dnd-kit's placeholder, a copy of the row) is sunken
+    in that place's colour.
+  - The **stack** (`stack:<tier id>`, a draggable): a pile of squares with the item count at the
+    row's end. It moves only the items (today's row move): during the drag the items take the
+    place of the row they move onto and the names stay (`previewStackOver`, which is
+    `reorderRows` on the preview), and on drop `reorderRows` moves the contents (items, id and
+    every other field) and leaves each label at its position (product rule 6). The dragged items
+    wait, faded, where they would land. The stack is also a droppable that takes nothing, so a
+    keyboard move can bring the lifted stack back to its place (`moveDraggedToItsPlace`). An
+    empty row has nothing to move: its stack is off and hidden.
+
+  Rows take both: a row accepts the `row` and `stack` types. Both drops use `rowMoveFromPreview`
+  (the place of the dragged tier id), so the editor gets one `onRowMove` or `onRowItemsMove` per
+  drop. After a drop, what moved washes briefly (no wash for less motion). Since 2.0.0, Unranked
+  (the last row) is a fixed tray under the rows: it has no handles, and no row moves into its
+  place, by pointer, keyboard or store (owner decision, 2026-10-31).
 - **Keyboard.** Left and Right follow reading order across wrapped lines. Up and Down go to
   the nearest line above or below, keeping the horizontal place; inside a wrapping row the
   function replays the wrapping, so tiles of mixed shapes cannot pull the item back onto its
@@ -303,23 +321,25 @@ Decisions in the adapter:
 - **Touch.** Hold an item still for 250 ms, then move to drag. Moving earlier scrolls the
   page. Holding still for 700 ms opens the item menu (Radix ContextMenu: Delete) and then no
   drag starts; a browser that opens a context menu earlier on a long press (Chrome on Android)
-  also stops the drag. Row handles drag after a 250 ms hold. Mouse drags start after 5 px, as
-  before. These numbers are constants in `activation.ts` for a test on a real phone. Items and
-  row handles turn off text selection and the iOS touch callout (CSS). A tile's picture never
+  also stops the drag. Grips and stacks drag after a 250 ms hold. Mouse drags start after 5 px,
+  as before. These numbers are constants in `activation.ts` for a test on a real phone. Items,
+  grips and stacks turn off text selection and the iOS touch callout (CSS). A tile's picture never
   starts the browser's own drag (`components/ItemTile.tsx`: `draggable={false}`,
   `-webkit-user-drag: none`, and a `dragstart` handler that cancels the event), also during a
   drop animation, when a press starts no drag of the editor.
 - **Drop animation:** 300 ms, `cubic-bezier(0.2, 0, 0, 1)`, the editor's values before, for
   pointer drops. dnd-kit skips it when the user prefers reduced motion. Keyboard drops have no
   animation (each arrow key already put the element on its place), so focus comes back to the
-  item or row handle at once; with the animation it came back 300 ms later and could pull
+  item, grip or stack at once; with the animation it came back 300 ms later and could pull
   focus out of a dialog opened in the meantime. During a pointer drop's animation a press
   starts no drag and dnd-kit still blocks text selection. Events that arrive after the drop
   never bring a preview back. Auto-scroll is dnd-kit's default.
 - **Manual tiers (#182).** `addTier` puts a new empty row just above Unranked (or at a given
   position, never below Unranked), with a fresh id (`tier-1`, `tier-2`...; the template ids use
-  letters) and Unranked's label position. The editor labels it "Tier <its row number>", so the
-  label shows and can be clicked to rename it. `removeTier` moves the row's items to the end
+  letters), Unranked's label position and no name (owner decision, 2026-11-14). A row without a
+  name shows its position as a faint hint, "Row <n>", which is also its accessible name, follows
+  the row when it moves, and is never written into the link; a click on it renames the row. Links
+  that already hold a name such as "Tier 5" keep showing it. `removeTier` moves the row's items to the end
   of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
   exceed the row cap of the link decoder (`tests/unit/lib/tierListReducer.test.ts` checks it). The
@@ -334,13 +354,19 @@ Decisions in the adapter:
 
 ```tsx
 // Around the rows. children receives the tiers to show: the list, or the preview during a
-// drag. onItemMove and onRowMove are called once per drop, and only when something moved.
-<TierDragDrop tiers={tiers} onItemMove={move => ...} onRowMove={move => ...} itemLabel={item => ...}>
+// drag. onItemMove, onRowMove (a whole row, by its grip: apply with moveRow) and onRowItemsMove
+// (a row's items, by its stack: apply with reorderRows) are called once per drop, and only when
+// something moved.
+<TierDragDrop tiers={tiers} onItemMove={...} onRowMove={...} onRowItemsMove={...} itemLabel={item => ...}>
   {(shownTiers) => shownTiers.map((tier, index) => <Row key={tier.id} .../>)}
 </TierDragDrop>
 
-// A row, sortable by its handle: ref on the row, handleRef on the handle.
-useTierRow({tierId, index}): {ref, handleRef, isDragging}
+// A row, sortable by its grip: ref on the row, handleRef on the grip. itemsWaiting: the row holds
+// the items of a dragged stack. settled: the last drop moved this row or its items (for the wash).
+useTierRow({tierId, index}): {ref, handleRef, isDragging, itemsWaiting, settled}
+
+// A row's stack: ref on the stack. disabled for an empty row, whose stack is hidden.
+useTierStack({tierId, disabled}): {ref, isDragging}
 
 // The item area of a row: takes items over its free space and over an empty row
 // (low collision priority). isDropTarget: the dragged item would land in this row.
@@ -354,10 +380,10 @@ useTierItems({tierId}): {ref, isDropTarget}
   {({ref, isDragging, isDropping, describedBy, roleDescription}) => <div ref={ref} .../>}
 </DraggableTierItem>
 
-// describedBy for row handles: the keyboard instructions. It never changes during a drag.
+// describedBy for the grips and stacks: the keyboard instructions. It never changes during a drag.
 useTierDragDescription(): string
 
-// rowDrag: true during a row drag. dragging: true during any drag.
+// rowDrag: true during a grip or stack drag. dragging: true during any drag.
 useTierDragState(): {rowDrag, dragging}
 ```
 
@@ -371,8 +397,8 @@ later render passes another item id (`assertSameTileItem` in `ids.ts`).
 `tests/unit/rules/dnd-item-tiles.test.ts` checks this wiring. The tile renders
 `aria-roledescription="draggable"` only while dnd-kit holds its draggable, and the page object's
 drop helpers check after every drop that every item tile has it
-(`TierListPage.expectEveryItemDraggable`), so any test that drops something fails on a tile that
-cannot be dragged.
+(`DragAndDrop.expectEveryItemDraggable` in `tests/pages/drag-and-drop.ts`), so any test that
+drops something fails on a tile that cannot be dragged.
 
 The drag state sits in two React contexts: the instructions (`describedBy`, read by every
 tile) never change, and the drop target and drag flags (read only by rows and the row list)
@@ -383,10 +409,20 @@ runs its handler in a React transition, which React may hold back while the poin
 moving, so the preview trailed the pointer.
 
 `components/DragDropTierList.tsx` and `components/RowHandle.tsx` use these. They keep the
-accessible names: a row is a `group` named by its label, an item a `button` named by its
-label, a handle a `button` named `Move tier <label>`. dnd-kit adds `aria-pressed` and the row
-handles' `aria-roledescription`; the editor sets `role`, `tabIndex` and `aria-describedby` itself,
-so the server-rendered page has them too. Item tiles render their `aria-roledescription` from
+accessible names: a row is a `group` named by its label ("Row <n>" without one), an item a
+`button` named by its label, a grip a `button` named `Move row <label>` ("Move Row 4"), a stack a
+`button` named `Move the 3 items of row <label>`. An empty row's stack is off and hidden
+(`invisible`, `aria-hidden`): it keeps its place so the rows line up. In a row, Tab reaches the grip, the items, then the stack. dnd-kit adds
+`aria-pressed` and the handles' `aria-roledescription`; the editor sets `role`, `tabIndex` and
+`aria-describedby` itself, so the server-rendered page has them too. What lifts when the pointer
+is over a handle, or a handle has focus, is plain CSS (`app/globals.css`, "The row handles"): the
+grip lifts the whole row, the stack only the tiles.
+
+**Where the grip sits.** Beside the list, in the page space: 24 px in a 28 px gutter, a 44 px
+column on touch screens (`pointer: coarse`), where it is always faintly shown. Where the page
+leaves less space beside the list (phones, narrow windows), the rows move in by what is missing
+(`RowList`). Zen's 16:9 and 9:16 frames, and the overlay's panel, have no space beside the list:
+there the grip is a narrow column at the row's left edge, inside the frame. Item tiles render their `aria-roledescription` from
 `DraggableTierItem` (see above).
 
 ## Performance
@@ -424,6 +460,6 @@ What keeps a drag fast:
 
 What remains at 4x is mostly dnd-kit's own work per moved item: position observers, shape
 measurements and collision detection, about 10 ms of script per frame. After the landing, the
-labels draw their blur again and the list writes its new link (`router.push`), about 0.5 s
-after the release. The item has stopped moving by then. Turning the label transitions off did
+labels draw their blur again and the list writes its new link (`history.pushState`), about
+0.5 s after the release. The item has stopped moving by then. Turning the label transitions off did
 not change those frames.

@@ -68,7 +68,7 @@ test.describe('editor layout', () => {
     test('renders no button "Edit title" and no hints when the user turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS);
       await expect(tierList.editTitleButton).toBeVisible();
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tierList.editTitleButton).toBeHidden();
       await expect(tierList.hints).toBeHidden();
       await expect(tierList.title).toBeVisible();
@@ -78,12 +78,14 @@ test.describe('editor layout', () => {
   // The Clean rows (owner decisions, 2026-10-28 and 2026-10-31): flush rows, then Add row and Row
   // options, then Unranked as a fixed tray with the hints and an "Add images" tile.
   test.describe('Unranked tray', () => {
-    test('renders Unranked last, under button "Add row", with no row handle when the page opens', {tag: '@mobile'}, async ({tierList}) => {
-      await tierList.goto(TANKS);
+    test('renders Unranked last, under button "Add row", with no row grip or stack when the page opens', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {F: ['Mauga'], '': ['Winston']}));
       await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
       await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
-      await expect(tierList.rowHandle('Unranked')).toHaveCount(0);
-      await expect(tierList.rowHandle('F')).toBeVisible();
+      await expect(tierList.rowGrip('Unranked')).toHaveCount(0);
+      await expect(tierList.rowStack('Unranked')).toHaveCount(0);
+      await expect(tierList.rowGrip('F')).toBeAttached();
+      await expect(tierList.rowStack('F')).toBeVisible();
 
       await expect(async () => {
         const lastRanked = await tierList.tier('F').boundingBox();
@@ -95,7 +97,7 @@ test.describe('editor layout', () => {
       }).toPass();
     });
 
-    test('renders the Add images menu when the user clicks the tile "Add images to Unranked"', async ({tierList}) => {
+    test('renders the Add images menu when the user clicks the tile "Add images"', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.addImagesTile.click();
       await expect(tierList.menuItem('From template')).toBeVisible();
@@ -103,7 +105,7 @@ test.describe('editor layout', () => {
 
     test('renders the Unranked row with no tile "Add images to Unranked" and no hints when the user turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS);
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tierList.addImagesTile).toBeHidden();
       await expect(tierList.hints).toBeHidden();
       await expect(tierList.unranked).toBeVisible();
@@ -120,7 +122,7 @@ test.describe('editor layout', () => {
       await tierList.goto(TANKS, LIST);
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
 
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
       expect(await tierList.sizeOf(tierList.item('Mauga'))).toEqual({width: 48, height: 48});
@@ -131,7 +133,7 @@ test.describe('editor layout', () => {
 
     test('renders the name under a Compact tile when the mouse is over the tile', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       await tierList.hoverItem('Zarya');
 
@@ -142,21 +144,21 @@ test.describe('editor layout', () => {
 
     test('renders Compact tiles when the page reloads after the user chose Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
       await tierList.reload();
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 48, height: 48});
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Compact')).toHaveAttribute('aria-checked', 'true');
     });
 
     test('renders 80 px tiles with their names when the user chooses Comfortable after Compact and restores item labels', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.chooseTileSize('Comfortable');
-      await tierList.setItemLabelsVisible(true);
+      await tierList.rows.chooseTileSize('Comfortable');
+      await tierList.rows.setItemLabelsVisible(true);
 
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 80, height: 80});
       await expect(tierList.item('Reinhardt')).toContainText('Reinhardt', {useInnerText: true});
@@ -166,8 +168,8 @@ test.describe('editor layout', () => {
       await tierList.goto(TANKS, LIST);
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.chooseTileSize('Compact');
-      await tierList.chooseTileSize('Comfortable');
+      await tierList.rows.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Comfortable');
 
       expect(await newEntries()).toBe(0);
     });
@@ -176,24 +178,29 @@ test.describe('editor layout', () => {
     // off. Show Labels is a label setting, written in place of the current history entry (A3).
     test('writes no history entry and renders menu item "Hide Labels" checked when the user chooses Compact with item labels on', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
+      await expect(tierList.itemCaption('Reinhardt')).toBeVisible();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Show Labels')).toHaveAttribute('aria-checked', 'true');
       await tierList.pressKey('Escape');
       const newEntries = await tierList.countNewHistoryEntries();
 
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
-      await expect(tierList.itemCaption('Reinhardt')).toHaveCount(0);
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
+      // The open menu hides the page from role queries, so the caption is checked after it closes.
+      // A Compact tile keeps its name in a hidden tooltip, so the caption is hidden, not gone.
+      await tierList.pressKey('Escape');
+      await expect(tierList.rowOptionsButton).toHaveAttribute('aria-expanded', 'false');
+      await expect(tierList.itemCaption('Reinhardt')).toBeHidden();
       expect(await newEntries()).toBe(0);
     });
 
     test('renders each name under its 48 px Compact tile when the user restores item labels after choosing Compact', async ({tierList}) => {
       await tierList.goto(TANKS, LIST);
-      await tierList.chooseTileSize('Compact');
+      await tierList.rows.chooseTileSize('Compact');
 
-      await tierList.setItemLabelsVisible(true);
+      await tierList.rows.setItemLabelsVisible(true);
 
       for (const name of ['Reinhardt', 'Zarya', 'Mauga', 'Winston']) {
         await expect(tierList.itemCaption(name)).toBeVisible();

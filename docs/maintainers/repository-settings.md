@@ -42,8 +42,9 @@ GitHub: repository **Settings → Rules → Rulesets → New ruleset → New bra
 
    A check name appears in the search list only after it has run once. Open any pull
    request first if the list is empty.
-6. `e2e (firefox)` and `e2e (webkit)` run on every pull request too, and they pass in CI
-   (first on #216). Add them as required checks when you want them to block a merge.
+6. `e2e (firefox)`, `e2e (webkit 1/2)` and `e2e (webkit 2/2)` run on every pull request too,
+   and they pass in CI (first on #216; WebKit runs in two shards since #236). Add them as
+   required checks when you want them to block a merge.
 7. Click **Create**.
 
 ## 2. GitHub Actions settings

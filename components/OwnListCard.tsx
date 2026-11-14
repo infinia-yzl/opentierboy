@@ -1,13 +1,15 @@
 'use client';
 
 import React, {useEffect, useRef, useState} from 'react';
-import Link from 'next/link';
+import {IntentLink} from '@/components/IntentLink';
 import dynamic from 'next/dynamic';
 import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
 import {Separator} from '@/components/ui/separator';
 import {cn} from '@/lib/utils';
 import type {HomeFileRequest} from '@/components/HomeFileOpener';
+import {useHoldUntilStarted} from '@/components/useBusy';
+import {homeFileOpenerStart} from '@/lib/busy';
 
 // Loaded when the visitor first chooses or drops a file: the landing page itself opens no
 // device store and loads none of the editor's code.
@@ -25,6 +27,8 @@ function carriesFiles(event: DragEvent | React.DragEvent): boolean {
  */
 const OwnListCard: React.FC = () => {
   const [request, setRequest] = useState<HomeFileRequest | null>(null);
+  // The opener's code loads with the first file: the page is busy until it has started.
+  useHoldUntilStarted(homeFileOpenerStart, request !== null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const openButton = useRef<HTMLButtonElement>(null);
@@ -69,7 +73,7 @@ const OwnListCard: React.FC = () => {
           icon where their pictures sit. */}
       <div className="flex grow flex-col gap-2">
         <Button asChild variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3">
-          <Link href="/rank/">
+          <IntentLink href="/rank/">
             <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <circle cx="12" cy="12" r="9"/>
@@ -77,7 +81,7 @@ const OwnListCard: React.FC = () => {
               </svg>
             </span>
             Create Blank List
-          </Link>
+          </IntentLink>
         </Button>
         <Button ref={openButton} variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3" onClick={() => fileInput.current?.click()}>
           <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">

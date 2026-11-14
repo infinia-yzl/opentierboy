@@ -1,4 +1,11 @@
 import {expect, type BrowserContext, type Locator, type Page} from '@playwright/test';
+import {expectSettled} from '../support/settled';
+import {letToastTimeOut} from '../support/page-clock';
+import {letClosedToastLeave, toasts} from './toasts';
+import {UNTIL_STARTED} from './helpers';
+
+/** How long a tip's toast shows (components/EditorTips.tsx, TIP_TOAST_MS). */
+const TIP_TOAST_MS = 10_000;
 
 /** What local storage keeps under `otb-tips` (lib/tips/tips.ts). */
 export interface StoredTips {
@@ -25,9 +32,19 @@ export class Tips {
     this.page = page;
   }
 
-  /** Turns the tips off in a browser context before its pages start, as "Hide tips" would. */
+  /**
+   * Turns the tips off in a browser context before its pages start, as "Hide tips" would. The
+   * script runs in every frame, also in the copy of the page that Freeze Frame draws in a frame
+   * without storage, where localStorage throws: those frames show no tips anyway.
+   */
   static async turnOffIn(context: BrowserContext) {
-    await context.addInitScript(() => localStorage.setItem('otb-tips', JSON.stringify({seen: [], off: true})));
+    await context.addInitScript(() => {
+      try {
+        localStorage.setItem('otb-tips', JSON.stringify({seen: [], off: true}));
+      } catch {
+        // A frame without storage.
+      }
+    });
   }
 
   /** The first-drag tip, in the Unranked tray's hint line. */
@@ -47,12 +64,12 @@ export class Tips {
 
   /** The toast of "the link is the save". */
   get linkSaveToast(): Locator {
-    return this.page.getByRole('listitem').filter({hasText: LINK_SAVE_TITLE});
+    return toasts(this.page).filter({hasText: LINK_SAVE_TITLE});
   }
 
   /** The toast of "your own images". */
   get deviceImagesToast(): Locator {
-    return this.page.getByRole('listitem').filter({hasText: DEVICE_IMAGES_TITLE});
+    return toasts(this.page).filter({hasText: DEVICE_IMAGES_TITLE});
   }
 
   /** Every tip that can be on screen. */
@@ -97,9 +114,46 @@ export class Tips {
 
   /** Opens About and presses "Show the tips again". */
   async showTipsAgainOnAbout() {
-    await this.page.goto('/about');
+    await this.page.goto('/about', UNTIL_STARTED);
+    await expectSettled(this.page);
     await this.page.getByRole('button', {name: 'Show the tips again'}).click();
-    await expect(this.page.getByRole('listitem').filter({hasText: 'The tips will show again'})).toBeVisible();
+    await expect(toasts(this.page).filter({hasText: 'The tips will show again'})).toBeVisible();
+  }
+
+  // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
+
+  /**
+   * Leaves the site and empties this browser's storage (local storage, IndexedDB, cookies), so
+   * the next page opens as in a browser that never visited OpenTierBoy. The tab and its page
+   * clock stay.
+   */
+  async forgetThisBrowser() {
+    await this.page.goto('about:blank');
+    await this.page.context().setStorageState({cookies: [], origins: []});
+  }
+
+  /** The toast of the tip on screen (at most one shows). */
+  get tipToast(): Locator {
+    return this.linkSaveToast.or(this.deviceImagesToast);
+  }
+
+  /**
+   * The toast of the tip on screen, by its title: the next tip's toast may take its place, and
+   * an action waits for this one only.
+   */
+  private async shownTipToast(): Promise<Locator> {
+    await expect(this.tipToast).toHaveCount(1);
+    return await this.linkSaveToast.count() > 0 ? this.linkSaveToast : this.deviceImagesToast;
+  }
+
+  /** Closes the tip's toast with its close button. */
+  async closeTipToast() {
+    await this.closeToast(await this.shownTipToast());
+  }
+
+  /** Lets the tip's toast time out after 10 s (EditorTips.tsx, TIP_TOAST_MS), on the page clock (`pageClock`). */
+  async waitOutTipToast() {
+    await letToastTimeOut(this.page, await this.shownTipToast(), TIP_TOAST_MS);
   }
 
   /** What local storage keeps under `otb-tips`, or null. */
@@ -107,4 +161,23 @@ export class Tips {
     const raw = await this.page.evaluate(() => localStorage.getItem('otb-tips'));
     return raw === null ? null : JSON.parse(raw) as StoredTips;
   }
+}
+
+// ---- Tips machine while page time stands still (`pageTime: 'paused'`) ----------------------
+
+/** Closes the tip's toast with its close button, and returns once it left (letClosedToastLeave). */
+export async function closeTipToastAndLetItLeave(tips: Tips) {
+  await expect(tips.tipToast).toHaveCount(1);
+  const toast = await tips.linkSaveToast.count() > 0 ? tips.linkSaveToast : tips.deviceImagesToast;
+  await toast.getByRole('button', {name: 'Close toast'}).click();
+  await letClosedToastLeave(tips.page, toast);
+}
+
+/** Presses "Hide tips" of the tip on screen, and returns once no tip shows: a toast tip has left (letClosedToastLeave). */
+export async function hideTipsAndLetToastLeave(tips: Tips) {
+  const toast = await tips.linkSaveToast.count() > 0 ? tips.linkSaveToast : tips.deviceImagesToast;
+  const inToast = await toast.count() > 0;
+  await tips.hideTipsButton().click();
+  if (inToast) await letClosedToastLeave(tips.page, toast);
+  await expect(tips.all).toHaveCount(0);
 }

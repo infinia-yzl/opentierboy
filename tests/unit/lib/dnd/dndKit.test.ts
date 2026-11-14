@@ -157,16 +157,16 @@ describe('createAnnouncements', () => {
   const pointer = {dragOperation: {activatorEvent: null}} as unknown as DragDropManager;
   const source = {id: 'item:w'};
 
-  it('returns tier labels and the positions of the lists from the reader when each drag event fires', () => {
+  it('returns row labels and the positions of the lists from the reader when each drag event fires', () => {
     const seen: string[] = [];
     const announcements = createAnnouncements((phase, _event, _manager, type) => {
       seen.push(`${phase}:${type}`);
       return {tiers, preview: phase === 'start' ? tiers : preview};
     });
     expect(announcements.dragstart({operation: {source}} as never, pointer)).toBe('Picked up Winston, in Unranked, position 1 of 1.');
-    expect(announcements.dragover!({operation: {source}} as never, pointer)).toBe('Winston moves to tier S, position 2 of 2.');
-    expect(announcements.dragmove!({operation: {source}} as never, keyboard)).toBe('Winston moves to tier S, position 2 of 2.');
-    expect(announcements.dragend({operation: {source, target: {id: 'item:w'}}, canceled: false} as never, pointer)).toBe('Dropped Winston in tier S, position 2 of 2.');
+    expect(announcements.dragover!({operation: {source}} as never, pointer)).toBe('Winston moves to row S, position 2 of 2.');
+    expect(announcements.dragmove!({operation: {source}} as never, keyboard)).toBe('Winston moves to row S, position 2 of 2.');
+    expect(announcements.dragend({operation: {source, target: {id: 'item:w'}}, canceled: false} as never, pointer)).toBe('Dropped Winston in row S, position 2 of 2.');
     expect(announcements.dragend({operation: {source}, canceled: true} as never, pointer)).toBe('Move cancelled. Winston is back in Unranked, position 1 of 1.');
     expect(seen).toEqual(['start:dragstart', 'over:dragover', 'over:dragmove', 'drop:dragend', 'cancel:dragend']);
   });
@@ -174,7 +174,7 @@ describe('createAnnouncements', () => {
   it('returns Move cancelled for pointer drags and Dropped for keyboard drags when a drag ends with no target', () => {
     const announcements = createAnnouncements(() => ({tiers, preview}));
     expect(announcements.dragend({operation: {source, target: null}, canceled: false} as never, pointer)).toBe('Move cancelled. Winston is back in Unranked, position 1 of 1.');
-    expect(announcements.dragend({operation: {source, target: null}, canceled: false} as never, keyboard)).toBe('Dropped Winston in tier S, position 2 of 2.');
+    expect(announcements.dragend({operation: {source, target: null}, canceled: false} as never, keyboard)).toBe('Dropped Winston in row S, position 2 of 2.');
   });
 
   it('returns undefined when the reader returns undefined or the source id is unknown', () => {

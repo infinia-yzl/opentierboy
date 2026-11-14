@@ -10,11 +10,13 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/compo
 import {Button} from "@/components/ui/button";
 import React from "react";
 import {FaDiscord} from "react-icons/fa6";
+import {PageStarted} from '@/components/StartHold';
 
 export default async function Page(props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
   return (
     <div>
+      <PageStarted/>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -37,14 +39,14 @@ export default async function Page(props: { params: Promise<{ slug: string }> })
             <CardTitle className="text-2xl md:text-4xl font-bold text-center font-heading">
               Got something to say?
             </CardTitle>
-            <CardDescription className="text-lg text-center">
+            <CardDescription className="text-lg text-center text-background/80">
               Share it with us on Discord!
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center px-8">
             <div className="flex justify-center space-x-4 mb-6">
               <Button variant="secondary" asChild>
-                <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2" aria-label="Discord">
+                <a href="https://discord.gg/CEtDSHV38b" className="flex items-center space-x-2">
                   <FaDiscord className="h-5 w-5"/>
                   <span>Join our Discord</span>
                 </a>

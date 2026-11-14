@@ -6,6 +6,7 @@ import {
   findItem,
   MAX_TIER_ROWS,
   moveItem,
+  moveRow,
   newTierId,
   removeTier,
   reorderRows,
@@ -192,6 +193,12 @@ describe('reorderRows', () => {
     expect(reorderRows(tiers, 0, 5)).toBe(tiers);
   });
 
+  it('returns the same array when row A moves onto row B and both are empty', () => {
+    const tiers = deepFreeze([tier('tier-s', 'S', ['mauga']), tier('tier-a', 'A'), tier('tier-b', 'B'), tier('uncategorized', '', ['ana'])]);
+    expect(reorderRows(tiers, 1, 2)).toBe(tiers);
+    expect(reorderRows(tiers, 2, 1)).toBe(tiers);
+  });
+
   it('returns the same array when from equals to or an index does not fit', () => {
     const tiers = sampleTiers();
     expect(reorderRows(tiers, 2, 2)).toBe(tiers);
@@ -208,7 +215,7 @@ describe('reorderRows', () => {
     expect(next[5]).toBe(tiers[5]);
   });
 
-  it('returns the pre-2.0.0 onDragEnd list when ranked rows move, and the input when Unranked moves', () => {
+  it('returns the pre-2.0.0 onDragEnd list when ranked rows move, and the input when Unranked moves or rows look the same', () => {
     const lists: Tier[][] = [
       ...Object.values(tierTemplates).map(template => template.map(row => ({...row, items: [item(`${row.id}-x`)]}))),
       sampleTiers(),
@@ -219,15 +226,55 @@ describe('reorderRows', () => {
       for (let from = 0; from < tiers.length; from++) {
         for (let to = 0; to < tiers.length; to++) {
           const last = tiers.length - 1;
-          const expected = from === last || to === last ? tiers : todaysOnDragEnd(structuredClone(tiers), {
+          const before = from === last || to === last ? tiers : todaysOnDragEnd(structuredClone(tiers), {
             type: 'TIER',
             source: {droppableId: 'all-tiers', index: from},
             destination: {droppableId: 'all-tiers', index: to},
           });
+          // The pre-2.0.0 code also swapped the ids of rows that look the same (two empty rows),
+          // which wrote a history entry with no visible change. That case now changes nothing.
+          const withoutIds = (rows: Tier[]) => rows.map(({id: _id, ...row}) => row);
+          const expected = JSON.stringify(withoutIds(before)) === JSON.stringify(withoutIds(tiers)) ? tiers : before;
           expect(reorderRows(deepFreeze(tiers), from, to), `${from} → ${to}`).toEqual(expected);
         }
       }
     }
+  });
+});
+
+describe('moveRow', () => {
+  it('returns the whole row, its name included, at the new place when a ranked row moves down or up', () => {
+    const tiers = deepFreeze(sampleTiers());
+    expect(names(moveRow(tiers, 0, 2)).slice(0, 4)).toEqual([
+      ['tier-a', 'A', ['ana']],
+      ['tier-b', 'B', []],
+      ['tier-s', 'S', ['mauga', 'winston', 'sigma']],
+      ['tier-c', 'C', names(tiers)[3][2]],
+    ]);
+    expect(names(moveRow(tiers, 3, 0)).map(([id]) => id)).toEqual(['tier-c', 'tier-s', 'tier-a', 'tier-b', 'tier-f', 'uncategorized']);
+  });
+
+  it('returns the same row objects, label position included, when rows move', () => {
+    const tiers = sampleTiers().map((tier, index) => (index === 1 ? {...tier, labelPosition: 'top' as const} : tier));
+    const next = moveRow(tiers, 1, 3);
+    expect(next[3]).toBe(tiers[1]);
+    expect(next[0]).toBe(tiers[0]);
+  });
+
+  it('returns the same array when the Unranked row moves or a row moves onto it', () => {
+    const tiers = deepFreeze(sampleTiers());
+    expect(moveRow(tiers, 5, 0)).toBe(tiers);
+    expect(moveRow(tiers, 0, 5)).toBe(tiers);
+  });
+
+  it('returns the same array when from equals to, an index does not fit, or the rows look the same', () => {
+    const tiers = sampleTiers();
+    expect(moveRow(tiers, 2, 2)).toBe(tiers);
+    expect(moveRow(tiers, -1, 2)).toBe(tiers);
+    expect(moveRow(tiers, 0, 6)).toBe(tiers);
+    expect(moveRow(tiers, 1.5, 2)).toBe(tiers);
+    const blanks = deepFreeze([tier('tier-1', ''), tier('tier-2', ''), tier('uncategorized', '', ['ana'])]);
+    expect(moveRow(blanks, 0, 1)).toBe(blanks);
   });
 });
 

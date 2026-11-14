@@ -7,7 +7,8 @@ import {packageItemId, rankingState, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import {escapeRegExp} from '../support/regexp';
-import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
+import {SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
+import {type CaptureMethod} from '../pages/share-panel';
 
 /**
  * User text is shown as text (review rules: cross-site scripting). Titles, row names and labels
@@ -45,7 +46,8 @@ function carriesPicture(request: SentRequest, picture: Buffer): boolean {
 function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
   // data: and blob: addresses stay in the browser; only network requests count.
   const network = requests.filter((request) => /^https?:/.test(request.url));
-  // The editor still talks to the server (page data for each Back step), so check that it did.
+  // The recorder saw the page's own requests (each test loads a page after it started), so an
+  // empty list means the recorder missed them, not that nothing was sent.
   expect(network.length).toBeGreaterThan(0);
   for (const request of network) {
     for (const picture of pictures) {
@@ -56,57 +58,38 @@ function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
 
 /**
  * The Content Security Policy (lib/security/csp.ts, A11). A page that breaks it shows a
- * `securitypolicyviolation` event; every test here expects none.
+ * `securitypolicyviolation` event; every test here expects none. The headers themselves, on
+ * every kind of route, are checked in security.api.spec.ts.
  */
 test.describe('security', () => {
   test.describe('Content Security Policy', () => {
-    test('returns the Content-Security-Policy header, without unsafe-eval, when the page opens /', async ({page}) => {
-      const response = await page.goto('/');
-      const policy = response?.headers()['content-security-policy'] ?? '';
-      expect(policy).toContain("default-src 'self'");
-      expect(policy).toContain("img-src 'self' https: data: blob:");
-      expect(policy).toContain("frame-ancestors 'none'");
-      expect(policy).not.toContain('unsafe-eval');
-    });
-
-    test('returns the Referrer-Policy, X-Content-Type-Options, Permissions-Policy and COOP headers when the page opens /rank', async ({page}) => {
-      const headers = (await page.goto('/rank'))?.headers() ?? {};
-      expect(headers['referrer-policy']).toBe('no-referrer');
-      expect(headers['x-content-type-options']).toBe('nosniff');
-      expect(headers['permissions-policy']).toContain('camera=()');
-      expect(headers['cross-origin-opener-policy']).toBe('same-origin-allow-popups');
-    });
-
-    test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({page, tierList, site, cspViolations}) => {
-      await page.goto('/', {waitUntil: 'networkidle'});
-      await expect(site.main).toBeVisible();
+    test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({tierList, site, cspViolations}) => {
+      await site.gotoHome();
       await tierList.goto('/rank/overwatch/tank');
-      await page.goto('/blog/overwatch-2-karq-tier-list-season-11', {waitUntil: 'networkidle'});
+      await site.goto('/blog/overwatch-2-karq-tier-list-season-11');
       await expect(site.pageHeading).toBeVisible();
       await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
-      await page.waitForLoadState('networkidle');
-      await expect.poll(() => cspViolations()).toEqual([]);
+      expect(await cspViolations()).toEqual([]);
     });
 
     test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
       await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
-      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-      await tierList.capturePreview();
-      const snapshot = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const snapshot = await tierList.share.downloadCapturedImage();
       await page.keyboard.press('Escape');
 
       await tierList.goto('/rank');
-      await tierList.dropFile(imageFile('blue-square.png'));
+      await tierList.files.dropFile(imageFile('blue-square.png'));
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
-      await tierList.openFile(pngFile(snapshot.name, snapshot.buffer));
-      await tierList.confirmOpenList();
+      await tierList.files.openFile(pngFile(snapshot.name, snapshot.buffer));
+      await tierList.files.confirmOpenList();
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
       await site.gotoHome();
       await expect(site.recentLinks.first()).toHaveText('CSP snapshot');
-      await page.waitForLoadState('networkidle');
-      await expect.poll(() => cspViolations()).toEqual([]);
+      expect(await cspViolations()).toEqual([]);
     });
 
     for (const method of ['html2canvas-pro', 'Original html2canvas'] as CaptureMethod[]) {
@@ -117,14 +100,14 @@ test.describe('security', () => {
           ['A', []], ['B', []], ['', []],
         ]});
         await tierList.goto('/rank/overwatch/tank', state);
-        await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+        await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
         await expect.poll(() => tierList.itemImageHasLoaded('Link image')).toBe(true);
         await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
-        await tierList.capturePreview(method);
+        await tierList.share.capturePreview(method);
 
         await expect(tierList.toast('Image captured successfully')).toBeVisible();
-        await expect.poll(() => cspViolations()).toEqual([]);
+        expect(await cspViolations()).toEqual([]);
       });
     }
   });
@@ -132,7 +115,7 @@ test.describe('security', () => {
   test.describe('user text', () => {
     test('renders markup as text in the editor, the tab title and Recently viewed when the page opens a link with markup', {tag: '@mobile'}, async ({tierList, site}) => {
       await tierList.goto(TANKS, LIST_WITH_MARKUP);
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
 
       await expect(tierList.title).toHaveText(`Title ${IMG_MARKUP}`);
       await expect(tierList.tier(`S ${SCRIPT_MARKUP}`)).toBeVisible();
@@ -150,7 +133,7 @@ test.describe('security', () => {
     test('renders markup as text in the title and a row label, also after a reload, when the user types it', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.setTitle(CLOSING_MARKUP);
-      await tierList.renameTier('S', SCRIPT_MARKUP);
+      await tierList.rows.renameTier('S', SCRIPT_MARKUP);
       await expect(tierList.title).toHaveText(CLOSING_MARKUP);
       await expect(tierList.tier(SCRIPT_MARKUP)).toBeVisible();
 
@@ -164,7 +147,7 @@ test.describe('security', () => {
     test('renders the file name with markup as the item label when the user uploads a picture named with markup', async ({tierList}) => {
       await tierList.goto(TANKS);
       // The label is the name before its first dot, so the markup has none.
-      await tierList.addItemsFromDevice([imageFile('<img src=x onerror=__otbInjected=4>.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('<img src=x onerror=__otbInjected=4>.png')]);
       await expect(tierList.item('<img src=x onerror=__otbInjected=4>')).toBeVisible();
       expect(await tierList.injectedMarkupRan()).toBe(false);
     });
@@ -187,12 +170,12 @@ test.describe('security', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Private pictures'));
       const sent = tierList.recordRequests();
 
-      await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
-      await tierList.dropFile(imageFile('dropped.png', BLUE_SQUARE));
+      await tierList.deviceImages.addItemsFromDevice([imageFile('photo.png', photo)]);
+      await tierList.files.dropFile(imageFile('dropped.png', BLUE_SQUARE));
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['photo', 'dropped']);
       await expect.poll(() => tierList.itemImageHasLoaded('dropped')).toBe(true);
-      await tierList.capturePreview();
-      await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      await tierList.share.downloadCapturedImage();
 
       expectNoPictureSent(sent(), [photo, BLUE_SQUARE]);
     });
@@ -202,8 +185,12 @@ test.describe('security', () => {
       await tierList.goto(TANKS);
       const sent = tierList.recordRequests();
 
-      await tierList.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
+      await tierList.deviceImages.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['pasted']);
+      await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
+      // A change asks nothing of the server (history.pushState); the reload loads the list's page
+      // again, and the picture comes from this browser's store.
+      await tierList.reload();
       await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
 
       expectNoPictureSent(sent(), [RED_SQUARE]);
@@ -212,15 +199,15 @@ test.describe('security', () => {
     test('writes no image or snapshot file bytes to the network when the user opens a snapshot file', async ({tierList, openAsVisitor}) => {
       const photo = noisePng(40, 40, 11);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Shared pictures'));
-      await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('photo.png', photo)]);
       await expect.poll(() => tierList.itemImageHasLoaded('photo')).toBe(true);
-      await tierList.capturePreview();
-      const file = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const file = await tierList.share.downloadCapturedImage();
 
       const friend = await openAsVisitor('/rank');
       const sent = friend.recordRequests();
-      await friend.openFile(pngFile(file.name, file.buffer));
-      await friend.confirmOpenList();
+      await friend.files.openFile(pngFile(file.name, file.buffer));
+      await friend.files.confirmOpenList();
       await expect(friend.itemsIn(friend.unranked)).toHaveText(['photo']);
       await expect.poll(() => friend.itemImageHasLoaded('photo')).toBe(true);
 

@@ -19,9 +19,20 @@ test.describe('routes', () => {
     });
 
     test('returns 308 to the hyphenated path with the same state parameter when the request has an old tag path', async ({request}) => {
-      const response = await request.get('/rank/overwatch/h_all?state=this-state-must-survive', {maxRedirects: 0});
-      expect(response.status()).toBe(308);
-      expect(response.headers()['location']).toMatch(/\/rank\/overwatch\/h-all\?state=this-state-must-survive$/);
+      // An active set and a legacy set, and the title of the page each path names.
+      for (const [path, hyphenated, title] of [
+        ['/rank/overwatch/h_all', '/rank/overwatch/h-all', 'OVERWATCH - All Heroes'],
+        ['/rank/wuthering-waves/c_all', '/rank/wuthering-waves/c-all', 'WUTHERING WAVES - All Resonators'],
+      ]) {
+        const response = await request.get(`${path}?state=this-state-must-survive`, {maxRedirects: 0});
+        expect(response.status(), path).toBe(308);
+        expect(new URL(response.headers()['location'], 'http://localhost').pathname, path).toBe(hyphenated);
+        expect(response.headers()['location'], path).toMatch(/\?state=this-state-must-survive$/);
+        // The hyphenated path is the template's page.
+        const page = await request.get(hyphenated, {maxRedirects: 0});
+        expect(page.status(), hyphenated).toBe(200);
+        expect(await page.text(), hyphenated).toContain(`<title>${title}`);
+      }
     });
 
     test('returns 404 with "This page could not be found" when the request has a template path that does not exist', async ({request}) => {
@@ -57,6 +68,31 @@ test.describe('routes', () => {
   });
 
   /**
+   * The template pages and /rank are built ahead, so a CDN serves them as they are; an address
+   * with a list in its link renders on request, for the list's title and link preview
+   * (lib/rankRoute.ts).
+   */
+  test.describe('built pages', () => {
+    test('returns a Cache-Control without no-store or private when the request has /rank or a template path', async ({request}) => {
+      for (const path of ['/rank', '/rank/overwatch/tank', '/rank/the-finals/all']) {
+        const response = await request.get(path, {maxRedirects: 0});
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['cache-control'], path).not.toMatch(/no-store|private/);
+      }
+    });
+
+    test('returns the list title and a Cache-Control with no-store when the request has a state parameter', async ({request}) => {
+      const state = rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks by feel');
+      for (const path of ['/rank', '/rank/overwatch/tank']) {
+        const response = await request.get(`${path}?state=${state}`, {maxRedirects: 0});
+        expect(response.status(), path).toBe(200);
+        expect(response.headers()['cache-control'], path).toMatch(/no-store/);
+        expect(await response.text(), path).toContain('<title>Tanks by feel</title>');
+      }
+    });
+  });
+
+  /**
    * The tier list page as search engines and chat apps fetch it. These tests call the page
    * directly, so they run once and need no browser.
    */
@@ -68,13 +104,15 @@ test.describe('routes', () => {
       const link = lzWithRun('{"tiers":[{"i":"tier-s","n":"S","t":[]},{"i":"uncategorized","n":"","t":[]}],"title":"{run}"}', 'x', title.length).input;
       expect(link.length).toBeLessThan(3_000);
 
-      // The time bound is generous on purpose: CI runners and the agents' sandbox can be slow and
-      // busy. It still catches a page that takes many seconds to build a 9 MB response.
+      // A speed budget, one of the few named times in the tests (tests/README.md). It is generous
+      // on purpose: CI runners and the agents' sandbox can be slow and busy. It still catches a
+      // page that takes many seconds to build a 9 MB response.
+      const PAGE_BUDGET_MS = 15_000;
       const started = Date.now();
-      const response = await request.get(`/rank/overwatch/tank?state=${link}`, {timeout: 15_000});
+      const response = await request.get(`/rank/overwatch/tank?state=${link}`);
       expect(response.status()).toBe(200);
       const html = await response.text();
-      expect(Date.now() - started).toBeLessThan(15_000);
+      expect(Date.now() - started, `the page should arrive within ${PAGE_BUDGET_MS} ms`).toBeLessThan(PAGE_BUDGET_MS);
 
       const short = `${'x'.repeat(99)}…`;
       expect(html).toContain(`<title>${short}</title>`);

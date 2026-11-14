@@ -1,55 +1,21 @@
-import imagesetConfig from "@/imageset.config.json";
-import {ItemSet} from "@/models/ItemSet";
-import ImageSetConfig from "@/models/ImageSet";
-import dynamic from "next/dynamic";
-import {Metadata, ResolvingMetadata} from "next";
+import {Metadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
-import {findRankSet, findRankTag} from "@/lib/rankRoute";
 import {permanentRedirect} from "next/navigation";
-import {createTierCortex} from "@/lib/TierCortex";
 import {visibleImageSets} from "@/lib/imageSets";
-import {gameColourKey} from "@/lib/appearance";
-import {GameColours} from "@/components/GameColours";
-import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
-import {Skeleton} from "@/components/ui/skeleton";
+import {PageStarted} from "@/components/StartHold";
+import {rankMetadata} from "@/app/rank/rankMetadata";
 
-const typedImageSetConfig = imagesetConfig as ImageSetConfig;
-const TierListManager = dynamic(
-  () => import('@/components/TierListManager'),
-  {
-    loading: () => (
-      <div className="space-y-4 w-full flex flex-col items-center">
-        {/* Title */}
-        <Skeleton className="h-12 w-48"/>
-
-        {/* Buttons */}
-        <div className="flex space-x-2">
-          <Skeleton className="h-10 w-10"/>
-          <Skeleton className="h-10 w-10"/>
-          <Skeleton className="h-10 w-10"/>
-        </div>
-
-        {/* Help Text */}
-        <div className="flex flex-col space-y-1 items-center">
-          <Skeleton className="h-4 w-16"/>
-          <Skeleton className="h-4 w-28"/>
-        </div>
-
-        {/* Tier List */}
-        <Skeleton className="h-12 w-1/2"/>
-        <Skeleton className="h-12 w-1/2"/>
-        <Skeleton className="h-12 w-1/2"/>
-        <Skeleton className="h-12 w-1/2"/>
-        <Skeleton className="h-12 w-1/2"/>
-        <Skeleton className="h-12 w-1/2"/>
-      </div>
-    ),
-  }
-);
+/**
+ * The template pages (/rank/<set>/<tag>) and the blank /rank, without a list in the link. Built
+ * once, so the CDN serves them: nothing here reads the address's query. The editor itself sits in
+ * app/rank/layout.tsx and reads the template from the path. An address with a list in its link
+ * (`?state=`) never reaches this route: the proxy rewrites it to app/rank/~list (lib/rankRoute.ts).
+ */
+export const dynamic = 'force-static';
 
 export async function generateStaticParams() {
-  const params: { slug: string[] }[] = [];
-  // Legacy sets are left out here. Their pages still render on request (getItemSetData).
+  const params: { slug: string[] }[] = [{slug: []}];
+  // Legacy sets are left out here. Their pages still render on request, once, and are kept.
   visibleImageSets().forEach(([packageName, packageData]) => {
     const displayNameSlug = slugify(packageData.displayName);
     // Generate params for both packageName and displayName
@@ -64,157 +30,24 @@ export async function generateStaticParams() {
   return params;
 }
 
-async function getItemSetData(nameOrPackage: string, tagSlug: string | undefined): Promise<ItemSet | null> {
-  const set = findRankSet(typedImageSetConfig, nameOrPackage);
-  if (!set || tagSlug === undefined) return null;
-  const {packageName, packageData} = set;
-
-  // The tag the slug names: the exact tag or its URL form (lib/rankRoute.ts).
-  const originalTag = findRankTag(packageData, tagSlug);
-  if (!originalTag) return null;
-
-  const images = originalTag === 'all'
-    ? packageData.images.map((img) => img.filename)
-    : packageData.images.filter(image => image.tags.includes(originalTag)).map(img => img.filename);
-
-  return {
-    packageName,
-    packageDisplayName: packageData.displayName,
-    tagName: originalTag,
-    tagTitle: originalTag === 'all' ? 'All Items' : packageData.tags[originalTag].title,
-    images
-  };
-}
-
-
 type Props = {
   params: Promise<{ slug?: string[] }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export async function generateMetadata(props: Props, parent: ResolvingMetadata): Promise<Metadata> {
-  const searchParams = await props.searchParams;
+export async function generateMetadata(props: Props): Promise<Metadata> {
   const params = await props.params;
-  const [nameOrPackage, tagName] = params.slug || [];
-  const itemSet = nameOrPackage && tagName ? await getItemSetData(nameOrPackage, tagName) : null;
-
-  let title = itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
-  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
-
-  // Decode the state and extract the title if available
-  if (initialState) {
-    const tierCortex = createTierCortex();
-    const decodedState = tierCortex.decodeTierStateFromURL(initialState);
-    if (decodedState && decodedState.title) {
-      title = decodedState.title;
-    }
-  }
-  // The title repeats in <title>, og:title, twitter:title and the JSON-LD, so a long one is
-  // shortened (A43). The editor itself still shows the whole title.
-  title = shorten(title, MAX_TITLE_LENGTH);
-
-  // Generate the OG image URL
-  let ogImageUrl = '/api/og';
-  if (initialState) {
-    ogImageUrl += `?state=${encodeURIComponent(initialState)}`;
-  }
-
-  let baseUrl = 'https://opentierboy.com';
-
-  // If VERCEL_PROJECT_PRODUCTION_URL is defined and valid, prepend it to the ogImageUrl
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    try {
-      baseUrl = new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`).toString().replace(/\/$/, '');
-      ogImageUrl = `${baseUrl}${ogImageUrl}`;
-    } catch (error) {
-      console.warn('Invalid VERCEL_PROJECT_PRODUCTION_URL, using relative path for OG image');
-    }
-  }
-
-  const structuredData = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    name: title,
-    description: `Create and share tier lists for ${itemSet?.packageDisplayName || 'various topics'}`,
-    image: ogImageUrl,
-  };
-
-  const canonicalPath = params.slug ? `/${params.slug.join('/')}` : '';
-  const canonicalUrl = `${baseUrl}${canonicalPath}`;
-
-  return {
-    title,
-    openGraph: {
-      title,
-      images: [ogImageUrl],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      images: [ogImageUrl],
-    },
-    other: {
-      'application-name': 'OpenTierBoy',
-    },
-    alternates: {
-      canonical: canonicalUrl,
-      types: {
-        'application/ld+json': JSON.stringify(structuredData),
-      },
-    },
-  }
+  return rankMetadata(params.slug, undefined);
 }
 
-export default async function TierListPage(
-  props: {
-    params: Promise<{ slug?: string[] }>,
-    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-  }
-) {
-  const searchParams = await props.searchParams;
+export default async function TemplatePage(props: Props) {
   const params = await props.params;
   const [nameOrPackage, tagSlug] = params.slug || [];
-  const initialState = typeof searchParams.state === 'string' ? searchParams.state : undefined;
 
-  // If no slug is provided, render an empty tier list, or the list of its link. The editor
-  // starts with the link, so the link's label settings apply (opened fresh, A3).
-  if (!nameOrPackage) {
-    return (
-      <div className="flex flex-col items-center justify-center">
-        <TierListManager
-          initialItemSet={undefined}
-          initialState={initialState}
-          title="Custom Tier List"
-        />
-      </div>
-    );
-  }
-
-  // Only normalize and redirect if both nameOrPackage and tagSlug are present. proxy.ts answers
-  // these paths with a 308 before the page renders; this is the fallback.
+  // proxy.ts answers an old tag path with a 308 before the page renders; this is the fallback.
   if (nameOrPackage && tagSlug) {
     const normalizedTagSlug = createSEOFriendlyTagSlug(tagSlug);
-    if (normalizedTagSlug !== tagSlug) {
-      const searchParamsString = new URLSearchParams(searchParams as Record<string, string>).toString();
-      const redirectUrl = `/rank/${nameOrPackage}/${normalizedTagSlug}${searchParamsString ? `?${searchParamsString}` : ''}`;
-      permanentRedirect(redirectUrl);
-    }
+    if (normalizedTagSlug !== tagSlug) permanentRedirect(`/rank/${nameOrPackage}/${normalizedTagSlug}`);
   }
 
-  const itemSet = await getItemSetData(nameOrPackage, tagSlug);
-
-  const title = itemSet
-    ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}`
-    : 'Custom Tier List';
-
-  return (
-    <div className="flex flex-col items-center justify-center">
-      <GameColours gameKey={gameColourKey(itemSet?.packageName)}/>
-      <TierListManager
-        initialItemSet={itemSet ?? undefined}
-        initialState={initialState}
-        title={title}
-      />
-    </div>
-  );
+  return <PageStarted/>;
 }

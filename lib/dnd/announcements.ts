@@ -5,7 +5,7 @@ import type {ItemPosition, TierLike} from './model';
 
 /**
  * What screen readers hear while someone drags with the keyboard (or a pointer). The texts
- * name rows by their labels ("tier S", "Unranked", "Tier 3") and items by their labels,
+ * name rows by their labels ("row S", "Unranked", "Row 3") and items by their labels,
  * never by internal ids. Positions count from 1.
  *
  * `tiers` is always the list as it was when the drag started: the list itself changes only
@@ -15,7 +15,7 @@ import type {ItemPosition, TierLike} from './model';
 
 /** Read once when a draggable gets focus (aria-describedby). */
 export const SCREEN_READER_INSTRUCTIONS =
-  'To pick up an item or a row, press Space or Enter. Use the arrow keys to move it. ' +
+  'To pick up an item, a row or the items of a row, press Space or Enter. Use the arrow keys to move it. ' +
   'Press Space or Enter again to drop it, or press Escape to cancel.';
 
 /** The moments of a drag that get an announcement. */
@@ -58,33 +58,82 @@ export function itemAnnouncement(
   return unchanged ? `Dropped ${name}. It stays in ${start}.` : `Dropped ${name} in ${target}.`;
 }
 
+/** The first letter in upper case, for a row phrase at the start of a sentence ("row S" → "Row S"). */
+function capitalised(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** True when `index` is a ranked row of the list (not Unranked, the last row, which never moves). */
+function isRankedRow(tiers: readonly TierLike[], index: number | null | undefined): index is number {
+  return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < tiers.length - 1;
+}
+
 /**
- * The announcement for a row drag (by its handle). Labels stay in place (product rule 6), so
- * the texts say where the row's items go, named by the label of the target position.
+ * The announcement for a whole row moved by its grip: the row moves with its name and items
+ * (owner decision, 2026-11-14). `tiers` is the list from the start of the drag, `preview` the
+ * list as the drag shows it (for 'over', the row next to it). Positions count the ranked rows:
+ * Unranked never moves.
  */
 export function rowAnnouncement(
   phase: DragPhase,
   tiers: readonly TierLike[],
   from: number,
   to?: number | null,
+  preview: readonly TierLike[] = tiers,
 ): string | undefined {
-  const count = tiers.length;
-  if (!Number.isInteger(from) || from < 0 || from >= count) return undefined;
-  const start = tierPhrase(tiers, from);
+  if (!isRankedRow(tiers, from)) return undefined;
+  const count = tiers.length - 1;
+  const row = tierPhrase(tiers, from);
+  const at = (index: number) => `position ${index + 1} of ${count}`;
 
-  if (phase === 'start') return `Picked up the items of ${start}, row ${from + 1} of ${count}. The tier labels stay in place.`;
-  if (phase === 'cancel') return `Move cancelled. The items stay in ${start}.`;
+  if (phase === 'start') return `Picked up ${row}, with its name and items. ${capitalised(at(from))}.`;
+  if (phase === 'cancel') return `Move cancelled. ${capitalised(row)} is back at ${at(from)}.`;
 
-  if (to === undefined || to === null || !Number.isInteger(to) || to < 0 || to >= count) return undefined;
-  const target = tierPhrase(tiers, to);
+  if (!isRankedRow(tiers, to)) return undefined;
   if (phase === 'over') {
-    return to === from ? `The items of ${start} stay in place.` : `The items of ${start} move to ${target}, row ${to + 1} of ${count}.`;
+    const next = to > 0 ? `, below ${tierPhrase(preview, to - 1)}` : count > 1 ? `, above ${tierPhrase(preview, 1)}` : '';
+    return `${capitalised(row)}, ${at(to)}${next}.`;
   }
-  return to === from ? `Dropped. The items stay in ${start}.` : `Dropped. The items of ${start} are now in ${target}.`;
+  return to === from ? `Dropped ${row}. It stays at ${at(from)}.` : `Dropped ${row} at ${at(to)}.`;
+}
+
+/** "the 3 items", "the 1 item": how a row's items are counted in a sentence. */
+export function itemsCount(count: number): string {
+  return `the ${count} item${count === 1 ? '' : 's'}`;
 }
 
 /**
- * The announcement for a drag by the dnd-kit id of what is dragged (an item or a row), or
+ * The announcement for the items of a row moved by its stack. The labels stay in place
+ * (product rule 6): the texts say where the items go, named by the label of the target position,
+ * and whose items take their place. `tiers` is the list from the start of the drag.
+ */
+export function rowItemsAnnouncement(
+  phase: DragPhase,
+  tiers: readonly TierLike[],
+  from: number,
+  to?: number | null,
+): string | undefined {
+  if (!isRankedRow(tiers, from)) return undefined;
+  const items = itemsCount(tiers[from].items.length);
+  const start = tierPhrase(tiers, from);
+
+  if (phase === 'start') return `Picked up ${items} of ${start}.`;
+  if (phase === 'cancel') return `Move cancelled. ${capitalised(items)} stay in ${start}.`;
+
+  if (!isRankedRow(tiers, to)) return undefined;
+  const target = tierPhrase(tiers, to);
+  if (phase === 'over') return to === from ? `${capitalised(items)}, back in ${start}.` : `${capitalised(items)}, over ${target}.`;
+  if (to === from) return `Dropped. ${capitalised(items)} stay in ${start}.`;
+  // The rows between move one place towards the start: one row when the two are neighbours.
+  const shifted = Math.abs(to - from) === 1
+    ? `${capitalised(target)}'s items are now in ${start}.`
+    : `The items of ${tierPhrase(tiers, Math.min(from, to) + (to > from ? 1 : 0))} to ${tierPhrase(tiers, Math.max(from, to) - (to > from ? 0 : 1))} move ${to > from ? 'up' : 'down'} one row.`;
+  return `Dropped ${items} in ${target}. ${shifted}`;
+}
+
+/**
+ * The announcement for a drag by the dnd-kit id of what is dragged (an item, a row or a row's
+ * stack), or
  * undefined. `tiers` is the list from the start of the drag; `preview` is the list as the
  * drag shows it now (lib/dnd/preview.ts), so 'over' and 'drop' name the position after the
  * move, as the screen shows it.
@@ -101,11 +150,12 @@ export function previewAnnouncement(
     if (!from) return undefined;
     return itemAnnouncement(phase, tiers, parsed.id, from, findItem(preview, parsed.id));
   }
-  if (parsed?.kind === 'row') {
+  if (parsed?.kind === 'row' || parsed?.kind === 'stack') {
     const from = tiers.findIndex(tier => tier.id === parsed.id);
     if (from < 0) return undefined;
-    const to = preview.findIndex(tier => tier.id === parsed.id);
-    return rowAnnouncement(phase, tiers, from, to < 0 ? null : to);
+    const found = preview.findIndex(tier => tier.id === parsed.id);
+    const to = found < 0 ? null : found;
+    return parsed.kind === 'row' ? rowAnnouncement(phase, tiers, from, to, preview) : rowItemsAnnouncement(phase, tiers, from, to);
   }
   return undefined;
 }

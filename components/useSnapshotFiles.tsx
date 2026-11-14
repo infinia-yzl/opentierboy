@@ -2,7 +2,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +18,7 @@ import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImages
 import {useAddItemsWithUndo, useLinkImageItems} from '@/components/useAddItems';
 import {zenModeIsOn} from '@/components/usePageState';
 import {recordRecentLink} from '@/components/useRecentLinks';
+import {listAddressWritten} from '@/components/useListSteps';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
 import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/imageCheck';
@@ -39,7 +40,10 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
+import {isLinkToAnotherPage} from '@/lib/leavingLink';
 import {stateParam} from '@/lib/tierListReducer';
+import {pageBusy} from '@/lib/busy';
+import {useBusyWhile} from '@/components/useBusy';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';
@@ -115,9 +119,10 @@ export interface UseSnapshotFiles {
   /**
    * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
    * asks whether to open the list; pictures become items; other files show a message. Files wait
-   * their turn, each until the previous add is in the address. Files that wait while a list is
-   * being asked about or opened, or across Back or Forward, are not added ("Files not added");
-   * when the visitor leaves the editor, waiting files are dropped quietly.
+   * their turn, each until the previous add is on screen and in the address. Files that wait
+   * while a list is being asked about or opened, or across Back or Forward, are not added
+   * ("Files not added"). When the visitor leaves the editor (a click on a link to another page),
+   * files that wait or arrive are dropped quietly.
    */
   openFiles: (files: File[]) => void;
   /**
@@ -136,21 +141,25 @@ export interface UseSnapshotFiles {
  *
  * Opening a snapshot asks first. Then its images are drawn again (A10) and stored in the device
  * store under content-addressed ids (the list's `{d}` items follow), and the editor goes to the
- * list with one router.push: the list on screen before stays one Back step away. The dialog
- * stays open ("Opening the list…") until the list is in the address. Opening the same file again
- * stores nothing new, and when the address already shows the list nothing changes.
+ * list with one new history entry: the list on screen before stays one Back step away. A list of
+ * this page opens in place (history.pushState, no request); a list of another template path is
+ * another page (router.push). The dialog stays open ("Opening the list…") until the router shows
+ * the list. Opening the same file again stores nothing new, and when the address already shows
+ * the list nothing changes.
  */
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
   const pathname = usePathname();
   const address = stateParam(useSearchParams().get('state'));
-  const {tiers, writing} = useTierContext();
+  const {tiers} = useTierContext();
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const linkImageItems = useLinkImageItems();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the list is in the address (or the opening ends otherwise). */
   const [opening, setOpening] = useState(false);
+  // The page is busy while a list opens: its pictures are stored, then its link is written.
+  useBusyWhile(opening);
   /** Where the opening list goes, and the address it leaves. */
   const target = useRef<{path: string; state: string; from: string; title: string} | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -160,7 +169,11 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const queue = useRef<Promise<void>>(Promise.resolve());
   /** False once the editor has closed: waiting files are dropped, quietly. */
   const alive = useRef(true);
-  /** True once a link to another page was clicked: waiting files are dropped, quietly. */
+  /**
+   * True from a click on a link to another page until the next click or key in the editor:
+   * waiting and new files are dropped, quietly. Adding one would write the address, and Next.js
+   * drops a navigation still loading when the address changes: it would keep the visitor here.
+   */
   const leaving = useRef(false);
   /** Counts Back and Forward: files that waited across one are dropped. */
   const historyMoves = useRef(0);
@@ -174,20 +187,21 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       historyMoves.current += 1;
     };
     window.addEventListener('popstate', onHistoryMove);
-    // A click on a link to another page starts a navigation that the next add would cancel
-    // (Next.js drops a navigation still loading when another starts): stop adding.
-    const onLinkClick = (event: MouseEvent) => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
-      const url = new URL(link.href, window.location.href);
-      if (url.origin === window.location.origin && url.pathname !== window.location.pathname) leaving.current = true;
+    // A click on a link to another page starts a navigation that the next add would cancel:
+    // stop adding. Another click or a key in the editor means the visitor stays.
+    const onClick = (event: MouseEvent) => {
+      leaving.current = isLinkToAnotherPage(event, window.location);
     };
-    document.addEventListener('click', onLinkClick, true);
+    const onKey = () => {
+      leaving.current = false;
+    };
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKey, true);
     return () => {
       alive.current = false;
       window.removeEventListener('popstate', onHistoryMove);
-      document.removeEventListener('click', onLinkClick, true);
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKey, true);
     };
   }, []);
 
@@ -209,29 +223,28 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     });
   }, []);
 
-  // The handlers below run after awaits: read the latest list, address and helpers through refs.
-  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address});
+  // The handlers below run after awaits: read the latest list, path and helpers through refs.
+  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname});
   useEffect(() => {
-    latest.current = {tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address};
-  }, [tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address]);
+    latest.current = {tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname};
+  }, [tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname]);
 
-  /** Callers waiting until the address shows the list on screen. */
+  /** Callers waiting for the next render. */
   const waiters = useRef<(() => void)[]>([]);
   const [waitTick, setWaitTick] = useState(0);
   useEffect(() => {
-    if (writing || waiters.current.length === 0) return;
     waiters.current.splice(0).forEach((resolve) => resolve());
-  }, [writing, waitTick]);
+  }, [waitTick]);
   useEffect(() => () => {
-    // The editor closed: nothing waits for its address any more.
+    // The editor closed: nothing waits for it any more.
     waiters.current.splice(0).forEach((resolve) => resolve());
   }, []);
   /**
-   * Resolves once the address shows the list on screen, with every change made before the call
-   * (TierContext's `writing` is false again). The tick makes a render after those changes, so the
-   * effect above sees them.
+   * Resolves once the page has rendered every change made before the call: the list on screen
+   * and in the address (TierContext writes each change in its commit), and `latest` above. The
+   * tick makes that render. The next file then reads the list with this add in it.
    */
-  const untilWritten = useCallback(() => new Promise<void>((resolve) => {
+  const untilRendered = useCallback(() => new Promise<void>((resolve) => {
     waiters.current.push(resolve);
     setWaitTick((tick) => tick + 1);
   }), []);
@@ -254,23 +267,23 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
     if (items.length === 0) return;
     // The list may have changed while the images were stored: add them to the latest one.
+    // Each add is its own change, so its own Back step (product rule 2), however many files wait.
     latest.current.addItemsWithUndo(items);
-    // The next file waits until this change is in the address: each add is its own Back step
-    // (product rule 2), however many files wait.
-    await untilWritten();
-  }, [untilWritten, notAdded, gone]);
+    // The next file waits until this add is on screen, so its labels are taken.
+    await untilRendered();
+  }, [untilRendered, notAdded, gone]);
 
   const openFiles = useCallback((files: File[]) => {
-    if (files.length === 0 || !alive.current) return;
-    // New files: the visitor stays (a click on a link that went nowhere).
-    leaving.current = false;
+    if (files.length === 0 || gone()) return;
     if (busy.current) {
       notAdded(files, 'list');
       return;
     }
     // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
+    // The page is busy from now until these files are done (lib/busy.ts).
     const moves = historyMoves.current;
-    const run = queue.current.then(() => openNow(files));
+    const done = pageBusy.begin();
+    const run = queue.current.then(() => openNow(files)).finally(done);
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
@@ -323,15 +336,15 @@ export function useSnapshotFiles(): UseSnapshotFiles {
    * images of one drop or paste are one change: one Back step.
    */
   const openLinks = useCallback((found: FoundLinkImages) => {
-    if (!alive.current || found.accepted.length === 0) return;
+    if (gone() || found.accepted.length === 0) return;
     const names = found.accepted.map((link) => linkImageLabel(link.url, link.displayDomain));
-    leaving.current = false;
     if (busy.current) {
       notAdded(names, 'list');
       return;
     }
     const moves = historyMoves.current;
-    const run = queue.current.then(() => addLinksNow());
+    const done = pageBusy.begin();
+    const run = queue.current.then(() => addLinksNow()).finally(done);
     queue.current = run.catch(() => undefined);
 
     async function addLinksNow() {
@@ -368,9 +381,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         });
       }
       latest.current.addItemsWithUndo(latest.current.linkImageItems(images));
-      await untilWritten();
+      await untilRendered();
     }
-  }, [untilWritten, notAdded, gone]);
+  }, [untilRendered, notAdded, gone]);
 
   /** Ends the opening: the dialog closes, and files are handled again. */
   const finishOpening = useCallback(() => {
@@ -381,9 +394,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   }, []);
 
   /**
-   * Opens a snapshot's list. The dialog stays open, saying "Opening the list…", until the address
-   * shows the list: nothing can change the list meanwhile, so no later change replaces the
-   * navigation (Next.js drops a navigation still loading when another starts).
+   * Opens a snapshot's list. The dialog stays open, saying "Opening the list…", until the router
+   * shows the list: nothing can change the list meanwhile, so no change comes between the list
+   * before and the list of the file, and no change cancels a navigation to another page (Next.js
+   * drops a navigation still loading when the address changes).
    */
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     setOpening(true);
@@ -406,30 +420,37 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         return;
       }
       if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-      // A change made just before Open list may still be on its way to the address: a push now
-      // would cancel it.
-      await untilWritten();
-      if (abandoned()) return;
-      const here = latest.current;
+      const {pathname: here} = latest.current;
+      // The browser's address: the router may not show the editor's latest change yet.
+      const address = stateParam(new URLSearchParams(window.location.search).get('state'));
       const title = snapshot.list.title ?? '';
-      if (here.pathname === snapshot.path && here.address === state) {
+      if (here === snapshot.path && address === state) {
         // The address shows this list already: opening it again changes nothing.
         recordRecentLink({path: snapshot.path, state, title});
         finishOpening();
         return;
       }
-      target.current = {path: snapshot.path, state, from: `${here.pathname}?state=${here.address}`, title};
-      router.push(`${snapshot.path}?state=${state}`);
+      target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
+      const href = `${snapshot.path}?state=${state}`;
+      if (snapshot.path === here) {
+        // A list of this page opens in place: one new history entry, with no request. The editor
+        // loads it when the router shows it (contexts/TierContext.tsx).
+        window.history.pushState(null, '', href);
+        listAddressWritten('push');
+      } else {
+        // A list of another template path is another page.
+        router.push(href);
+      }
     } catch {
       if (!alive.current) return;
       toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.damaged});
       finishOpening();
     }
-  }, [importDeviceImages, router, untilWritten, finishOpening]);
+  }, [importDeviceImages, router, finishOpening]);
 
   // The opening ends when the address shows the list: Recently viewed records it then (on
   // another editor page, the new editor records it as a list opened fresh). It also ends when
-  // another address replaces the one it left (Back or Forward during the round trip).
+  // another address replaces the one it left (Back or Forward before the router showed it).
   useEffect(() => {
     const opened = target.current;
     if (!opened) return;

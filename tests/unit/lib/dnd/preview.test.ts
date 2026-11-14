@@ -4,9 +4,10 @@ import {
   moveRowInPreview,
   previewItemOver,
   previewRowOver,
+  previewStackOver,
   rowMoveFromPreview,
 } from '@/lib/dnd/preview';
-import {moveItem, reorderRows} from '@/lib/dnd/moves';
+import {moveItem, moveRow, reorderRows} from '@/lib/dnd/moves';
 
 const item = (id: string) => ({id, content: id.toUpperCase()});
 const tiers = [
@@ -87,6 +88,22 @@ describe('previewRowOver', () => {
   });
 });
 
+describe('previewStackOver', () => {
+  it('returns the items moved and the labels in place when a stack is over another row', () => {
+    const preview = previewStackOver(tiers, 'tier-s', 'tier-b');
+    expect(preview.map(tier => tier.name)).toEqual(['S', 'A', 'B', '']);
+    expect(ids(preview)).toEqual(['tier-a:d', 'tier-b:', 'tier-s:abc', 'uncategorized:ef']);
+    // Over its own row again: nothing changes, so the preview settles.
+    expect(previewStackOver(preview, 'tier-s', 'tier-s')).toBe(preview);
+  });
+
+  it('returns the same array when the stack is over Unranked or an unknown id', () => {
+    expect(previewStackOver(tiers, 'tier-s', 'uncategorized')).toBe(tiers);
+    expect(previewStackOver(tiers, 'tier-s', 'nope')).toBe(tiers);
+    expect(previewStackOver(tiers, 'nope', 'tier-a')).toBe(tiers);
+  });
+});
+
 describe('itemMoveFromPreview and rowMoveFromPreview', () => {
   it('returns a move whose moveItem result equals the preview when an item preview changed', () => {
     const preview = previewItemOver(previewItemOver(tiers, 'e', {kind: 'tier', tierId: 'tier-b'}), 'e', {kind: 'item', itemId: 'd', after: false});
@@ -95,13 +112,20 @@ describe('itemMoveFromPreview and rowMoveFromPreview', () => {
     expect(ids(moveItem(tiers, move!.from, move!.to))).toEqual(ids(preview));
   });
 
-  it('returns a row move whose reorderRows result equals the preview, labels in place, when a row moved', () => {
-    const preview = previewRowOver(tiers, 'tier-s', 'tier-a');
+  it('returns a row move whose moveRow result equals the preview, name included, when a row moved by its grip', () => {
+    const preview = previewRowOver(previewRowOver(tiers, 'tier-s', 'tier-a'), 'tier-s', 'tier-b');
     const move = rowMoveFromPreview(tiers, preview, 'tier-s');
-    expect(move).toEqual({from: 0, to: 1});
+    expect(move).toEqual({from: 0, to: 2});
+    expect(moveRow(tiers, move!.from, move!.to)).toEqual(preview);
+  });
+
+  it('returns a row move whose reorderRows result equals the preview, labels in place, when a stack moved', () => {
+    const preview = previewStackOver(previewStackOver(tiers, 'tier-s', 'tier-a'), 'tier-s', 'tier-b');
+    const move = rowMoveFromPreview(tiers, preview, 'tier-s');
+    expect(move).toEqual({from: 0, to: 2});
     const dropped = reorderRows(tiers, move!.from, move!.to);
     expect(dropped.map(tier => tier.name)).toEqual(['S', 'A', 'B', '']);
-    expect(ids(dropped)).toEqual(ids(preview));
+    expect(dropped).toEqual(preview);
   });
 
   it('returns null when the preview ends where the drag started or the id is unknown', () => {

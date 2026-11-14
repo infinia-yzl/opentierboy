@@ -15,19 +15,102 @@ export interface ImageSiteOptions {
   status?: number;
 }
 
+/** The answers of an image site that a test holds (ImageSite.hold). */
+export interface HeldImageSite {
+  /** True while a request waits for its answer. */
+  readonly isHolding: () => boolean;
+  /**
+   * Answers every waiting request, with the site's usual answer or with `answer` in its place
+   * (for example `NOT_A_PICTURE`), and stops holding: later requests get the usual answer at once.
+   */
+  readonly release: (answer?: ImageSiteOptions) => Promise<void>;
+}
+
+/** An image site that serveImageSite plays. */
+export interface ImageSite {
+  /** The requested addresses (the network log for that site), in the order the page sent them. */
+  readonly requests: string[];
+  /**
+   * Holds the site's answers until `release`, as a slow site does: to every request, or only to
+   * the requests for `addresses`. A new hold takes the requests that come after it; the requests
+   * an earlier hold took wait for that hold's release.
+   */
+  readonly hold: (addresses?: readonly string[]) => HeldImageSite;
+}
+
+/** An answer that is not a picture: a web page, as a site sends for an address it does not know. */
+export const NOT_A_PICTURE: ImageSiteOptions = {contentType: 'text/html', body: Buffer.from('<!doctype html><title>Not found</title>')};
+
+/** One hold of an image site's answers (ImageSite.hold). */
+interface Hold {
+  readonly takes: (url: string) => boolean;
+  /** Waits for the release, then answers the request with its answer. */
+  readonly answerLater: (answer: (released: ImageSiteOptions) => Promise<void>) => Promise<void>;
+  readonly held: HeldImageSite;
+}
+
+function createHold(addresses?: readonly string[]): Hold {
+  let open!: (answer: ImageSiteOptions) => void;
+  const released = new Promise<ImageSiteOptions>((resolve) => {
+    open = resolve;
+  });
+  let isReleased = false;
+  let waiting = 0;
+  const answered: Promise<void>[] = [];
+  return {
+    takes: (url) => !isReleased && (addresses === undefined || addresses.includes(url)),
+    answerLater: (answer) => {
+      waiting += 1;
+      const done = released.then(async (answerInPlace) => {
+        await answer(answerInPlace);
+        waiting -= 1;
+      });
+      answered.push(done);
+      return done;
+    },
+    held: {
+      isHolding: () => !isReleased && waiting > 0,
+      release: async (answer = {}) => {
+        isReleased = true;
+        open(answer);
+        await Promise.all(answered);
+      },
+    },
+  };
+}
+
 /**
  * Plays an image site in the browser: every request to https://<host>/... gets the image.
  * The tests cannot reach the real sites. Returns the list of requested addresses (the
- * network log for that site), which grows as the page requests images.
+ * network log for that site), which grows as the page requests images, and `hold`, which
+ * holds the site's answers until the test releases them.
  */
-export async function serveImageSite(target: Page | BrowserContext, host: string, options: ImageSiteOptions = {}) {
-  const {cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200} = options;
+export async function serveImageSite(target: Page | BrowserContext, host: string, options: ImageSiteOptions = {}): Promise<ImageSite> {
+  const fulfilment = ({cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200}: ImageSiteOptions) => {
+    const headers: Record<string, string> = cors ? {'access-control-allow-origin': '*'} : {};
+    return {status, contentType, body, headers};
+  };
   const requests: string[] = [];
+  let current: Hold | null = null;
   await target.route(`https://${host}/**`, async (route) => {
-    requests.push(route.request().url());
-    await route.fulfill({status, contentType, body, headers: cors ? {'access-control-allow-origin': '*'} : {}});
+    const url = route.request().url();
+    requests.push(url);
+    const hold = current?.takes(url) ? current : null;
+    if (!hold) {
+      await route.fulfill(fulfilment(options));
+      return;
+    }
+    // The page may have dropped the request meanwhile (it left): nothing to answer then.
+    await hold.answerLater((answer) => route.fulfill(fulfilment({...options, ...answer})).catch(() => undefined));
   });
-  return {requests};
+  return {
+    requests,
+    hold: (addresses) => {
+      const hold = createHold(addresses);
+      current = hold;
+      return hold.held;
+    },
+  };
 }
 
 /** A file to upload or paste, made from bytes. */

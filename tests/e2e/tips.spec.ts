@@ -1,11 +1,20 @@
 /** The one-time tips for first-time visitors (components/EditorTips.tsx, lib/tips/tips.ts). */
+import type {Locator, Page, TestInfo} from '@playwright/test';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
 import {imageFile} from '../support/image-sites';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {type TierListPage} from '../pages/tier-list-page';
+import type {SitePage} from '../pages/site-page';
+import {TIP_IDS, tipsModel, tipsViewOf, type TipsEvent, type TipsSnapshot, type TipsView} from '../models/tips';
+import {sharedListViewOf, tipsSharedListModel, type TipsSharedListEvent, type TipsSharedListSnapshot} from '../models/tips-shared-list';
 import {
+  closeTipToastAndLetItLeave,
   FIRST_DRAG_KEYBOARD,
   FIRST_DRAG_MOUSE,
   FIRST_DRAG_TOUCH,
+  hideTipsAndLetToastLeave,
   LINK_SAVE_TITLE,
   Tips,
 } from '../pages/tips';
@@ -44,12 +53,12 @@ test.describe('tips', () => {
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await expect(tips.firstDrag).toBeHidden();
       await expect(tierList.hints).toBeVisible();
 
       await tierList.reload();
-      await tierList.dragItemToTier('Mauga', 'Unranked');
+      await tierList.drag.dragItemToTier('Mauga', 'Unranked');
       await expect(tierList.hints).toBeVisible();
       await expect(tips.firstDrag).toBeHidden();
     });
@@ -72,7 +81,7 @@ test.describe('tips', () => {
       await tips.hideTips();
       expect(await tips.stored()).toEqual({seen: [], off: true});
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await tierList.reload();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tips.all).toHaveCount(0);
@@ -83,9 +92,9 @@ test.describe('tips', () => {
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
 
-      await tierList.setZenMode(true);
+      await tierList.zen.setZenMode(true);
       await expect(tips.firstDrag).toBeHidden();
-      await tierList.setZenMode(false);
+      await tierList.zen.setZenMode(false);
       await expect(tips.firstDrag).toBeVisible();
     });
 
@@ -93,16 +102,16 @@ test.describe('tips', () => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
-      await tierList.capturePreview();
-      const withTip = await tierList.capturedImageDetails();
+      await tierList.share.capturePreview();
+      const withTip = await tierList.share.capturedImageDetails();
 
       const visitor = await openAsVisitor(TANKS, {beforeOpen: (context) => Tips.turnOffIn(context)});
       await expect(visitor.hints).toBeVisible();
-      await visitor.capturePreview();
-      const withoutTip = await visitor.capturedImageDetails();
+      await visitor.share.capturePreview();
+      const withoutTip = await visitor.share.capturedImageDetails();
 
-      expect({width: withTip.width, height: withTip.height, colors: withTip.distinctColors})
-        .toEqual({width: withoutTip.width, height: withoutTip.height, colors: withoutTip.distinctColors});
+      expect({width: withTip.width, height: withTip.height, pixels: withTip.pixelDigest})
+        .toEqual({width: withoutTip.width, height: withoutTip.height, pixels: withoutTip.pixelDigest});
       await expect(tips.firstDrag).toBeVisible();
     });
   });
@@ -114,7 +123,7 @@ test.describe('tips', () => {
       await expect(tips.firstDrag).toBeVisible();
       const plain = await tips.ringOf(tips.shareButton);
 
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
 
       await expect(tips.linkSaveToast).toContainText(LINK_SAVE_TITLE);
       await expect(tips.linkSaveToast).toContainText('Bookmark this page, or press Share to copy its link. Back undoes a change.');
@@ -128,23 +137,23 @@ test.describe('tips', () => {
     test('renders the share panel when the user presses Share in the toast', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
 
       await tips.linkSaveToast.getByRole('button', {name: 'Share', exact: true}).click();
 
-      await expect(tierList.sharePanel).toBeVisible();
+      await expect(tierList.share.sharePanel).toBeVisible();
       await expect(tips.linkSaveToast).toBeHidden();
     });
 
     test('writes link-save as seen and renders no second toast when the user makes a second change after closing it', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await tips.closeToast(tips.linkSaveToast);
       await expect.poll(() => tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
 
       await tierList.reload();
-      await tierList.dragItemToTier('Winston', 'A');
+      await tierList.drag.dragItemToTier('Winston', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
       await expect(tips.linkSaveToast).toHaveCount(0);
@@ -168,7 +177,7 @@ test.describe('tips', () => {
       await tierList.goto(TANKS, SHARED);
       await expect(tips.sharedList).toBeVisible();
 
-      await tierList.dragItemToTier('Winston', 'B');
+      await tierList.drag.dragItemToTier('Winston', 'B');
 
       await expect(tips.sharedList).toBeHidden();
       await expect(tips.linkSaveToast).toBeVisible();
@@ -203,7 +212,7 @@ test.describe('tips', () => {
       await expect(tierList.title).toHaveText('Tanks by a friend');
       await expect(tips.sharedList).toBeHidden();
       // A shared-list tip that showed would be seen, and the first change ends it.
-      await tierList.dragItemToTier('Winston', 'B');
+      await tierList.drag.dragItemToTier('Winston', 'B');
       await expect(tips.linkSaveToast).toBeVisible();
 
       expect(await tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
@@ -212,7 +221,7 @@ test.describe('tips', () => {
     test('renders no shared-list tip when the page opens a link after this browser made a change', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
-      await tierList.dragItemToTier('Mauga', 'S');
+      await tierList.drag.dragItemToTier('Mauga', 'S');
       await expect(tips.linkSaveToast).toBeVisible();
 
       await tierList.goto(TANKS, SHARED);
@@ -232,7 +241,7 @@ test.describe('tips', () => {
       const historyLength = await tierList.historyLength();
 
       await tips.close();
-      await tierList.dragItemToTier('Winston', 'Unranked');
+      await tierList.drag.dragItemToTier('Winston', 'Unranked');
       const changed = tierList.page.url();
       await expect(tips.linkSaveToast).toBeVisible();
       await tips.hideTips(tips.linkSaveToast);
@@ -248,7 +257,7 @@ test.describe('tips', () => {
     test('renders the own-images toast after the link-save toast when the user uploads the first image', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto('/rank');
-      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
 
       await expect(tips.linkSaveToast).toBeVisible();
       await expect(tips.deviceImagesToast).toHaveCount(0);
@@ -284,17 +293,114 @@ test.describe('tips', () => {
       await expect.poll(() => tips.stored()).toEqual({seen: [], off: true});
       await expect(tierList.hints).toBeVisible();
     });
+  });
 
-    test('renders the first-drag tip again when the user turns the tips on again on About after Hide tips', async ({tierList}) => {
-      const tips = new Tips(tierList.page);
-      await tierList.goto(TANKS);
-      await tips.hideTips();
+  test.describe('model', () => {
+    /**
+     * The tip on screen (or none) and what `otb-tips` holds, in the editor or on About, as a state
+     * of a tips machine shows them. With tips off, only `off` is checked.
+     */
+    const expectTips = async (tips: Tips, view: TipsView) => {
+      const shown = {firstDrag: tips.firstDrag, linkSave: tips.linkSaveToast, deviceImages: tips.deviceImagesToast, sharedList: tips.sharedList};
+      if (view.shown) await expect(shown[view.shown]).toBeVisible();
+      await expect(tips.all).toHaveCount(view.shown ? 1 : 0);
+      await expect.poll(async () => {
+        const stored = await tips.stored();
+        if (!stored) return null;
+        return {seen: view.stored.seen && TIP_IDS.filter((id) => stored.seen.includes(id)), off: stored.off};
+      }).toEqual(view.stored);
+    };
 
-      await tips.showTipsAgainOnAbout();
-      await tierList.goto(TANKS);
+    /**
+     * The tips machine's events and checks (modelSut). Each run starts as a new browser on the
+     * template. Page time stands still (`pageTime: 'paused'`): a toast stays however long the
+     * steps take, also while the list changes under it, and closes only in TOAST_TIMES_OUT, which
+     * checks that it closes after exactly 10 s (letToastTimeOut).
+     */
+    const tipsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      const tips = new Tips(page);
+      let changes = 0;
+      return modelSut<TipsSnapshot, TipsEvent>(page, {
+        pageTime: 'paused',
+        reset: async () => {
+          await tips.forgetThisBrowser();
+          await tierList.goto(TANKS);
+        },
+        events: {
+          OPEN_TEMPLATE: () => tierList.goto(TANKS),
+          DROP_IN_ROW: () => tierList.drag.dragFirstUnrankedItemToTier('S'),
+          CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
+          ADD_DEVICE_IMAGE: () => tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
+          CLOSE_TIP: () => tips.close(),
+          CLOSE_TOAST: () => closeTipToastAndLetItLeave(tips),
+          TOAST_TIMES_OUT: () => tips.waitOutTipToast(),
+          HIDE_TIPS: () => hideTipsAndLetToastLeave(tips),
+          SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
+        },
+        states: {
+          '*': (_page, snapshot) => expectTips(tips, tipsViewOf(snapshot)),
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
 
-      await expect(tips.firstDrag).toBeVisible();
-      expect(await tips.stored()).toEqual({seen: [], off: false});
+    /** The shared-list machine's events and checks. Each run starts as a new browser on the friend's link. */
+    const sharedListSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
+      const tips = new Tips(page);
+      let changes = 0;
+      return modelSut<TipsSharedListSnapshot, TipsSharedListEvent>(page, {
+        reset: async () => {
+          await tips.forgetThisBrowser();
+          await tierList.goto(TANKS, SHARED);
+        },
+        events: {
+          OPEN_SHARED_LINK: () => tierList.goto(TANKS, SHARED),
+          OPEN_FROM_RECENTLY_VIEWED: () => site.openRecentLink('Tanks by a friend'),
+          CHANGE_TITLE: async () => {
+            await tierList.setTitle(`My tanks ${++changes}`);
+            // The tip's toast ends by itself after 10 s, and this campaign cannot run the page
+            // clock (see above). Once the change has settled, the toast shows or it does not; when
+            // it shows, the pointer rests on it, as a reader's does, so it stays until a step
+            // closes it.
+            await tierList.settled();
+            if (await tips.linkSaveToast.count() > 0) await tierList.restOnMessage(tips.linkSaveToast);
+          },
+          CLOSE_TIP: () => tips.close(),
+          CLOSE_TOAST: () => tips.closeTipToast(),
+          HIDE_TIPS: () => tips.hideTips(),
+          SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
+        },
+        states: {
+          '*': (_page, snapshot) => expectTips(tips, sharedListViewOf(snapshot)),
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+
+    test.describe('from a new browser', () => {
+      for (const part of walkParts(tipsModel)) {
+        test(`renders each state of the tips machine when the user walks every transition from a new browser (${part.name})`, async ({tierList, page}, testInfo) => {
+          test.setTimeout(MODEL_PART_TIMEOUT);
+          const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo), part);
+          await attachCoverage(testInfo, tipsModel, coverage, part);
+        });
+      }
     });
+
+    // No page clock here, neither `pageClock` nor `pageTime: 'paused'`: Playwright's clock gives
+    // the page no navigation entry (performance.getEntriesByType('navigation') is empty), so the
+    // shared-list tip never shows. The pointer rests on the link-save toast instead (CHANGE_TITLE),
+    // which holds it while page time runs.
+    for (const part of walkParts(tipsSharedListModel)) {
+      test(`renders each state of the shared-list tip machine when the user walks every transition from a friend's link (${part.name})`, async ({tierList, site, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo), part);
+        await attachCoverage(testInfo, tipsSharedListModel, coverage, part);
+      });
+    }
   });
 });

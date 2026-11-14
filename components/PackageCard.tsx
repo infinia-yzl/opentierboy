@@ -1,5 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
+import {IntentLink} from '@/components/IntentLink';
 import {Button} from "@/components/ui/button";
 import {Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
 import {Separator} from "@/components/ui/separator";
@@ -74,7 +74,8 @@ const PackageCard: React.FC<PackageCardProps> = ({packageName, packageData, temp
                   "hover:group-hover:bg-white/30"  // Additional hover effect when card is hovered
                 )}
               >
-                <Link href={template.href} aria-label={template.ariaLabel}>
+                {/* Home lists many templates: each loads ahead only on intent (components/IntentLink.tsx). */}
+                <IntentLink href={template.href} aria-label={template.ariaLabel}>
                   {template.preview ? (
                     // eslint-disable-next-line @next/next/no-img-element -- a plain 24 px picture from public/images/, loaded lazily
                     <img
@@ -89,13 +90,15 @@ const PackageCard: React.FC<PackageCardProps> = ({packageName, packageData, temp
                     <span aria-hidden="true" className="size-6 shrink-0 rounded-[4px] bg-muted"/>
                   )}
                   <span className="min-w-0 grow truncate">{template.title}</span>
+                  {/* A space between the title and the count, so their words stay apart as text. */}
+                  {' '}
                   <span
                     aria-hidden="true"
                     className="shrink-0 text-[13px] font-normal tabular-nums text-muted-foreground transition-colors duration-300 group-hover:text-white/70"
                   >
                     {template.countText}
                   </span>
-                </Link>
+                </IntentLink>
               </Button>
             ))}
           </nav>

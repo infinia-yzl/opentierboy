@@ -296,8 +296,8 @@ out of links.
 
 **Layout settings (A3).** The label position and label visibility travel in v3 links.
 
-- A change to them replaces the current history entry (`router.replace`), so it adds no Back
-  step, as before v3. Row template changes push a new entry, like every change to the list.
+- A change to them replaces the current history entry (`history.replaceState`), so it adds no
+  Back step, as before v3. Row template changes push a new entry, like every change to the list.
   **Owner's decision, 2026-10-25**: option (a), replace. The one place for this choice is
   `LAYOUT_LINK_WRITE` in `lib/tierListReducer.ts`; its other options are `'push'` (a Back step
   per layout change) and `'next-edit'` (the next change to the list writes the layout along).
@@ -310,8 +310,8 @@ out of links.
 - On a template page without a link, a layout change writes a `?state=` link into the address,
   in place of the current entry.
 - Share writes its link from the list and layout on screen (`shareLink` in the store, A46),
-  never from the address: the address can lag behind on a slow connection, and after Back it
-  holds the older entry's settings while the screen keeps the current ones.
+  never from the address: the address can hold an older link format, and after Back it holds
+  the older entry's settings while the screen keeps the current ones.
 
 **Opening a link writes nothing** (A1): opening any link leaves the
 address and the history as they are, also when the app would write that list differently

@@ -1,7 +1,7 @@
 'use client';
 
 import {useCallback} from 'react';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {useCustomImages} from '@/contexts/CustomImagesContext';
 import {type Capture, SNAPSHOT_DOWNLOAD_MESSAGES, snapshotDownloadFile} from '@/lib/images/snapshotDownload';
 

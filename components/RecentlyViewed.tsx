@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {Cross2Icon, DrawingPinFilledIcon, DrawingPinIcon} from '@radix-ui/react-icons';
 import {Button} from '@/components/ui/button';
 import {useRecentLinks} from '@/components/useRecentLinks';

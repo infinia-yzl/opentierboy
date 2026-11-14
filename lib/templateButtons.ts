@@ -13,7 +13,10 @@ import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 export interface RoundedItemCount {
   /** What the button shows: "70+" for 77 items, the exact number below 10. */
   text: string;
-  /** The count in words, for the accessible name: "about 70 items", "9 items", "1 item". */
+  /**
+   * The count in words, for the accessible name: "70+ items", "9 items", "1 item". It holds what
+   * the button shows (WCAG 2.5.3, label in name), so a voice user can say what they see.
+   */
   label: string;
 }
 
@@ -27,7 +30,7 @@ export function roundedItemCount(count: number): RoundedItemCount {
   if (!Number.isInteger(count) || count < 0) throw new RangeError(`An item count is a whole number from 0, not ${count}`);
   if (count < 10) return {text: String(count), label: `${count} ${count === 1 ? 'item' : 'items'}`};
   const rounded = Math.floor(count / 10) * 10;
-  return {text: `${rounded}+`, label: `about ${rounded} items`};
+  return {text: `${rounded}+`, label: `${rounded}+ items`};
 }
 
 /** The images a template starts with: every image for "all", else the images with the tag. */
@@ -49,7 +52,7 @@ export interface TemplateButton {
   count: number;
   /** The rounded count the button shows. */
   countText: string;
-  /** The button's accessible name: "<title>, about <N> items" (or the exact count below 10). */
+  /** The button's accessible name: "<title>, <N>+ items" (or the exact count below 10). */
   ariaLabel: string;
   /** One of the template's items, as a picture: its image under public/images/ and its label. */
   preview: {src: string; alt: string} | null;

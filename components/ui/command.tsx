@@ -24,13 +24,15 @@ const Command = React.forwardRef<
 Command.displayName = CommandPrimitive.displayName
 
 interface CommandDialogProps extends DialogProps {
+  /** The dialog's accessible name, read by screen readers. */
+  title?: string;
 }
 
-const CommandDialog = ({children, ...props}: CommandDialogProps) => {
+const CommandDialog = ({children, title = "Command", ...props}: CommandDialogProps) => {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0">
-        <DialogTitle className="sr-only">Command</DialogTitle>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
           Use arrow keys to navigate, type to filter.
         </DialogDescription>

@@ -1,4 +1,8 @@
 import {expect, type Locator, type Page} from '@playwright/test';
+import {expectSettled} from '../support/settled';
+import {letToastTimeOut, runPageClock} from '../support/page-clock';
+import {toasts} from './toasts';
+import {UNTIL_STARTED} from './helpers';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontChoice = 'Modern' | 'Classic';
@@ -17,7 +21,27 @@ export class SitePage {
   }
 
   async gotoHome() {
-    await this.page.goto('/');
+    await this.goto('/');
+  }
+
+  /** Opens a page of the site by its path, and waits until it has started and settled. */
+  async goto(path: string) {
+    await this.page.goto(path, UNTIL_STARTED);
+    await this.settled();
+  }
+
+  /** Reloads the page, and waits until it has started again and settled. */
+  async reload() {
+    await this.page.reload(UNTIL_STARTED);
+    await this.settled();
+  }
+
+  /**
+   * Waits until the page has finished what the last step started: <main> no longer says
+   * `aria-busy` (lib/busy.ts). A page is busy until it has started in the browser.
+   */
+  async settled() {
+    await expectSettled(this.page);
   }
 
   async openFromNavigation(linkName: 'About' | 'Blog') {
@@ -129,7 +153,7 @@ export class SitePage {
     return this.card(setName).getByRole('navigation', {name: `${setName} templates`}).getByRole('link');
   }
 
-  /** A template button by its accessible name, for example "Tank, about 10 items". */
+  /** A template button by its accessible name, for example "Tank, 10+ items". */
   templateButton(setName: string, name: string): Locator {
     return this.card(setName).getByRole('navigation', {name: `${setName} templates`}).getByRole('link', {name, exact: true});
   }
@@ -246,6 +270,13 @@ export class SitePage {
     return this.recentlyViewed.getByRole('link', {name, exact: true});
   }
 
+  /** Opens the home page and the list named `name` in Recently viewed (a move inside the site). */
+  async openRecentLink(name: string) {
+    await this.gotoHome();
+    await this.recentLink(name).click();
+    await expect(this.main.getByRole('heading', {level: 1, name, exact: true})).toBeVisible();
+  }
+
   /** The pin toggle of a recently viewed list (pressed when pinned). */
   recentPinButton(name: string): Locator {
     return this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true});
@@ -260,4 +291,183 @@ export class SitePage {
     const links = await this.main.getByRole('link').all();
     return Promise.all(links.map(async (link) => (await link.getAttribute('href')) ?? ''));
   }
+
+  // ---- Appearance machine (tests/machines/appearance.ts) ---------------------------------------
+
+  /**
+   * Waits until the Appearance button opens its menu. Until the page has started in the browser,
+   * the header shows a plain button that a click does not open: the menu's button then says that
+   * it has a popup menu.
+   */
+  async appearanceMenuReady() {
+    await expect(this.appearanceButton).toHaveAttribute('aria-haspopup', 'menu');
+  }
+
+  /** What this browser's local storage holds under `key`, or null. */
+  async storedValue(key: string): Promise<string | null> {
+    return this.page.evaluate((storageKey) => localStorage.getItem(storageKey), key);
+  }
+
+  /**
+   * Opens About from the site navigation, then goes back with the browser's Back button.
+   * Returns once the address before is back, and the page that shows it has started.
+   */
+  async visitAboutAndGoBack() {
+    const before = this.page.url();
+    await this.openFromNavigation('About');
+    await expect(this.page).toHaveURL(/\/about$/);
+    await expect(this.pageHeading).toBeVisible();
+    await this.page.goBack(UNTIL_STARTED);
+    await expect(this.page).toHaveURL(before);
+    await this.settled();
+    await this.appearanceMenuReady();
+  }
+
+  // ---- Recently viewed machine (tests/machines/recently-viewed.ts) ----------------------------
+
+  /**
+   * Starts Home with these entries in Recently viewed and nothing else in local storage, as a
+   * browser that kept them would. `stored` is the value of `otb-recent-links`
+   * (lib/recent/recentLinks.ts).
+   */
+  async seedRecentLinks(stored: string) {
+    await this.gotoHome();
+    await this.page.evaluate((value) => {
+      localStorage.clear();
+      localStorage.setItem('otb-recent-links', value);
+    }, stored);
+    await this.reload();
+    await expect(this.recentlyViewed).toBeVisible();
+  }
+
+  /** When Recently viewed last recorded the list with this title (milliseconds), or 0 when it holds none. */
+  async recentOpenedAt(title: string): Promise<number> {
+    return this.page.evaluate((name) => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('otb-recent-links') ?? 'null') as {links?: {title?: string; openedAt?: number}[]} | null;
+        return stored?.links?.find((link) => link.title === name)?.openedAt ?? 0;
+      } catch {
+        return 0;
+      }
+    }, title);
+  }
+
+  /** Waits until the editor has recorded the list with this title after `before` (recentOpenedAt). */
+  private async waitUntilRecorded(title: string, before: number) {
+    await expect(this.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
+    await expect.poll(() => this.recentOpenedAt(title), {
+      message: `Recently viewed records ${title}`,
+    }).toBeGreaterThan(before);
+  }
+
+  /** Home, once its Recently viewed shows. */
+  private async returnHome() {
+    await this.gotoHome();
+    await expect(this.recentlyViewed).toBeVisible();
+  }
+
+  /**
+   * Opens a list's link from outside Home (`href`: its path and `?state=`), waits until
+   * Recently viewed has recorded it, and goes back to Home. Call it on a page of the site.
+   */
+  async openListAndReturnHome(href: string, title: string) {
+    const before = await this.recentOpenedAt(title);
+    await this.page.goto(href, UNTIL_STARTED);
+    await this.waitUntilRecorded(title, before);
+    await this.returnHome();
+  }
+
+  /** Opens a list from its link in Recently viewed, waits until it is recorded again, and goes back to Home. */
+  async reopenRecentLinkAndReturnHome(title: string) {
+    const before = await this.recentOpenedAt(title);
+    await this.recentLink(title).click();
+    await this.waitUntilRecorded(title, before);
+    await this.returnHome();
+  }
+
+  /** The toast of a refused pin, such as "You can pin up to 20 lists". */
+  recentToast(text: string): Locator {
+    return toasts(this.page).filter({hasText: text});
+  }
+
+  /** The pin toggles in Recently viewed that are pressed (the pinned lists). */
+  get pressedRecentPinButtons(): Locator {
+    return this.recentlyViewed.getByRole('button', {name: /^Pin /, pressed: true});
+  }
+
+  /**
+   * Presses Pin of an unpinned list, and waits until it is pinned or the pin-limit toast
+   * (`refusal`) shows. Then the pointer leaves the list, so it cannot rest on the toast and
+   * hold its timer.
+   */
+  async pinRecentLink(name: string, refusal: string) {
+    await this.recentPinButton(name).click();
+    const pinned = this.recentlyViewed.getByRole('button', {name: `Pin ${name}`, exact: true, pressed: true});
+    await expect(pinned.or(this.recentToast(refusal))).toBeVisible();
+    await this.page.mouse.move(0, 0);
+  }
+
+  /** Presses Pin of a pinned list, and waits until it is unpinned. */
+  async unpinRecentLink(name: string) {
+    await this.recentPinButton(name).click();
+    await expect(this.recentPinButton(name)).toHaveAttribute('aria-pressed', 'false');
+  }
+
+  /** Removes a list from Recently viewed, and waits until its link is gone. */
+  async removeRecentLinkAndWait(name: string) {
+    await this.removeRecentLink(name);
+    await expect(this.recentLink(name)).toHaveCount(0);
+  }
+
+  /** Lets the toast with `text` end by itself (Sonner's 4 seconds, on the page clock: `pageClock`). */
+  async waitOutRecentToast(text: string) {
+    await letToastTimeOut(this.page, this.recentToast(text));
+  }
+
+  // ---- Freeze Frame load machine (tests/machines/freeze-frame-load.ts) ----------------------
+
+  /** "Open a Freeze Frame" in Your own list. */
+  get openFreezeFrameButton(): Locator {
+    return this.ownListCard.getByRole('button', {name: 'Open a Freeze Frame'});
+  }
+
+  /** Chooses a file with "Open a Freeze Frame", and returns once the dialog "Open the list in this file?" shows. */
+  async openFreezeFrameAndWaitForDialog(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.openFreezeFrame(file);
+    await expect(this.openListDialog).toBeVisible();
+  }
+}
+
+// ---- Model campaigns: Recently viewed while page time stands still (`pageTime: 'paused'`) ----
+
+/** How far page time moves on before each open of a list: the visitor comes back later, so each open records a later time. */
+const LATER_MS = 60_000;
+
+/** Waits until Recently viewed records `title` after `before` (SitePage.recentOpenedAt), then goes back to Home. */
+async function recordedAndHome(site: SitePage, title: string, before: number) {
+  await expect(site.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
+  await expect.poll(() => site.recentOpenedAt(title), {message: `Recently viewed records ${title}`}).toBeGreaterThan(before);
+  await site.gotoHome();
+  await expect(site.recentlyViewed).toBeVisible();
+}
+
+/** Opens a list's link from outside Home a minute of page time later (SitePage.openListAndReturnHome). */
+export async function openListLaterAndReturnHome(site: SitePage, href: string, title: string) {
+  const before = await site.recentOpenedAt(title);
+  await runPageClock(site.page, LATER_MS);
+  await site.page.goto(href, UNTIL_STARTED);
+  await recordedAndHome(site, title, before);
+}
+
+/**
+ * Opens a list from its link in Recently viewed a minute of page time later
+ * (SitePage.reopenRecentLinkAndReturnHome). The link moves inside the site: the route's loading
+ * state and then the editor's show first, and React replaces each on the real timers
+ * (pausePageTime), so page time stays where it is.
+ */
+export async function reopenRecentLinkLaterAndReturnHome(site: SitePage, title: string) {
+  const before = await site.recentOpenedAt(title);
+  await runPageClock(site.page, LATER_MS);
+  await site.recentLink(title).click();
+  await recordedAndHome(site, title, before);
 }

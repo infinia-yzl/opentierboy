@@ -6,7 +6,7 @@ import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
 import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon, InfoCircledIcon} from '@radix-ui/react-icons';
-import {toast} from 'sonner';
+import {toast} from '@/lib/toast';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
 import {Skeleton} from "@/components/ui/skeleton";
@@ -29,6 +29,8 @@ import {type ListCardData, PICTURE_FRAMES, type PictureFrameName} from "@/lib/li
 import {markdownText} from "@/lib/markdownText";
 import {onOpenSharePanel, useTips} from "@/components/useTips";
 import {cn} from "@/lib/utils";
+import {useBusyWhile} from '@/components/useBusy';
+import {pageBusy} from '@/lib/busy';
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -127,14 +129,7 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
         <Alert role="note">
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
-            {device === 1 ? (
-              <><strong>1 image from your device isn&apos;t in the link.</strong> People who open the link see its name
-                in its place. To share the image itself, download a Freeze Frame from the Image tab.</>
-            ) : (
-              <><strong>{device} images from your device aren&apos;t in the link.</strong> People who open the link see
-                their names in their place. To share the images themselves, download a Freeze Frame from the Image
-                tab.</>
-            )}
+            {device === 1 ? '1 device image shows as a placeholder.' : `${device} device images show as placeholders.`}
           </AlertDescription>
         </Alert>
       )}
@@ -167,12 +162,20 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const pathname = usePathname();
   // The picture and the list it shows, taken together: Download embeds that list, even when the
   // list on screen has changed since.
-  const [capture, setCapture] = useState<Capture | null>(null);
+  const [capture, setCapture] = useState<(Capture & {previewUrl: string}) | null>(null);
   const imageBlob = capture?.picture ?? null;
+  // One object URL per captured picture, made when it is captured: the next capture, or leaving
+  // the editor, frees it.
+  const previewUrl = capture?.previewUrl ?? null;
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [frame, setFrame] = useState<FrameChoice>('whole');
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // The page is busy while a Freeze Frame downloads (lib/busy.ts).
+  useBusyWhile(isSaving);
   const downloadSnapshot = useSnapshotDownload();
   // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
   // Share button opens this panel (components/EditorTips.tsx).
@@ -196,6 +199,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   const captureImage = useCallback(async () => {
+    // The page is busy from the click until the picture is ready, or the capture failed.
+    const done = pageBusy.begin();
     setIsCapturing(true);
     // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
@@ -254,14 +259,20 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
       }
 
+      // The toast waits for the picture, so it never shows before the preview can.
       canvas.toBlob((blob: Blob | null) => {
-        if (blob) setCapture({picture: blob, ...shown});
+        if (blob) {
+          setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
+          toast.success('Image captured successfully');
+        } else {
+          toast.error(`Failed to capture image with ${captureMethod} method`);
+        }
+        done();
       }, 'image/png');
-
-      toast.success('Image captured successfully');
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
+      done();
     } finally {
       setCard(null);
       setIsCapturing(false);
@@ -270,14 +281,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const copyImage = () => {
     if (imageBlob) {
-      navigator.clipboard.write([
+      // The page is busy from the click until the copy's toast is on screen (lib/busy.ts).
+      // during() also ends it when the clipboard is missing and the call throws.
+      void pageBusy.during(() => navigator.clipboard.write([
         new ClipboardItem({'image/png': imageBlob})
       ]).then(() => {
         toast.success('Image copied to clipboard');
       }).catch(err => {
         console.error('Error copying image: ', err);
         toast.error('Failed to copy image');
-      });
+      }));
     }
   };
 
@@ -304,14 +317,16 @@ What do you think? 🤔
 [Check it out on OpenTierBoy!](${shareUrl()})
 -# The link is shortened for brevity. Always double-check before clicking! It should start with \`https://www.opentierboy.com/\`.
 `;
-    navigator.clipboard.writeText(shareText).then(() => {
+    // The page is busy from the click until the copy's toast is on screen (lib/busy.ts).
+    // during() also ends it when the clipboard is missing and the call throws.
+    void pageBusy.during(() => navigator.clipboard.writeText(shareText).then(() => {
       toast.success('Markdown copied to clipboard', {
         description: 'Share it on Discord or Telegram, or any other platform that supports markdown!'
       });
     }).catch(err => {
       console.error('Error copying markdown: ', err);
       toast.error('Failed to copy markdown');
-    });
+    }));
   }
 
   return (
@@ -348,12 +363,12 @@ What do you think? 🤔
                   <span>As URL</span>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger>
-                        <QuestionMarkCircledIcon className="h-4 w-4"/>
+                      <TooltipTrigger aria-label="Tips for sharing the link">
+                        <QuestionMarkCircledIcon aria-hidden="true" className="h-4 w-4"/>
                       </TooltipTrigger>
                       <TooltipContent>
                         Consider using URL shorteners for ease of sharing.
-                        Images added from your device will be replaced with placeholders.
+                        Device images show as placeholders.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -375,11 +390,11 @@ What do you think? 🤔
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex flex-row space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('facebook')}>
-                      <FaFacebookF className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on Facebook" onClick={() => shareToSocial('facebook')}>
+                      <FaFacebookF aria-hidden="true" className="h-4 w-4"/>
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('twitter')}>
-                      <FaXTwitter className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on X" onClick={() => shareToSocial('twitter')}>
+                      <FaXTwitter aria-hidden="true" className="h-4 w-4"/>
                     </Button>
                   </div>
                 </div>
@@ -431,10 +446,10 @@ What do you think? 🤔
                 </CollapsibleContent>
               </Collapsible>
 
-              {imageBlob && (
+              {previewUrl && (
                 <div className="relative w-full h-[200px] rounded-md overflow-hidden bg-muted">
                   <Image
-                    src={URL.createObjectURL(imageBlob)}
+                    src={previewUrl}
                     alt="Captured tier list"
                     fill
                     style={{objectFit: "contain"}}

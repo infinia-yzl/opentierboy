@@ -1,4 +1,4 @@
-import {findItem, isUnranked, moveItem} from './moves';
+import {findItem, isUnranked, moveItem, reorderRows} from './moves';
 import type {ItemLike, ItemMove, RowMove, TierLike} from './model';
 
 /**
@@ -46,9 +46,8 @@ export function previewItemOver<I extends ItemLike, T extends TierLike<I>>(previ
 }
 
 /**
- * The preview after a dragged row moves over another row: it takes that row's place, with
- * its label. The labels go back to their positions on drop (rowMoveFromPreview, then
- * reorderRows), as with the editor's drag and drop before.
+ * The preview after a row dragged by its grip moves over another row: it takes that row's
+ * place, with its label, as it will after the drop (rowMoveFromPreview, then moveRow).
  */
 export function previewRowOver<T extends TierLike>(preview: T[], tierId: string, overTierId: string): T[] {
   const from = preview.findIndex(tier => tier.id === tierId);
@@ -56,6 +55,18 @@ export function previewRowOver<T extends TierLike>(preview: T[], tierId: string,
   // Unranked (the last row) is a fixed tray: no row takes its place (lib/dnd/moves.ts, reorderRows).
   if (isUnranked(preview, from) || isUnranked(preview, to)) return preview;
   return moveRowInPreview(preview, from, to);
+}
+
+/**
+ * The preview after a row's stack (its items) moves over another row: the items take that row's
+ * place and the labels stay where they are, as they will after the drop (rowMoveFromPreview, then
+ * reorderRows). The dragged items keep their tier id, so the preview finds them again.
+ */
+export function previewStackOver<T extends TierLike>(preview: T[], tierId: string, overTierId: string): T[] {
+  const from = preview.findIndex(tier => tier.id === tierId);
+  const to = preview.findIndex(tier => tier.id === overTierId);
+  if (from < 0 || to < 0) return preview;
+  return reorderRows(preview, from, to);
 }
 
 /** The preview with the row at `from` moved to `to`, label included. Unknown indexes change nothing. */
@@ -79,7 +90,10 @@ export function itemMoveFromPreview(tiers: readonly TierLike[], preview: readonl
   return {itemId, from, to};
 }
 
-/** The row move from the list to the preview, by row index. Null when the row ends where it started. */
+/**
+ * The row move from the list to the preview, by row index: for a row and for a row's stack, the
+ * place of its tier id. Null when it ends where it started.
+ */
 export function rowMoveFromPreview(tiers: readonly TierLike[], preview: readonly TierLike[], tierId: string): RowMove | null {
   const from = tiers.findIndex(tier => tier.id === tierId);
   const to = preview.findIndex(tier => tier.id === tierId);

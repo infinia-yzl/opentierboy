@@ -5,7 +5,7 @@ import prettier from 'eslint-config-prettier/flat';
 // Import rules (amendments A12, A31, A39 and A41), and no classes in our own code (A47). For one
 // file, ESLint uses the options of the last matching block that sets a rule. So every block
 // builds its list with restrictImports(), which always adds the rules that hold everywhere
-// (IndexedDB libraries, zod, dnd-kit): a later block can never drop them. Each of those rules
+// (IndexedDB libraries, zod, dnd-kit, sonner's toast): a later block can never drop them. Each of those rules
 // has a few files it does not apply to; the "Everywhere" blocks below list them. Globals work
 // the same way with restrictGlobals(), and selectors with restrictSyntax().
 
@@ -53,17 +53,29 @@ const ZOD_IMPORT = {
   message: 'Import z from @/lib/zod: it turns off the eval check that the Content Security Policy reports.',
 };
 
+/**
+ * sonner's toast shows the toast one task after the call, so the page would say it is not busy
+ * before the toast is there. lib/toast.ts counts that task (lib/busy.ts).
+ */
+const SONNER_TOAST_IMPORT = {
+  name: 'sonner',
+  importNames: ['toast'],
+  message: 'Import toast from @/lib/toast: it counts the page as busy until the toast is on screen.',
+};
+
 /** Files that may use IndexedDB: the device image store and its tests. */
 const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/lib/images/deviceStore*.test.ts'];
 /** Files that may import zod itself: lib/zod.ts and the test that shows why it exists. */
 const ZOD_FILES = ['lib/zod.ts', 'tests/unit/rules/zod-eval-probe.test.ts'];
 /** Files that may import dnd-kit: the drag and drop adapter and its unit tests. */
 const DND_KIT_FILES = ['lib/dnd/**', 'tests/unit/lib/dnd/**'];
+/** Files that may import toast from sonner: the wrapper that counts toasts as busy. */
+const TOAST_FILES = ['lib/toast.ts'];
 
 /**
  * The no-restricted-imports setting for a block: its own patterns, plus the rules for every
  * file. `allow` names the shared rules the block's files are exempt from ('indexedDB', 'zod',
- * 'dndKit').
+ * 'dndKit', 'toast').
  */
 const restrictImports = (patterns = [], {allow = []} = {}) => ({
   'no-restricted-imports': ['error', {
@@ -73,7 +85,10 @@ const restrictImports = (patterns = [], {allow = []} = {}) => ({
       ...(allow.includes('zod') ? [] : [{regex: '^zod/', message: ZOD_IMPORT.message}]),
       ...patterns,
     ],
-    paths: allow.includes('zod') ? [] : [ZOD_IMPORT],
+    paths: [
+      ...(allow.includes('zod') ? [] : [ZOD_IMPORT]),
+      ...(allow.includes('toast') ? [] : [SONNER_TOAST_IMPORT]),
+    ],
   }],
 });
 
@@ -128,6 +143,26 @@ const GUARD_BYPASSES = [
   ...methodCall('/^newPage$/').map((selector) => ({
     selector: `${selector}:matches([callee.object.name='browser'], [callee.object.property.name='browser'], [callee.object.callee.property.name='browser'], [callee.object.expression.callee.property.name='browser'])`,
     message: 'browser.newPage() opens a new context without the guard against external requests. Use the `page` fixture, or openAsVisitor from tests/support/test.ts.',
+  })),
+];
+
+/**
+ * Specs wait for what the visitor sees and find elements by role, with selectors kept in the page
+ * objects (tests/README.md, "Writing tests"): no sleeps, no waiting for the network to go quiet,
+ * and no CSS or XPath locators. Page objects and tests/support keep the few they need.
+ */
+const SPEC_SYNTAX = [
+  ...methodCall('/^waitForTimeout$/').map((selector) => ({
+    selector,
+    message: 'No sleeps in tests: wait for what the visitor sees, or for the page to settle (TierListPage.settled()).',
+  })),
+  {
+    selector: "Literal[value='networkidle']",
+    message: "'networkidle' waits for a quiet network, not for the page: wait for what the visitor sees, or for the page to settle (settled()).",
+  },
+  ...methodCall('/^(locator|waitForSelector|\\$|\\$\\$|\\$eval|\\$\\$eval)$/').map((selector) => ({
+    selector,
+    message: 'No CSS or XPath locators in specs: locate by role and accessible name, in a page object (tests/pages).',
   })),
 ];
 
@@ -239,10 +274,10 @@ export default defineConfig([
     },
   },
   // Everywhere: IndexedDB only in the device image store, zod only through lib/zod.ts, dnd-kit
-  // only in lib/dnd.
+  // only in lib/dnd, sonner's toast only through lib/toast.ts.
   {
     files: [CODE_FILES],
-    ignores: [...INDEXED_DB_FILES, ...ZOD_FILES, ...DND_KIT_FILES],
+    ignores: [...INDEXED_DB_FILES, ...ZOD_FILES, ...DND_KIT_FILES, ...TOAST_FILES],
     rules: {...restrictImports(), ...restrictGlobals(), ...restrictSyntax()},
   },
   {
@@ -251,11 +286,17 @@ export default defineConfig([
   },
   {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals(), ...restrictSyntax([], {allow: ['zod']})}},
   {files: DND_KIT_FILES, rules: {...restrictImports([], {allow: ['dndKit']}), ...restrictGlobals(), ...restrictSyntax()}},
+  {files: TOAST_FILES, rules: {...restrictImports([], {allow: ['toast']}), ...restrictGlobals(), ...restrictSyntax()}},
   // Tests: no way around the guard against external requests, except in tests/support.
   {
     files: ['tests/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     ignores: ['tests/support/**', ...ZOD_FILES],
     rules: restrictSyntax(GUARD_BYPASSES),
+  },
+  // Specs: also no sleeps, no 'networkidle' and no CSS locators (SPEC_SYNTAX).
+  {
+    files: ['tests/e2e/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
+    rules: restrictSyntax([...GUARD_BYPASSES, ...SPEC_SYNTAX]),
   },
   // lib/state: pure code for the browser, the server and the edge runtime.
   {
