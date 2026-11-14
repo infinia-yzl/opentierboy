@@ -16,23 +16,23 @@ test.describe('share panel', () => {
     test('renders the tabs URL and Image and button "Copy Markdown" when the user opens the share panel', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS);
 
-      await tierList.openSharePanel();
+      await tierList.share.openSharePanel();
 
-      await expect(tierList.shareTab('URL')).toBeVisible();
-      await expect(tierList.shareTab('Image')).toBeVisible();
-      await expect(tierList.copyMarkdownButton).toBeVisible();
+      await expect(tierList.share.shareTab('URL')).toBeVisible();
+      await expect(tierList.share.shareTab('Image')).toBeVisible();
+      await expect(tierList.share.copyMarkdownButton).toBeVisible();
     });
 
     test('writes Markdown with the title and the v3 link of the list to the clipboard when the user clicks Copy Markdown', {tag: '@mobile'}, async ({
       tierList,
       openAsVisitor,
     }) => {
-      await tierList.readCopiedText();
+      await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
-      await tierList.copyMarkdown();
+      await tierList.share.copyMarkdown();
 
-      const markdown = await tierList.clipboardText();
+      const markdown = await tierList.share.clipboardText();
       expect(markdown).toContain('**OVERWATCH - Tank**');
       // The link of the list on screen (A46): this page, written as a v3 link.
       const linkInMarkdown = markdown.match(/\]\((\S+)\)/)?.[1];
@@ -46,7 +46,7 @@ test.describe('share panel', () => {
       openAsVisitor,
       page,
     }) => {
-      await tierList.readCopiedText();
+      await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
       await tierList.dragItemToTier('Mauga', 'S');
       await tierList.chooseLabelPosition('Top');
@@ -55,9 +55,9 @@ test.describe('share panel', () => {
       await tierList.goBack();
       await expect(tierList.itemsIn('S')).toHaveCount(0);
 
-      await tierList.copyMarkdown();
+      await tierList.share.copyMarkdown();
 
-      const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
+      const linkInMarkdown = (await tierList.share.clipboardText()).match(/\]\((\S+)\)/)?.[1];
       const friend = await openAsVisitor(linkInMarkdown!);
       await expect(friend.itemsIn('S')).toHaveCount(0);
       await expect(friend.itemsIn(friend.unranked)).toHaveText(['Mauga', 'Winston']);
@@ -71,15 +71,15 @@ test.describe('share panel', () => {
       tierList,
       openAsVisitor,
     }) => {
-      await tierList.readCopiedText();
+      await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
       // The copy comes right after the moves: the share text is the list on screen (A46).
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
         await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
-      await tierList.copyMarkdown();
+      await tierList.share.copyMarkdown();
 
-      const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
+      const linkInMarkdown = (await tierList.share.clipboardText()).match(/\]\((\S+)\)/)?.[1];
       const friend = await openAsVisitor(linkInMarkdown!);
       await expect(friend.itemsIn('F')).toHaveCount(3);
     });
@@ -125,10 +125,10 @@ test.describe('share panel', () => {
     test('renders no image note in the share panel when the page opens a list with only image-set items', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      await tierList.openSharePanel();
+      await tierList.share.openSharePanel();
 
-      await expect(tierList.copyMarkdownButton).toBeVisible();
-      await expect(tierList.linkImageNotes).toHaveCount(0);
+      await expect(tierList.share.copyMarkdownButton).toBeVisible();
+      await expect(tierList.share.linkImageNotes).toHaveCount(0);
     });
 
     test('renders the note "2 images from the web are in the link." when the page opens a list with 2 link images', {tag: '@mobile'}, async ({tierList, page}) => {
@@ -138,10 +138,10 @@ test.describe('share panel', () => {
         ['A', []], ['B', []], ['', [{u: 'https://i.imgur.com/blue.png', c: 'Blue'}]],
       ]}));
 
-      await tierList.openSharePanel();
+      await tierList.share.openSharePanel();
 
-      await expect(tierList.linkImageNotes).toHaveCount(1);
-      await expect(tierList.linkImageNotes).toHaveText(
+      await expect(tierList.share.linkImageNotes).toHaveCount(1);
+      await expect(tierList.share.linkImageNotes).toHaveText(
         "2 images from the web are in the link. People who open the link see them too. Some sites need their OK first: until they press Load, they see the images' names.");
     });
 
@@ -149,10 +149,10 @@ test.describe('share panel', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
 
-      await tierList.openSharePanel();
+      await tierList.share.openSharePanel();
 
-      await expect(tierList.linkImageNotes).toHaveCount(1);
-      await expect(tierList.linkImageNotes).toHaveText(
+      await expect(tierList.share.linkImageNotes).toHaveCount(1);
+      await expect(tierList.share.linkImageNotes).toHaveText(
         "1 device image shows as a placeholder.");
     });
 
@@ -163,9 +163,9 @@ test.describe('share panel', () => {
         ['A', [{d: 'NeverHere7654321', c: 'Dog'}]], ['B', []], ['', [{d: 'NeverHere0000001', c: 'Bird'}]],
       ]}));
 
-      await tierList.openSharePanel();
+      await tierList.share.openSharePanel();
 
-      await expect(tierList.linkImageNotes).toHaveText([
+      await expect(tierList.share.linkImageNotes).toHaveText([
         "3 device images show as placeholders.",
         "1 image from the web is in the link. People who open the link see it too. Some sites need their OK first: until they press Load, they see the image's name.",
       ]);
@@ -174,10 +174,10 @@ test.describe('share panel', () => {
 
   test('renders the Facebook and X share buttons by their names when the user opens the share panel', {tag: '@mobile'}, async ({tierList}) => {
     await tierList.goto(TANKS);
-    await tierList.openSharePanel();
+    await tierList.share.openSharePanel();
 
-    await expect(tierList.socialShareButton('Share on Facebook')).toBeVisible();
-    await expect(tierList.socialShareButton('Share on X')).toBeVisible();
+    await expect(tierList.share.socialShareButton('Share on Facebook')).toBeVisible();
+    await expect(tierList.share.socialShareButton('Share on X')).toBeVisible();
   });
 
   test.describe('model', () => {
@@ -210,30 +210,30 @@ test.describe('share panel', () => {
       /** The panel, its tab and note, and the clipboard, as a state of the share panel machine shows them. */
       const expectSharePanel = async (view: SharePanelView) => {
         if (view.tab === null) {
-          await expect(tierList.sharePanel).toBeHidden();
+          await expect(tierList.share.sharePanel).toBeHidden();
           await expect(tierList.shareButton).toBeEnabled();
         } else {
-          await expect(tierList.shareTab(view.tab)).toHaveAttribute('aria-selected', 'true');
-          if (view.tab === 'URL') await expect(tierList.copyMarkdownButton).toBeVisible();
+          await expect(tierList.share.shareTab(view.tab)).toHaveAttribute('aria-selected', 'true');
+          if (view.tab === 'URL') await expect(tierList.share.copyMarkdownButton).toBeVisible();
           if (view.captured === true) {
-            await expect(tierList.capturedImage).toBeVisible();
-            await expect(tierList.downloadButton).toBeEnabled();
+            await expect(tierList.share.capturedImage).toBeVisible();
+            await expect(tierList.share.downloadButton).toBeEnabled();
           }
           if (view.captured === false) {
-            await expect(tierList.captureHint).toBeVisible();
-            await expect(tierList.capturedImage).toHaveCount(0);
+            await expect(tierList.share.captureHint).toBeVisible();
+            await expect(tierList.share.capturedImage).toHaveCount(0);
           }
-          if (view.deviceImages === 1) await expect(tierList.linkImageNotes).toHaveText([ONE_DEVICE_IMAGE_NOTE]);
-          else await expect(tierList.linkImageNotes).toHaveCount(0);
+          if (view.deviceImages === 1) await expect(tierList.share.linkImageNotes).toHaveText([ONE_DEVICE_IMAGE_NOTE]);
+          else await expect(tierList.share.linkImageNotes).toHaveCount(0);
         }
         await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(opened.length + view.deviceImages);
         if (view.clipboardDeviceImages === null) {
-          await expect.poll(() => tierList.clipboardText()).toBe('');
+          await expect.poll(() => tierList.share.clipboardText()).toBe('');
           return;
         }
         // The link of the list as it was when Copy Markdown was clicked, from the editor's own
         // copy of the list (A46): this page, written as a v3 link.
-        const link = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1] ?? '';
+        const link = (await tierList.share.clipboardText()).match(/\]\((\S+)\)/)?.[1] ?? '';
         expect(link).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, page.url()).href)}\\?state=3\\.`));
         expect(listOfState(new URL(link).searchParams.get('state') ?? ''), 'the list in the copied link').toEqual(expectedList(view.clipboardDeviceImages));
       };
@@ -241,21 +241,21 @@ test.describe('share panel', () => {
       return modelSut<SharePanelSnapshot, SharePanelEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS);
-          await tierList.emptyClipboard();
+          await tierList.share.emptyClipboard();
           const names = await tierList.itemsIn(tierList.unranked).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
           opened = names.map((name) => packageItemId('image-overwatch', name));
           deviceImages = [];
           downloaded = null;
         },
         events: {
-          OPEN_SHARE_PANEL: () => tierList.openSharePanel(),
-          CLOSE_WITH_SHARE_BUTTON: () => tierList.closeSharePanelWithShareButton(),
+          OPEN_SHARE_PANEL: () => tierList.share.openSharePanel(),
+          CLOSE_WITH_SHARE_BUTTON: () => tierList.share.closeSharePanelWithShareButton(),
           PRESS_ESCAPE: () => tierList.pressEscapeOnList(),
-          CLICK_OUTSIDE: () => tierList.clickOutsideSharePanel(),
-          CHOOSE_IMAGE_TAB: () => tierList.chooseShareTab('Image'),
-          CHOOSE_URL_TAB: () => tierList.chooseShareTab('URL'),
-          CAPTURE_PREVIEW: () => tierList.captureInOpenPanel(),
-          COPY_MARKDOWN: () => tierList.copyMarkdownInOpenPanel(),
+          CLICK_OUTSIDE: () => tierList.share.clickOutsideSharePanel(),
+          CHOOSE_IMAGE_TAB: () => tierList.share.chooseShareTab('Image'),
+          CHOOSE_URL_TAB: () => tierList.share.chooseShareTab('URL'),
+          CAPTURE_PREVIEW: () => tierList.share.captureInOpenPanel(),
+          COPY_MARKDOWN: () => tierList.share.copyMarkdownInOpenPanel(),
           ADD_DEVICE_IMAGE: async () => {
             const name = `picture-${++added}`;
             await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${name}.png`)]);
@@ -264,7 +264,7 @@ test.describe('share panel', () => {
           // The file holds the list the picture shows, which the check of DOWNLOAD's state reads
           // from the machine: the picture, not the list on screen now (components/ShareButton.tsx).
           DOWNLOAD: async () => {
-            downloaded = await tierList.downloadCapturedImage();
+            downloaded = await tierList.share.downloadCapturedImage();
           },
         },
         states: {
@@ -292,7 +292,7 @@ test.describe('share panel', () => {
       test(`renders each state of the share panel machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         // Before the first page opens: Firefox and WebKit keep the copied text in the page.
-        await tierList.readCopiedText();
+        await tierList.share.readCopiedText();
         const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, sharePanelModel, coverage, part);
       });

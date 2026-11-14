@@ -58,7 +58,7 @@ const SCANS: readonly Scan[] = [
   {name: 'the template picker', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openTemplatePicker())},
   {name: 'the upload dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openUploadDialog())},
   {name: 'the link dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openLinkImageDialog())},
-  {name: 'the share panel', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openSharePanel())},
+  {name: 'the share panel', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.share.openSharePanel())},
   {name: 'the Remove All dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openRemoveAll())},
   {name: 'the Row options menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.openRowOptions())},
   // A Freeze Frame file chosen on Home (its link image's site answers from tests/support/image-sites.ts).

@@ -7,7 +7,8 @@ import {packageItemId, rankingState, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import {escapeRegExp} from '../support/regexp';
-import {type CaptureMethod, SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
+import {SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
+import {type CaptureMethod} from '../pages/share-panel';
 
 /**
  * User text is shown as text (review rules: cross-site scripting). Titles, row names and labels
@@ -75,8 +76,8 @@ test.describe('security', () => {
       await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
       await tierList.addItemsFromDevice([imageFile('red-square.png')]);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-      await tierList.capturePreview();
-      const snapshot = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const snapshot = await tierList.share.downloadCapturedImage();
       await page.keyboard.press('Escape');
 
       await tierList.goto('/rank');
@@ -103,7 +104,7 @@ test.describe('security', () => {
         await expect.poll(() => tierList.itemImageHasLoaded('Link image')).toBe(true);
         await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
-        await tierList.capturePreview(method);
+        await tierList.share.capturePreview(method);
 
         await expect(tierList.toast('Image captured successfully')).toBeVisible();
         expect(await cspViolations()).toEqual([]);
@@ -173,8 +174,8 @@ test.describe('security', () => {
       await tierList.dropFile(imageFile('dropped.png', BLUE_SQUARE));
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['photo', 'dropped']);
       await expect.poll(() => tierList.itemImageHasLoaded('dropped')).toBe(true);
-      await tierList.capturePreview();
-      await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      await tierList.share.downloadCapturedImage();
 
       expectNoPictureSent(sent(), [photo, BLUE_SQUARE]);
     });
@@ -200,8 +201,8 @@ test.describe('security', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Shared pictures'));
       await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
       await expect.poll(() => tierList.itemImageHasLoaded('photo')).toBe(true);
-      await tierList.capturePreview();
-      const file = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const file = await tierList.share.downloadCapturedImage();
 
       const friend = await openAsVisitor('/rank');
       const sent = friend.recordRequests();

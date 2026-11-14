@@ -11,7 +11,8 @@ import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} fro
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshot-files';
 import {messageNamesHost} from '../support/console';
-import {type CaptureMethod, type FreezeFrame, type HeldRankPages, messageToasts, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {type HeldRankPages, messageToasts, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {type CaptureMethod, type FreezeFrame} from '../pages/share-panel';
 import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -115,11 +116,11 @@ async function downloadSnapshotOf(tierList: TierListPage, {method, frame}: {meth
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks with a cat'));
   await tierList.addItemsFromDevice([imageFile('red-square.png')]);
   await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-  await tierList.capturePreview(method, frame);
+  await tierList.share.capturePreview(method, frame);
   // Download says what the file carries before anyone sends it on (owner decision, 2026-10-31).
-  await expect(tierList.sharePanel).toContainText(
+  await expect(tierList.share.sharePanel).toContainText(
     'The file keeps your list and your own pictures. Anyone you send it to can open it here and edit the list.');
-  const file = await tierList.downloadCapturedImage();
+  const file = await tierList.share.downloadCapturedImage();
   expect(file.name).toBe('tanks-with-a-cat.png');
   return file.buffer;
 }
@@ -312,13 +313,13 @@ test.describe('snapshot files', () => {
 
     test('writes the list as captured into the file when the user changes the list after Capture Preview and clicks Download', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'As captured'));
-      await tierList.capturePreview();
+      await tierList.share.capturePreview();
       await page.keyboard.press('Escape');
       await tierList.renameTier('S', 'Best');
       await tierList.setTitle('Changed later');
 
-      await tierList.openImageTab();
-      const file = await tierList.downloadCapturedImage();
+      await tierList.share.openImageTab();
+      const file = await tierList.share.downloadCapturedImage();
 
       expect(file.name).toBe('as-captured.png');
       const payload = JSON.parse(snapshotTextOf(file.buffer) ?? 'null');
@@ -336,8 +337,8 @@ test.describe('snapshot files', () => {
       await tierList.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]);
       await expect.poll(() => tierList.itemImageHasLoaded('Link image')).toBe(true);
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
-      await tierList.capturePreview();
-      const file = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const file = await tierList.share.downloadCapturedImage();
 
       const friend = await openAsVisitor('/rank');
       await serveImageSite(friend.page, 'i.imgur.com');
@@ -425,8 +426,8 @@ test.describe('snapshot files', () => {
       expect(written.length).toBeGreaterThan(12_800);
       await tierList.goto('/rank', written);
       await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
-      await tierList.capturePreview();
-      const picture = await tierList.downloadCapturedImageWithoutList();
+      await tierList.share.capturePreview();
+      const picture = await tierList.share.downloadCapturedImageWithoutList();
       expect(snapshotTextOf(picture.buffer)).toBeNull();
     });
 
@@ -436,8 +437,8 @@ test.describe('snapshot files', () => {
       // Further under the cap: the file keeps the list, and a friend opens it with its images.
       await tierList.goto('/rank', stateNearCap(json, 12_300));
       await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
-      await tierList.capturePreview();
-      const file = await tierList.downloadCapturedImage();
+      await tierList.share.capturePreview();
+      const file = await tierList.share.downloadCapturedImage();
       expect(snapshotTextOf(file.buffer)).not.toBeNull();
       const friend = await openAsVisitor('/rank');
       await friend.openFile(pngFile(file.name, file.buffer));
@@ -859,13 +860,13 @@ test.describe('snapshot files', () => {
           consoleErrors,
         }) => {
           await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston', 'D.Va']}));
-          const tile = await tierList.tileColorsOnScreen('Mauga');
+          const tile = await tierList.share.tileColorsOnScreen('Mauga');
 
-          await tierList.capturePreview(method);
+          await tierList.share.capturePreview(method);
 
           await expect(tierList.toast('Failed to capture image')).toHaveCount(0);
           await expect(tierList.toast('Image captured successfully')).toBeVisible();
-          const image = await tierList.capturedImageDetails();
+          const image = await tierList.share.capturedImageDetails();
           // The card is 1200 CSS pixels wide, drawn at twice the size on screens with dense pixels.
           const scale = image.devicePixelRatio >= 2 ? 2 : 1;
           expect(image.width, 'image width').toBe(1200 * scale);
@@ -875,7 +876,7 @@ test.describe('snapshot files', () => {
           expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
           // The gradients alone have that many, so also look inside the first tile: Mauga's image
           // and name must be in the capture, about as colourful as on the page.
-          const tileColors = await tierList.capturedCardTileColors();
+          const tileColors = await tierList.share.capturedCardTileColors();
           expect(tileColors, `colours in the "Mauga" tile (page shows ${tile.colors})`)
             .toBeGreaterThanOrEqual(tile.colors * 0.5);
           // The card has its own dark background in both colour schemes.
@@ -905,7 +906,7 @@ test.describe('snapshot files', () => {
             const snapshot = await downloadSnapshotOf(tierList, {method, frame});
 
             await expect(tierList.toast('Failed to capture image')).toHaveCount(0);
-            const image = await tierList.capturedImageDetails();
+            const image = await tierList.share.capturedImageDetails();
             expect({width: image.width, height: image.height}, 'captured image size').toEqual({width, height});
             expect(pngSize(snapshot), 'downloaded file size').toEqual({width, height});
             expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
@@ -940,11 +941,11 @@ test.describe('snapshot files', () => {
         await expect.poll(() => tierList.itemImageHasLoaded('With CORS')).toBe(true);
         await expect.poll(() => tierList.itemImageHasLoaded('Without CORS')).toBe(true);
 
-        await tierList.capturePreview(method);
+        await tierList.share.capturePreview(method);
 
         await expect(tierList.toast('Failed to capture image')).toHaveCount(0);
         await expect(tierList.toast('Image captured successfully')).toBeVisible();
-        const image = await tierList.capturedImageDetails();
+        const image = await tierList.share.capturedImageDetails();
         expect(image.distinctColors, 'colours in the image').toBeGreaterThan(50);
         // The browser reports the refused CORS check of the site without CORS; nothing else may fail.
         expect(consoleErrors.filter((error) => !messageNamesHost(error, 'upload.wikimedia.org') && !error.includes('net::ERR_FAILED')), 'errors in the browser console').toEqual([]);
@@ -1203,18 +1204,18 @@ test.describe('snapshot files', () => {
         },
         events: {
           CAPTURE_PREVIEW: async () => {
-            await tierList.openImageTab();
-            await tierList.captureInOpenPanel();
+            await tierList.share.openImageTab();
+            await tierList.share.captureInOpenPanel();
           },
           DOWNLOAD: async () => {
-            const saved = await tierList.downloadCapturedImage();
+            const saved = await tierList.share.downloadCapturedImage();
             expect(saved.name).toBe('mixed-bag.png');
             const payload = JSON.parse(snapshotTextOf(saved.buffer) ?? 'null') as {state: string; path: string; images: {id: string}[]};
             expect(payload.path).toBe(TANKS);
             expect(payload.images.map((image) => image.id), 'the file holds the picture under its id here').toEqual([pictureId]);
             file = pngFile(saved.name, saved.buffer);
             fileState = payload.state;
-            await tierList.closeSharePanelWithEscape();
+            await tierList.share.closeSharePanelWithEscape();
             storedAfterDownload = await tierList.deviceImageCount();
             historyAfterDownload = await tierList.historyLength();
           },
@@ -1261,8 +1262,8 @@ test.describe('snapshot files', () => {
             else if (view.dialog === 'home') await expect(shown.openListDialog).toContainText('This page stays one Back step away.');
             else await expect(shown.openListDialog).toHaveCount(0);
             if (view.captured) {
-              await expect(tierList.capturedImage).toBeVisible();
-              await expect(tierList.downloadButton).toBeVisible();
+              await expect(tierList.share.capturedImage).toBeVisible();
+              await expect(tierList.share.downloadButton).toBeVisible();
             }
             if (view.list === null && view.dialog === null && !view.captured) {
               await expect(page).toHaveURL(/^[^?]*\/$/);

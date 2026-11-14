@@ -102,13 +102,13 @@ test.describe('tips', () => {
       const tips = new Tips(tierList.page);
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
-      await tierList.capturePreview();
-      const withTip = await tierList.capturedImageDetails();
+      await tierList.share.capturePreview();
+      const withTip = await tierList.share.capturedImageDetails();
 
       const visitor = await openAsVisitor(TANKS, {beforeOpen: (context) => Tips.turnOffIn(context)});
       await expect(visitor.hints).toBeVisible();
-      await visitor.capturePreview();
-      const withoutTip = await visitor.capturedImageDetails();
+      await visitor.share.capturePreview();
+      const withoutTip = await visitor.share.capturedImageDetails();
 
       expect({width: withTip.width, height: withTip.height, pixels: withTip.pixelDigest})
         .toEqual({width: withoutTip.width, height: withoutTip.height, pixels: withoutTip.pixelDigest});
@@ -141,7 +141,7 @@ test.describe('tips', () => {
 
       await tips.linkSaveToast.getByRole('button', {name: 'Share', exact: true}).click();
 
-      await expect(tierList.sharePanel).toBeVisible();
+      await expect(tierList.share.sharePanel).toBeVisible();
       await expect(tips.linkSaveToast).toBeHidden();
     });
 
