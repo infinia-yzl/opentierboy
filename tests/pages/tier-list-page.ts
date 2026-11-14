@@ -1149,10 +1149,13 @@ export class TierListPage {
     await expect(submenu).toHaveAttribute('data-side', /^(left|right)$/);
     const side = await submenu.getAttribute('data-side');
     const from = await boxOf(trigger);
-    const into = await boxOf(submenu);
     const y = from.y + from.height / 2;
-    expect(y, 'the submenu should open beside its item').toBeGreaterThan(into.y);
-    expect(y, 'the submenu should open beside its item').toBeLessThan(into.y + into.height);
+    // The submenu shows off screen until the menu has placed it: wait until it sits beside its item.
+    let into = await boxOf(submenu);
+    await expect.poll(async () => {
+      into = await boxOf(submenu);
+      return into.y < y && y < into.y + into.height;
+    }, {message: 'the submenu should open beside its item'}).toBe(true);
     const edge = side === 'left' ? from.x + 2 : from.x + from.width - 2;
     const inside = side === 'left' ? into.x + into.width - 8 : into.x + 8;
     await this.page.mouse.move(from.x + from.width / 2, y);

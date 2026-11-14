@@ -473,12 +473,21 @@ test.describe('link images', () => {
         held = null;
         await hold?.release();
       };
+      /**
+       * The address typed last. Each submit types a new one: a browser that has shown a picture
+       * shows it again without asking the site (WebKit does, even across pages), and then no
+       * answer is left to hold.
+       */
+      let submitted: string | null = null;
+      let submits = 0;
       /** Submits an address that the site of `image` holds the answer to, and returns once the page has asked for it. */
       const submitHeld = async (image: DialogImage) => {
         await releaseHeld();
-        const hold = sites[image.site].hold([image.url]);
+        const address = `${image.url}?submit=${++submits}`;
+        const hold = sites[image.site].hold([address]);
         held = hold;
-        await tierList.submitInLinkImageDialog(image.url, image.name);
+        submitted = address;
+        await tierList.submitInLinkImageDialog(address, image.name);
         await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
       };
       const sut = modelSut<LinkDialogSnapshot, LinkDialogEvent>(page, {
@@ -542,7 +551,8 @@ test.describe('link images', () => {
                 await expect(button).toBeEnabled();
                 return;
               case 'checking':
-                await expect(address).toHaveValue(view.image.url);
+                expect(submitted?.startsWith(`${view.image.url}?submit=`), `the address typed should be ${view.image.url}`).toBe(true);
+                await expect(address).toHaveValue(submitted!);
                 await expect(tierList.linkImageMessage).toHaveCount(0);
                 await expect(button).toHaveText('Checking the image…');
                 await expect(button).toBeDisabled();
@@ -570,10 +580,9 @@ test.describe('link images', () => {
       test(`renders each step of "From a link" when the user adds, cancels and adds anyway while the image site answers (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const sites = {
-          // Each submit holds the site's answer, so every check must reach the site (noStore).
-          [PICTURE.site]: await serveImageSite(page, PICTURE.site, {noStore: true}),
-          [WEB_PAGE.site]: await serveImageSite(page, WEB_PAGE.site, {...NOT_A_PICTURE, noStore: true}),
-          [LARGE_PICTURE.site]: await serveImageSite(page, LARGE_PICTURE.site, {body: noisePng(8193, 1, 1), noStore: true}),
+          [PICTURE.site]: await serveImageSite(page, PICTURE.site),
+          [WEB_PAGE.site]: await serveImageSite(page, WEB_PAGE.site, NOT_A_PICTURE),
+          [LARGE_PICTURE.site]: await serveImageSite(page, LARGE_PICTURE.site, {body: noisePng(8193, 1, 1)}),
         };
         const {sut, releaseHeld} = linkDialogSut(tierList, page, testInfo, sites);
         try {
