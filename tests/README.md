@@ -135,10 +135,13 @@ tests/
   and never touch selectors directly. Add a method to the page object when a spec needs a
   new action.
 - **Locate by role and accessible name**, the way assistive technology sees the page: a tier
-  row is a `group` named after its label (the unnamed last row is `Unranked`, a row whose
-  label was cleared is `Tier <n>`), an item is a `button` named after its label, a row
-  handle is a `button` named `Move tier <label>`. The Unranked tray has no handle; every row
-  and the tray hold a level-2 heading, which is how the page object finds them. If an element has no accessible name, add
+  row is a `group` named after its label (the unnamed last row is `Unranked`, another row
+  without a label is `Row <n>`, its position), an item is a `button` named after its label. Each
+  ranked row has two handles: its grip, a `button` named `Move row <label>` (`Move Row 4`), which
+  moves the whole row (`rowGrip`), and its stack, a `button` named `Move the 3 items of row
+  <label>` (`Row <label> has 0 items to move` when empty), which moves only its items
+  (`rowStack`). The Unranked tray has no handles; every row and the tray hold a level-2 heading,
+  which is how the page object finds them. If an element has no accessible name, add
   one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
 - **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`
   on a wait. Wait for what the user would see: web-first assertions such as `toHaveText`, the
@@ -230,8 +233,12 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   the drop helpers check that every item tile has the role description "draggable"
   (`expectEveryItemDraggable`). The editor renders it only while the drag library holds the
   tile's draggable, so a tile that could not be dragged fails the test that dropped something.
-- **Keyboard.** `moveItemWithKeyboard` and `moveTierWithKeyboard` wait for the announcement
-  after each key, and after the drop for focus to come back to the item or row handle.
+- **Keyboard.** `moveItemWithKeyboard`, `moveRowWithKeyboard` (the grip) and
+  `moveRowItemsWithKeyboard` (the stack) wait for the announcement after each key, and after the
+  drop for focus to come back to the item, grip or stack.
+- **Rows.** `dragRowOnto` drags a row by its grip onto the place of another row: the whole row
+  moves, name included. `dragRowItemsOnto` drags a row's stack there: the items move and the
+  labels stay. Both aim at the centre of the target row, measured before the drag.
 - **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with
   `dnd-kit-announcement`). dnd-kit reads moves after 500 ms, so wait for the text.
 - **Touch.** `touchDragItemToTier`, `longPressItem` and `swipeUpFromItem` send touch events
@@ -468,8 +475,9 @@ disappeared compared with the base branch (pass `-- --base <ref>` to choose the 
 - **The browser history is the undo feature.** Every change to the list adds a history
   entry, and the Back button steps back to the previous version of the list, one change at a
   time (`history.spec.ts`). This is intended behaviour, not a bug.
-- **Moving a row keeps the labels in place.** Dropping row S on A's position moves the
-  contents; the labels stay S, A, B... from top to bottom.
+- **Moving a row's items keeps the labels in place.** Dropping the stack of row S on A's
+  position moves the contents; the labels stay S, A, B... from top to bottom. The grip moves the
+  whole row, its name included (owner decision, 2026-11-14); the colours stay with the positions.
 - **Label settings travel in the link without a Back step.** The label position and label
   visibility are part of v3 links, written in place of the current history entry (owner's
   decision, 2026-10-25). Back and Forward inside the editor keep the settings on screen; a link
