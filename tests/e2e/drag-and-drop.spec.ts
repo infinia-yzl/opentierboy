@@ -338,6 +338,15 @@ test.describe('drag and drop', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
     });
 
+    test('renders row S after row A when the user long-presses the grip of row S and drags it onto row A', {tag: '@mobile'}, async ({tierList}) => {
+      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+
+      await tierList.touchDragRowOnto('S', 'A');
+
+      await expectTierNames(tierList, ['A', 'S', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    });
+
     test('renders the item menu with no drag and no text selection when the user long-presses an item', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
       const announcement = await tierList.dragAnnouncer.textContent();

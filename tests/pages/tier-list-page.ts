@@ -954,6 +954,33 @@ export class TierListPage {
   }
 
   /**
+   * Touches a row's grip, holds it still, then drags the row onto the place of another row and
+   * lifts the finger. The hold is in the event times (300 ms between touching and moving): the
+   * grip drags after a 250 ms hold (lib/dnd/activation.ts), so the test does not wait for it.
+   */
+  async touchDragRowOnto(tierName: string, targetTierName: string) {
+    await this.dropAndWaitForLink(async () => {
+      const touch = await this.touchscreen();
+      const grip = this.rowGrip(tierName);
+      await grip.scrollIntoViewIfNeeded();
+      const from = await centerOf(grip);
+      const box = await boxOf(this.tier(targetTierName));
+      const to = {x: box.x + box.width / 2, y: box.y + box.height / 2};
+      const start = Date.now() / 1000;
+      await touch('touchStart', from, start);
+      await touch('touchMove', {x: from.x, y: from.y + 1}, start + 0.3);
+      await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(rowPhrase(tierName))}, `));
+      for (let step = 1; step <= 10; step++) {
+        await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.3 + step * 0.03);
+        await this.scrollPositionAfterFrames(2);
+      }
+      await touch('touchEnd', null, start + 0.7);
+      await this.dropEnded();
+      await this.expectEveryItemDraggable();
+    });
+  }
+
+  /**
    * Touches an item and holds the finger still until its menu opens (a long press), then lifts
    * the finger. Returns the menu.
    */
