@@ -546,6 +546,13 @@ function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; i
   const describedBy = useContext(TierDragDescriptionContext);
   const manager = useDragDropManager();
   const {draggable} = sortable;
+  // A keyboard move to another row draws the tile there as a new element, and focus would fall
+  // back to the page: the tile in its new place takes the focus, so a screen reader keeps it.
+  useEffect(() => {
+    if (!isDragging || !manager || !isKeyboardDrag(manager)) return;
+    const element = draggable.handle ?? draggable.element;
+    if (element instanceof HTMLElement && document.activeElement !== element) element.focus({preventScroll: true});
+  }, [isDragging, manager, draggable]);
   // True while the manager holds this very draggable under its id, with an element to press.
   const canDrag = useComputed(
     () => manager?.registry.draggables.get(draggable.id) === draggable && draggable.element !== undefined && !draggable.disabled,

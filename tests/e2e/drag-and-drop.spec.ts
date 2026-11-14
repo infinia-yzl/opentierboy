@@ -435,9 +435,10 @@ test.describe('drag and drop', () => {
               linkRow = linkIn;
             }
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
+            // Focus stays on the tile while it moves between rows, and after a drop or a cancel.
+            await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
             if (!carried) {
-              // After a drop or a cancel, focus is back on the tile, and it takes the next drag.
-              await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
+              // At rest, it takes the next drag.
               await tierList.expectEveryItemDraggable();
             }
           },
