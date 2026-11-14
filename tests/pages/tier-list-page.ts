@@ -1,6 +1,9 @@
 import fs from 'node:fs/promises';
 import {expect, type Locator, type Page, type Route} from '@playwright/test';
+import {expectSettled} from '../support/settled';
 import {escapeRegExp} from '../support/regexp';
+import {letToastTimeOut, runPageClock} from '../support/page-clock';
+import type {HeldImageSite} from '../support/image-sites';
 
 export type RowCount = 3 | 5 | 7;
 export type LabelPosition = 'Left' | 'Right' | 'Top';
@@ -115,8 +118,8 @@ export class TierListPage {
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
   async goto(path: string, state?: string) {
     await this.page.goto(state ? `${path}?state=${state}` : path);
-    // The editor renders on the client only, so wait until the rows exist.
     await expect(this.tiers.first()).toBeVisible();
+    await this.settled();
   }
 
   /**
@@ -137,12 +140,14 @@ export class TierListPage {
   async reload() {
     await this.page.reload();
     await expect(this.tiers.first()).toBeVisible();
+    await this.settled();
   }
 
   /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
     await this.page.goto(link);
     await expect(this.tiers.first()).toBeVisible();
+    await this.settled();
   }
 
   tier(name: string): Locator {
@@ -295,19 +300,6 @@ export class TierListPage {
     return this.main.getByRole('button', {name: `Move tier ${tierName}`, exact: true});
   }
 
-  /**
-   * Makes the server's answers to page navigations (the React Server Components requests that
-   * every new address of the editor makes) arrive `delayMs` later, like a slow connection.
-   */
-  async simulateSlowServer(delayMs: number) {
-    await this.page.route('**/*', async (route) => {
-      if (route.request().headers()['rsc'] === '1') {
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-      await route.fallback();
-    });
-  }
-
   /** Leaves the editor for the landing page with the site's logo link in the header. */
   async leaveForHome() {
     await this.homeLink.click();
@@ -440,7 +432,7 @@ export class TierListPage {
    * once the link is in the address bar.
    */
   async dragItemToTierStartInOneSweep(itemName: string, tierName: string) {
-    await this.dropSettled();
+    await this.dropEnded();
     await this.changeAndWaitForLink(async () => {
       const item = this.item(itemName);
       await item.scrollIntoViewIfNeeded();
@@ -456,7 +448,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer).toHaveText(/ moves to tier /);
       await this.scrollPositionAfterFrames();
       await mouse.up();
-      await this.dropSettled();
+      await this.dropEnded();
     });
     await this.expectEveryItemDraggable();
   }
@@ -538,11 +530,10 @@ export class TierListPage {
    */
   async moveItemWithKeyboardThenCancel(itemName: string, keys: string[]) {
     const keyboard = this.page.keyboard;
-    await expect(async () => {
-      await this.item(itemName).focus();
-      await keyboard.press('Space');
-      await expect(this.dragAnnouncer).toContainText('Picked up', {timeout: 1_000});
-    }).toPass();
+    await this.dropEnded();
+    await this.item(itemName).focus();
+    await keyboard.press('Space');
+    await expect(this.dragAnnouncer).toContainText('Picked up');
     for (const key of keys) {
       const before = await this.dragAnnouncer.textContent();
       await keyboard.press(key);
@@ -616,22 +607,16 @@ export class TierListPage {
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
 
     const mouse = this.page.mouse;
-    // A press starts no drag while the previous drop still animates (about 300 ms), so the
-    // helper presses again until the drag starts. Each try measures the item again, in case
-    // the page moved it since the last try.
-    await expect(async () => {
-      const from = await centerOf(handle);
-      await mouse.move(from.x, from.y);
-      await mouse.down();
-      // A mouse drag starts only after the pointer moves a few pixels.
-      await mouse.move(from.x + 8, from.y + 8, {steps: 4});
-      // Once a drag starts, the editor announces the lift, and then every change of the
-      // drop position. Only the latest message stays in the live region.
-      await expect(this.dragAnnouncer).toHaveText(/^Picked up /, {timeout: 1_000}).catch(async (error) => {
-        await mouse.up();
-        throw error;
-      });
-    }, 'the drag should start').toPass({timeout: 30_000});
+    // A press starts no drag until the last drop has ended.
+    await this.dropEnded();
+    const from = await centerOf(handle);
+    await mouse.move(from.x, from.y);
+    await mouse.down();
+    // A mouse drag starts only after the pointer moves a few pixels.
+    await mouse.move(from.x + 8, from.y + 8, {steps: 4});
+    // Once a drag starts, the editor announces the lift, and then every change of the
+    // drop position. Only the latest message stays in the live region.
+    await expect(this.dragAnnouncer, 'the drag should start').toHaveText(/^Picked up /);
 
     // toPass reports only a timeout: the last failed check is kept to say what never settled.
     let lastProblem = '';
@@ -642,7 +627,7 @@ export class TierListPage {
         lastProblem = error instanceof Error ? error.message.split('\n').slice(0, 3).join(' ') : String(error);
         throw error;
       }
-    }).toPass({timeout: 15_000}).catch((error: unknown) => {
+    }).toPass().catch((error: unknown) => {
       throw new Error(`The drag never settled on its drop point. Last check: ${lastProblem}`, {cause: error});
     });
     if (cancel) {
@@ -652,7 +637,7 @@ export class TierListPage {
     }
     await mouse.up();
     await afterRelease?.();
-    await this.dropSettled();
+    await this.dropEnded();
     await this.expectEveryItemDraggable();
   }
 
@@ -682,15 +667,16 @@ export class TierListPage {
   }
 
   /**
-   * Waits until a drop has finished animating (about 300 ms). Until then the drag library
-   * blocks text selection on the whole page (typing into a label right away goes nowhere) and
-   * a press starts no new drag.
+   * Waits until no drag or drop is in progress, a drop animation included: the rows carry
+   * `data-dragging` until then (components/DragDropTierList.tsx, RowList), and the page is busy
+   * (lib/dnd/react.tsx). Until then the drag library blocks text selection on the whole page
+   * (typing into a label right away goes nowhere) and a press starts no new drag. Other work,
+   * such as a link on its way to the address, may go on: a quick test does not wait for it.
    */
-  private async dropSettled() {
-    await expect.poll(() => this.page.evaluate(() => document.getAnimations()
-      .filter((animation) => animation.playState === 'running' && animation.effect?.getTiming().iterations !== Infinity).length), {
-      message: 'the drop animation should end',
-    }).toBe(0);
+  private async dropEnded() {
+    await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
+      message: 'the last drop should have ended',
+    }).toBe(true);
   }
 
   private async scrollPosition(): Promise<Point> {
@@ -737,11 +723,10 @@ export class TierListPage {
     const keyboard = this.page.keyboard;
     // The editor announces every step to screen readers. Waiting for those announcements
     // keeps the test in step with the app without fixed sleeps.
-    await expect(async () => {
-      await handle.focus();
-      await keyboard.press('Space');
-      await expect(this.dragAnnouncer).toContainText('Picked up', {timeout: 1_000});
-    }).toPass();
+    await this.dropEnded();
+    await handle.focus();
+    await keyboard.press('Space');
+    await expect(this.dragAnnouncer).toContainText('Picked up');
     for (const key of keys) {
       const before = await this.dragAnnouncer.textContent();
       await keyboard.press(key);
@@ -785,7 +770,7 @@ export class TierListPage {
       }
       await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : `tier ${tierName}`)},`));
       await touch('touchEnd', null, start + 0.7);
-      await this.dropSettled();
+      await this.dropEnded();
       await this.expectEveryItemDraggable();
     });
   }
@@ -916,15 +901,11 @@ export class TierListPage {
     return this.page.getByRole('menuitem', {name: 'Remove a row'});
   }
 
-  /**
-   * Opens the Row options menu. Right after a navigation the editor may not have started yet,
-   * so a click can go unanswered: it clicks again until the menu shows.
-   */
+  /** Opens the Row options menu, once the page has settled (a test may come from page.goBack()). */
   async openRowOptions() {
-    await expect(async () => {
-      if (!(await this.removeRowMenuItem.isVisible())) await this.rowOptionsButton.click();
-      await expect(this.removeRowMenuItem).toBeVisible({timeout: 1_000});
-    }).toPass();
+    await this.settled();
+    if (!(await this.removeRowMenuItem.isVisible())) await this.rowOptionsButton.click();
+    await expect(this.removeRowMenuItem).toBeVisible();
   }
 
   /** Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items. */
@@ -939,10 +920,8 @@ export class TierListPage {
   /** Closes every open menu with Escape. */
   async closeMenus() {
     const menus = this.page.getByRole('menu');
-    await expect(async () => {
-      if (await menus.count() > 0) await this.page.keyboard.press('Escape');
-      await expect(menus).toHaveCount(0, {timeout: 1_000});
-    }).toPass();
+    if (await menus.count() > 0) await this.page.keyboard.press('Escape');
+    await expect(menus).toHaveCount(0);
   }
 
   async chooseRowCount(count: RowCount) {
@@ -1215,21 +1194,12 @@ export class TierListPage {
   }
 
   /**
-   * Waits until the editor responds to input. The server-rendered rows show before the page has
-   * started in the browser; a paste event before that finds no listener. Opening the items menu
-   * proves the page has started (and its effects, such as recording Recently viewed, have run).
-   * In Zen that button hides; the Zen bar shows only once Zen is on, so the page's own code ran
-   * and the page has started.
+   * Waits until the page has finished what the last step started: <main> no longer says
+   * `aria-busy` (lib/busy.ts). The page is busy until the editor has started in the browser,
+   * while a link is written, during a drag, and while files or pictures are added or captured.
    */
-  async waitUntilInteractive() {
-    if (await this.zenBar.isVisible()) return;
-    const menu = this.page.getByRole('menu');
-    await expect(async () => {
-      if (!(await menu.isVisible())) await this.manageItemsButton.click();
-      await expect(menu).toBeVisible({timeout: 1_000});
-    }).toPass();
-    await this.page.keyboard.press('Escape');
-    await expect(menu).toBeHidden();
+  async settled() {
+    await expectSettled(this.page);
   }
 
   /** The text an item's right-click (or long-press) menu shows about the image's site, if any. */
@@ -1252,7 +1222,7 @@ export class TierListPage {
    */
   async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
     // A target (such as a text field the test typed into) proves the page has started already.
-    if (!target) await this.waitUntilInteractive();
+    if (!target) await this.settled();
     await (target ?? this.main).evaluate((element, payload) => {
       const transfer = new DataTransfer();
       for (const file of payload) {
@@ -1268,7 +1238,7 @@ export class TierListPage {
    * editor handles them while the earlier ones are still being added.
    */
   async pasteImagesAtOnce(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
-    await this.waitUntilInteractive();
+    await this.settled();
     await this.main.evaluate((element, payload) => {
       for (const group of payload) {
         const transfer = new DataTransfer();
@@ -1331,7 +1301,7 @@ export class TierListPage {
    * drops the files of a scripted paste (SCRIPTED_PASTE_SKIP).
    */
   async sendFileEventsAtOnce(events: {event: 'paste' | 'drop'; file: {name: string; mimeType: string; buffer: Buffer}}[]) {
-    await this.waitUntilInteractive();
+    await this.settled();
     await this.main.evaluate((_main, payload) => {
       for (const {event, name, mimeType, base64} of payload) {
         const data = new DataTransfer();
@@ -1363,7 +1333,7 @@ export class TierListPage {
 
   /** Drops links or text from another page onto the editor's first row. */
   async dropText(data: {uriList?: string; html?: string; plain?: string}) {
-    await this.waitUntilInteractive();
+    await this.settled();
     const transfer = await this.textTransfer(data);
     const element = this.tiers.first();
     await element.dispatchEvent('dragenter', {dataTransfer: transfer});
@@ -1376,7 +1346,7 @@ export class TierListPage {
    * browser's own drag of its picture. No drag starts, so no dragend follows.
    */
   async fireCancelledDragStartOn(itemName: string) {
-    await this.waitUntilInteractive();
+    await this.settled();
     await this.item(itemName).evaluate((element) => {
       element.addEventListener('dragstart', (event) => event.preventDefault(), {once: true});
       element.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));
@@ -1385,7 +1355,7 @@ export class TierListPage {
 
   /** Drags a link from another page over the editor and keeps it there (no drop yet). */
   async dragLinkOver(address: string) {
-    await this.waitUntilInteractive();
+    await this.settled();
     const transfer = await this.textTransfer({uriList: address, plain: address});
     const element = this.tiers.first();
     await element.dispatchEvent('dragenter', {dataTransfer: transfer});
@@ -1403,7 +1373,7 @@ export class TierListPage {
    * paste event; Firefox drops the data of such an event (SCRIPTED_PASTE_SKIP).
    */
   async pasteText(text: string) {
-    await this.waitUntilInteractive();
+    await this.settled();
     await this.main.evaluate((element, pasted) => {
       const transfer = new DataTransfer();
       transfer.setData('text/plain', pasted);
@@ -1449,10 +1419,10 @@ export class TierListPage {
   /**
    * Chooses a file with "Open a Freeze Frame…" in the Add images menu, as the file chooser
    * would. Pass `waitForEditor: false` when the test already waited for the editor
-   * (waitUntilInteractive), for example to time the opening.
+   * (settled), for example to time the opening.
    */
   async openFile(file: {name: string; mimeType: string; buffer: Buffer}, {waitForEditor = true} = {}) {
-    if (waitForEditor) await this.waitUntilInteractive();
+    if (waitForEditor) await this.settled();
     const chooser = this.page.waitForEvent('filechooser');
     await this.manageItemsButton.click();
     await this.page.getByRole('menuitem', {name: 'Open a Freeze Frame…'}).click();
@@ -1465,7 +1435,7 @@ export class TierListPage {
    * waiting for the editor first.
    */
   async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onto}: {onto?: Locator} = {}) {
-    if (!onto) await this.waitUntilInteractive();
+    if (!onto) await this.settled();
     const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
       const data = new DataTransfer();
       data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
@@ -1506,7 +1476,7 @@ export class TierListPage {
    * waiting is not part of the time.
    */
   async timeToOpenFile(file: {name: string; mimeType: string; buffer: Buffer}, text: string): Promise<number> {
-    await this.waitUntilInteractive();
+    await this.settled();
     await this.page.evaluate((expected) => {
       const timing: {start?: number; end?: number} = {};
       (window as unknown as {__openFileTiming: typeof timing}).__openFileTiming = timing;
@@ -1753,42 +1723,39 @@ export class TierListPage {
   /** Waits for the captured preview image to load, then measures it. */
   async capturedImageDetails(): Promise<CapturedImage> {
     await expect(this.capturedImage).toBeVisible();
-    let details: CapturedImage | null = null;
-    // The preview can reload while the share panel re-renders, so measure it once it has
-    // finished loading.
-    await expect(async () => {
-      details = await this.capturedImage.evaluate((img: HTMLImageElement) => {
-        if (!img.complete || img.naturalWidth === 0) return null;
-        const size = 64;
-        const small = document.createElement('canvas');
-        small.width = size;
-        small.height = size;
-        const smallContext = small.getContext('2d')!;
-        smallContext.drawImage(img, 0, 0, size, size);
-        const pixels = smallContext.getImageData(0, 0, size, size).data;
-        const colors = new Set<string>();
-        for (let index = 0; index < pixels.length; index += 4) {
-          colors.add(`${pixels[index]},${pixels[index + 1]},${pixels[index + 2]},${pixels[index + 3]}`);
-        }
-        const full = document.createElement('canvas');
-        full.width = img.naturalWidth;
-        full.height = img.naturalHeight;
-        const fullContext = full.getContext('2d')!;
-        fullContext.drawImage(img, 0, 0);
-        const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
-        return {
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          pageWidth: document.documentElement.clientWidth,
-          pageHeight: document.documentElement.scrollHeight,
-          devicePixelRatio: window.devicePixelRatio,
-          distinctColors: colors.size,
-          cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
-        };
-      });
-      expect(details, 'the captured image should finish loading').not.toBeNull();
-    }).toPass();
-    return details!;
+    // The capture is done once the page is no longer busy; decode() waits until the picture
+    // has loaded.
+    await this.settled();
+    const details = await this.capturedImage.evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      const size = 64;
+      const small = document.createElement('canvas');
+      small.width = size;
+      small.height = size;
+      const smallContext = small.getContext('2d')!;
+      smallContext.drawImage(img, 0, 0, size, size);
+      const pixels = smallContext.getImageData(0, 0, size, size).data;
+      const colors = new Set<string>();
+      for (let index = 0; index < pixels.length; index += 4) {
+        colors.add(`${pixels[index]},${pixels[index + 1]},${pixels[index + 2]},${pixels[index + 3]}`);
+      }
+      const full = document.createElement('canvas');
+      full.width = img.naturalWidth;
+      full.height = img.naturalHeight;
+      const fullContext = full.getContext('2d')!;
+      fullContext.drawImage(img, 0, 0);
+      const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
+      return {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        pageWidth: document.documentElement.clientWidth,
+        pageHeight: document.documentElement.scrollHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        distinctColors: colors.size,
+        cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
+      };
+    });
+    return details;
   }
 
   // ---- Zen mode --------------------------------------------------------------------------
@@ -1871,22 +1838,9 @@ export class TierListPage {
     return covered;
   }
 
-  /**
-   * Moves the page's clock on (the test installed it with `page.clock.install()`), then waits
-   * until the page has handled what those timers started: React renders in message tasks, which
-   * the clock does not fake, so two message round trips run after them.
-   */
+  /** Moves the page clock on by `ms` (`pageClock`), and lets the page handle what those timers started. */
   async letTimePass(ms: number) {
-    await this.page.clock.runFor(ms);
-    await this.page.evaluate(async () => {
-      for (let round = 0; round < 2; round++) {
-        await new Promise<void>((resolve) => {
-          const channel = new MessageChannel();
-          channel.port1.onmessage = () => resolve();
-          channel.port2.postMessage(null);
-        });
-      }
-    });
+    await runPageClock(this.page, ms);
   }
 
   /** Presses a key, such as Tab or Shift+Tab, wherever the focus is. */
@@ -1950,6 +1904,7 @@ export class TierListPage {
   async gotoAddress(address: string) {
     await this.page.goto(address);
     await expect(this.tiers.first()).toBeVisible();
+    await this.settled();
   }
 
   /** Chooses a layout in the Zen bar's Layout menu. It writes no history entry. */
@@ -1995,14 +1950,8 @@ export class TierListPage {
    * example) fails. Returns once the link is in the address bar.
    */
   async dragItemToTierByHand(itemName: string, tierName: string) {
-    // A press starts a drag only once the previous drop has landed. The drag library takes
-    // presses again a frame or two after the drop animation ends, when the rows drop their
-    // data-dragging mark (components/DragDropTierList.tsx, RowList). A person never presses
-    // that fast; a test can.
-    await this.dropSettled();
-    await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
-      message: 'the previous drop should have landed',
-    }).toBe(true);
+    // A press starts a drag only once the previous drop has landed.
+    await this.dropEnded();
     await this.changeAndWaitForLink(async () => {
       const item = this.item(itemName);
       // In a creator layout the rows and the tray scroll on their own, inside a frame that stays
@@ -2016,21 +1965,17 @@ export class TierListPage {
       await mouse.down();
       const to = {x: row.x + row.width - 120, y: row.y + row.height / 2};
       await mouse.move(to.x, to.y, {steps: 20});
+      // A hand never holds perfectly still: the pointer moves by a pixel and back, as a person's
+      // does (still the one press). The drag library checks where the pointer is when it moves,
+      // after the rows have made room for the item, so the drop point is read again.
+      await this.scrollPositionAfterFrames();
+      await mouse.move(to.x + 1, to.y);
+      await this.scrollPositionAfterFrames();
+      await mouse.move(to.x, to.y);
       const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to tier ${escapeRegExp(tierName)},`);
-      // A hand never holds perfectly still: when the drag has not reached the row, the pointer
-      // moves by a pixel and back, as a person's does (still the one press). On a busy machine
-      // the drag library can miss the last move; a nudge never turns another row into this one.
-      const reached = await expect(this.dragAnnouncer).toHaveText(atRow, {timeout: 3_000}).then(() => true, () => false);
-      if (!reached) {
-        let nudge = 1;
-        await expect(async () => {
-          nudge = -nudge;
-          await mouse.move(to.x + nudge, to.y);
-          await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow, {timeout: 1_000});
-        }).toPass({timeout: 10_000});
-      }
+      await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow);
       await mouse.up();
-      await this.dropSettled();
+      await this.dropEnded();
     });
   }
 
@@ -2131,8 +2076,8 @@ export class TierListPage {
     return this.toast(text).filter({hasText: detail});
   }
 
-  async undoFromToast(text: string | RegExp, options?: {timeout?: number}) {
-    await this.toast(text).getByRole('button', {name: 'Undo'}).click(options);
+  async undoFromToast(text: string | RegExp) {
+    await this.toast(text).getByRole('button', {name: 'Undo'}).click();
   }
 
   // ---- History machine (tests/machines/history.ts) -----------------------------------------
@@ -2189,6 +2134,24 @@ export class TierListPage {
     await this.changeAndWaitForLink(() => this.chooseOpenRowOption(option));
   }
 
+  // ---- Link writes machine (tests/machines/link-writes.ts) ----------------------------------
+
+  /**
+   * Moves the first item of the Unranked tray up into the last row with the keyboard: one change
+   * to the list. Returns once the drop is announced and the focus is back, without waiting for
+   * the link, which may wait for the server (holdListWrites).
+   */
+  async moveFirstUnrankedItemUpWithKeyboard() {
+    const name = await this.itemsIn(this.unranked).first().getAttribute('aria-label');
+    if (!name) throw new Error('The Unranked tray has no item to move');
+    await this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
+  }
+
+  /** Waits until the server is asked for a list write that `hold` holds: the editor has pushed its link. */
+  async untilListWriteHeld(hold: HeldListWrites) {
+    await expect.poll(() => hold.isHolding(), {message: 'a list write should wait for the server'}).toBe(true);
+  }
+
   // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
 
   /** Drags the first item of Unranked to the end of a row. Returns once the link is written. */
@@ -2225,6 +2188,28 @@ export class TierListPage {
   /** Adds an image with "From a link", and returns once the link holds it. */
   async addItemFromLinkAndWaitForLink(address: string, name: string) {
     await this.changeAndWaitForLink(() => this.addItemFromLink(address, name));
+  }
+
+  /**
+   * Reloads the page while an image site holds its answers (ImageSite.hold). Returns once the
+   * editor shows the list and the page has settled or waits for the site, which keeps it busy.
+   */
+  async reloadWhileImageSiteHeld(site: HeldImageSite) {
+    await this.page.reload();
+    await this.untilSettledOrWaitingFor(site);
+  }
+
+  /** Opens a tier list while an image site holds its answers (see reloadWhileImageSiteHeld). */
+  async gotoWhileImageSiteHeld(path: string, state: string, site: HeldImageSite) {
+    await this.page.goto(`${path}?state=${state}`);
+    await this.untilSettledOrWaitingFor(site);
+  }
+
+  private async untilSettledOrWaitingFor(site: HeldImageSite) {
+    await expect(this.tiers.first()).toBeVisible();
+    await expect.poll(async () => site.isHolding() || (await this.main.getAttribute('aria-busy')) !== 'true', {
+      message: 'the page should settle or wait for the image site',
+    }).toBe(true);
   }
 
   // ---- Appearance machine (tests/machines/appearance.ts) ---------------------------------------
@@ -2305,7 +2290,8 @@ export class TierListPage {
    */
   async captureInOpenPanel() {
     await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
-    await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled({timeout: 30_000});
+    await this.settled();
+    await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled();
     await expect(this.toast('Image captured successfully').first()).toBeVisible();
     await expect(this.toast('Failed to capture image')).toHaveCount(0);
     await expect(this.capturedImage).toBeVisible();
@@ -2368,7 +2354,7 @@ export class TierListPage {
   /** Waits until the dialog "Open the list in this file?" has closed or says "Opening the list…". */
   private async untilOpenListDialogClosesOrOpens() {
     await expect(this.openListDialog.filter({hasNotText: 'Opening the list…'}), 'the dialog should close or say "Opening the list…"')
-      .toHaveCount(0, {timeout: 10_000});
+      .toHaveCount(0);
   }
 
   /**
@@ -2400,7 +2386,6 @@ export class TierListPage {
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
     await expect.poll(async () => hold.isHolding() || !(await this.openListDialog.isVisible()), {
       message: 'the list write should reach the server, or the dialog close',
-      timeout: 10_000,
     }).toBe(true);
     if (hold.isHolding()) {
       await expect(this.openListDialog).toContainText('Opening the list…');
@@ -2425,7 +2410,6 @@ export class TierListPage {
   private async untilAddressChangesOrDialogShows(before: string) {
     await expect.poll(async () => this.page.url() !== before || await this.openListDialog.isVisible(), {
       message: 'the link should change, unless a dialog shows',
-      timeout: 15_000,
     }).toBe(true);
   }
 
@@ -2469,11 +2453,23 @@ export class TierListPage {
     const hold = await this.holdListWrites();
     try {
       await this.pasteImagesAtOnce(groups);
-      await expect.poll(() => hold.isHolding(), {message: 'the first add should be on its way to the address', timeout: 15_000}).toBe(true);
+      await expect.poll(() => hold.isHolding(), {message: 'the first add should be on its way to the address'}).toBe(true);
       await this.leaveForHome();
     } finally {
       await hold.release();
     }
+  }
+
+  /**
+   * Rests the pointer on a message (a toast) once it shows, and waits until the toasts have
+   * expanded under it: Sonner holds every toast's 4 s timer while they are expanded, so the
+   * message stays until the pointer moves. A paste or a drop that a test sends leaves the pointer
+   * where it is. Not over a dialog: the dialog makes the page ignore the pointer.
+   */
+  async restOnMessage(message: Locator) {
+    await expect(message).toBeVisible();
+    await message.hover();
+    await expect(message).toHaveAttribute('data-expanded', 'true');
   }
 
   // ---- Shared link machine (tests/machines/shared-link.ts) ----------------------------------
@@ -2573,10 +2569,9 @@ export class TierListPage {
     await expect(this.itemsAddedToast).toHaveCount(0);
   }
 
-  /** Moves the pointer off the toast "Items Added", and waits until it closes by itself (after 4 s). */
+  /** Lets the toast "Items Added" close by itself (after 4 s, on the page clock: `pageClock`). */
   async waitOutItemsAddedToast() {
-    await this.page.mouse.move(0, 0);
-    await expect(this.itemsAddedToast, 'the toast "Items Added" should close by itself').toHaveCount(0, {timeout: 15_000});
+    await letToastTimeOut(this.page, this.itemsAddedToast);
   }
 
   /** Closes this page's browser context, as closing a browser window does. */
@@ -2664,6 +2659,11 @@ export class TierListPage {
     if (changesList) await expect(this.page, 'Undo should write a new link').not.toHaveURL(before);
   }
 
+  /** Lets the toast `title` close by itself (after 4 s, on the page clock: `pageClock`). */
+  async waitOutToast(title: string) {
+    await letToastTimeOut(this.page, this.toast(title));
+  }
+
   // ---- Add from template machine (tests/machines/add-from-template.ts) ----------------------
 
   /** A page of the open template picker, by the heading of its options: "Packages" or a package's name. */
@@ -2714,10 +2714,9 @@ export class TierListPage {
     await expect(this.toast('Items Added')).toHaveCount(0);
   }
 
-  /** Moves the pointer off the toast of a template add, and waits until the toast ends by itself (after 4 s). */
+  /** Lets the toast of a template add end by itself (after 4 s, on the page clock: `pageClock`). */
   async waitOutTemplateAddToast() {
-    await this.page.mouse.move(0, 0);
-    await expect(this.toast('Items Added').or(this.toast('No New Items'))).toHaveCount(0, {timeout: 10_000});
+    await letToastTimeOut(this.page, this.toast('Items Added').or(this.toast('No New Items')));
   }
 }
 

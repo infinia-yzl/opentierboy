@@ -34,6 +34,13 @@ type Fixtures = {
    * `test.use({tips: true})` (tests/e2e/tips.spec.ts): other tests check the page without them.
    */
   tips: boolean;
+  /**
+   * Installs Playwright's page clock before the first page opens, so a test can let a toast end
+   * by itself without waiting for it (tests/support/page-clock.ts). Off unless a test turns it on
+   * with `test.use({pageClock: true})`: the clock gives the page no navigation entry, which the
+   * shared-list tip needs (components/EditorTips.tsx).
+   */
+  pageClock: boolean;
   tierList: TierListPage;
   site: SitePage;
   /** Opens a link in a fresh browser context, as a friend who receives the link would. */
@@ -244,6 +251,11 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await sendBypassOnlyToSite(context, baseURL);
     if (!tips) await turnTipsOff(context);
     await use(context);
+  },
+  pageClock: [false, {option: true}],
+  page: async ({page, pageClock}, use) => {
+    if (pageClock) await page.clock.install();
+    await use(page);
   },
   tierList: async ({page}, use) => {
     await use(new TierListPage(page));

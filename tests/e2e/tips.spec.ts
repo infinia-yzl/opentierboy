@@ -1,10 +1,10 @@
 /** The one-time tips for first-time visitors (components/EditorTips.tsx, lib/tips/tips.ts). */
 import type {Locator, Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {rankingState} from '../support/links';
 import {imageFile} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import type {SitePage} from '../pages/site-page';
 import {TIP_IDS, tipsModel, tipsViewOf, type TipsEvent, type TipsSnapshot, type TipsView} from '../models/tips';
@@ -310,13 +310,13 @@ test.describe('tips', () => {
     };
 
     /**
-     * The tips machine's events and checks (createPlaywrightSut). Each run starts as a new
+     * The tips machine's events and checks (modelSut). Each run starts as a new
      * browser on the template; the page clock lets a toast time out without waiting 10 s.
      */
     const tipsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       const tips = new Tips(page);
       let changes = 0;
-      return createPlaywrightSut<Page, TipsSnapshot, TipsEvent>(page, {
+      return modelSut<TipsSnapshot, TipsEvent>(page, {
         reset: async () => {
           await tips.forgetThisBrowser();
           await tierList.goto(TANKS);
@@ -344,7 +344,7 @@ test.describe('tips', () => {
     const sharedListSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
       const tips = new Tips(page);
       let changes = 0;
-      return createPlaywrightSut<Page, TipsSharedListSnapshot, TipsSharedListEvent>(page, {
+      return modelSut<TipsSharedListSnapshot, TipsSharedListEvent>(page, {
         reset: async () => {
           await tips.forgetThisBrowser();
           await tierList.goto(TANKS, SHARED);
@@ -352,7 +352,15 @@ test.describe('tips', () => {
         events: {
           OPEN_SHARED_LINK: () => tierList.goto(TANKS, SHARED),
           OPEN_FROM_RECENTLY_VIEWED: () => site.openRecentLink('Tanks by a friend'),
-          CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
+          CHANGE_TITLE: async () => {
+            await tierList.setTitle(`My tanks ${++changes}`);
+            // The tip's toast ends by itself after 10 s, and this campaign cannot run the page
+            // clock (see above). Once the change has settled, the toast shows or it does not; when
+            // it shows, the pointer rests on it, as a reader's does, so it stays until a step
+            // closes it.
+            await tierList.settled();
+            if (await tips.linkSaveToast.count() > 0) await tierList.restOnMessage(tips.linkSaveToast);
+          },
           CLOSE_TIP: () => tips.close(),
           CLOSE_TOAST: () => tips.closeTipToast(),
           HIDE_TIPS: () => tips.hideTips(),
@@ -366,20 +374,28 @@ test.describe('tips', () => {
       });
     };
 
-    test('renders each state of the tips machine when the user walks every transition from a new browser', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      // Before the first page opens, so TOAST_TIMES_OUT can run the page clock.
-      await page.clock.install();
-      const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, tipsModel, coverage);
+    test.describe.configure({retries: 0});
+
+    test.describe('from a new browser', () => {
+      // Installed before the first page opens, so TOAST_TIMES_OUT can run the page clock.
+      test.use({pageClock: true});
+      for (const part of walkParts(tipsModel)) {
+        test(`renders each state of the tips machine when the user walks every transition from a new browser (${part.name})`, async ({tierList, page}, testInfo) => {
+          test.setTimeout(MODEL_PART_TIMEOUT);
+          const coverage = await walkModel(tipsModel, tipsSut(tierList, page, testInfo), part);
+          await attachAndAssertCoverage(testInfo, tipsModel, coverage, part);
+        });
+      }
     });
 
     // No page clock here: Playwright's clock gives the page no navigation entry
     // (performance.getEntriesByType('navigation') is empty), so the shared-list tip never shows.
-    test('renders each state of the shared-list tip machine when the user walks every transition from a friend\'s link', async ({tierList, site, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo));
-      await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage);
-    });
+    for (const part of walkParts(tipsSharedListModel)) {
+      test(`renders each state of the shared-list tip machine when the user walks every transition from a friend's link (${part.name})`, async ({tierList, site, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(tipsSharedListModel, sharedListSut(tierList, site, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, tipsSharedListModel, coverage, part);
+      });
+    }
   });
 });

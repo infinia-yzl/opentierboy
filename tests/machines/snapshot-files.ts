@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const snapshotFilesMachine = createMachine({
   id: 'snapshotFiles',
-  description: 'Files opened in the editor with Open a Freeze Frame…, dropped on it or pasted into it. A picture becomes an item, one Back step for each file. A file with a list (a Freeze Frame download) asks first: Open list goes to its list with one Back step, Cancel changes nothing. A broken file or a file that is not a picture shows a message. Files that come with a list file are not added. Leaving the editor drops the files that wait.',
+  description: 'Files opened in the editor with Open a Freeze Frame…, dropped on it or pasted into it. A picture becomes an item, one Back step for each file. A file with a list (a Freeze Frame download) asks first: Open list goes to its list with one Back step, Cancel changes nothing. A broken file or a file that is not a picture shows a message. Files that come with a list file are not added. Leaving the editor drops the files that wait. A message closes by itself after 4 seconds (TOAST_TIMES_OUT), but not while the pointer rests on it.',
   initial: 'editor',
   states: {
     editor: {
@@ -32,8 +32,14 @@ export const snapshotFilesMachine = createMachine({
               },
               states: {
                 quiet: {},
-                brokenFileMessage: {description: 'The message “Could not open the file” says the file is damaged. The list stays as it is.'},
-                notAPictureMessage: {description: 'The message “Could not open the file” names the text file: it is not a picture. The list stays as it is.'},
+                brokenFileMessage: {
+                  description: 'The message “Could not open the file” says the file is damaged. The list stays as it is.',
+                  on: {TOAST_TIMES_OUT: {target: 'quiet'}},
+                },
+                notAPictureMessage: {
+                  description: 'The message “Could not open the file” names the text file: it is not a picture. The list stays as it is.',
+                  on: {TOAST_TIMES_OUT: {target: 'quiet'}},
+                },
               },
             },
             withPicture: {
@@ -57,7 +63,10 @@ export const snapshotFilesMachine = createMachine({
           },
           states: {
             nothingWaits: {},
-            filesNotAdded: {description: 'The picture pasted right after the list file waited, and the message “Files not added” names it.'},
+            filesNotAdded: {
+              description: 'The picture pasted right after the list file waited, and the message “Files not added” names it. The dialog makes the page ignore the pointer, so nothing holds the message: it closes by itself after 4 seconds.',
+              on: {TOAST_TIMES_OUT: {target: 'nothingWaits'}},
+            },
           },
         },
         opening: {

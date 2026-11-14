@@ -1,10 +1,11 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
-import {packageItemId, rankingState, templateItemCount, v3State} from '../support/links';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
-import type {TierListPage} from '../pages/tier-list-page';
+import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import type {HeldListWrites, TierListPage} from '../pages/tier-list-page';
 import {historyModel, historyViewOf, MAX_VERSIONS, type HistoryEvent, type HistorySnapshot} from '../models/history';
+import {linkWritesModel, linkWritesViewOf, MAX_LINK_VERSIONS, type LinkWritesEvent, type LinkWritesSnapshot} from '../models/link-writes';
 
 const TANKS = '/rank/overwatch/tank';
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
@@ -85,13 +86,16 @@ test.describe('history', () => {
     test('writes 1 history entry per move when the user makes 3 quick keyboard moves on a slow server', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
       const entries = await tierList.historyLength();
-      await tierList.simulateSlowServer(400);
+      // The server answers once all 3 moves are made: each move waits for the one before.
+      const hold = await tierList.holdListWrites();
 
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
         await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await expect(tierList.itemsIn('F')).toHaveCount(3);
-      await expect.poll(() => tierList.historyLength(), {message: 'one history entry per move'}).toBe(entries + 3);
+      await hold.release();
+      await tierList.settled();
+      expect(await tierList.historyLength(), 'one history entry per move').toBe(entries + 3);
 
       for (const count of [2, 1, 0]) {
         await page.goBack();
@@ -102,11 +106,14 @@ test.describe('history', () => {
     test('writes 1 history entry per rename when the user renames row S twice quickly on a slow server', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       const entries = await tierList.historyLength();
-      await tierList.simulateSlowServer(400);
+      // The server answers once both renames are made.
+      const hold = await tierList.holdListWrites();
 
       await tierList.renameTier('S', 'First', 'First', {waitForLink: false});
       await tierList.renameTier('First', 'Second', 'Second', {waitForLink: false});
-      await expect.poll(() => tierList.historyLength(), {message: 'one history entry per rename'}).toBe(entries + 2);
+      await hold.release();
+      await tierList.settled();
+      expect(await tierList.historyLength(), 'one history entry per rename').toBe(entries + 2);
 
       await page.goBack();
       await expect(tierList.tiers.first()).toHaveAccessibleName('First');
@@ -262,16 +269,20 @@ test.describe('history', () => {
       await page.goto('/about');
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
       const opened = page.url();
-      await tierList.simulateSlowServer(400);
+      const hold = await tierList.holdListWrites();
 
       await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
       await page.goBack();
+      await hold.release();
 
-      // Short timeouts: these assertions are expected to fail until the bug is fixed.
-      await expect(page).toHaveURL(opened, {timeout: 3_000});
-      await expect(tierList.itemsIn('F')).toHaveCount(0, {timeout: 3_000});
+      // Once the page has settled, each check reads the page once: these are expected to fail
+      // until the bug is fixed.
+      await tierList.settled();
+      expect(page.url()).toBe(opened);
+      expect(await tierList.itemsIn('F').count()).toBe(0);
       await page.goForward();
-      await expect(tierList.itemsIn('F')).toHaveText(['Mauga'], {timeout: 3_000});
+      await tierList.settled();
+      await expect(tierList.itemsIn('F')).toHaveText(['Mauga']);
     });
   });
 
@@ -288,8 +299,8 @@ test.describe('history', () => {
     const TRAY = ['Mauga', 'Winston', 'Sigma'];
     const LIST = rankingState('image-overwatch', {S: ['Reinhardt'], '': TRAY});
 
-    /** The history machine's events and checks, run on this test's page (createPlaywrightSut). */
-    const historySut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, HistorySnapshot, HistoryEvent>(page, {
+    /** The history machine's events and checks, run on this test's page (modelSut). */
+    const historySut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<HistorySnapshot, HistoryEvent>(page, {
       reset: () => tierList.openAfterBlankPage(TANKS, LIST),
       events: {
         CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
@@ -316,11 +327,103 @@ test.describe('history', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each version of the list when the user walks every transition of changes, Back and Forward', async ({tierList, page}, testInfo) => {
-      expect(TRAY).toHaveLength(MAX_VERSIONS - 1);
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(historyModel, historySut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, historyModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(historyModel)) {
+      test(`renders each version of the list when the user walks every transition of changes, Back and Forward (${part.name})`, async ({tierList, page}, testInfo) => {
+        expect(TRAY).toHaveLength(MAX_VERSIONS - 1);
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(historyModel, historySut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, historyModel, coverage, part);
+      });
+    }
+  });
+
+  /**
+   * The link writes machine (tests/machines/link-writes.ts): the visitor keeps changing the list
+   * while earlier links still wait for the server. The link write is an event of its own: from
+   * the first change on, the test holds the server's answers to list writes (holdListWrites), and
+   * SERVER_ANSWERS releases them, so the waiting links reach the address one after another. Back
+   * is never pressed while a link waits: that loses the change (Known bugs above).
+   */
+  test.describe('model: link writes', () => {
+    // Each change moves the next Unranked item up into row F, in front of the items there, so
+    // version n has the first n - 1 tray items in row F, the latest first.
+    const TRAY = ['Mauga', 'Winston', 'Sigma'];
+    const LIST = rankingState('image-overwatch', {'': TRAY});
+    const rowF = (version: number) => TRAY.slice(0, version - 1).reverse();
+
+    /** The link writes machine's events and checks, run on this test's page (modelSut). */
+    const linkWritesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      /** The server's answers to the waiting list writes, held from the first change until SERVER_ANSWERS. */
+      let held: HeldListWrites | null = null;
+      /** The address of the list as opened (version 1), and the history entries then. */
+      let opened = '';
+      let entries = 0;
+      const releaseHeld = async () => {
+        const hold = held;
+        held = null;
+        await hold?.release();
+      };
+      /** The item ids in row F of a link. The list as opened has a link of an older format, with none. */
+      const rankedIn = (link: string): unknown => {
+        if (link === opened) return [];
+        const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
+        return rows.find((row) => row.at(-2) === 'F')?.at(-1);
+      };
+      const sut = modelSut<LinkWritesSnapshot, LinkWritesEvent>(page, {
+        reset: async () => {
+          // A walk that ended while links waited lets them go first.
+          await releaseHeld();
+          await tierList.openAfterBlankPage(TANKS, LIST);
+          opened = page.url();
+          entries = await tierList.historyLength();
+        },
+        events: {
+          CHANGE_LIST: async () => {
+            held ??= await tierList.holdListWrites();
+            await tierList.moveFirstUnrankedItemUpWithKeyboard();
+            await tierList.untilListWriteHeld(held);
+          },
+          // The waiting links then reach the address one after another. modelSut waits until the
+          // page is no longer busy, that is until the last one has arrived.
+          SERVER_ANSWERS: () => releaseHeld(),
+          BROWSER_BACK: () => tierList.goBack(),
+        },
+        // Web-first checks: after Back the address changes before the list on screen does.
+        states: {
+          '*': async (_page, snapshot) => {
+            const {onScreen, inAddress, versions, waiting} = linkWritesViewOf(snapshot);
+            // The list on screen shows each change at once, also while its link waits.
+            await expect(tierList.itemsIn('F')).toHaveText(rowF(onScreen));
+            await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY.slice(onScreen - 1));
+            await expect.poll(() => rankedIn(page.url()), {message: `the address should hold version ${inAddress}`})
+              .toEqual(rowF(inAddress).map((name) => packageItemId('image-overwatch', name)));
+            await expect.poll(() => tierList.historyLength(), {message: 'one history entry per version that reached the address'})
+              .toBe(entries + versions - 1);
+            if (waiting > 0) await expect(tierList.main).toHaveAttribute('aria-busy', 'true');
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      // While links wait for the held server answers, the page is busy on purpose.
+      }, {machine: linkWritesModel.machine, busyIn: (snapshot) => linkWritesViewOf(snapshot).waiting > 0});
+      return {sut, releaseHeld};
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(linkWritesModel)) {
+      test(`writes 1 history entry per change, in order, when the user changes the list while links wait for the server (${part.name})`, async ({tierList, page}, testInfo) => {
+        expect(TRAY).toHaveLength(MAX_LINK_VERSIONS - 1);
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const {sut, releaseHeld} = linkWritesSut(tierList, page, testInfo);
+        try {
+          const coverage = await walkModel(linkWritesModel, sut, part);
+          await attachAndAssertCoverage(testInfo, linkWritesModel, coverage, part);
+        } finally {
+          // A walk that ends while links wait leaves no answer held.
+          await releaseHeld();
+        }
+      });
+    }
   });
 });

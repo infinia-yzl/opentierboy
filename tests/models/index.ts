@@ -16,6 +16,7 @@ import {mouseDragModel} from './mouse-drag';
 import {sharedLinkModel} from './shared-link';
 import {addFromTemplateModel} from './add-from-template';
 import {removeAndUndoModel} from './remove-and-undo';
+import {linkWritesModel} from './link-writes';
 
 /**
  * The model of every machine in tests/machines/. tests/unit/machines/walks.test.ts walks each one
@@ -40,4 +41,5 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   sharedLinkModel,
   addFromTemplateModel,
   removeAndUndoModel,
+  linkWritesModel,
 ] as MachineModel[]);

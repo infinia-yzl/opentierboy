@@ -100,6 +100,7 @@ export const removeAndUndoModel = defineModel({
     CANCEL_REMOVE_ALL: {generate: constant, when: offered('CANCEL_REMOVE_ALL')},
     CLICK_UNDO: {generate: constant, when: offered('CLICK_UNDO')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
+    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
     // The browser offers Forward everywhere. On the latest version, and with the dialog open, the
     // page must stay as it is.
     BROWSER_FORWARD: {generate: constant, when: always},

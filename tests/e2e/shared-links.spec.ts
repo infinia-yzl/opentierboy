@@ -1,10 +1,10 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, expectTierNames, SHARED_LINKS, test} from '../support/test';
 import {hugeTierNameState, rawState, stateFromJson, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
 import {BLUE_SQUARE, imageFile, serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {
   BLUE,
@@ -177,7 +177,7 @@ test.describe('shared links', () => {
     }
 
     /**
-     * The shared link machine's events and checks (createPlaywrightSut). `maker` is this test's
+     * The shared link machine's events and checks (modelSut). `maker` is this test's
      * page, whose device image store keeps the picture `deviceId` names; `visitor` is a second
      * browser that never stores a picture, so clearing its local storage makes it new again.
      * Each run starts in the maker's browser on the shared link. `loadedAt` counts the requests
@@ -193,7 +193,7 @@ test.describe('shared links', () => {
         await open();
       };
       const sinceLoad = () => current.otherSiteRequests.slice(loadedAt);
-      return createPlaywrightSut<Page, SharedLinkSnapshot, SharedLinkEvent>(page, {
+      return modelSut<SharedLinkSnapshot, SharedLinkEvent>(page, {
         reset: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
         events: {
           OPEN_IN_MAKER_BROWSER: () => openIn(maker, () => maker.tierList.openAfterBlankPage(TANKS, shared)),
@@ -242,28 +242,29 @@ test.describe('shared links', () => {
       });
     };
 
-    test('renders each state of the shared link machine when the user walks every transition', async ({tierList, page, baseURL, openAsVisitor}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      await serveImageSite(page, TRUSTED_SITE);
-      const makerSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
-      // The maker's browser keeps a picture: the device image store gives it its id.
-      await tierList.goto('/rank');
-      await tierList.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
-      const [, deviceId] = /"d":"([A-Za-z0-9_-]+)"/.exec(JSON.stringify(v3LinkJson(await tierList.shareLink()))) ?? [];
-      expect(deviceId, 'the upload should be a device image in the link').toBeTruthy();
-
-      let visitorRequests: string[] = [];
-      const visitorPage = await openAsVisitor(new URL(`${TANKS}?state=${v3State(sharedLinkJson('asShared', deviceId))}`, baseURL).href, {
-        beforeOpen: async (context) => {
-          await serveImageSite(context, TRUSTED_SITE);
-          visitorRequests = (await serveImageSite(context, OTHER_SITE, {body: BLUE_SQUARE})).requests;
-        },
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(sharedLinkModel)) {
+      test(`renders each state of the shared link machine when the user walks every transition (${part.name})`, async ({tierList, page, baseURL, openAsVisitor}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        await serveImageSite(page, TRUSTED_SITE);
+        const makerSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
+        // The maker's browser keeps a picture: the device image store gives it its id.
+        await tierList.goto('/rank');
+        await tierList.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
+        const [, deviceId] = /"d":"([A-Za-z0-9_-]+)"/.exec(JSON.stringify(v3LinkJson(await tierList.shareLink()))) ?? [];
+        expect(deviceId, 'the upload should be a device image in the link').toBeTruthy();
+        let visitorRequests: string[] = [];
+        const visitorPage = await openAsVisitor(new URL(`${TANKS}?state=${v3State(sharedLinkJson('asShared', deviceId))}`, baseURL).href, {
+          beforeOpen: async (context) => {
+            await serveImageSite(context, TRUSTED_SITE);
+            visitorRequests = (await serveImageSite(context, OTHER_SITE, {body: BLUE_SQUARE})).requests;
+          },
+        });
+        const maker = {tierList, otherSiteRequests: makerSite.requests};
+        const visitor = {tierList: visitorPage, otherSiteRequests: visitorRequests};
+        const coverage = await walkModel(sharedLinkModel, sharedLinkSut(maker, visitor, deviceId, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, sharedLinkModel, coverage, part);
       });
-      const maker = {tierList, otherSiteRequests: makerSite.requests};
-      const visitor = {tierList: visitorPage, otherSiteRequests: visitorRequests};
-
-      const coverage = await walkModel(sharedLinkModel, sharedLinkSut(maker, visitor, deviceId, page, testInfo));
-      await attachAndAssertCoverage(testInfo, sharedLinkModel, coverage);
-    });
+    }
   });
 });

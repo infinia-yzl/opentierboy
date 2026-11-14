@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const removeAndUndoMachine = createMachine({
   id: 'removeAndUndo',
-  description: 'Removing items and the toast’s Undo, on a list opened from a link. Delete, Reset and Remove All each change the list as a new history entry and show a toast with Undo. Undo closes the toast and puts the list back as a new change, unless the list on screen already holds it, as after Back: then nothing changes. Back and Forward step between the versions. Each run makes one removal.',
+  description: 'Removing items and the toast’s Undo, on a list opened from a link. Delete, Reset and Remove All each change the list as a new history entry and show a toast with Undo. Undo closes the toast and puts the list back as a new change, unless the list on screen already holds it, as after Back: then nothing changes. The toast closes by itself after 4 seconds (TOAST_TIMES_OUT), but not while the pointer rests on it. Back and Forward step between the versions. Each run makes one removal.',
   type: 'parallel',
   states: {
     removal: {
@@ -63,19 +63,21 @@ export const removeAndUndoMachine = createMachine({
               on: {
                 CLICK_UNDO: {target: '#removeAndUndo.list.undone.restored'},
                 BROWSER_BACK: {target: 'asOpened'},
+                TOAST_TIMES_OUT: {target: '#removeAndUndo.list.toastClosed.removed'},
               },
             },
             asOpened: {
               description: 'Version 1 of 2: the list as opened.',
               on: {
-                CLICK_UNDO: {target: '#removeAndUndo.list.undoChangedNothing.asOpened'},
+                CLICK_UNDO: {target: '#removeAndUndo.list.toastClosed.asOpened'},
                 BROWSER_FORWARD: {target: 'removed'},
+                TOAST_TIMES_OUT: {target: '#removeAndUndo.list.toastClosed.asOpened'},
               },
             },
           },
         },
-        undoChangedNothing: {
-          description: 'Undo was clicked on the list as opened, which already holds what it puts back: no change and no history entry. The toast closed.',
+        toastClosed: {
+          description: 'The toast closed and the list did not change: it timed out, or Undo was clicked on the list as opened, which already holds what it puts back (no change and no history entry).',
           initial: 'asOpened',
           states: {
             asOpened: {

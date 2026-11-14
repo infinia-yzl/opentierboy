@@ -1,10 +1,10 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {rankingState} from '../support/links';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   orderOf, queueHiddenIn, RANKING_ORDER_NAMES, zenOrderModel, type ZenOrderEvent, type ZenOrderSnapshot,
 } from '../models/zen-order';
@@ -465,8 +465,8 @@ test.describe('zen', () => {
       }
     };
 
-    /** The Zen ranking order machine's events and checks, run on this test's page (createPlaywrightSut). */
-    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, ZenOrderSnapshot, ZenOrderEvent>(page, {
+    /** The Zen ranking order machine's events and checks, run on this test's page (modelSut). */
+    const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenOrderSnapshot, ZenOrderEvent>(page, {
       reset: () => tierList.goto(TANKS, TRAY_STATE),
       events: {
         TOGGLE_ZEN: () => tierList.setZenMode(true),
@@ -504,10 +504,13 @@ test.describe('zen', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each state of the Zen ranking order machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, zenOrderModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(zenOrderModel)) {
+      test(`renders each state of the Zen ranking order machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(zenOrderModel, zenOrderSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, zenOrderModel, coverage, part);
+      });
+    }
   });
 });

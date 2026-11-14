@@ -1,14 +1,16 @@
 /** Link images: images added by their web address, and the consent to load images from other sites. */
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {packageItemId, v3LinkJson, v3State} from '../support/links';
-import {BLUE_SQUARE, serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {BLUE_SQUARE, NOT_A_PICTURE, serveImageSite, type HeldImageSite, type ImageSite} from '../support/image-sites';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
+  awaitsImageSite,
   BLUE,
   GREEN,
+  HELD_ADDRESSES,
   linkImagesModel,
   linkImagesViewOf,
   NAVY,
@@ -322,60 +324,89 @@ test.describe('link images', () => {
     const OTHER_LIST = listWith([item(NAVY)]);
 
     /**
-     * The link images machine's events and checks (createPlaywrightSut). Each run starts as a new
-     * browser on the first list. `loadedAt` counts the unknown site's requests before the last
-     * page load, so a state checks only the requests of the page on screen.
+     * The link images machine's events and checks (modelSut). Each run starts as a new
+     * browser on the first list. Before each page load the unknown site holds its answers for
+     * Blue and Navy again (`held`), until IMAGE_SITE_ANSWERS or IMAGE_SITE_FAILS; it answers
+     * Green at once. `loadedAt` counts the unknown site's requests before the last page load,
+     * so a state checks only the requests of the page on screen.
      */
-    const linkImagesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, otherSite: {requests: string[]}) => {
+    const linkImagesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, otherSite: ImageSite) => {
       let loadedAt = 0;
+      let held: HeldImageSite = otherSite.hold(HELD_ADDRESSES);
       const sinceLoad = () => otherSite.requests.slice(loadedAt);
-      const load = async (open: () => Promise<void>) => {
+      const load = async (open: (site: HeldImageSite) => Promise<void>) => {
+        const before = held;
         loadedAt = otherSite.requests.length;
-        await open();
+        held = otherSite.hold(HELD_ADDRESSES);
+        await open(held);
+        // The page before left its waiting requests behind: their answers reach nothing.
+        await before.release();
       };
-      return createPlaywrightSut<Page, LinkImagesSnapshot, LinkImagesEvent>(page, {
+      return modelSut<LinkImagesSnapshot, LinkImagesEvent>(page, {
         reset: () => load(() => tierList.openAsNewBrowser(TANKS, FIRST_LIST)),
         events: {
           LOAD_IMAGES: () => tierList.loadImagesFromOtherSites(),
           ALWAYS_ALLOW_SITES: () => tierList.alwaysAllowImageSites(),
           ADD_IMAGE_FROM_LINK: () => tierList.addItemFromLinkAndWaitForLink(GREEN.url, GREEN.label),
-          RELOAD: () => load(() => tierList.reload()),
-          OPEN_OTHER_LIST: () => load(() => tierList.goto(TANKS, OTHER_LIST)),
+          RELOAD: () => load((site) => tierList.reloadWhileImageSiteHeld(site)),
+          OPEN_OTHER_LIST: () => load((site) => tierList.gotoWhileImageSiteHeld(TANKS, OTHER_LIST, site)),
+          IMAGE_SITE_ANSWERS: () => held.release(),
+          IMAGE_SITE_FAILS: () => held.release(NOT_A_PICTURE),
         },
         states: {
           '*': async (_page, snapshot) => {
             const view = linkImagesViewOf(snapshot);
-            // Trusted sites load at once, also while the notice waits.
-            for (const image of view.trustedImages) {
-              await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
-            }
-            if (view.waiting) {
-              await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
-              for (const image of view.otherSiteImages) {
+            const expectLoaded = async (images: readonly LinkImage[]) => {
+              for (const image of images) {
+                await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
+              }
+            };
+            const expectLabelTiles = async (images: readonly LinkImage[]) => {
+              for (const image of images) {
                 await expect(tierList.item(image.label)).toContainText(OTHER_SITE);
                 await expect(tierList.itemImage(image.label)).toHaveCount(0);
               }
+            };
+            if (view.answer === 'answering') {
+              // First: the page gives up on an image after 10 s (checkImage), on its own clock.
+              await expect.poll(() => held.isHolding(), {message: `${OTHER_SITE} should hold its answer`}).toBe(true);
+              await expect(tierList.main, 'the page should be busy while the site has not answered').toHaveAttribute('aria-busy', 'true');
+            }
+            // Trusted sites load at once, also while the notice waits.
+            await expectLoaded(view.trustedImages);
+            const otherSiteImages = [...view.heldImages, ...view.addedImages];
+            if (view.waiting) {
+              await expect(tierList.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+              await expectLabelTiles(otherSiteImages);
               expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
+              return;
+            }
+            await expect(tierList.imageSitesNotice).toHaveCount(0);
+            await expect.poll(sinceLoad).toEqual(expect.arrayContaining(otherSiteImages.map(({url}) => url)));
+            // The site answers the images the visitor added at once.
+            await expectLoaded(view.addedImages);
+            if (view.answer === 'answering' || view.answer === 'failed') {
+              await expectLabelTiles(view.heldImages);
             } else {
-              await expect(tierList.imageSitesNotice).toHaveCount(0);
-              for (const image of view.otherSiteImages) {
-                await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
-              }
-              await expect.poll(sinceLoad).toEqual(expect.arrayContaining(view.otherSiteImages.map(({url}) => url)));
+              await expectLoaded(view.heldImages);
             }
           },
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      });
+      // While the site holds its answer, the page waits for it (IMAGE_SITE_ANSWERS, IMAGE_SITE_FAILS).
+      }, {machine: linkImagesModel.machine, busyIn: awaitsImageSite});
     };
 
-    test('renders each state of the link images machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      await serveImageSite(page, TRUSTED_SITE);
-      const otherSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
-      const coverage = await walkModel(linkImagesModel, linkImagesSut(tierList, page, testInfo, otherSite));
-      await attachAndAssertCoverage(testInfo, linkImagesModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(linkImagesModel)) {
+      test(`renders each state of the link images machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        await serveImageSite(page, TRUSTED_SITE);
+        const otherSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
+        const coverage = await walkModel(linkImagesModel, linkImagesSut(tierList, page, testInfo, otherSite), part);
+        await attachAndAssertCoverage(testInfo, linkImagesModel, coverage, part);
+      });
+    }
   });
 });

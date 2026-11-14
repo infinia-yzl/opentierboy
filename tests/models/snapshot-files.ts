@@ -48,8 +48,9 @@ export function snapshotFilesViewOf(snapshot: SnapshotFilesSnapshot): SnapshotFi
 
 const constant = fc.constant({});
 /**
- * A dialog shows, and no message: the walk checks the message of asking.filesNotAdded right
- * away, as it closes by itself after 4 seconds.
+ * A dialog shows, and no message. The message of asking.filesNotAdded shows over the dialog,
+ * which makes the page ignore the pointer, so the test cannot rest the pointer on it to hold it:
+ * there the walk sends only what ends the message (TOAST_TIMES_OUT) or closes the dialog.
  */
 const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking.nothingWaits') || snapshot.matches('editor.askingAgain')
   || snapshot.matches('editor.opening');
@@ -58,9 +59,8 @@ const offeredOrOverDialog = (type: string) => (args: When) => offered(type)(args
 /** Cancel and Escape, where the machine takes them, and while the list opens: they must change nothing then. */
 const offeredOrOpening = (type: string) => (args: When) => offered(type)(args) || args.snapshot.matches('editor.opening');
 
-/** A list on screen with no dialog and no message. */
-const quietList = ({snapshot}: When) => snapshot.matches('editor.before.ownList.quiet') || snapshot.matches('editor.before.withPicture')
-  || snapshot.matches('editor.before.withTwoPictures') || snapshot.matches('editor.fileList');
+/** A list on screen with no dialog, with or without a message (the pointer rests on a message, which a paste does not move). */
+const listShows = ({snapshot}: When) => snapshot.matches('editor.before') || snapshot.matches('editor.fileList');
 
 export const snapshotFilesModel = defineModel({
   id: 'snapshot-files',
@@ -76,15 +76,14 @@ export const snapshotFilesModel = defineModel({
     DROP_LIST_FILE_AND_PASTE_PICTURE: {generate: constant, when: offered('DROP_LIST_FILE_AND_PASTE_PICTURE')},
     OPEN_BROKEN_FILE: {generate: constant, when: offered('OPEN_BROKEN_FILE')},
     DROP_TEXT_FILE: {generate: constant, when: offered('DROP_TEXT_FILE')},
-    // A paste takes pictures only: a pasted text file changes nothing, on any list. Not sent
-    // while a message shows: the message closes by itself after 4 seconds, so the walk checks it
-    // right away.
-    PASTE_TEXT_FILE: {generate: constant, when: quietList},
+    // A paste takes pictures only: a pasted text file changes nothing, on any list.
+    PASTE_TEXT_FILE: {generate: constant, when: listShows},
     CANCEL: {generate: constant, when: offeredOrOpening('CANCEL')},
     PRESS_ESCAPE: {generate: constant, when: offeredOrOpening('PRESS_ESCAPE')},
     OPEN_LIST: {generate: constant, when: offered('OPEN_LIST')},
     SERVER_ANSWERS: {generate: constant, when: offered('SERVER_ANSWERS')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
     LEAVE_WHILE_PICTURES_WAIT: {generate: constant, when: offered('LEAVE_WHILE_PICTURES_WAIT')},
+    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
   },
 });

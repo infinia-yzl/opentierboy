@@ -132,7 +132,7 @@ test.describe('security', () => {
   test.describe('user text', () => {
     test('renders markup as text in the editor, the tab title and Recently viewed when the page opens a link with markup', {tag: '@mobile'}, async ({tierList, site}) => {
       await tierList.goto(TANKS, LIST_WITH_MARKUP);
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
 
       await expect(tierList.title).toHaveText(`Title ${IMG_MARKUP}`);
       await expect(tierList.tier(`S ${SCRIPT_MARKUP}`)).toBeVisible();

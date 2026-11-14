@@ -1,4 +1,9 @@
 import {expect, type BrowserContext, type Locator, type Page} from '@playwright/test';
+import {expectSettled} from '../support/settled';
+import {letToastTimeOut} from '../support/page-clock';
+
+/** How long a tip's toast shows (components/EditorTips.tsx, TIP_TOAST_MS). */
+const TIP_TOAST_MS = 10_000;
 
 /** What local storage keeps under `otb-tips` (lib/tips/tips.ts). */
 export interface StoredTips {
@@ -98,6 +103,7 @@ export class Tips {
   /** Opens About and presses "Show the tips again". */
   async showTipsAgainOnAbout() {
     await this.page.goto('/about');
+    await expectSettled(this.page);
     await this.page.getByRole('button', {name: 'Show the tips again'}).click();
     await expect(this.page.getByRole('listitem').filter({hasText: 'The tips will show again'})).toBeVisible();
   }
@@ -133,19 +139,9 @@ export class Tips {
     await this.closeToast(await this.shownTipToast());
   }
 
-  /**
-   * Lets the tip's toast time out: the pointer leaves the toasts (a toast under the pointer
-   * waits), then the page clock runs 10 s ahead (EditorTips.tsx, TIP_TOAST_MS). Needs
-   * page.clock.install() before the page opened. The toast's timer starts again in an effect
-   * after the pointer leaves, so the clock runs again until the toast is gone.
-   */
+  /** Lets the tip's toast time out after 10 s (EditorTips.tsx, TIP_TOAST_MS), on the page clock (`pageClock`). */
   async waitOutTipToast() {
-    const toast = await this.shownTipToast();
-    await this.page.mouse.move(0, 0);
-    await expect(async () => {
-      await this.page.clock.runFor(10_000);
-      await expect(toast).toBeHidden({timeout: 2_000});
-    }, 'the tip toast should time out on the page clock').toPass({timeout: 30_000});
+    await letToastTimeOut(this.page, await this.shownTipToast(), TIP_TOAST_MS);
   }
 
   /** What local storage keeps under `otb-tips`, or null. */

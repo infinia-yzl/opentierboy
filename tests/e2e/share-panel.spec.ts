@@ -1,10 +1,10 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
 import {imageFile, serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {sharePanelModel, sharePanelViewOf, type SharePanelEvent, type SharePanelSnapshot, type SharePanelView} from '../models/share-panel';
 
@@ -72,13 +72,13 @@ test.describe('share panel', () => {
     }) => {
       await tierList.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      await tierList.simulateSlowServer(400);
-
-      // The links reach the address one at a time; the share text must not wait for them.
+      // The server answers only after the copy: the share text must not wait for the links.
+      const hold = await tierList.holdListWrites();
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
         await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await tierList.copyMarkdown();
+      await hold.release();
 
       const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
       const friend = await openAsVisitor(linkInMarkdown!);
@@ -198,8 +198,9 @@ test.describe('share panel', () => {
       await tierList.openSharePanel();
       // Marked here, after the steps that must work: a failure above fails the test as usual.
       test.fail(true, 'The two buttons hold only an icon (components/ShareButton.tsx), so they have no accessible name.');
-      await expect(tierList.socialShareButton(/Facebook/)).toBeVisible({timeout: 2_000});
-      await expect(tierList.socialShareButton(/\bX\b|Twitter/)).toBeVisible({timeout: 2_000});
+      await tierList.settled();
+      expect(await tierList.socialShareButton(/Facebook/).isVisible()).toBe(true);
+      expect(await tierList.socialShareButton(/\bX\b|Twitter/).isVisible()).toBe(true);
     });
   });
 
@@ -231,10 +232,10 @@ test.describe('share panel', () => {
       else await expect.poll(() => tierList.clipboardText()).toBe('');
     };
 
-    /** The share panel machine's events and checks (createPlaywrightSut). Each run opens the template with nothing copied. */
+    /** The share panel machine's events and checks (modelSut). Each run opens the template with nothing copied. */
     const sharePanelSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let added = 0;
-      return createPlaywrightSut<Page, SharePanelSnapshot, SharePanelEvent>(page, {
+      return modelSut<SharePanelSnapshot, SharePanelEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS);
           await tierList.emptyClipboard();
@@ -262,12 +263,15 @@ test.describe('share panel', () => {
       });
     };
 
-    test('renders each state of the share panel machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      // Before the first page opens: Firefox and WebKit keep the copied text in the page.
-      await tierList.readCopiedText();
-      const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, sharePanelModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(sharePanelModel)) {
+      test(`renders each state of the share panel machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        // Before the first page opens: Firefox and WebKit keep the copied text in the page.
+        await tierList.readCopiedText();
+        const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, sharePanelModel, coverage, part);
+      });
+    }
   });
 });

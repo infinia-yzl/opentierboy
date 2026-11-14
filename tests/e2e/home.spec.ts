@@ -1,14 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, test} from '../support/test';
 import {rankingState, templateItemCount} from '../support/links';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import type {TierListPage} from '../pages/tier-list-page';
 import type {SitePage} from '../pages/site-page';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   OTHER_PINNED_LISTS,
   OTHER_RECENT_LISTS,
@@ -52,9 +52,9 @@ function countOf(count: number): {text: string; words: string} {
 /** Opens two lists, Tanks list then Support list. The editor records a list once it has started in the browser. */
 async function openTwoLists(tierList: TierListPage) {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks list'));
-  await tierList.waitUntilInteractive();
+  await tierList.settled();
   await tierList.goto(SUPPORT, rankingState('image-overwatch', {S: ['Ana']}, 'Support list'));
-  await tierList.waitUntilInteractive();
+  await tierList.settled();
 }
 
 test.describe('home', () => {
@@ -153,7 +153,7 @@ test.describe('home', () => {
     await openTwoLists(tierList);
     // A template without a list is not recorded.
     await tierList.goto(TANKS);
-    await tierList.waitUntilInteractive();
+    await tierList.settled();
 
     await site.gotoHome();
     await expect(site.recentlyViewed).toContainText('Lists you opened in this browser. Bookmark one to open it anywhere.');
@@ -218,7 +218,7 @@ test.describe('home', () => {
 
   test('renders the page name OVERWATCH - Tank in Recently viewed when the opened link has no title', {tag: '@mobile'}, async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.waitUntilInteractive();
+    await tierList.settled();
     await site.gotoHome();
     await expect(site.recentLinks).toHaveText(['OVERWATCH - Tank']);
   });
@@ -312,8 +312,8 @@ test.describe('home', () => {
       await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(view.pinRefused ? 1 : 0);
     };
 
-    /** The Recently viewed machine's events and checks (createPlaywrightSut). Each run starts on Home with the seeded lists. */
-    const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
+    /** The Recently viewed machine's events and checks (modelSut). Each run starts on Home with the seeded lists. */
+    const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => modelSut<RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
       reset: () => site.seedRecentLinks(seededRecentLinks()),
       events: {
         OPEN_TANKS: () => site.openListAndReturnHome(hrefOf('tanks'), WALK_LISTS.tanks),
@@ -335,10 +335,14 @@ test.describe('home', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each state of the Recently viewed machine when the user walks every transition', async ({site, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(recentlyViewedModel, recentlyViewedSut(site, page, testInfo));
-      await attachAndAssertCoverage(testInfo, recentlyViewedModel, coverage);
-    });
+    test.use({pageClock: true});
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(recentlyViewedModel)) {
+      test(`renders each state of the Recently viewed machine when the user walks every transition (${part.name})`, async ({site, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(recentlyViewedModel, recentlyViewedSut(site, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, recentlyViewedModel, coverage, part);
+      });
+    }
   });
 });

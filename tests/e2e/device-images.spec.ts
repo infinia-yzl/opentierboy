@@ -1,12 +1,13 @@
 /** Device images: pictures uploaded or pasted from the device, kept in this browser (IndexedDB). */
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/tier-list-page';
 import {FIVE_ROW_TIERS, packageItemId, rawState, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/image-sites';
-import {attachAndAssertCoverage, MODEL_CAMPAIGN_TIMEOUT, walkModel} from '../support/machines';
+import {letToastTimeOut} from '../support/page-clock';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   DEVICE_IMAGE_NAMES,
   deviceImagesModel,
@@ -97,7 +98,7 @@ test.describe('device images', () => {
       await expect(tierList.uploadNoPreview).toBeVisible();
       await expect(tierList.uploadPreview('huge')).toHaveCount(0);
       await tierList.uploadAddButton.click();
-      await expect(tierList.uploadError).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.', {timeout: 3_000});
+      await expect(tierList.uploadError).toHaveText('huge: The image is too large: more than 8,192 pixels wide or tall, or more than 32 megapixels.');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
@@ -111,7 +112,7 @@ test.describe('device images', () => {
       await expect(tierList.uploadPreview('photo')).toHaveCount(0);
       await tierList.uploadAddButton.click();
       await expect(tierList.uploadError)
-        .toHaveText('photo: AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.', {timeout: 3_000});
+        .toHaveText('photo: AVIF and HEIC images cannot be added yet. Save the image as PNG, JPEG or WebP and add it again.');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
@@ -235,7 +236,9 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.evictedImageIds()).toEqual([]);
     });
 
-    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList}) => {
+    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList, page}) => {
+      // Before the page opens: the toast ends by itself on the page clock.
+      await page.clock.install();
       await tierList.blockIndexedDb();
       await tierList.goto('/rank');
 
@@ -243,7 +246,7 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
       const notice = tierList.toast('Images are kept only for this tab');
       await expect(notice).toBeVisible();
-      await expect(notice).toBeHidden({timeout: 15_000});
+      await letToastTimeOut(page, notice);
 
       await tierList.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]);
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
@@ -401,7 +404,7 @@ test.describe('device images', () => {
     };
 
     /**
-     * The device images machine's events and checks (createPlaywrightSut). Each run starts as a
+     * The device images machine's events and checks (modelSut). Each run starts as a
      * new browser on START. A new browser is a new browser context, open until the walk closes it
      * or the next run starts.
      */
@@ -416,7 +419,7 @@ test.describe('device images', () => {
         await visitor?.closeBrowser();
         visitor = null;
       };
-      return createPlaywrightSut<Page, DeviceImagesSnapshot, DeviceImagesEvent>(page, {
+      return modelSut<DeviceImagesSnapshot, DeviceImagesEvent>(page, {
         reset: async () => {
           await closeVisitor();
           await tierList.openAsNewBrowser(TANKS, START);
@@ -446,10 +449,14 @@ test.describe('device images', () => {
       });
     };
 
-    test('renders each state of the device images machine when the user walks every transition', async ({tierList, page, openAsVisitor}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(deviceImagesModel, deviceImagesSut(tierList, page, testInfo, openAsVisitor));
-      await attachAndAssertCoverage(testInfo, deviceImagesModel, coverage);
-    });
+    test.use({pageClock: true});
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(deviceImagesModel)) {
+      test(`renders each state of the device images machine when the user walks every transition (${part.name})`, async ({tierList, page, openAsVisitor}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(deviceImagesModel, deviceImagesSut(tierList, page, testInfo, openAsVisitor), part);
+        await attachAndAssertCoverage(testInfo, deviceImagesModel, coverage, part);
+      });
+    }
   });
 });

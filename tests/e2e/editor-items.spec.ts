@@ -1,7 +1,7 @@
 /** Adding, removing and resetting items in the editor, and items the image sets do not know. */
 import path from 'node:path';
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {serveImageSite} from '../support/image-sites';
 import {FIVE_ROW_TIERS, packageItemId, rankingState, rawState, templateItemCount, v3LinkJson} from '../support/links';
@@ -15,7 +15,7 @@ import {
   type RemoveAndUndoSnapshot,
   type RemoveAndUndoView,
 } from '../models/remove-and-undo';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {
   addFromTemplateModel,
@@ -156,9 +156,10 @@ test.describe('editor items', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
       await tierList.removeAllItems();
+      await tierList.settled();
 
       // A trial click runs every check of a real click, including that nothing covers the button.
-      await tierList.shareButton.click({trial: true, timeout: 3_000});
+      await tierList.shareButton.click({trial: true});
     });
 
     test('renders focus on button "Add images" when the user confirms Remove All', async ({tierList}) => {
@@ -382,7 +383,7 @@ test.describe('editor items', () => {
     };
 
     /** The add-from-template machine's events and checks. Each run starts on a new empty list. */
-    const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
+    const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
       reset: async () => {
         await tierList.goto('/rank');
         await expect(tierList.emptyListAction('Template')).toBeVisible();
@@ -404,17 +405,23 @@ test.describe('editor items', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each state of the add-from-template machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(addFromTemplateModel, addFromTemplateSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, addFromTemplateModel, coverage);
-    });
+    test.use({pageClock: true});
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(addFromTemplateModel)) {
+      test(`renders each state of the add-from-template machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(addFromTemplateModel, addFromTemplateSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, addFromTemplateModel, coverage, part);
+      });
+    }
   });
 
   /**
    * The remove-and-undo machine (tests/machines/remove-and-undo.ts): Delete, Reset and Remove
    * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. The
-   * pointer rests on the toast after each removal, which pauses its 4 s timer.
+   * pointer rests on the toast after each removal, which pauses its 4 s timer: Back, Forward and
+   * Undo do not move it, so the toast stays until TOAST_TIMES_OUT moves the pointer off and runs
+   * the page clock by the 4 s.
    */
   test.describe('model: removing', () => {
     const LIST = rankingState('image-overwatch', {S: [...OPENED_ROWS.S], A: [...OPENED_ROWS.A], '': [...OPENED_ROWS.Unranked]});
@@ -426,7 +433,7 @@ test.describe('editor items', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText([...rows.Unranked]);
     };
 
-    /** The remove-and-undo machine's events and checks, run on this test's page (createPlaywrightSut). */
+    /** The remove-and-undo machine's events and checks, run on this test's page (modelSut). */
     const removeAndUndoSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let opened = '';
       // The state on screen, as the last check saw it: Undo waits for a new link only where it changes the list.
@@ -435,11 +442,11 @@ test.describe('editor items', () => {
         if (!onScreen) throw new Error('No state was checked yet');
         return onScreen;
       };
-      return createPlaywrightSut<Page, RemoveAndUndoSnapshot, RemoveAndUndoEvent>(page, {
+      return modelSut<RemoveAndUndoSnapshot, RemoveAndUndoEvent>(page, {
         reset: async () => {
           onScreen = null;
           await tierList.openAfterBlankPage(TANKS, LIST);
-          await tierList.waitUntilInteractive();
+          await tierList.settled();
           opened = page.url();
         },
         events: {
@@ -451,6 +458,7 @@ test.describe('editor items', () => {
           CLICK_UNDO: () => tierList.undoInToast(removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
           BROWSER_BACK: () => tierList.goBack(),
           BROWSER_FORWARD: () => tierList.goForward(),
+          TOAST_TIMES_OUT: () => tierList.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
         },
         // Web-first checks: after Back or Forward the address changes before the list on screen does.
         states: {
@@ -471,10 +479,15 @@ test.describe('editor items', () => {
       });
     };
 
-    test('renders each state of the remove-and-undo machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(removeAndUndoModel, removeAndUndoSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, removeAndUndoModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    // The toast ends by itself on the page clock (TOAST_TIMES_OUT).
+    test.use({pageClock: true});
+    for (const part of walkParts(removeAndUndoModel)) {
+      test(`renders each state of the remove-and-undo machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(removeAndUndoModel, removeAndUndoSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, removeAndUndoModel, coverage, part);
+      });
+    }
   });
 });

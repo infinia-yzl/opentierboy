@@ -4,7 +4,8 @@
  */
 import zlib from 'node:zlib';
 import type {BrowserContext, Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
+import {letToastTimeOut, TOAST_MS} from '../support/page-clock';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
@@ -15,8 +16,8 @@ import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
 import path from 'node:path';
 import golden from '../fixtures/snapshots/snapshots.json';
-import {attachAndAssertCoverage, MODEL_CAMPAIGN_TIMEOUT, walkModel} from '../support/machines';
-import {snapshotFilesModel, snapshotFilesViewOf, type SnapshotFilesEvent, type SnapshotFilesSnapshot} from '../models/snapshot-files';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {snapshotFilesModel, snapshotFilesViewOf, type SnapshotFilesEvent, type SnapshotFilesSnapshot, type SnapshotFilesView} from '../models/snapshot-files';
 import {freezeFrameLoadModel, freezeFrameLoadViewOf, type FreezeFrameLoadEvent, type FreezeFrameLoadSnapshot} from '../models/freeze-frame-load';
 
 const TANKS = '/rank/overwatch/tank';
@@ -348,7 +349,7 @@ test.describe('snapshot files', () => {
     test('renders the dialog "Open the list in this file?" and writes 1 history entry when the user drops a snapshot file', async ({tierList, openAsVisitor}) => {
       const snapshot = await downloadSnapshotOf(tierList);
       const friend = await openAsVisitor('/rank/overwatch/tank');
-      await friend.waitUntilInteractive();
+      await friend.settled();
       const before = friend.page.url();
       const entries = await friend.historyLength();
 
@@ -405,8 +406,9 @@ test.describe('snapshot files', () => {
     async function listOf30Uploads(tierList: TierListPage): Promise<V3Json> {
       await tierList.goto('/rank');
       const files = Array.from({length: 30}, (_, index) => imageFile(`pic${String(index).padStart(2, '0')}.png`, noisePng(12, 12, index + 1)));
-      await tierList.addItemsFromDevice(files, {timeout: 60_000});
-      await expect.poll(() => deviceItemsOf(tierList.page.url())).toBe(30);
+      await tierList.addItemsFromDevice(files);
+      await tierList.settled();
+      expect(deviceItemsOf(tierList.page.url())).toBe(30);
       return v3LinkJson(tierList.page.url()) as V3Json;
     }
 
@@ -444,23 +446,28 @@ test.describe('snapshot files', () => {
     test.slow();
 
     /** Opens a snapshot file on a server that answers after 1 s, and returns the history length from before. */
-    async function startOpeningOnSlowServer(tierList: TierListPage): Promise<number> {
+    /**
+     * Opens a snapshot file over the list "Old list" and clicks Open list with the server's
+     * answer held: the dialog says "Opening the list…" until the test releases the answer.
+     */
+    async function startOpeningWithServerHeld(tierList: TierListPage): Promise<{before: number; hold: HeldListWrites}> {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
       const before = await tierList.historyLength();
-      await tierList.simulateSlowServer(1_000);
       await tierList.openFile(listFile('snapshot.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]}));
-      await tierList.startOpeningList();
-      return before;
+      const hold = await tierList.clickOpenListWithServerHeld();
+      if (!hold) throw new Error('The list of the file should go to a new address.');
+      return {before, hold};
     }
 
     test('renders the dialog "Opening the list…" until the URL has the list when the user clicks Open list on a slow server', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      await startOpeningOnSlowServer(tierList);
+      const {hold} = await startOpeningWithServerHeld(tierList);
 
       // Meanwhile a paste (it lands in the dialog) adds nothing, and Escape does not close it.
       await tierList.pasteImages([imageFile('early.png', BLUE_SQUARE)], tierList.openListDialog);
       await page.keyboard.press('Escape');
       await expect(tierList.openListDialog).toContainText('Opening the list…');
+      await hold.release();
       await expect(tierList.openListDialog).toBeHidden();
       await expect(tierList.page).toHaveURL(/\?state=3\./);
       await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
@@ -470,13 +477,15 @@ test.describe('snapshot files', () => {
 
     test('writes 1 history entry for the paste when the user pastes right after a snapshot file opens on a slow server', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      const before = await startOpeningOnSlowServer(tierList);
+      const {before, hold} = await startOpeningWithServerHeld(tierList);
+      await hold.release();
       await expect(tierList.openListDialog).toBeHidden();
 
       await tierList.pasteImages([imageFile('late.png', BLUE_SQUARE)]);
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['late']);
-      await expect.poll(() => tierList.historyLength(), {timeout: 15_000}).toBe(before + 2);
+      await tierList.settled();
+      expect(await tierList.historyLength()).toBe(before + 2);
       await page.goBack();
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
       await expect(tierList.itemsIn('S')).toHaveText(['From the file']);
@@ -486,7 +495,8 @@ test.describe('snapshot files', () => {
     });
 
     test('writes the list of the file to Recently viewed when the user opens a snapshot file on a slow server', async ({tierList, page}) => {
-      await startOpeningOnSlowServer(tierList);
+      const {hold} = await startOpeningWithServerHeld(tierList);
+      await hold.release();
       await expect(tierList.openListDialog).toBeHidden();
       await expect(tierList.title).toHaveText('Snapshot list');
 
@@ -503,14 +513,18 @@ test.describe('snapshot files', () => {
     test('writes 55 history entries when the user pastes 55 images at once on a slow server', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
-      await tierList.simulateSlowServer(200);
-      // More than the 50 writes the editor keeps waiting: none may be merged.
+      // More than the 50 writes the editor keeps waiting: none may be merged. The server answers
+      // once all 55 pastes have arrived, so the other 54 wait behind the first write.
+      const hold = await tierList.holdListWrites();
       const newEntries = await tierList.countNewHistoryEntries();
       const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
 
       await tierList.pasteImagesAtOnce(groups);
+      await expect.poll(() => hold.isHolding(), {message: 'the first paste should be on its way to the address'}).toBe(true);
+      await hold.release();
 
-      await expect.poll(newEntries, {timeout: 60_000}).toBe(55);
+      await tierList.settled();
+      expect(await newEntries()).toBe(55);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(55);
       await expect.poll(() => deviceItemsOf(page.url())).toBe(55);
       // Back undoes the last paste only.
@@ -563,7 +577,7 @@ test.describe('snapshot files', () => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       const tripHome = await tierList.holdTripHome();
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       const listAddress = page.url();
 
       try {
@@ -584,7 +598,7 @@ test.describe('snapshot files', () => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
       const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       // A paste, a dropped list file and another paste, all at once.
       await tierList.sendFileEventsAtOnce([
         {event: 'paste', file: imageFile('first.png', BLUE_SQUARE)},
@@ -615,7 +629,7 @@ test.describe('snapshot files', () => {
 
     test('writes 1 history entry when the user drops a picture', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       const before = page.url();
       const entries = await tierList.historyLength();
 
@@ -946,9 +960,17 @@ test.describe('snapshot files', () => {
     const LIST_FILE = listFile('list.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]});
 
     /**
-     * The snapshot files machine's events and checks (createPlaywrightSut). Each run starts on the
+     * The snapshot files machine's events and checks (modelSut). Each run starts on the
      * list "Before" (Mauga in S). File names that a message shows are new on each send, so a
      * message from an earlier step never stands in for the one a step expects.
+     *
+     * A message closes by itself after 4 s, and the page clock moves with real time. Over the
+     * list, the step that shows a message rests the pointer on it (restOnMessage): Sonner holds
+     * the toasts while the pointer is over them, and the steps sent while it shows (a paste of a
+     * text file) do not move the pointer, so it stays however long the checks take.
+     * TOAST_TIMES_OUT moves the pointer off and runs the page clock by the 4 s. A message that a
+     * step leaves behind may still show in the next states: the checks look only for the
+     * message of the state. Over the dialog nothing holds the message (see the model).
      */
     const snapshotFilesSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
       let sent = 0;
@@ -957,10 +979,19 @@ test.describe('snapshot files', () => {
       let leavingPictures: string[] = [];
       /** The server's answer to the list write of an opening list, held until SERVER_ANSWERS. */
       let held: HeldListWrites | null = null;
-      return createPlaywrightSut<Page, SnapshotFilesSnapshot, SnapshotFilesEvent>(page, {
+      /** The state on screen, as the last check saw it: TOAST_TIMES_OUT ends its message. */
+      let onScreen: SnapshotFilesSnapshot | null = null;
+      /** The message of a state, by what it says: each names its own file, but a damaged file's does not. */
+      const messageToast = (message: SnapshotFilesView['message']) => {
+        if (message === 'brokenFile') return tierList.toastAbout('Could not open the file', DAMAGED);
+        if (message === 'notAPicture') return tierList.toastAbout('Could not open the file', `${textFile}: This file is not a picture.`);
+        if (message === 'filesNotAdded') return tierList.toastAbout('Files not added', waitingPicture);
+        throw new Error('No message shows');
+      };
+      return modelSut<SnapshotFilesSnapshot, SnapshotFilesEvent>(page, {
         reset: async () => {
+          onScreen = null;
           await tierList.goto(TANKS, BEFORE);
-          await tierList.waitUntilInteractive();
         },
         events: {
           OPEN_PICTURE_FILE: () => tierList.openFileAndWaitForLink(imageFile('picture.png', BLUE_SQUARE)),
@@ -971,7 +1002,8 @@ test.describe('snapshot files', () => {
             // Each picture is its own write: the second one reaches the address last. The list as
             // opened has a link of an older format, without pictures.
             const link = () => (new URL(page.url()).searchParams.get('state')?.startsWith('3.') ? JSON.stringify(v3LinkJson(page.url())) : '');
-            await expect.poll(link, {timeout: 15_000}).toContain('"c":"second"');
+            await tierList.settled();
+            expect(link()).toContain('"c":"second"');
           },
           OPEN_LIST_FILE: async () => {
             await tierList.openFile(LIST_FILE);
@@ -992,15 +1024,22 @@ test.describe('snapshot files', () => {
             await expect(tierList.toastAbout('Files not added', waitingPicture)).toBeVisible();
           },
           OPEN_BROKEN_FILE: async () => {
-            // The message of an earlier broken file closes first (after 4 seconds).
-            await expect(tierList.toastAbout('Could not open the file', DAMAGED)).toHaveCount(0, {timeout: 10_000});
+            // The message of an earlier broken file says the same, so it closes first: the pointer
+            // leaves it and the page clock runs by its 4 s. The pointer may have left it already,
+            // so it may close by itself meanwhile.
+            const earlier = messageToast('brokenFile');
+            await page.mouse.move(0, 0);
+            if (await earlier.count() > 0) {
+              await tierList.letTimePass(TOAST_MS);
+              await expect(earlier).toHaveCount(0);
+            }
             await tierList.openFile(pngFile(`broken-${++sent}.png`, pngWithSnapshotText(RED_SQUARE, 'this is not JSON')));
-            await expect(tierList.toastAbout('Could not open the file', DAMAGED)).toBeVisible();
+            await tierList.restOnMessage(messageToast('brokenFile'));
           },
           DROP_TEXT_FILE: async () => {
             textFile = `notes-${++sent}.txt`;
             await tierList.dropFile({name: textFile, mimeType: 'text/plain', buffer: Buffer.from('not a picture')});
-            await expect(tierList.toastAbout('Could not open the file', textFile)).toBeVisible();
+            await tierList.restOnMessage(messageToast('notAPicture'));
           },
           PASTE_TEXT_FILE: () => tierList.pasteImages([{name: `pasted-${++sent}.txt`, mimeType: 'text/plain', buffer: Buffer.from('not a picture')}]),
           CANCEL: () => tierList.chooseCancelInOpenListDialog(),
@@ -1020,9 +1059,14 @@ test.describe('snapshot files', () => {
             leavingPictures = [0, 1, 2].map((index) => `leaving-${at}-${index}.png`);
             await tierList.leaveWhilePastesWait(leavingPictures.map((name, index) => [imageFile(name, noisePng(8, 8, index + 1))]));
           },
+          TOAST_TIMES_OUT: async () => {
+            if (!onScreen) throw new Error('No state was checked yet');
+            await letToastTimeOut(page, messageToast(snapshotFilesViewOf(onScreen).message));
+          },
         },
         states: {
           '*': async (_page, snapshot) => {
+            onScreen = snapshot;
             const {list, dialog, message} = snapshotFilesViewOf(snapshot);
             if (list === null && dialog === null) {
               // The landing page: nothing brought the visitor back, and the waiting pictures were
@@ -1032,13 +1076,9 @@ test.describe('snapshot files', () => {
               for (const name of leavingPictures) await expect(tierList.toastAbout('Files not added', name)).toHaveCount(0);
               return;
             }
-            // Messages first: each closes by itself 4 s after it shows, so on a slow runner the
-            // checks below could outlast it.
-            if (message === 'brokenFile') await expect(tierList.toastAbout('Could not open the file', DAMAGED)).toBeVisible();
-            if (message === 'notAPicture') await expect(tierList.toastAbout('Could not open the file', `${textFile}: This file is not a picture.`)).toBeVisible();
-            if (message === 'filesNotAdded') {
-              await expect(tierList.toastAbout('Files not added', waitingPicture)).toContainText('A list file was being opened, so they were not added:');
-            }
+            // The message first: over the dialog nothing holds it (asking.filesNotAdded).
+            if (message === 'filesNotAdded') await expect(messageToast(message)).toContainText('A list file was being opened, so they were not added:');
+            else if (message) await expect(messageToast(message)).toBeVisible();
             if (dialog === 'asking') await expect(tierList.openListDialog).toContainText('Your current list stays one Back step away.');
             if (dialog === 'opening') await expect(tierList.openListDialog).toContainText('Opening the list…');
             if (dialog === null) await expect(tierList.openListDialog).toHaveCount(0);
@@ -1056,15 +1096,21 @@ test.describe('snapshot files', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      });
+      // While the list opens, the page waits for the held server answer (SERVER_ANSWERS).
+      }, {machine: snapshotFilesModel.machine, busyIn: (snapshot) => snapshot.matches('editor.opening')});
     };
 
-    test('renders each state of the snapshot files machine when the user walks every transition', async ({tierList, page, browserName}, testInfo) => {
-      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(snapshotFilesModel, snapshotFilesSut(tierList, new SitePage(page), page, testInfo));
-      await attachAndAssertCoverage(testInfo, snapshotFilesModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    // Messages end by themselves on the page clock (TOAST_TIMES_OUT).
+    test.use({pageClock: true});
+    for (const part of walkParts(snapshotFilesModel)) {
+      test(`renders each state of the snapshot files machine when the user walks every transition (${part.name})`, async ({tierList, page, browserName}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+        const coverage = await walkModel(snapshotFilesModel, snapshotFilesSut(tierList, new SitePage(page), page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, snapshotFilesModel, coverage, part);
+      });
+    }
   });
 
   test.describe('model: loading a Freeze Frame', () => {
@@ -1099,7 +1145,7 @@ test.describe('snapshot files', () => {
     type OpenAsVisitor = (link: string, options?: {beforeOpen?: (context: BrowserContext) => Promise<unknown>}) => Promise<TierListPage>;
 
     /**
-     * The freeze frame load machine's events and checks (createPlaywrightSut). Each run starts in
+     * The freeze frame load machine's events and checks (modelSut). Each run starts in
      * the first browser, with its local storage cleared, on Mixed bag: the visitor clicks Load in
      * the notice and adds the picture from the device. Download keeps the real downloaded file,
      * which the later steps open. The device store keeps the pictures of earlier runs, so the
@@ -1128,7 +1174,7 @@ test.describe('snapshot files', () => {
         if (!file) throw new Error('No file was downloaded');
         return file;
       };
-      return createPlaywrightSut<Page, FreezeFrameLoadSnapshot, FreezeFrameLoadEvent>(page, {
+      return modelSut<FreezeFrameLoadSnapshot, FreezeFrameLoadEvent>(page, {
         reset: async () => {
           at = null;
           file = null;
@@ -1136,7 +1182,7 @@ test.describe('snapshot files', () => {
           visitor = null;
           loadedAt = otherSite.requests.length;
           await tierList.openAsNewBrowser(TANKS, MIXED_STATE);
-          await tierList.waitUntilInteractive();
+          await tierList.settled();
           await tierList.loadImagesFromOtherSites();
           await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${PICTURE}.png`, BLUE_SQUARE)]);
           [pictureId] = deviceIdsOf(page.url());
@@ -1172,7 +1218,7 @@ test.describe('snapshot files', () => {
               visitorOtherSite = await serveImageSite(context, OTHER_SITE);
             }});
             loadedAt = 0;
-            await visitor.waitUntilInteractive();
+            await visitor.settled();
           },
           CANCEL: () => here().cancelOpenList(),
           OPEN_LIST: async () => {
@@ -1241,13 +1287,16 @@ test.describe('snapshot files', () => {
       });
     };
 
-    test('renders each state of the freeze frame load machine when the user walks every transition', async ({tierList, page, openAsVisitor}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      await serveImageSite(page, TRUSTED_SITE);
-      const otherSite = await serveImageSite(page, OTHER_SITE);
-      const sut = freezeFrameLoadSut(tierList, new SitePage(page), page, testInfo, openAsVisitor, otherSite);
-      const coverage = await walkModel(freezeFrameLoadModel, sut);
-      await attachAndAssertCoverage(testInfo, freezeFrameLoadModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(freezeFrameLoadModel)) {
+      test(`renders each state of the freeze frame load machine when the user walks every transition (${part.name})`, async ({tierList, page, openAsVisitor}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        await serveImageSite(page, TRUSTED_SITE);
+        const otherSite = await serveImageSite(page, OTHER_SITE);
+        const sut = freezeFrameLoadSut(tierList, new SitePage(page), page, testInfo, openAsVisitor, otherSite);
+        const coverage = await walkModel(freezeFrameLoadModel, sut, part);
+        await attachAndAssertCoverage(testInfo, freezeFrameLoadModel, coverage, part);
+      });
+    }
   });
 });

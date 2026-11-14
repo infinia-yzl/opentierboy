@@ -169,21 +169,59 @@ async function walkSut(model: MachineModel, sut: unknown): Promise<unknown> {
 }
 
 /**
- * Runs the model's walk (walkPaths) against `sut` with testPaths, and resolves with its
- * coverage.
+ * The most steps one part of a walk takes (walkParts). A model's Playwright test runs each part
+ * as a test of its own, so a failure names a short part, and parts run in parallel. Together the
+ * parts cover the whole machine (tests/unit/machines/walks.test.ts).
  */
-export async function walkModel(model: MachineModel, sut: unknown): Promise<TestCoverage> {
-  const paths = walkPaths(model).flatMap((events) => getPathsFromEvents(model.machine, events));
+export const MAX_PART_STEPS = 30;
+
+/** One part of a model's walk: some of its event sequences, each from the initial state. */
+export interface WalkPart {
+  /** Counted from 1. */
+  readonly number: number;
+  readonly count: number;
+  readonly paths: readonly (readonly EventObject[])[];
+  /** For test titles: "part 2 of 5". */
+  readonly name: string;
+}
+
+/**
+ * The model's walk (walkPaths), in parts of at most MAX_PART_STEPS steps: each sequence in
+ * order, with short sequences together in one part.
+ */
+export function walkParts(model: MachineModel): WalkPart[] {
+  const groups: EventObject[][][] = [];
+  for (const path of walkPaths(model)) {
+    const last = groups.at(-1);
+    const steps = last?.reduce((sum, events) => sum + events.length, 0) ?? Infinity;
+    if (last && steps + path.length <= MAX_PART_STEPS) last.push(path);
+    else groups.push([path]);
+  }
+  return groups.map((paths, index) => Object.freeze({
+    number: index + 1,
+    count: groups.length,
+    paths,
+    name: `part ${index + 1} of ${groups.length}`,
+  }));
+}
+
+/**
+ * Runs the model's walk against `sut` with testPaths, and resolves with its coverage: the whole
+ * walk, or one part of it (walkParts).
+ */
+export async function walkModel(model: MachineModel, sut: unknown, part?: WalkPart): Promise<TestCoverage> {
+  const sequences = part?.paths ?? walkPaths(model);
+  const paths = sequences.flatMap((events) => getPathsFromEvents(model.machine, [...events]));
   const {coverage} = await runPaths(model.machine, {events: model.events, sut: await walkSut(model, sut), paths});
   return coverage;
 }
 
 /**
- * The time limit of one model campaign. A campaign opens the list once per path (about 2.5 s
- * on Chromium, alone) and takes up to about 250 steps, and Firefox, WebKit and busy CI runners
- * are slower.
+ * The time limit of one part of a model's walk (walkParts): up to MAX_PART_STEPS steps and a
+ * page load for each of its sequences, on the slowest browser and a busy CI runner. It limits
+ * the whole test; every step inside waits for what the page shows, not for a time.
  */
-export const MODEL_CAMPAIGN_TIMEOUT = 360_000;
+export const MODEL_PART_TIMEOUT = 120_000;
 
 /** Ties a model to its machine's types. */
 export function defineModel<TMachine extends AnyStateMachine>(model: MachineModel<TMachine>): MachineModel<TMachine> {
@@ -272,10 +310,10 @@ function valueInRegion(node: AnyStateMachine['root'], value: unknown): unknown {
  * must ignore once in each state that ignores it. The machines are small and static,
  * so xstate/graph's getAdjacencyMap lists every step the model's events can take. The walk
  * starts at the initial state and goes, by the shortest route, to the nearest step that reaches
- * something not yet covered. When nothing uncovered is reachable from where it stands, a new
- * sequence starts. The result is deterministic: the same machine and events give the same walk.
+ * something not yet covered. When nothing uncovered is reachable from where it stands, or the
+ * sequence would grow past `maxSteps`, a new sequence starts. The result is deterministic: the same machine and events give the same walk.
  */
-export function walkPaths(model: MachineModel): EventObject[][] {
+export function walkPaths(model: MachineModel, {maxSteps = MAX_PART_STEPS}: {maxSteps?: number} = {}): EventObject[][] {
   const {machine} = model;
   const adjacency = getAdjacencyMap(machine, {
     events: ((snapshot: AnyMachineSnapshot) => eventsIn(model, snapshot)) as never,
@@ -322,6 +360,8 @@ export function walkPaths(model: MachineModel): EventObject[][] {
   while (uncovered.size > 0) {
     const path: EventObject[] = [];
     for (let at = initial, route = routeFrom(at); route; route = routeFrom(at)) {
+      // A sequence stops before it grows past maxSteps; the next one starts from the initial state.
+      if (path.length > 0 && path.length + route.length > maxSteps) break;
       for (const step of route) {
         step.covers.forEach((item) => uncovered.delete(item));
         path.push(step.event);
@@ -391,16 +431,28 @@ export function assertFullCoverage(model: MachineModel, coverage: TestCoverage) 
 
 /**
  * Attaches the coverage report to the Playwright report (formatTestCoverageHTML and the text of
- * formatTestCoverage), then fails the test unless the run took every state node and transition.
+ * formatTestCoverage). With a part, it then fails unless the run covered what that part covers
+ * without a browser; the parts together cover the machine (tests/unit/machines/walks.test.ts).
+ * Without a part, it fails unless the run took every state node and transition.
  */
-export async function attachAndAssertCoverage(testInfo: TestInfo, model: MachineModel, coverage: TestCoverage) {
-  await testInfo.attach(`${model.id}-coverage.html`, {
+export async function attachAndAssertCoverage(testInfo: TestInfo, model: MachineModel, coverage: TestCoverage, part?: WalkPart) {
+  const title = part ? `${model.id}-${part.number}-of-${part.count}` : model.id;
+  await testInfo.attach(`${title}-coverage.html`, {
     body: formatTestCoverageHTML(coverage, {title: model.machine.id}),
     contentType: 'text/html',
   });
-  await testInfo.attach(`${model.id}-coverage.md`, {
+  await testInfo.attach(`${title}-coverage.md`, {
     body: formatTestCoverage(coverage, {format: 'markdown'}),
     contentType: 'text/markdown',
   });
-  assertFullCoverage(model, coverage);
+  if (!part) {
+    assertFullCoverage(model, coverage);
+    return;
+  }
+  const expected = await walkModel(model, IDLE_SUT, part);
+  const missed = expected.transitions.covered.filter((id) => !coverage.transitions.covered.includes(id));
+  if (missed.length > 0) throw new Error(`The ${part.name} of ${model.id} missed these transitions: ${missed.join(', ')}`);
 }
+
+/** A system under test that does nothing: the walk follows the machine alone. */
+export const IDLE_SUT = Object.freeze({create: () => ({send: () => {}})});

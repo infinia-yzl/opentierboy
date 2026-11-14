@@ -1,10 +1,10 @@
 /** Moving items and rows: mouse drags, the keyboard, touch, and what screen readers hear. */
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {
   KEYBOARD_DRAG_ITEM,
@@ -249,7 +249,7 @@ test.describe('drag and drop', () => {
   test.describe('cancelled moves', () => {
     test('renders the item at its start and writes no history entry when the user presses Escape during a mouse drag', async ({tierList, page}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       const before = page.url();
       const entries = await tierList.historyLength();
 
@@ -264,7 +264,7 @@ test.describe('drag and drop', () => {
 
     test('renders the item in row A when the user drags it there after a cancelled mouse drag', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       await tierList.dragItemToTierThenCancel('Mauga', 'A');
       await expect(tierList.dragAnnouncer).toContainText('Move cancelled.');
 
@@ -275,7 +275,7 @@ test.describe('drag and drop', () => {
 
     test('renders the item at its start and writes no history entry when the user presses Escape during a keyboard move', async ({tierList, page}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.waitUntilInteractive();
+      await tierList.settled();
       const before = page.url();
       const entries = await tierList.historyLength();
 
@@ -348,20 +348,25 @@ test.describe('drag and drop', () => {
   // A tile's picture never starts the browser's own drag (components/ItemTile.tsx): items move only
   // through the editor's drag and drop.
   test.describe('native drags', () => {
-    test('writes no native drag, no new item and 1 history entry when the user presses an item during the drop animation', async ({
-      tierList,
-    }) => {
-      await tierList.goto(TANKS);
-      const nativeDrags = await tierList.countNativeDrags();
-      const newEntries = await tierList.countNewHistoryEntries();
+    test.describe('with the drop animation', () => {
+      // This test is about a press during the drop animation, so the animation stays on.
+      test.use({reducedMotion: 'no-preference'});
 
-      await tierList.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
+      test('writes no native drag, no new item and 1 history entry when the user presses an item during the drop animation', async ({
+        tierList,
+      }) => {
+        await tierList.goto(TANKS);
+        const nativeDrags = await tierList.countNativeDrags();
+        const newEntries = await tierList.countNewHistoryEntries();
 
-      expect(await nativeDrags()).toBe(0);
-      await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in tier S,|Winston\. It stays in Unranked,)/);
-      expect(await newEntries()).toBe(1);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
+        await tierList.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
+
+        expect(await nativeDrags()).toBe(0);
+        await expect(tierList.dragAnnouncer).toHaveText(/^Dropped (Mauga in tier S,|Winston\. It stays in Unranked,)/);
+        expect(await newEntries()).toBe(1);
+        await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+        await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
+      });
     });
 
     test('writes a cancelled dragstart event when a dragstart event starts on an item image', async ({tierList}) => {
@@ -401,12 +406,12 @@ test.describe('drag and drop', () => {
       return label === '' ? 'Unranked' : label as KeyboardDragRow;
     };
 
-    /** The keyboard drag machine's events and checks, run on this test's page (createPlaywrightSut). */
+    /** The keyboard drag machine's events and checks, run on this test's page (modelSut). */
     const keyboardDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       // Each change of the list in the link adds one history entry; a cancel and a drop in place add none.
       let entries = 0;
       let linkRow: KeyboardDragRow = 'Unranked';
-      return createPlaywrightSut<Page, KeyboardDragSnapshot, KeyboardDragEvent>(page, {
+      return modelSut<KeyboardDragSnapshot, KeyboardDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
           // A keyboard user tabs to the tile first.
@@ -445,14 +450,18 @@ test.describe('drag and drop', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      });
+      // While the tile is carried, the drag holds the page busy until the drop.
+      }, {machine: keyboardDragModel.machine, busyIn: (snapshot) => keyboardDragViewOf(snapshot).carried});
     };
 
-    test('renders each state of the keyboard drag machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(keyboardDragModel, keyboardDragSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, keyboardDragModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(keyboardDragModel)) {
+      test(`renders each state of the keyboard drag machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(keyboardDragModel, keyboardDragSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, keyboardDragModel, coverage, part);
+      });
+    }
   });
 
   test.describe('model', () => {
@@ -473,13 +482,13 @@ test.describe('drag and drop', () => {
       return rows.map((entry) => ({label: (entry[entry.length - 2] as string) || 'Unranked', items: entry[entry.length - 1]}));
     };
 
-    /** The mouse drag machine's events and checks, run on this test's page (createPlaywrightSut). */
+    /** The mouse drag machine's events and checks, run on this test's page (modelSut). */
     const mouseDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       // Each change of the list adds one history entry (one pushState); a drop that changes nothing adds none.
       let newEntries: () => Promise<number> = async () => 0;
       let entries = 0;
       let shown = '';
-      return createPlaywrightSut<Page, MouseDragSnapshot, MouseDragEvent>(page, {
+      return modelSut<MouseDragSnapshot, MouseDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
           await tierList.expectEveryItemDraggable();
@@ -517,10 +526,13 @@ test.describe('drag and drop', () => {
       });
     };
 
-    test('renders each state of the mouse drag machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(mouseDragModel, mouseDragSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, mouseDragModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(mouseDragModel)) {
+      test(`renders each state of the mouse drag machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(mouseDragModel, mouseDragSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, mouseDragModel, coverage, part);
+      });
+    }
   });
 });

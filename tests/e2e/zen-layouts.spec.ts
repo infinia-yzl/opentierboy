@@ -1,8 +1,8 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import {packageItemId, rankingState, rawState} from '../support/links';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage, ZenLayoutName} from '../pages/tier-list-page';
 import {layoutOf, ZEN_LAYOUT_NAMES, zenLayoutModel, type ZenLayoutEvent, type ZenLayoutSnapshot} from '../models/zen-layout';
 
@@ -660,8 +660,8 @@ test.describe('zen layouts', () => {
   // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/zen-layout.ts walked
   // through the Playwright adapter of @xstate/test.
   test.describe('model', () => {
-    /** The Zen layout machine's events and checks, run on this test's page (createPlaywrightSut). */
-    const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => createPlaywrightSut<Page, ZenLayoutSnapshot, ZenLayoutEvent>(page, {
+    /** The Zen layout machine's events and checks, run on this test's page (modelSut). */
+    const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenLayoutSnapshot, ZenLayoutEvent>(page, {
       reset: () => tierList.goto(TANKS, LIST),
       events: {
         TOGGLE_ZEN: () => tierList.setZenMode(true),
@@ -686,10 +686,13 @@ test.describe('zen layouts', () => {
       step: (name, body) => test.step(name, body),
     });
 
-    test('renders each state of the Zen layout machine when the user walks every transition', async ({tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(zenLayoutModel)) {
+      test(`renders each state of the Zen layout machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(zenLayoutModel, zenLayoutSut(tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, zenLayoutModel, coverage, part);
+      });
+    }
   });
 });

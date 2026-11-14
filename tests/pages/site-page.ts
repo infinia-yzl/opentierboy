@@ -1,4 +1,6 @@
 import {expect, type Locator, type Page} from '@playwright/test';
+import {expectSettled} from '../support/settled';
+import {letToastTimeOut} from '../support/page-clock';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontChoice = 'Modern' | 'Classic';
@@ -18,6 +20,15 @@ export class SitePage {
 
   async gotoHome() {
     await this.page.goto('/');
+    await this.settled();
+  }
+
+  /**
+   * Waits until the page has finished what the last step started: <main> no longer says
+   * `aria-busy` (lib/busy.ts). A page is busy until it has started in the browser.
+   */
+  async settled() {
+    await expectSettled(this.page);
   }
 
   async openFromNavigation(linkName: 'About' | 'Blog') {
@@ -332,7 +343,6 @@ export class SitePage {
     await expect(this.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
     await expect.poll(() => this.recentOpenedAt(title), {
       message: `Recently viewed records ${title}`,
-      timeout: 10_000,
     }).toBeGreaterThan(before);
   }
 
@@ -395,9 +405,9 @@ export class SitePage {
     await expect(this.recentLink(name)).toHaveCount(0);
   }
 
-  /** Waits until the toast with `text` ends by itself (Sonner's 4 seconds). */
+  /** Lets the toast with `text` end by itself (Sonner's 4 seconds, on the page clock: `pageClock`). */
   async waitOutRecentToast(text: string) {
-    await expect(this.recentToast(text)).toBeHidden({timeout: 15_000});
+    await letToastTimeOut(this.page, this.recentToast(text));
   }
 
   // ---- Freeze Frame load machine (tests/machines/freeze-frame-load.ts) ----------------------

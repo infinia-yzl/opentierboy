@@ -1,10 +1,10 @@
 import type {Page, TestInfo} from '@playwright/test';
-import {createPlaywrightSut} from '@xstate/test/playwright';
+import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import type {SitePage, ThemeMode} from '../pages/site-page';
 import type {TierListPage} from '../pages/tier-list-page';
 import {rankingState} from '../support/links';
-import {attachAndAssertCoverage, walkModel, MODEL_CAMPAIGN_TIMEOUT} from '../support/machines';
+import {attachAndAssertCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   appearanceModel, appearanceViewOf, STORED_THEME, type AppearanceEvent, type AppearanceSnapshot, type AppearanceView,
 } from '../models/appearance';
@@ -154,14 +154,14 @@ test.describe('appearance', () => {
       expect(await site.storedValue('otb-tile-size'), 'the stored tile size').toBe(view.tileSize === 'compact' ? 'compact' : null);
     };
 
-    /** The appearance machine's events and checks (createPlaywrightSut). Each run starts as a new browser on the list. */
+    /** The appearance machine's events and checks (modelSut). Each run starts as a new browser on the list. */
     const appearanceSut = (site: SitePage, tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       /** A choice in the Appearance menu, once the menu opens (right after a load it may not yet). */
       const inAppearanceMenu = (choose: () => Promise<void>) => async () => {
         await site.appearanceMenuReady();
         await choose();
       };
-      return createPlaywrightSut<Page, AppearanceSnapshot, AppearanceEvent>(page, {
+      return modelSut<AppearanceSnapshot, AppearanceEvent>(page, {
         reset: async () => {
           await tierList.openAsNewBrowser(TANKS, LIST);
           await site.appearanceMenuReady();
@@ -195,10 +195,13 @@ test.describe('appearance', () => {
       });
     };
 
-    test('renders each state of the appearance machine when the user walks every transition', async ({site, tierList, page}, testInfo) => {
-      test.setTimeout(MODEL_CAMPAIGN_TIMEOUT);
-      const coverage = await walkModel(appearanceModel, appearanceSut(site, tierList, page, testInfo));
-      await attachAndAssertCoverage(testInfo, appearanceModel, coverage);
-    });
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(appearanceModel)) {
+      test(`renders each state of the appearance machine when the user walks every transition (${part.name})`, async ({site, tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(appearanceModel, appearanceSut(site, tierList, page, testInfo), part);
+        await attachAndAssertCoverage(testInfo, appearanceModel, coverage, part);
+      });
+    }
   });
 });

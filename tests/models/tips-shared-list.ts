@@ -34,8 +34,10 @@ const inEditor = ({snapshot}: When) => snapshot.matches('editor');
 const toastShows = ({snapshot}: When) => snapshot.matches('editor.linkSaveToast');
 /**
  * The toast ends by itself after 10 s of real time: this campaign cannot install the page clock,
- * which hides the shared-list tip (see tips.spec.ts). So while the toast shows, only what ends
- * it or leaves the page is sent, and the 10 s never pass inside a run.
+ * which hides the shared-list tip (see tips.spec.ts). CHANGE_TITLE ends with the pointer resting
+ * on the toast, which Sonner holds while the pointer is there. While the toast shows, only what
+ * ends it (a click in it) or leaves the page is sent: another title change would move the
+ * pointer off it.
  */
 const editsWithoutToast = (args: When) => inEditor(args) && !toastShows(args);
 

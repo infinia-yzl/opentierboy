@@ -139,10 +139,28 @@ tests/
   handle is a `button` named `Move tier <label>`. The Unranked tray has no handle; every row
   and the tray hold a level-2 heading, which is how the page object finds them. If an element has no accessible name, add
   one to the app (an `aria-label` or `sr-only` text) instead of using CSS or test ids.
-- **Never sleep.** No `waitForTimeout` and no fixed delays. Wait for what the user would
-  see: web-first assertions such as `toHaveText`, the drag announcer for drag and drop, and
-  the address bar for saved changes. Page object methods that change the list return only
-  after the new link is in the address bar.
+- **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`
+  on a wait. Wait for what the user would see: web-first assertions such as `toHaveText`, the
+  drag announcer for drag and drop, and the address bar for saved changes. Page object methods
+  that change the list return only after the new link is in the address bar.
+- **Wait until the page is not busy.** The page says `aria-busy="true"` on `<main>` while it
+  works on something the visitor started (`lib/busy.ts`): until it has started in the browser,
+  while a link is written, during a drag and its drop, and while files or pictures are added or
+  captured. `TierListPage.settled()` and `SitePage.settled()` wait until it is done; `goto`,
+  `reload` and `gotoHome` end with it. A test that acts while the page works, on purpose (two
+  quick moves), does not wait for it.
+- **The server answers when the test says so.** Where timing matters, a test holds the
+  server's answers to the editor's list writes (`holdListWrites`) or to the trip home
+  (`holdTripHome`), acts, then calls `release()`. No route delays answers by a time.
+- **Timers run on the page clock.** A toast ends by itself after a time (4 s, a tip's 10 s). A
+  test that waits for that turns the page clock on with `test.use({pageClock: true})` (or calls
+  `page.clock.install()` before the page opens) and moves the page's time on by the app's own
+  duration (`letToastTimeOut` in `tests/support/page-clock.ts`). The clock gives the page no
+  navigation entry, so it stays off where the shared-list tip must show.
+- **Motion is reduced.** Every test runs as a visitor who asks for less motion
+  (`reducedMotion: 'reduce'` in `playwright.config.ts`): animations and transitions take no time
+  (`app/globals.css`), and dnd-kit drops without its animation. A test about an animation turns
+  it back on with `test.use({reducedMotion: 'no-preference'})`.
 - **Arrange state through the URL.** Use `rankingState()` from `tests/support/links.ts` to
   open a list with items already ranked (a v2 link), and `v3State()` for a v3 link with layout
   settings or link and device images, instead of dragging items into place first:
@@ -184,9 +202,10 @@ drag the editor shows the list as it would be after the drop: rows and items mov
 way of the dragged one. The list itself changes only on the drop, with one history entry.
 
 - **Mouse.** `TierListPage.dragWithMouse` presses, moves a few pixels (a mouse drag starts
-  after 5 px) and waits for the lift announcement. After the drop it waits until the drop
-  animation (about 300 ms) ends: until then a press starts no drag and the drag library blocks
-  text selection on the page, so typing into a label would go nowhere.
+  after 5 px) and waits for the lift announcement. After the drop it waits until the drop has
+  ended (the rows drop `data-dragging`), its animation included where motion is not reduced:
+  until then a press starts no drag and the drag library blocks text selection on the page, so
+  typing into a label would go nowhere.
 - **Where to aim.** Drops on a row (its free space, or the place of another row) measure the
   drop point once, before the drag starts: a row measured during the drag has already moved.
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
@@ -219,8 +238,9 @@ always shown; `TierListPage.listPartsUnderZenBar` lists any title, row or item u
 No creator layout scrolls its frame or the cover around it (`TierListPage.frameOverflows`): the
 Unranked tray, or Up next and the queue, scrolls (`unrankedItemsScroll`), and with more rows than
 the frame holds the rows scroll too (`rowsScroll`). `dragItemToTierByHand` scrolls the target row
-into view, then the item, before it drags; when the drag has not reached the row 3 s after the
-move, it nudges the pointer by a pixel and back (still one press), as a hand does. The long-list tests use the full THE FINALS template
+into view, then the item, before it drags; at the row it moves the pointer by a pixel and back
+(still one press), as a hand does, so the drag library reads the drop point again after the rows
+have made room. The long-list tests use the full THE FINALS template
 (77 items) and a list of 19 rows.
 
 ### Tile shapes
@@ -270,17 +290,39 @@ disagree, and its error lists every step with the machine's state.
   can lead to, and send each event the page must ignore once in each state that ignores it. A
   state that a history state remembers counts on its own, so Zen turns on again in each layout.
   The walk is the same on every run.
-- **The campaign** sits at the end of its area's spec in a `describe('model')`. `reset` opens the
-  start list through the URL, each event calls a page object action that waits for its result,
-  and `states` holds web-first checks. `attachAndAssertCoverage` adds the coverage report to the
-  Playwright report and fails the test when the walk missed a state node, a transition or a
-  reachable state (see `assertFullCoverage` for why each is needed). Give each campaign
-  `test.setTimeout(MODEL_CAMPAIGN_TIMEOUT)`, and bound every retrying wait in its actions
-  (`toPass({timeout})`), so a stalled step fails with its own message. With
-  `testInfo`, a failing campaign also attaches the failing run's trace, its `fixture.json` and a
-  screenshot.
+- **The walk in parts.** `walkParts` splits the walk into parts of at most `MAX_PART_STEPS`
+  steps. Each part is a test of its own (`... (part 2 of 5)`), so a failure names a short part
+  and the parts run in parallel. The parts together are the whole walk: shorter parts lose no
+  coverage.
+- **The campaign** sits at the end of its area's spec in a `describe('model')`, with one test
+  per part. `reset` opens the start list through the URL, each event calls a page object action,
+  and `states` holds web-first checks. The sut comes from `modelSut` (`tests/support/model-sut.ts`):
+  before each check it waits until the page is not busy, so a check never sees a page halfway
+  through a step. Where the page is busy on purpose (a drag in progress, a held server answer),
+  the model names those states (`busyIn`), and there the check waits only for the page to load.
+  `attachAndAssertCoverage` adds the coverage report of the part to the Playwright report, and
+  fails when the run missed a transition of its part. Model tests have no retries
+  (`test.describe.configure({retries: 0})`): a model test that needs a second try is a bug to
+  fix. Give each test `test.setTimeout(MODEL_PART_TIMEOUT)`, the limit of the whole part; the
+  steps inside wait for what the page shows. With `testInfo`, a failing part attaches the
+  failing run's trace (unless the tests run with the Vercel bypass secret), its `fixture.json`
+  and a screenshot.
+- **Side effects.** A step often starts work that ends later: a link write that waits for the
+  server, a message that closes by itself, a picture that is stored, an image site that answers.
+  Each side effect is handled in one of two ways, never by a guess:
+  - **Inside the step.** When its timing changes nothing the visitor sees, the step ends when
+    the side effect has ended. The app counts it as busy from the event that starts it until it
+    ends (`lib/busy.ts`), and `modelSut` waits until the page is not busy before each check.
+  - **As an event of its own.** When its timing or its result changes what the visitor sees
+    (a change made while a link is still on its way, a message still showing or gone, an image
+    site that answers or fails), the machine has a waiting state and an event named after what
+    the outside world does: `SERVER_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`. The test
+    makes it happen at that step: it holds the server's answers and releases them
+    (`holdListWrites`), runs the page clock (`letToastTimeOut`), or holds the image site. The
+    model names its waiting states in `busyIn`, where the page is busy on purpose.
 - **Without a browser.** `tests/unit/machines/walks.test.ts` runs each model's walk on the machine
-  alone, so a walk that misses a state or a transition fails in `npm run check` first.
+  alone, so a walk that misses a state or a transition fails in `npm run check` first. It also
+  checks that the parts hold every sequence of the walk, each part within `MAX_PART_STEPS`.
 - **Seeing a machine.** Copy the whole file, open the [Stately editor](https://editor.stately.ai)
   and paste it into Import Code. The editor draws the machine as it is in the file. A history
   state shows as **H**; its default target is in the file, and the editor does not draw it.
@@ -378,7 +420,8 @@ annotation when there is a GitHub issue. The suite stays green while the bug exi
 fix lands, Playwright reports "Expected to fail, but passed": remove the marker then and move
 the test next to the other tests of that feature.
 
-Assertions in known-bug tests use short timeouts (`{timeout: 3_000}`), so they fail fast and
-never run into the test timeout, which would not count as the expected failure.
+A known-bug test waits until the page has settled (`settled()`), then reads the page once
+(`expect(await ...)`) instead of waiting: it fails at once while the bug exists, and never runs
+into the test timeout, which would not count as the expected failure.
 
 Do not use `test.fail` for behaviour you are unsure about. Ask, or leave the test out.
