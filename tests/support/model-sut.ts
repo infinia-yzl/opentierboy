@@ -182,7 +182,9 @@ function withOtherPages<TSnapshot extends AnyMachineSnapshot, TEvent extends Eve
  * - `settle`: before each check the page has finished what the step started (pageSettled), so a
  *   check never looks at a page halfway through a change. With `busy`, the sut follows the
  *   machine (xstate's initialTransition and transition) and, in a state where the page is busy
- *   on purpose, waits only for the pages to load.
+ *   on purpose, waits only for the pages' documents to be read (DOMContentLoaded). Not for the
+ *   load event: Firefox fires it only once every picture on screen has loaded, and a step that
+ *   holds an image site's answer holds the load event with it.
  * - `pages`: the other pages the events act on get the same settle, page oracles and failure
  *   trace as `page`.
  * - `pageTime: 'paused'`: page time moves only in the steps that run the page clock.
@@ -196,7 +198,7 @@ export function modelSut<TSnapshot extends AnyMachineSnapshot, TEvent extends Ev
 ): TestSut<TSnapshot, TEvent> {
   const trace = config.trace ?? (bypassSecret() ? 'off' : 'retain-on-failure');
   let current: TSnapshot | null = busy ? initialTransition(busy.machine)[0] as TSnapshot : null;
-  const settle = (target: Page) => (busy && current && busy.busyIn(current) ? target.waitForLoadState('load') : pageSettled(target));
+  const settle = (target: Page) => (busy && current && busy.busyIn(current) ? target.waitForLoadState('domcontentloaded') : pageSettled(target));
   const events = !busy ? config.events : Object.fromEntries(Object.entries(config.events).map(([type, action]) => [
     type,
     async (target: Page, event: TEvent) => {

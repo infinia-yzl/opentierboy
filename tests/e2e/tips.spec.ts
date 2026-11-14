@@ -110,8 +110,8 @@ test.describe('tips', () => {
       await visitor.capturePreview();
       const withoutTip = await visitor.capturedImageDetails();
 
-      expect({width: withTip.width, height: withTip.height, colors: withTip.distinctColors})
-        .toEqual({width: withoutTip.width, height: withoutTip.height, colors: withoutTip.distinctColors});
+      expect({width: withTip.width, height: withTip.height, pixels: withTip.pixelDigest})
+        .toEqual({width: withoutTip.width, height: withoutTip.height, pixels: withoutTip.pixelDigest});
       await expect(tips.firstDrag).toBeVisible();
     });
   });

@@ -34,6 +34,11 @@ export interface CapturedImage {
   devicePixelRatio: number;
   /** Number of different colours in a 64 x 64 copy of the image. A blank image has 1. */
   distinctColors: number;
+  /**
+   * SHA-256 of the image's pixels at full size: equal digests mean the same picture. Unlike
+   * the 64 x 64 copy, it needs no resizing, which WebKit does not do the same way every time.
+   */
+  pixelDigest: string;
   /** Brightness (0 to 255) of the top-left corner, where the background shows. */
   cornerBrightness: number;
 }
@@ -2051,6 +2056,8 @@ export class TierListPage {
       const fullContext = full.getContext('2d')!;
       fullContext.drawImage(img, 0, 0);
       const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
+      const digest = await crypto.subtle.digest('SHA-256', fullContext.getImageData(0, 0, full.width, full.height).data);
+      const pixelDigest = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
       return {
         width: img.naturalWidth,
         height: img.naturalHeight,
@@ -2058,6 +2065,7 @@ export class TierListPage {
         pageHeight: document.documentElement.scrollHeight,
         devicePixelRatio: window.devicePixelRatio,
         distinctColors: colors.size,
+        pixelDigest,
         cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
       };
     });
