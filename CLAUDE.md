@@ -21,8 +21,10 @@ page link (`?state=`), and sharing the link shares the list.
    `image-aliases.json` only.
 5. **Links are the only save.** No accounts, no database, no server storage of lists or
    images. Images uploaded from a device never reach the server.
-6. **Tier labels describe positions.** Dragging row S onto A's place moves the contents. The
-   labels stay S, A, B... from top to bottom.
+6. **Each ranked row has two handles, and colours belong to positions.** The grip beside a
+   row moves the whole row, its name and its items (`moveRow`). The stack at the row's end
+   moves only its items: the names stay S, A, B... from top to bottom (`reorderRows`). A row
+   without a name shows a faint "Row n" hint for its position, never written into the link.
 
 ## Ask before you
 
@@ -91,7 +93,8 @@ proxy.ts              HTTP status of /rank paths, decided before the page stream
                       tag paths, 404 for templates that do not exist, noindex for legacy sets),
                       and the rewrite of `?state=` addresses to /rank/~list
 components/           React components; components/ui/ is shadcn/ui; DragDropTierList.tsx is the
-                      editor's rows (drag and drop through lib/dnd/react.tsx); usePageState.ts:
+                      editor's rows (drag and drop through lib/dnd/react.tsx); RowHandle.tsx: each
+                      ranked row's grip (whole row) and stack (its items); usePageState.ts:
                       one scroll listener and one zen-mode observer shared by every tile
 contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
                       syncs it with the address (one history.pushState per list change, at
