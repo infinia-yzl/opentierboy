@@ -618,11 +618,15 @@ export class TierListPage {
    * stays put. That suits drops before or after an item: they depend only on the half of the
    * item under the pointer, so following the item settles.
    *
-   * The page auto-scrolls while the pointer is near the top or bottom of the window. The
-   * helper keeps moving the pointer to the same page point until the scrolling stops.
+   * Before the drag, the helper scrolls the window so that the handle and the drop point both
+   * show, as a person does, when the window is tall enough for both. Otherwise the page
+   * auto-scrolls while the pointer is near the top or bottom of the window, and the helper keeps
+   * moving the pointer to the same page point until the scrolling stops. Auto-scroll runs on
+   * page time, so a test with page time paused needs both points on screen.
    */
   private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await handle.scrollIntoViewIfNeeded();
+    await this.scrollToShow(handle, pointIn(await boxOf(target)));
     const scrollBefore = await this.scrollPosition();
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
     const dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
@@ -703,6 +707,31 @@ export class TierListPage {
     await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
       message: 'the last drop should have ended',
     }).toBe(true);
+  }
+
+  /**
+   * Scrolls the window so that the handle and the drop point (in window coordinates) both show,
+   * when they fit in the window together and do not show already.
+   */
+  private async scrollToShow(handle: Locator, dropAt: Point) {
+    const margin = 16;
+    const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
+    const scroll = await this.scrollPosition();
+    const from = await boxOf(handle);
+    const top = Math.min(from.y, dropAt.y) + scroll.y;
+    const bottom = Math.max(from.y + from.height, dropAt.y) + scroll.y;
+    const shows = top >= scroll.y + margin && bottom <= scroll.y + viewport.height - margin;
+    if (shows || bottom - top > viewport.height - 2 * margin) return;
+    const y = Math.max(0, Math.round((top + bottom - viewport.height) / 2));
+    await this.page.evaluate((toY) => window.scrollTo({top: toY, behavior: 'instant'}), y);
+    // The window may stop short of the point (the end of the page): wait until it holds still.
+    let last = await this.scrollPositionAfterFrames(2);
+    await expect.poll(async () => {
+      const now = await this.scrollPositionAfterFrames(2);
+      const still = now.x === last.x && now.y === last.y;
+      last = now;
+      return still;
+    }, {message: 'the window should stop scrolling'}).toBe(true);
   }
 
   private async scrollPosition(): Promise<Point> {
@@ -925,11 +954,8 @@ export class TierListPage {
 
   /** Removes a ranked row from the row options menu (#182). Its items go to Unranked. */
   async removeTierRow(tierName: string) {
-    await this.changeAndWaitForLink(async () => {
-      await this.rowOptionsButton.click();
-      await this.removeRowMenuItem.click();
-      await this.page.getByRole('menu').getByRole('menuitem', {name: tierName, exact: true}).click();
-    });
+    const rows = await this.openRemoveRowMenu();
+    await this.changeAndWaitForLink(() => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());
   }
 
   /** "Remove a row" in the Row options menu. It shows once the menu is open (openRowOptions). */
@@ -948,13 +974,42 @@ export class TierListPage {
     await expect(this.removeRowMenuItem).toBeVisible();
   }
 
-  /** Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items. */
+  /**
+   * Opens Row options › Remove a row, and returns the rows that submenu lists, as menu items.
+   * The pointer then rests inside the submenu, so a click on a row stays inside it.
+   */
   async openRemoveRowMenu(): Promise<Locator> {
     await this.openRowOptions();
     await this.removeRowMenuItem.click();
-    const rows = this.page.getByRole('menu').filter({hasNot: this.removeRowMenuItem}).getByRole('menuitem');
+    const submenu = this.page.getByRole('menu').filter({hasNot: this.removeRowMenuItem});
+    const rows = submenu.getByRole('menuitem');
     await expect(rows.first()).toBeVisible();
+    await this.movePointerIntoSubmenu(this.removeRowMenuItem, submenu);
     return rows;
+  }
+
+  /**
+   * Moves the pointer from a submenu's item into the open submenu as a person does: sideways
+   * along the item, toward the side where the submenu opened, then across into it. The menu
+   * keeps a submenu open only for a pointer that heads its way; a pointer that jumps straight
+   * to an item further down leaves the item in the wrong direction, and the submenu closes
+   * (the Row options menu sits at the right edge, so its submenu opens on the left).
+   */
+  private async movePointerIntoSubmenu(trigger: Locator, submenu: Locator) {
+    await expect(submenu).toHaveAttribute('data-side', /^(left|right)$/);
+    const side = await submenu.getAttribute('data-side');
+    const from = await boxOf(trigger);
+    const into = await boxOf(submenu);
+    const y = from.y + from.height / 2;
+    expect(y, 'the submenu should open beside its item').toBeGreaterThan(into.y);
+    expect(y, 'the submenu should open beside its item').toBeLessThan(into.y + into.height);
+    const edge = side === 'left' ? from.x + 2 : from.x + from.width - 2;
+    const inside = side === 'left' ? into.x + into.width - 8 : into.x + 8;
+    await this.page.mouse.move(from.x + from.width / 2, y);
+    await this.page.mouse.move(edge, y, {steps: 4});
+    await this.page.mouse.move(inside, y, {steps: 2});
+    await expect(submenu, 'the submenu should stay open once the pointer is inside it').toBeVisible();
+    await expect(submenu.getByRole('menuitem').first()).toBeVisible();
   }
 
   /**
@@ -2329,13 +2384,15 @@ export class TierListPage {
    * editor shows the list and the page has settled or waits for the site, which keeps it busy.
    */
   async reloadWhileImageSiteHeld(site: HeldImageSite) {
-    await this.page.reload();
+    // Firefox fires the load event only once every picture on screen has loaded, and the site
+    // holds the picture: the reload waits for the new page to start, not for its load event.
+    await this.page.reload({waitUntil: 'commit'});
     await this.untilSettledOrWaitingFor(site);
   }
 
   /** Opens a tier list while an image site holds its answers (see reloadWhileImageSiteHeld). */
   async gotoWhileImageSiteHeld(path: string, state: string, site: HeldImageSite) {
-    await this.page.goto(`${path}?state=${state}`);
+    await this.page.goto(`${path}?state=${state}`, {waitUntil: 'commit'});
     await this.untilSettledOrWaitingFor(site);
   }
 

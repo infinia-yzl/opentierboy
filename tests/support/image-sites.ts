@@ -13,6 +13,12 @@ export interface ImageSiteOptions {
   body?: Buffer;
   contentType?: string;
   status?: number;
+  /**
+   * Send Cache-Control: no-store, so the browser asks the site again for every check of the same
+   * address. WebKit keeps an image it loaded in a cache that outlives the page, and answers a
+   * later check from there: a test that holds the site's answer for each check needs this.
+   */
+  noStore?: boolean;
 }
 
 /** The answers of an image site that a test holds (ImageSite.hold). */
@@ -86,8 +92,11 @@ function createHold(addresses?: readonly string[]): Hold {
  * holds the site's answers until the test releases them.
  */
 export async function serveImageSite(target: Page | BrowserContext, host: string, options: ImageSiteOptions = {}): Promise<ImageSite> {
-  const fulfilment = ({cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200}: ImageSiteOptions) => {
-    const headers: Record<string, string> = cors ? {'access-control-allow-origin': '*'} : {};
+  const fulfilment = ({cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200, noStore = false}: ImageSiteOptions) => {
+    const headers: Record<string, string> = {
+      ...(cors ? {'access-control-allow-origin': '*'} : {}),
+      ...(noStore ? {'cache-control': 'no-store'} : {}),
+    };
     return {status, contentType, body, headers};
   };
   const requests: string[] = [];

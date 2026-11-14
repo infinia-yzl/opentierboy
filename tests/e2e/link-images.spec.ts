@@ -570,9 +570,10 @@ test.describe('link images', () => {
       test(`renders each step of "From a link" when the user adds, cancels and adds anyway while the image site answers (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const sites = {
-          [PICTURE.site]: await serveImageSite(page, PICTURE.site),
-          [WEB_PAGE.site]: await serveImageSite(page, WEB_PAGE.site, NOT_A_PICTURE),
-          [LARGE_PICTURE.site]: await serveImageSite(page, LARGE_PICTURE.site, {body: noisePng(8193, 1, 1)}),
+          // Each submit holds the site's answer, so every check must reach the site (noStore).
+          [PICTURE.site]: await serveImageSite(page, PICTURE.site, {noStore: true}),
+          [WEB_PAGE.site]: await serveImageSite(page, WEB_PAGE.site, {...NOT_A_PICTURE, noStore: true}),
+          [LARGE_PICTURE.site]: await serveImageSite(page, LARGE_PICTURE.site, {body: noisePng(8193, 1, 1), noStore: true}),
         };
         const {sut, releaseHeld} = linkDialogSut(tierList, page, testInfo, sites);
         try {
