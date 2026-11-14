@@ -45,7 +45,8 @@ function carriesPicture(request: SentRequest, picture: Buffer): boolean {
 function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
   // data: and blob: addresses stay in the browser; only network requests count.
   const network = requests.filter((request) => /^https?:/.test(request.url));
-  // The editor still talks to the server (page data for each Back step), so check that it did.
+  // The recorder saw the page's own requests (each test loads a page after it started), so an
+  // empty list means the recorder missed them, not that nothing was sent.
   expect(network.length).toBeGreaterThan(0);
   for (const request of network) {
     for (const picture of pictures) {
@@ -185,6 +186,10 @@ test.describe('security', () => {
 
       await tierList.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['pasted']);
+      await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
+      // A change asks nothing of the server (history.pushState); the reload loads the list's page
+      // again, and the picture comes from this browser's store.
+      await tierList.reload();
       await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
 
       expectNoPictureSent(sent(), [RED_SQUARE]);
