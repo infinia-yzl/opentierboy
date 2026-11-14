@@ -1,8 +1,10 @@
 import fs from 'node:fs/promises';
 import {type BrowserContext, expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectSettled} from '../support/settled';
+import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, menuClosedOnto, rowPhrase, scrollPosition, scrollPositionAfterFrames, startedAndIdle, type Box, type Point} from './helpers';
+import {expectOnlyNewToast, letClosedToastLeave, toasts} from './toasts';
 import {escapeRegExp} from '../support/regexp';
-import {letToastTimeOut, pageTimePaused, runPageClock, TOAST_UNMOUNT_MS} from '../support/page-clock';
+import {letToastTimeOut, runPageClock} from '../support/page-clock';
 import type {HeldImageSite} from '../support/image-sites';
 
 export type RowCount = 3 | 5 | 7;
@@ -41,15 +43,6 @@ export interface CapturedImage {
   pixelDigest: string;
   /** Brightness (0 to 255) of the top-left corner, where the background shows. */
   cornerBrightness: number;
-}
-
-/**
- * A ranked row inside a button name or an announcement, as the editor says it
- * (lib/dnd/labels.ts): "row S", or as it is for "Row 4" (a row without a label) and labels that
- * start with "Row" or "Tier".
- */
-export function rowPhrase(tierName: string): string {
-  return /^(?:row|tier)\b/i.test(tierName) ? tierName : `row ${tierName}`;
 }
 
 /**
@@ -110,9 +103,6 @@ export class TierListPage {
   readonly addRowButton: Locator;
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
-  readonly sharePanel: Locator;
-  /** "Open the list in this file?", after opening a snapshot file. */
-  readonly openListDialog: Locator;
   readonly zenModeToggle: Locator;
 
   constructor(page: Page) {
@@ -135,11 +125,19 @@ export class TierListPage {
     this.addRowButton = page.getByRole('button', {name: 'Add row', exact: true});
     this.manageItemsButton = page.getByRole('button', {name: 'Add images', exact: true});
     this.shareButton = page.getByRole('button', {name: 'Share', exact: true});
-    this.sharePanel = page.getByRole('dialog').filter({
-      has: page.getByRole('heading', {name: 'Share Your Rankings'}),
-    });
     this.zenModeToggle = page.getByRole('button', {name: 'Zen', exact: true});
-    this.openListDialog = page.getByRole('alertdialog', {name: 'Open the list in this file?'});
+  }
+
+  /** The share panel, a dialog with the heading "Share Your Rankings". */
+  get sharePanel(): Locator {
+    return this.page.getByRole('dialog').filter({
+      has: this.page.getByRole('heading', {name: 'Share Your Rankings'}),
+    });
+  }
+
+  /** "Open the list in this file?", after opening a snapshot file. */
+  get openListDialog(): Locator {
+    return this.page.getByRole('alertdialog', {name: 'Open the list in this file?'});
   }
 
   /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
@@ -156,17 +154,9 @@ export class TierListPage {
    */
   async gotoPageThatMayCrash(path: string, state: string) {
     await this.page.goto(`${path}?state=${state}`);
-    await expect.poll(async () => await this.crashMessage.isVisible() || await this.startedAndIdle(), {
+    await expect.poll(async () => await this.crashMessage.isVisible() || await startedAndIdle(this.main), {
       message: 'the page should crash, or start and settle',
     }).toBe(true);
-  }
-
-  /**
-   * True when the page has a <main> that is not busy (lib/busy.ts), read once, without waiting
-   * for a <main> to show (a crashed page has none).
-   */
-  private async startedAndIdle(): Promise<boolean> {
-    return this.main.evaluateAll((mains) => mains.length > 0 && mains.every((main) => main.getAttribute('aria-busy') !== 'true'));
   }
 
   /** The message Next.js shows instead of the page when the page crashed in the browser. */
@@ -436,21 +426,11 @@ export class TierListPage {
   }
 
   /**
-   * Runs an action that changes the ranking, and waits until the app has written the
-   * change into the address bar. Only then is the link ready to share.
-   */
-  private async changeAndWaitForLink(action: () => Promise<void>) {
-    const before = this.page.url();
-    await action();
-    await expect(this.page, 'the shareable link should update').not.toHaveURL(before);
-  }
-
-  /**
    * Runs a drop that changes the list, waits for the new link, and checks again that every
    * item tile can start a drag: the list on screen has its final tiles once the link is written.
    */
   private async dropAndWaitForLink(drop: () => Promise<void>) {
-    await this.changeAndWaitForLink(drop);
+    await changeAndWaitForLink(this.page, drop);
     await this.expectEveryItemDraggable();
   }
 
@@ -489,7 +469,7 @@ export class TierListPage {
    */
   async dragItemToTierStartInOneSweep(itemName: string, tierName: string) {
     await this.dropEnded();
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       const item = this.item(itemName);
       await item.scrollIntoViewIfNeeded();
       const from = await centerOf(item);
@@ -502,7 +482,7 @@ export class TierListPage {
       await mouse.move(row.x + 150, row.y + row.height / 2, {steps: 16});
       // The drop target follows the pointer within a few frames. A wrong row stays wrong.
       await expect(this.dragAnnouncer).toHaveText(/ moves to row /);
-      await this.scrollPositionAfterFrames();
+      await scrollPositionAfterFrames(this.page);
       await mouse.up();
       await this.dropEnded();
     });
@@ -674,7 +654,7 @@ export class TierListPage {
   private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await handle.scrollIntoViewIfNeeded();
     await this.scrollToShow(handle, pointIn(await boxOf(target)));
-    const scrollBefore = await this.scrollPosition();
+    const scrollBefore = await scrollPosition(this.page);
     const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
     const dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
@@ -725,7 +705,7 @@ export class TierListPage {
     onPage: (point: Point, scroll: Point) => Point;
     viewport: {width: number; height: number};
   }) {
-    const scroll = await this.scrollPosition();
+    const scroll = await scrollPosition(this.page);
     const dropAtOnPage = followTarget ? onPage(pointIn(await boxOf(target)), scroll) : measured;
     // A drop point outside the window is reached by holding the pointer at the edge,
     // where the page auto-scrolls towards it.
@@ -734,7 +714,7 @@ export class TierListPage {
     await this.page.mouse.move(x, y, {steps: 5});
     // The drag library reads the pointer once per animation frame. Waiting a few frames
     // lets it handle the last move, and shows whether the page is still scrolling.
-    const scrollAfter = await this.scrollPositionAfterFrames();
+    const scrollAfter = await scrollPositionAfterFrames(this.page);
     expect(scrollAfter, 'the page should stop auto-scrolling').toEqual(scroll);
     expect({x: x + scroll.x, y: y + scroll.y}, 'the pointer should be on the drop point').toEqual(dropAtOnPage);
     if (followTarget) {
@@ -763,7 +743,7 @@ export class TierListPage {
   private async scrollToShow(handle: Locator, dropAt: Point) {
     const margin = 16;
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
-    const scroll = await this.scrollPosition();
+    const scroll = await scrollPosition(this.page);
     const from = await boxOf(handle);
     const top = Math.min(from.y, dropAt.y) + scroll.y;
     const bottom = Math.max(from.y + from.height, dropAt.y) + scroll.y;
@@ -772,26 +752,13 @@ export class TierListPage {
     const y = Math.max(0, Math.round((top + bottom - viewport.height) / 2));
     await this.page.evaluate((toY) => window.scrollTo({top: toY, behavior: 'instant'}), y);
     // The window may stop short of the point (the end of the page): wait until it holds still.
-    let last = await this.scrollPositionAfterFrames(2);
+    let last = await scrollPositionAfterFrames(this.page, 2);
     await expect.poll(async () => {
-      const now = await this.scrollPositionAfterFrames(2);
+      const now = await scrollPositionAfterFrames(this.page, 2);
       const still = now.x === last.x && now.y === last.y;
       last = now;
       return still;
     }, {message: 'the window should stop scrolling'}).toBe(true);
-  }
-
-  private async scrollPosition(): Promise<Point> {
-    return this.page.evaluate(() => ({x: window.scrollX, y: window.scrollY}));
-  }
-
-  private async scrollPositionAfterFrames(frames = 5): Promise<Point> {
-    return this.page.evaluate(async (count) => {
-      for (let frame = 0; frame < count; frame++) {
-        await new Promise((resolve) => requestAnimationFrame(resolve));
-      }
-      return {x: window.scrollX, y: window.scrollY};
-    }, frames);
   }
 
   /**
@@ -947,7 +914,7 @@ export class TierListPage {
       const to = {x: box.x + box.width - 80, y: box.y + box.height / 2};
       for (let step = 1; step <= 10; step++) {
         await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
-        await this.scrollPositionAfterFrames(2);
+        await scrollPositionAfterFrames(this.page, 2);
       }
       await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : rowPhrase(tierName))},`));
       await touch('touchEnd', null, start + 0.7);
@@ -975,7 +942,7 @@ export class TierListPage {
       await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(rowPhrase(tierName))}, `));
       for (let step = 1; step <= 10; step++) {
         await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.3 + step * 0.03);
-        await this.scrollPositionAfterFrames(2);
+        await scrollPositionAfterFrames(this.page, 2);
       }
       await touch('touchEnd', null, start + 0.7);
       await this.dropEnded();
@@ -1006,7 +973,7 @@ export class TierListPage {
     const touch = await this.touchscreen();
     const item = this.item(itemName);
     await item.scrollIntoViewIfNeeded();
-    const scrollBefore = await this.scrollPosition();
+    const scrollBefore = await scrollPosition(this.page);
     const from = await centerOf(item);
     const start = Date.now() / 1000;
     await touch('touchStart', from, start);
@@ -1016,7 +983,7 @@ export class TierListPage {
     await touch('touchEnd', null, start + 0.12);
     let scrolled = 0;
     await expect.poll(async () => {
-      scrolled = (await this.scrollPosition()).y - scrollBefore.y;
+      scrolled = (await scrollPosition(this.page)).y - scrollBefore.y;
       return scrolled;
     }, {message: 'the page should scroll'}).toBeGreaterThan(distance / 2);
     return scrolled;
@@ -1064,7 +1031,7 @@ export class TierListPage {
     // From a page that has finished the last step (a drop): text typed while the
     // drag library still blocks text selection could land beside the old name (WebKit).
     await this.settled();
-    await this.changeAndWaitForLink(rename);
+    await changeAndWaitForLink(this.page, rename);
   }
 
   /** Opens the editor of a tier label and types a new name, without confirming it. */
@@ -1079,7 +1046,7 @@ export class TierListPage {
 
   async setTitle(newTitle: string) {
     await this.settled();
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       const input = await this.typeTitle(newTitle);
       await input.press('Enter');
       await expect(this.title).toHaveText(newTitle);
@@ -1100,7 +1067,7 @@ export class TierListPage {
   /** Switches the row template. A new history entry, like any change to the list. */
   /** Adds an empty row above Unranked with "Add row" (#182). */
   async addTierRow() {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.addRowButton.click();
     });
   }
@@ -1108,7 +1075,7 @@ export class TierListPage {
   /** Removes a ranked row from the row options menu (#182). Its items go to Unranked. */
   async removeTierRow(tierName: string) {
     const rows = await this.openRemoveRowMenu();
-    await this.changeAndWaitForLink(() => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());
+    await changeAndWaitForLink(this.page, () => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());
   }
 
   /** "Remove a row" in the Row options menu. It shows once the menu is open (openRowOptions). */
@@ -1179,7 +1146,7 @@ export class TierListPage {
   }
 
   async chooseRowCount(count: RowCount) {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.rowOptionsButton.click();
       await this.page.getByRole('menuitemradio', {name: `${count} Rows`}).click();
     });
@@ -1190,7 +1157,7 @@ export class TierListPage {
    * entry (A3), so this waits until the address holds it.
    */
   async chooseLabelPosition(position: LabelPosition) {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.rowOptionsButton.click();
       await this.page.getByRole('menuitemradio', {name: position, exact: true}).click();
     });
@@ -1198,7 +1165,7 @@ export class TierListPage {
 
   /** Shows or hides item labels. Like chooseLabelPosition, it waits until the address holds it. */
   async setItemLabelsVisible(visible: boolean) {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.rowOptionsButton.click();
       await this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}).click();
     });
@@ -1833,14 +1800,14 @@ export class TierListPage {
 
   /** Deletes an item with its right-click menu, and returns once the new link is in the address bar. */
   async deleteItem(itemName: string) {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.item(itemName).click({button: 'right'});
       await this.page.getByRole('menuitem', {name: 'Delete'}).click();
     });
   }
 
   async resetRankings() {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.openItemsMenu();
       await this.page.getByRole('menuitem', {name: 'Reset'}).click();
     });
@@ -1856,7 +1823,7 @@ export class TierListPage {
   }
 
   async removeAllItems() {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.openItemsMenu();
       await this.page.getByRole('menuitem', {name: 'Remove All'}).click();
       const confirm = this.page.getByRole('alertdialog');
@@ -1982,24 +1949,7 @@ export class TierListPage {
    * capture image" instead, and then this fails).
    */
   private async captureAndExpectSuccess() {
-    await this.expectOnlyNewToast(() => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
-  }
-
-  /**
-   * Runs an action, and waits until the toasts it showed are exactly one toast that contains
-   * `text`. The toasts already on screen are marked first, so an older toast with the same text
-   * does not count, and a toast of another outcome (an error) fails the wait. It waits for the
-   * toast, not for the page to settle: the page may be busy on purpose, for example while list
-   * writes wait for a held server answer.
-   */
-  private async expectOnlyNewToast(action: () => Promise<void>, text: string) {
-    const marker = 'data-shown-before-step';
-    await toasts(this.page).evaluateAll((items, name) => items.forEach((item) => item.setAttribute(name, '')), marker);
-    await action();
-    await expect.poll(() => toasts(this.page).evaluateAll((items, name) => items
-      .filter((item) => !item.hasAttribute(name))
-      .map((item) => item.textContent ?? ''), marker), {message: `the toasts this step showed should be one "${text}"`})
-      .toEqual([expect.stringContaining(text)]);
+    await expectOnlyNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
   }
 
   /**
@@ -2012,7 +1962,7 @@ export class TierListPage {
     await expect.poll(() => tile.getByRole('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
       {message: `the image of "${itemName}" should load`}).toBe(true);
     const box = await boxOf(tile);
-    const scroll = await this.scrollPosition();
+    const scroll = await scrollPosition(this.page);
     const png = await this.page.screenshot({clip: box, animations: 'disabled'});
     const colors = await this.page.evaluate(countColors, {src: `data:image/png;base64,${png.toString('base64')}`});
     return {box: {...box, x: box.x + scroll.x, y: box.y + scroll.y}, colors};
@@ -2198,7 +2148,7 @@ export class TierListPage {
 
   /** Steps Back or Forward with the Zen bar, and waits until the address has changed. */
   async stepInZenBar(name: 'Back' | 'Forward') {
-    await this.changeAndWaitForLink(() => this.zenBarButton(name).click());
+    await changeAndWaitForLink(this.page, () => this.zenBarButton(name).click());
   }
 
   /** Chooses a ranking order in the Zen bar's menu. It writes no history entry. */
@@ -2206,17 +2156,7 @@ export class TierListPage {
     await this.rankingOrderButton.click();
     await this.page.getByRole('menuitemradio', {name: order, exact: true}).click();
     await expect(this.rankingOrderButton).toHaveAccessibleName(`Ranking order: ${order}`);
-    await this.menuClosedOnto(this.rankingOrderButton);
-  }
-
-  /**
-   * Waits until the menu has closed and given focus back to its button. The menu gives it back a
-   * moment after it closes: a key pressed before that would go to the element focused meanwhile,
-   * and then lose its focus.
-   */
-  private async menuClosedOnto(button: Locator) {
-    await expect(this.page.getByRole('menu')).toHaveCount(0);
-    await expect(button).toBeFocused();
+    await menuClosedOnto(this.page, this.rankingOrderButton);
   }
 
   /** Turns "Hide the queue" on or off in the Zen bar's menu. */
@@ -2262,7 +2202,7 @@ export class TierListPage {
     await this.layoutButton.click();
     await this.page.getByRole('menuitemradio', {name, exact: true}).click();
     await expect(this.layoutButton).toHaveAccessibleName(`Layout: ${name}`);
-    await this.menuClosedOnto(this.layoutButton);
+    await menuClosedOnto(this.page, this.layoutButton);
   }
 
   /** Opens the Zen bar's Layout menu, and returns it. */
@@ -2297,7 +2237,7 @@ export class TierListPage {
   async dragItemToTierByHand(itemName: string, tierName: string) {
     // A press starts a drag only once the previous drop has landed.
     await this.dropEnded();
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       const item = this.item(itemName);
       // In a creator layout the rows and the tray scroll on their own, inside a frame that stays
       // still: the row first, then the item.
@@ -2313,9 +2253,9 @@ export class TierListPage {
       // A hand never holds perfectly still: the pointer moves by a pixel and back, as a person's
       // does (still the one press). The drag library checks where the pointer is when it moves,
       // after the rows have made room for the item, so the drop point is read again.
-      await this.scrollPositionAfterFrames();
+      await scrollPositionAfterFrames(this.page);
       await mouse.move(to.x + 1, to.y);
-      await this.scrollPositionAfterFrames();
+      await scrollPositionAfterFrames(this.page);
       await mouse.move(to.x, to.y);
       const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to ${escapeRegExp(rowPhrase(tierName))},`);
       await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow);
@@ -2456,7 +2396,7 @@ export class TierListPage {
    * router shows it (components/NavigationBusy.tsx), Back to another page until it has started.
    */
   async goBack() {
-    await this.changeAndWaitForLink(async () => {
+    await changeAndWaitForLink(this.page, async () => {
       await this.page.goBack();
     });
     await this.settled();
@@ -2497,7 +2437,7 @@ export class TierListPage {
 
   private async chooseRowOptionWithKeyboard(option: Locator) {
     await this.openRowOptions();
-    await this.changeAndWaitForLink(() => this.chooseOpenRowOption(option));
+    await changeAndWaitForLink(this.page, () => this.chooseOpenRowOption(option));
   }
 
   // ---- Leaving machine (tests/machines/leaving.ts) ------------------------------------------
@@ -2510,7 +2450,7 @@ export class TierListPage {
   async moveFirstUnrankedItemUpWithKeyboard() {
     const name = await this.itemsIn(this.unranked).first().getAttribute('aria-label');
     if (!name) throw new Error('The Unranked tray has no item to move');
-    await this.changeAndWaitForLink(() => this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false}));
+    await changeAndWaitForLink(this.page, () => this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false}));
   }
 
   // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
@@ -2531,7 +2471,7 @@ export class TierListPage {
 
   /** Uploads pictures from the device, and returns once the link holds them. */
   async addItemsFromDeviceAndWaitForLink(files: DeviceFiles) {
-    await this.changeAndWaitForLink(() => this.addItemsFromDevice(files));
+    await changeAndWaitForLink(this.page, () => this.addItemsFromDevice(files));
   }
 
   // ---- Link images machine (tests/machines/link-images.ts) ----------------------------------
@@ -2548,7 +2488,7 @@ export class TierListPage {
 
   /** Adds an image with "From a link", and returns once the link holds it. */
   async addItemFromLinkAndWaitForLink(address: string, name: string) {
-    await this.changeAndWaitForLink(() => this.addItemFromLink(address, name));
+    await changeAndWaitForLink(this.page, () => this.addItemFromLink(address, name));
   }
 
   /**
@@ -2639,7 +2579,7 @@ export class TierListPage {
 
   /** Clicks Copy Markdown in the open share panel, and checks that this click showed the toast "Markdown copied to clipboard". */
   async copyMarkdownInOpenPanel() {
-    await this.expectOnlyNewToast(() => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
+    await expectOnlyNewToast(this.page, () => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
   }
 
   /**
@@ -2795,7 +2735,7 @@ export class TierListPage {
     const before = this.page.url();
     // The dialog shows once a dropped list file has been read, which keeps the page busy, and it
     // stays until the visitor answers it: once it shows or the page has settled, one look tells.
-    await expect.poll(async () => await this.openListDialog.isVisible() || await this.startedAndIdle(), {
+    await expect.poll(async () => await this.openListDialog.isVisible() || await startedAndIdle(this.main), {
       message: 'the dialog should show, or the page settle',
     }).toBe(true);
     if (await this.openListDialog.isVisible()) await this.dropFile(file, {onto: this.openListDialog});
@@ -2805,7 +2745,7 @@ export class TierListPage {
 
   /** Chooses a picture with "Open a Freeze Frame…" and returns once the link holds it. */
   async openFileAndWaitForLink(file: {name: string; mimeType: string; buffer: Buffer}) {
-    await this.changeAndWaitForLink(() => this.openFile(file));
+    await changeAndWaitForLink(this.page, () => this.openFile(file));
   }
 
   /**
@@ -2956,13 +2896,13 @@ export class TierListPage {
    * until the next action, however long the checks take.
    */
   async addItemsFromDeviceAndHoldToast(files: DeviceFiles) {
-    await this.changeAndWaitForLink(() => this.addItemsFromDevice(files));
+    await changeAndWaitForLink(this.page, () => this.addItemsFromDevice(files));
     await this.itemsAddedToast.hover();
   }
 
   /** Chooses Undo in the toast "Items Added", and returns once the link changed and the toast closed. */
   async undoAddedItems() {
-    await this.changeAndWaitForLink(() => this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click());
+    await changeAndWaitForLink(this.page, () => this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click());
     await expect(this.itemsAddedToast).toHaveCount(0);
   }
 
@@ -3033,7 +2973,7 @@ export class TierListPage {
 
   /** Confirms the open Remove All dialog, waits for the new link, and rests on the toast "All Items Deleted". */
   async confirmRemoveAllAndRestOnToast() {
-    await this.changeAndWaitForLink(() => this.removeAllDialog.getByRole('button', {name: 'Remove All Items'}).click());
+    await changeAndWaitForLink(this.page, () => this.removeAllDialog.getByRole('button', {name: 'Remove All Items'}).click());
     await expect(this.removeAllDialog).toBeHidden();
     await this.restOnToast('All Items Deleted');
   }
@@ -3126,17 +3066,6 @@ export interface HeldRankPages {
   readonly release: () => Promise<void>;
 }
 
-type Box = {x: number; y: number; width: number; height: number};
-
-/**
- * Every toast on the page. Sonner puts them in a list in a region named "Notifications" with
- * its keyboard shortcut ("Notifications alt+T"). The region says aria-live, so an open dialog
- * does not hide it.
- */
-export function toasts(page: Page): Locator {
-  return page.getByRole('region', {name: /^Notifications\b/}).getByRole('listitem');
-}
-
 /**
  * How many times dragWithMouse moves the pointer to its drop point before it gives up. Each try
  * waits five frames, so 100 tries let the page auto-scroll for about 500 frames.
@@ -3162,7 +3091,6 @@ async function scrollsInside(locator: Locator): Promise<boolean> {
 function boxesOverlap(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
-type Point = {x: number; y: number};
 
 /**
  * Runs in the browser: loads an image and counts its different colours (5 bits per channel).
@@ -3202,25 +3130,6 @@ async function countColors({src, column, cardWidth}: {src: string; column?: Box;
   return best;
 }
 
-async function boxOf(locator: Locator): Promise<Box> {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error(`Element is not visible: ${locator}`);
-  return box;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function centerOfBox(box: Box): Point {
-  return {x: box.x + box.width / 2, y: box.y + box.height / 2};
-}
-
-async function centerOf(locator: Locator): Promise<Point> {
-  return centerOfBox(await boxOf(locator));
-}
-
-
 // ---- Model helpers: editor rows, Zen steps, leaving, label writes, "From a link" ------------
 // Plain functions over TierListPage, for the models in tests/models/editor-rows.ts,
 // zen-steps.ts, leaving-writes.ts, label-writes.ts and link-dialog.ts.
@@ -3243,7 +3152,6 @@ export async function chooseRowCountAndSettle(tierList: TierListPage, count: Row
   await expect(tierList.openMenus).toHaveCount(0);
   await tierList.settled();
 }
-
 
 /**
  * Clicks the logo link to Home while the trip home may wait for a held server answer
@@ -3303,20 +3211,6 @@ export async function pressUnavailableHideQueue(tierList: TierListPage, checked:
 }
 
 // ---- Model campaigns: toasts while page time stands still (`pageTime: 'paused'`) ------------
-
-/**
- * Waits until a toast that a click closed has left the page. Sonner keeps a closed toast for its
- * exit (TOAST_UNMOUNT_MS, `data-removed="true"`) on a timer, so while page time stands still
- * (pausePageTime) the page clock runs that long. The pointer is still on the toasts then, which
- * holds the timers of the toasts that stay (letToastTimeOut checks them later to the ms).
- */
-export async function letClosedToastLeave(page: Page, toast: Locator) {
-  if (pageTimePaused(page)) {
-    await expect(toast).toHaveAttribute('data-removed', 'true');
-    await runPageClock(page, TOAST_UNMOUNT_MS);
-  }
-  await expect(toast).toHaveCount(0);
-}
 
 /** Chooses Undo in the toast "Items Added", and returns once the link changed and the toast left (letClosedToastLeave). */
 export async function undoAddedItemsAndLetToastLeave(tierList: TierListPage) {

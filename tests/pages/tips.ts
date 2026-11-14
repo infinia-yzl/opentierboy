@@ -1,7 +1,7 @@
 import {expect, type BrowserContext, type Locator, type Page} from '@playwright/test';
 import {expectSettled} from '../support/settled';
 import {letToastTimeOut} from '../support/page-clock';
-import {letClosedToastLeave, toasts} from './tier-list-page';
+import {letClosedToastLeave, toasts} from './toasts';
 
 /** How long a tip's toast shows (components/EditorTips.tsx, TIP_TOAST_MS). */
 const TIP_TOAST_MS = 10_000;

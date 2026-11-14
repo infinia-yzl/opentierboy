@@ -1,7 +1,7 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 import {expectSettled} from '../support/settled';
 import {letToastTimeOut, runPageClock} from '../support/page-clock';
-import {toasts} from './tier-list-page';
+import {toasts} from './toasts';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type FontChoice = 'Modern' | 'Classic';
