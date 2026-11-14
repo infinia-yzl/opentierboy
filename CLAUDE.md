@@ -154,7 +154,10 @@ public/images/        every image set, copied from its npm package at build time
                       copies (git-ignored; nothing in it is committed)
 articles/             blog posts (Markdown)
 tests/e2e/            Playwright specs, one file per UI area or route (tests/README.md, "Where a test goes")
-tests/pages/          page objects (tier-list-page.ts: TierListPage, site-page.ts: SitePage)
+tests/pages/          page objects: tier-list-page.ts (TierListPage, the editor's core) with one
+                      object per area, reached as its properties (tierList.rows, .items, .drag,
+                      .linkImages, .deviceImages, .files, .share, .zen); site-page.ts (SitePage);
+                      tips.ts (Tips)
 tests/support/        test.ts (fixtures), links.ts (build a ranking link)
 tests/fixtures/       golden shared links and link states (append-only)
 tests/unit/           Vitest unit tests (*.test.ts) at the paths of the code they test; rules/ and fixtures/

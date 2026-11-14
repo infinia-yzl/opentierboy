@@ -272,7 +272,7 @@ async function showKeys(page, keys, ms = 1_100) {
  * Drags an image from another window onto the page and drops it: what the browser does for a
  * picture dragged from a web page (text/uri-list, text/plain and text/html with its <img>). A
  * headless browser cannot drag between windows, so the clip sends the same drag events the e2e
- * tests send (tests/pages/tier-list-page.ts, dropText), along the pointer's path, and draws the
+ * tests send (tests/pages/link-images.ts, dropText), along the pointer's path, and draws the
  * picture under the pointer as a browser does.
  */
 async function dragImageIn(page, {url, alt}, from, to, steps = 32) {

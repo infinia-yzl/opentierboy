@@ -281,12 +281,6 @@ export class DeviceImages {
     await this.itemsAddedToast.hover();
   }
 
-  /** Chooses Undo in the toast "Items Added", and returns once the link changed and the toast closed. */
-  async undoAddedItems() {
-    await changeAndWaitForLink(this.page, () => this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click());
-    await expect(this.itemsAddedToast).toHaveCount(0);
-  }
-
   /** Lets the toast "Items Added" close by itself (after 4 s, on the page clock: `pageClock`). */
   async waitOutItemsAddedToast() {
     await letToastTimeOut(this.page, this.itemsAddedToast);

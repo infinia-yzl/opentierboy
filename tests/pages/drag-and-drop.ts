@@ -151,27 +151,6 @@ export class DragAndDrop {
   }
 
   /**
-   * Lifts an item with the keyboard (Space), moves it with the given keys, then presses Escape.
-   * Returns once the cancel is announced and focus is back on the item.
-   */
-  async moveItemWithKeyboardThenCancel(itemName: string, keys: string[]) {
-    const keyboard = this.page.keyboard;
-    await this.dropEnded();
-    await this.tierList.item(itemName).focus();
-    await keyboard.press('Space');
-    await expect(this.dragAnnouncer).toContainText('Picked up');
-    for (const key of keys) {
-      const before = await this.dragAnnouncer.textContent();
-      await keyboard.press(key);
-      await expect(this.dragAnnouncer).not.toHaveText(before ?? '');
-    }
-    await keyboard.press('Escape');
-    await expect(this.dragAnnouncer).toContainText('Move cancelled.');
-    await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(itemName);
-    await this.expectEveryItemDraggable();
-  }
-
-  /**
    * Drags an item with the mouse onto another item and drops it there: it takes that item's
    * place. Coming from before it (in reading order) it lands just after it, otherwise just
    * before it.

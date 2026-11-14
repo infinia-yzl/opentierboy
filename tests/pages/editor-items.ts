@@ -184,19 +184,6 @@ export class EditorItems {
     await expect(this.removeAllDialog).toBeHidden();
   }
 
-  /**
-   * Clicks Undo in the toast `title`, and waits until the toast has closed. With `changesList`,
-   * also waits for the new link, so a Back after it starts from the new history entry. The Undo
-   * of "Item deleted" also shows the toast "Item restored", whether or not the list changed.
-   */
-  async undoInToast(title: string, {changesList}: {changesList: boolean}) {
-    const before = this.page.url();
-    await this.undoButtonIn(title).click();
-    await expect(this.tierList.toast(title)).toHaveCount(0);
-    if (title === 'Item deleted') await expect(this.tierList.toast('Item restored')).toBeVisible();
-    if (changesList) await expect(this.page, 'Undo should write a new link').not.toHaveURL(before);
-  }
-
   /** Lets the toast `title` close by itself (after 4 s, on the page clock: `pageClock`). */
   async waitOutToast(title: string) {
     await letToastTimeOut(this.page, this.tierList.toast(title));
@@ -244,12 +231,6 @@ export class EditorItems {
     await toast.hover();
   }
 
-  /** Clicks Undo in the toast "Items Added" of a template add, and waits until the toast is gone (the link may stay). */
-  async undoTemplateAdd() {
-    await this.tierList.undoFromToast('Items Added');
-    await expect(this.tierList.toast('Items Added')).toHaveCount(0);
-  }
-
   /** Lets the toast of a template add end by itself (after 4 s, on the page clock: `pageClock`). */
   async waitOutTemplateAddToast() {
     await letToastTimeOut(this.page, this.tierList.toast('Items Added').or(this.tierList.toast('No New Items')));
@@ -262,8 +243,9 @@ export class EditorItems {
   }
 
   /**
-   * Clicks Undo in the toast `title`, as undoInToast does, and returns once the toast
-   * left (letClosedToastLeave). The Undo of "Item deleted" also shows the toast "Item restored".
+   * Clicks Undo in the toast `title`, and returns once the toast left (letClosedToastLeave).
+   * With `changesList`, also waits for the new link, so a Back after it starts from the new
+   * history entry. The Undo of "Item deleted" also shows the toast "Item restored".
    */
   async undoInToastAndLetItLeave(title: string, {changesList}: {changesList: boolean}) {
     const before = this.page.url();

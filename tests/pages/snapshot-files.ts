@@ -96,12 +96,6 @@ export class SnapshotFiles {
     await expect(this.tierList.tiers.first()).toBeVisible();
   }
 
-  /** Clicks Open list and leaves the dialog to open the list (it says "Opening the list…"). */
-  async startOpeningList() {
-    await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
-    await expect(this.openListDialog).toContainText('Opening the list…');
-  }
-
   /**
    * Chooses a file with "Open a Freeze Frame…" and returns how long the page took, measured in the page,
    * from receiving the file until a toast with `text` appeared (milliseconds). Playwright's own
@@ -219,14 +213,6 @@ export class SnapshotFiles {
     }
     await hold.release();
     return null;
-  }
-
-  /** Lets the server answer the held navigation of an opening list, and waits until the list is in the address. */
-  async answerHeldRankPage(hold: HeldRankPages) {
-    const before = this.page.url();
-    await hold.release();
-    await expect(this.openListDialog).toBeHidden();
-    await expect(this.page, 'the list of the file should open').not.toHaveURL(before);
   }
 
   /**
