@@ -127,14 +127,7 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
         <Alert role="note">
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
-            {device === 1 ? (
-              <><strong>1 image from your device isn&apos;t in the link.</strong> People who open the link see its name
-                in its place. To share the image itself, download a Freeze Frame from the Image tab.</>
-            ) : (
-              <><strong>{device} images from your device aren&apos;t in the link.</strong> People who open the link see
-                their names in their place. To share the images themselves, download a Freeze Frame from the Image
-                tab.</>
-            )}
+            {device === 1 ? '1 device image shows as a placeholder.' : `${device} device images show as placeholders.`}
           </AlertDescription>
         </Alert>
       )}
@@ -363,7 +356,7 @@ What do you think? 🤔
                       </TooltipTrigger>
                       <TooltipContent>
                         Consider using URL shorteners for ease of sharing.
-                        Images added from your device will be replaced with placeholders.
+                        Device images show as placeholders.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>

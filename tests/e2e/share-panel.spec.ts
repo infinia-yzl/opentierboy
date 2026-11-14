@@ -169,7 +169,7 @@ test.describe('share panel', () => {
 
       await expect(tierList.linkImageNotes).toHaveCount(1);
       await expect(tierList.linkImageNotes).toHaveText(
-        "1 image from your device isn't in the link. People who open the link see its name in its place. To share the image itself, download a Freeze Frame from the Image tab.");
+        "1 device image shows as a placeholder.");
     });
 
     test('renders a note for 3 device images and one for 1 link image when the page opens a list with both', {tag: '@mobile'}, async ({tierList, page}) => {
@@ -182,7 +182,7 @@ test.describe('share panel', () => {
       await tierList.openSharePanel();
 
       await expect(tierList.linkImageNotes).toHaveText([
-        "3 images from your device aren't in the link. People who open the link see their names in their place. To share the images themselves, download a Freeze Frame from the Image tab.",
+        "3 device images show as placeholders.",
         "1 image from the web is in the link. People who open the link see it too. Some sites need their OK first: until they press Load, they see the image's name.",
       ]);
     });
@@ -205,7 +205,7 @@ test.describe('share panel', () => {
 
   test.describe('model', () => {
     /** The note on one image from the device (see "images in the link"). */
-    const ONE_DEVICE_IMAGE_NOTE = "1 image from your device isn't in the link. People who open the link see its name in its place. To share the image itself, download a Freeze Frame from the Image tab.";
+    const ONE_DEVICE_IMAGE_NOTE = "1 device image shows as a placeholder.";
 
     /** The panel, its tab and note, and the clipboard, as a state of the share panel machine shows them. */
     const expectSharePanel = async (tierList: TierListPage, view: SharePanelView) => {
