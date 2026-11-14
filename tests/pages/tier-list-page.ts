@@ -326,7 +326,9 @@ export class TierListPage {
       release: async () => {
         open();
         await Promise.all(handled);
-        await this.page.unroute('**/*', handler);
+        // After a failed or timed-out test the page may be closed already: then there is
+        // nothing left to unroute, and an error here would hide the test's own.
+        if (!this.page.isClosed()) await this.page.unroute('**/*', handler);
       },
     };
   }
