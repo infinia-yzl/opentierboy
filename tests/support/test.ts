@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext, type Page} from '@playwright/test';
+import {test as base, expect, type APIRequestContext, type Browser, type BrowserContext, type Page, type Request as PageRequest} from '@playwright/test';
 import {TierListPage} from '../pages/tier-list-page';
 import {SitePage} from '../pages/site-page';
 import sharedLinks from '../fixtures/shared-links.json';
@@ -239,6 +239,46 @@ function watchPageErrors(context: BrowserContext, errors: string[]) {
   context.on('page', watch);
 }
 
+/**
+ * What the pages of a context did with the network, kept for a test that fails: the requests that
+ * never finished, and the last page events (navigations, DOMContentLoaded, load, failed
+ * requests). A step that waits for a page to load and times out names nothing else, so this is
+ * how a failure shows what the page was still waiting for.
+ */
+function watchNetwork(context: BrowserContext) {
+  const started = Date.now();
+  const at = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
+  const short = (url: string) => (url.length > 160 ? `${url.slice(0, 157)}...` : url);
+  const waiting = new Map<PageRequest, string>();
+  const events: string[] = [];
+  const note = (event: string) => {
+    events.push(`${at()} ${event}`);
+    if (events.length > 30) events.shift();
+  };
+  const watch = (page: Page) => {
+    page.on('request', (request) => void waiting.set(request, `${at()} ${request.method()} ${request.resourceType()} ${short(request.url())}`));
+    page.on('requestfinished', (request) => void waiting.delete(request));
+    page.on('requestfailed', (request) => {
+      waiting.delete(request);
+      note(`request failed (${request.failure()?.errorText ?? 'no reason'}): ${short(request.url())}`);
+    });
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) note(`navigated to ${short(frame.url())}`);
+    });
+    page.on('domcontentloaded', () => note(`DOMContentLoaded of ${short(page.url())}`));
+    page.on('load', () => note(`load of ${short(page.url())}`));
+    page.on('close', () => note('page closed'));
+  };
+  context.pages().forEach(watch);
+  context.on('page', watch);
+  return () => [
+    `Requests still waiting (started at): ${waiting.size === 0 ? 'none' : ''}`,
+    ...[...waiting.values()].map((line) => `  ${line}`),
+    'Last page events:',
+    ...events.map((line) => `  ${line}`),
+  ].join('\n');
+}
+
 export const test = base.extend<Fixtures, WorkerFixtures>({
   externalRequests: [async ({}, use, testInfo) => {
     const blocked: string[] = [];
@@ -279,12 +319,20 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       throw new Error(`The page threw errors that nothing caught (allow an expected one with test.use({allowedPageErrors})):\n${unexpected.join('\n')}`);
     }
   },
-  context: async ({context, baseURL, externalRequests, pageErrors, tips}, use) => {
+  context: async ({context, baseURL, externalRequests, pageErrors, tips}, use, testInfo) => {
     watchPageErrors(context, pageErrors);
+    const network = watchNetwork(context);
     await guardContext(context, baseURL, externalRequests);
     await sendBypassOnlyToSite(context, baseURL);
     if (!tips) await turnTipsOff(context);
     await use(context);
+    // A failed or timed-out test reports what its pages were still waiting for, as an error of its
+    // own after the test's: the reporters print every error of a test, also in CI logs.
+    if (testInfo.status !== testInfo.expectedStatus && testInfo.status !== 'skipped') {
+      const report = new Error(`What the page was doing when the test failed:\n${network()}`);
+      report.name = 'NetworkReport';
+      throw report;
+    }
   },
   pageClock: [false, {option: true}],
   page: async ({page, pageClock}, use) => {
