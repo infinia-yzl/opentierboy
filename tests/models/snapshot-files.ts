@@ -13,7 +13,7 @@ export type ListOnScreen = 'ownList' | 'withPicture' | 'withTwoPictures' | 'file
 export interface SnapshotFilesView {
   /** The list on screen, or null while the dialog shows (it hides the page from the accessibility tree). */
   readonly list: ListOnScreen;
-  readonly dialog: 'asking' | 'opening' | null;
+  readonly dialog: 'asking' | null;
   readonly message: 'brokenFile' | 'notAPicture' | 'filesNotAdded' | null;
 }
 
@@ -26,7 +26,6 @@ const SNAPSHOT_FILES_VIEWS: Readonly<Record<string, SnapshotFilesView>> = {
   'editor.before.notAPictureMessage': {list: 'ownList', dialog: null, message: 'notAPicture'},
   'editor.asking.nothingWaits': {list: null, dialog: 'asking', message: null},
   'editor.asking.filesNotAdded': {list: null, dialog: 'asking', message: 'filesNotAdded'},
-  'editor.opening': {list: null, dialog: 'opening', message: null},
   'editor.fileList': {list: 'fileList', dialog: null, message: null},
   'editor.askingAgain': {list: null, dialog: 'asking', message: null},
   left: {list: null, dialog: null, message: null},
@@ -52,12 +51,9 @@ const constant = fc.constant({});
  * page ignore the pointer, so nothing holds it, but page time stands still in the test until
  * TOAST_TIMES_OUT: a paste or a drop over the dialog meets it there too.
  */
-const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking') || snapshot.matches('editor.askingAgain')
-  || snapshot.matches('editor.opening');
+const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking') || snapshot.matches('editor.askingAgain');
 /** Where the machine takes the event, and where a dialog shows: a paste or a drop there must change nothing. */
 const offeredOrOverDialog = (type: string) => (args: When) => offered(type)(args) || dialogShows(args);
-/** Cancel and Escape, where the machine takes them, and while the list opens: they must change nothing then. */
-const offeredOrOpening = (type: string) => (args: When) => offered(type)(args) || args.snapshot.matches('editor.opening');
 
 /** A list on screen with no dialog, with or without a message (the pointer rests on a message, which a paste does not move). */
 const listShows = ({snapshot}: When) => snapshot.matches('editor.before') || snapshot.matches('editor.fileList');
@@ -78,10 +74,9 @@ export const snapshotFilesModel = defineModel({
     DROP_TEXT_FILE: {generate: constant, when: offered('DROP_TEXT_FILE')},
     // A paste takes pictures only: a pasted text file changes nothing, on any list.
     PASTE_TEXT_FILE: {generate: constant, when: listShows},
-    CANCEL: {generate: constant, when: offeredOrOpening('CANCEL')},
-    PRESS_ESCAPE: {generate: constant, when: offeredOrOpening('PRESS_ESCAPE')},
+    CANCEL: {generate: constant, when: offered('CANCEL')},
+    PRESS_ESCAPE: {generate: constant, when: offered('PRESS_ESCAPE')},
     OPEN_LIST: {generate: constant, when: offered('OPEN_LIST')},
-    SERVER_ANSWERS: {generate: constant, when: offered('SERVER_ANSWERS')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
     LEAVE_WHILE_PICTURES_WAIT: {generate: constant, when: offered('LEAVE_WHILE_PICTURES_WAIT')},
     TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},

@@ -16,11 +16,9 @@ import {mouseDragModel} from './mouse-drag';
 import {sharedLinkModel} from './shared-link';
 import {addFromTemplateModel} from './add-from-template';
 import {removeAndUndoModel} from './remove-and-undo';
-import {linkWritesModel} from './link-writes';
 import {editorRowsModel} from './editor-rows';
 import {zenStepsModel} from './zen-steps';
-import {leavingWritesModel} from './leaving-writes';
-import {labelWritesModel} from './label-writes';
+import {leavingModel} from './leaving';
 import {linkDialogModel} from './link-dialog';
 
 /**
@@ -46,10 +44,8 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   sharedLinkModel,
   addFromTemplateModel,
   removeAndUndoModel,
-  linkWritesModel,
   editorRowsModel,
   zenStepsModel,
-  leavingWritesModel,
-  labelWritesModel,
+  leavingModel,
   linkDialogModel,
 ] as MachineModel[]);

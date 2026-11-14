@@ -67,19 +67,17 @@ test.describe('share panel', () => {
       await friend.closeMenus();
     });
 
-    test('writes the latest list to the clipboard when the user clicks Copy Markdown after 3 quick moves on a slow server', async ({
+    test('writes the latest list to the clipboard when the user clicks Copy Markdown right after 3 quick moves', async ({
       tierList,
       openAsVisitor,
     }) => {
       await tierList.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      // The server answers only after the copy: the share text must not wait for the links.
-      const hold = await tierList.holdListWrites();
+      // The copy comes right after the moves: the share text is the list on screen (A46).
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
         await tierList.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await tierList.copyMarkdown();
-      await hold.release();
 
       const linkInMarkdown = (await tierList.clipboardText()).match(/\]\((\S+)\)/)?.[1];
       const friend = await openAsVisitor(linkInMarkdown!);

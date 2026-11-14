@@ -11,7 +11,7 @@ import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} fro
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
 import {pngDeclaring, pngFile, pngWithSnapshotText, snapshotTextOf} from '../support/snapshot-files';
 import {messageNamesHost} from '../support/console';
-import {type CaptureMethod, type FreezeFrame, type HeldListWrites, messageToasts, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {type CaptureMethod, type FreezeFrame, type HeldRankPages, messageToasts, SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {SitePage} from '../pages/site-page';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,8 @@ import {snapshotFilesModel, snapshotFilesViewOf, snapshotFilesWithoutPasteModel,
 import {freezeFrameLoadModel, freezeFrameLoadViewOf, type FreezeFrameLoadEvent, type FreezeFrameLoadSnapshot} from '../models/freeze-frame-load';
 
 const TANKS = '/rank/overwatch/tank';
+/** Another template page of the same set. */
+const SUPPORTS = '/rank/overwatch/sup';
 
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
@@ -445,16 +447,20 @@ test.describe('snapshot files', () => {
     });
   });
 
+  /**
+   * A list file of another template path opens on another page (router.push), which asks the
+   * server. A list of the same page opens in place, without a request (the other tests).
+   */
   test.describe('slow server', () => {
     test.slow();
 
-    /** Opens a snapshot file on a server that answers after 1 s, and returns the history length from before. */
     /**
-     * Opens a snapshot file over the list "Old list" and clicks Open list with the server's
-     * answer held: the dialog says "Opening the list…" until the test releases the answer.
+     * Opens a snapshot file of the tank template over the list "Old list" of the support template,
+     * and clicks Open list with the server's answer held: the dialog says "Opening the list…"
+     * until the test releases the answer.
      */
-    async function startOpeningWithServerHeld(tierList: TierListPage): Promise<{before: number; hold: HeldListWrites}> {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
+    async function startOpeningWithServerHeld(tierList: TierListPage): Promise<{before: number; hold: HeldRankPages}> {
+      await tierList.goto(SUPPORTS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
       const before = await tierList.historyLength();
       await tierList.openFile(listFile('snapshot.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]}));
       const hold = await tierList.clickOpenListWithServerHeld();
@@ -513,17 +519,17 @@ test.describe('snapshot files', () => {
   test.describe('file queue', () => {
     test.slow();
 
-    test('writes 55 history entries when the user pastes 55 images at once on a slow server', async ({tierList, page, browserName}) => {
+    test('writes 55 history entries when the user pastes 55 images at once on a slow disk', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
-      // More than the 50 writes the editor keeps waiting: none may be merged. The server answers
-      // once all 55 pastes have arrived, so the other 54 wait behind the first write.
-      const hold = await tierList.holdListWrites();
+      await tierList.settled();
+      // More than the 50 writes the editor follows until the router has shown them: none may be
+      // merged. The device store is held until all 55 pastes have arrived, so they all wait.
+      const hold = await tierList.holdDeviceStore();
       const newEntries = await tierList.countNewHistoryEntries();
       const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
 
       await tierList.pasteImagesAtOnce(groups);
-      await expect.poll(() => hold.isHolding(), {message: 'the first paste should be on its way to the address'}).toBe(true);
       await hold.release();
 
       // The 55 writes land one after another. Each must land while the page is still busy with
@@ -581,7 +587,7 @@ test.describe('snapshot files', () => {
       await expect(page).toHaveURL(/^[^?]*\/$/);
     });
 
-    test('renders Home when a pasted image lands in the editor while the trip home still loads', async ({tierList, page, browserName}) => {
+    test('renders Home and no new item when the user pastes an image while the trip home still loads', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       const tripHome = await tierList.holdTripHome();
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
@@ -590,9 +596,11 @@ test.describe('snapshot files', () => {
 
       try {
         await tierList.homeLink.click();
-        // A change made after the click: the editor still shows, and it adds the picture.
+        // A paste after the click, without a key: the editor still shows, and the picture is
+        // dropped quietly. Adding it would write the address and cancel the trip home.
         await tierList.pasteFileNow(imageFile('late.png', BLUE_SQUARE));
-        await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(1);
+        await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+        expect(page.url()).toBe(listAddress);
       } finally {
         await tripHome.release();
       }
@@ -990,8 +998,6 @@ test.describe('snapshot files', () => {
       let textFile = '';
       let waitingPicture = '';
       let leavingPictures: string[] = [];
-      /** The server's answer to the list write of an opening list, held until SERVER_ANSWERS. */
-      let held: HeldListWrites | null = null;
       /** The state on screen, as the last check saw it: TOAST_TIMES_OUT ends its message. */
       let onScreen: SnapshotFilesSnapshot | null = null;
       /** The message of a state, by what it says: each names its own file, but a damaged file's does not. */
@@ -1051,15 +1057,9 @@ test.describe('snapshot files', () => {
           PASTE_TEXT_FILE: () => tierList.pasteImages([{name: `pasted-${++sent}.txt`, mimeType: 'text/plain', buffer: Buffer.from('not a picture')}]),
           CANCEL: () => tierList.chooseCancelInOpenListDialog(),
           PRESS_ESCAPE: () => tierList.pressEscapeInOpenListDialog(),
-          OPEN_LIST: async () => {
-            held = await tierList.clickOpenListWithServerHeld();
-          },
-          SERVER_ANSWERS: async () => {
-            if (!held) throw new Error('No list write is held');
-            const hold = held;
-            held = null;
-            await tierList.answerHeldListWrite(hold);
-          },
+          // The list of the file is a list of this page: it opens in place, without a request, and
+          // the dialog closes once it shows. Asked again, the address shows it already.
+          OPEN_LIST: () => tierList.confirmOpenList({newAddress: false}),
           BROWSER_BACK: () => tierList.goBack(),
           LEAVE_WHILE_PICTURES_WAIT: async () => {
             const at = ++sent;
@@ -1086,9 +1086,7 @@ test.describe('snapshot files', () => {
             }
             if (message === 'filesNotAdded') await expect(messageToast(message)).toContainText('A list file was being opened, so they were not added:');
             else if (message) await expect(messageToast(message)).toBeVisible();
-            if (dialog === 'opening') await expect(tierList.main, 'the page should be busy while the list opens').toHaveAttribute('aria-busy', 'true');
             if (dialog === 'asking') await expect(tierList.openListDialog).toContainText('Your current list stays one Back step away.');
-            if (dialog === 'opening') await expect(tierList.openListDialog).toContainText('Opening the list…');
             if (dialog === null) await expect(tierList.openListDialog).toHaveCount(0);
             if (list === 'fileList') {
               await expect(tierList.title).toHaveText('Snapshot list');
@@ -1104,8 +1102,7 @@ test.describe('snapshot files', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      // While the list opens, the page waits for the held server answer (SERVER_ANSWERS).
-      }, {machine: snapshotFilesModel.machine, busyIn: (snapshot) => snapshot.matches('editor.opening')});
+      });
     };
 
     test.describe.configure({retries: 0});

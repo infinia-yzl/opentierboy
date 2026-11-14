@@ -24,6 +24,31 @@ test.describe('editor labels', () => {
       await expect(friend.title).toHaveText('My tank picks for ranked');
     });
 
+    test('renders the list title as the tab title, also after Back, Forward and a reload, when the user changes the title', async ({tierList, site, page}) => {
+      await tierList.goto(TANKS);
+      await expect(page).toHaveTitle('OVERWATCH - Tank');
+
+      await tierList.setTitle('My tank picks');
+      await expect(page).toHaveTitle('My tank picks');
+      // A long title is shortened in the tab, as in the page's metadata (A43).
+      await tierList.setTitle(`Long ${'x'.repeat(120)}`);
+      await expect(page).toHaveTitle(`Long ${'x'.repeat(94)}…`);
+
+      await tierList.goBack();
+      await expect(page).toHaveTitle('My tank picks');
+      await tierList.goBack();
+      await expect(page).toHaveTitle('OVERWATCH - Tank');
+      await tierList.goForward();
+      await expect(page).toHaveTitle('My tank picks');
+
+      await site.goto('/about');
+      await tierList.goBack();
+      await expect(tierList.title).toHaveText('My tank picks');
+      await expect(page).toHaveTitle('My tank picks');
+      await tierList.reload();
+      await expect(page).toHaveTitle('My tank picks');
+    });
+
     test('renders the new title when the user opens Edit title with Enter, types a title and presses Enter', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.editTitleButton.focus();

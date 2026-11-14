@@ -378,9 +378,9 @@ export class TierListPage {
   }
 
   /**
-   * Starts counting the history entries this page adds from now on (history.pushState calls, as
-   * Next.js makes one per router.push). Browsers keep at most 50 entries, so history.length
-   * cannot count more. Returns a function that reads the count.
+   * Starts counting the history entries this page adds from now on (history.pushState calls: the
+   * editor makes one per change, and Next.js one per router.push). Browsers keep at most 50
+   * entries, so history.length cannot count more. Returns a function that reads the count.
    */
   async countNewHistoryEntries(): Promise<() => Promise<number>> {
     await this.page.evaluate(() => {
@@ -2246,8 +2246,8 @@ export class TierListPage {
   }
 
   /**
-   * Back with the browser while the page may be busy on purpose, for example while a list write
-   * waits for a held server answer: it returns once Back has been sent, without waiting for anything.
+   * Back with the browser while the page may be busy on purpose, for example right after a change
+   * or while files wait: it returns once Back has been sent, without waiting for anything.
    */
   async goBackNow() {
     await this.page.goBack();
@@ -2273,27 +2273,17 @@ export class TierListPage {
     await this.changeAndWaitForLink(() => this.chooseOpenRowOption(option));
   }
 
-  // ---- Link writes machine (tests/machines/link-writes.ts) ----------------------------------
+  // ---- Leaving machine (tests/machines/leaving.ts) ------------------------------------------
 
   /**
    * Moves the first item of the Unranked tray up into the last row with the keyboard: one change
-   * to the list. Returns once the drop is announced and the focus is back, without waiting for
-   * the link, which may wait for the server (holdListWrites).
+   * to the list. Returns once the drop is announced, the focus is back and the address has
+   * changed, also while the page is busy on purpose (the trip home waits).
    */
   async moveFirstUnrankedItemUpWithKeyboard() {
     const name = await this.itemsIn(this.unranked).first().getAttribute('aria-label');
     if (!name) throw new Error('The Unranked tray has no item to move');
-    await this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
-  }
-
-  /**
-   * Waits until `hold` holds a list write: the editor has pushed the link of the oldest change
-   * that waits. The editor pushes one link at a time (contexts/TierContext.tsx): the links of
-   * later changes wait in the editor until the server answers the first, so after a second
-   * change this returns at once, with the first write still the one held.
-   */
-  async untilFirstListWriteHeld(hold: HeldListWrites) {
-    await expect.poll(() => hold.isHolding(), {message: 'a list write should wait for the server'}).toBe(true);
+    await this.changeAndWaitForLink(() => this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false}));
   }
 
   // ---- Tips machines (tests/machines/tips.ts, tests/machines/tips-shared-list.ts) ----------
@@ -2451,11 +2441,12 @@ export class TierListPage {
   // ---- Snapshot files machine (tests/machines/snapshot-files.ts) ----------------------------
 
   /**
-   * Holds the server's answers to the editor's list writes (the request each new address of a
-   * /rank page makes; prefetches pass), as on a very slow connection, until `release`.
-   * `isHolding` turns true once a write is held: its router.push was made.
+   * Holds the server's answers to navigations to /rank pages (the request a router.push to an
+   * editor address of another page makes; prefetches pass), as on a very slow connection, until
+   * `release`. `isHolding` turns true once a navigation is held. A change to the list makes no
+   * request: the editor writes the address itself.
    */
-  async holdListWrites(): Promise<HeldListWrites> {
+  async holdRankPages(): Promise<HeldRankPages> {
     let open!: () => void;
     const released = new Promise<void>((resolve) => {
       open = resolve;
@@ -2465,9 +2456,9 @@ export class TierListPage {
     const hold = async (route: Route) => {
       const request = route.request();
       const headers = request.headers();
-      const write = headers['rsc'] === '1' && !headers['next-router-prefetch'] && !headers['next-router-segment-prefetch']
+      const navigation = headers['rsc'] === '1' && !headers['next-router-prefetch'] && !headers['next-router-segment-prefetch']
         && new URL(request.url()).pathname.startsWith('/rank');
-      if (!write) return route.fallback();
+      if (!navigation) return route.fallback();
       holding = true;
       await released;
       // The page may have dropped the request meanwhile (the visitor left): nothing to answer then.
@@ -2515,15 +2506,16 @@ export class TierListPage {
   }
 
   /**
-   * Clicks Open list with the server's answers held (holdListWrites). When the list goes to a
-   * new address, returns the hold once the write is held and the dialog says "Opening the
-   * list…". When the address shows the list already, returns null once the dialog closed.
+   * Clicks Open list with the server's answers held (holdRankPages), for a list file of another
+   * template path: the list opens on another page. Returns the hold once the navigation is held
+   * and the dialog says "Opening the list…", or null once the dialog closed (the list opened
+   * without a request).
    */
-  async clickOpenListWithServerHeld(): Promise<HeldListWrites | null> {
-    const hold = await this.holdListWrites();
+  async clickOpenListWithServerHeld(): Promise<HeldRankPages | null> {
+    const hold = await this.holdRankPages();
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
     await expect.poll(async () => hold.isHolding() || !(await this.openListDialog.isVisible()), {
-      message: 'the list write should reach the server, or the dialog close',
+      message: 'the navigation should reach the server, or the dialog close',
     }).toBe(true);
     if (hold.isHolding()) {
       await expect(this.openListDialog).toContainText('Opening the list…');
@@ -2533,8 +2525,8 @@ export class TierListPage {
     return null;
   }
 
-  /** Lets the server answer the held write of an opening list, and waits until the list is in the address. */
-  async answerHeldListWrite(hold: HeldListWrites) {
+  /** Lets the server answer the held navigation of an opening list, and waits until the list is in the address. */
+  async answerHeldRankPage(hold: HeldRankPages) {
     const before = this.page.url();
     await hold.release();
     await expect(this.openListDialog).toBeHidden();
@@ -2588,19 +2580,52 @@ export class TierListPage {
   }
 
   /**
-   * Pastes groups of pictures at once with the server's answers held, so the first add stays on
-   * its way to the address and the others wait their turn, then leaves for the landing page.
-   * The server answers once the landing page shows.
+   * Pastes groups of pictures at once while the device image store is held (holdDeviceStore), so
+   * the first picture is still being stored and the others wait their turn, then leaves for the
+   * landing page. The store is let go once the landing page shows.
    */
   async leaveWhilePastesWait(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
-    const hold = await this.holdListWrites();
+    const hold = await this.holdDeviceStore();
     try {
       await this.pasteImagesAtOnce(groups);
-      await expect.poll(() => hold.isHolding(), {message: 'the first add should be on its way to the address'}).toBe(true);
       await this.leaveForHome();
     } finally {
       await hold.release();
     }
+  }
+
+  /**
+   * Holds the device image store until `release`, as a slow disk would: a transaction of the
+   * test on its IndexedDB database stays open, so the editor's own transactions wait behind it.
+   * Call it once the editor has started (it opens the store as it starts).
+   */
+  async holdDeviceStore(): Promise<{release: () => Promise<void>}> {
+    await this.page.evaluate(() => new Promise<void>((resolve, reject) => {
+      // eslint-disable-next-line no-restricted-globals -- a test holds the store, as a slow disk would
+      const opening = indexedDB.open('opentierboy-device-images');
+      opening.onerror = () => reject(opening.error);
+      opening.onsuccess = () => {
+        const db = opening.result;
+        const transaction = db.transaction(Array.from(db.objectStoreNames), 'readwrite');
+        const store = transaction.objectStore(db.objectStoreNames[0]);
+        const held = window as unknown as {deviceStoreHeld: boolean};
+        held.deviceStoreHeld = true;
+        // A transaction ends once it has no request left: ask again until the test lets go.
+        const ask = () => {
+          if (held.deviceStoreHeld) store.get('held by the test').onsuccess = ask;
+        };
+        transaction.oncomplete = () => db.close();
+        ask();
+        resolve();
+      };
+    }));
+    return {
+      release: async () => {
+        await this.page.evaluate(() => {
+          (window as unknown as {deviceStoreHeld: boolean}).deviceStoreHeld = false;
+        }).catch(() => undefined);
+      },
+    };
   }
 
   /**
@@ -2864,11 +2889,11 @@ export class TierListPage {
   }
 }
 
-/** The server's answers to list writes, held by TierListPage.holdListWrites. */
-export interface HeldListWrites {
-  /** True once a list write is held. */
+/** The server's answers to navigations to /rank pages, held by TierListPage.holdRankPages. */
+export interface HeldRankPages {
+  /** True once a navigation is held. */
   readonly isHolding: () => boolean;
-  /** Lets the server answer every held write, and stops holding. */
+  /** Lets the server answer every held navigation, and stops holding. */
   readonly release: () => Promise<void>;
 }
 
@@ -2992,17 +3017,6 @@ export async function chooseRowCountAndSettle(tierList: TierListPage, count: Row
 
 
 /**
- * Chooses a label position in Row options while the page may be busy on purpose, for example
- * while a list write waits for a held server answer (holdListWrites). Returns once the menu has
- * closed, without waiting for the link.
- */
-export async function chooseLabelPositionNow(tierList: TierListPage, position: LabelPosition) {
-  await tierList.rowOptionsButton.click();
-  await tierList.rowOption(position).click();
-  await expect(tierList.openMenus).toHaveCount(0);
-}
-
-/**
  * Clicks the logo link to Home while the trip home may wait for a held server answer
  * (holdTripHome). Returns once the click is made, without waiting for Home.
  */
@@ -3012,10 +3026,10 @@ export async function clickHomeNow(tierList: TierListPage) {
 
 /**
  * Drops an image address on the first row, as a link dragged from another page, while the page
- * may be busy on purpose (dropText waits until it is not). Returns once the item `name` shows in
- * Unranked. A drop is neither a click nor a key.
+ * may be busy on purpose (dropText waits until it is not). Returns once the drop is sent: the
+ * page takes it in the drop event. A drop is neither a click nor a key.
  */
-export async function dropImageAddressNow(tierList: TierListPage, address: string, name: string) {
+export async function dropImageAddressNow(tierList: TierListPage, address: string) {
   const transfer = await tierList.page.evaluateHandle((uri) => {
     const data = new DataTransfer();
     data.setData('text/uri-list', uri);
@@ -3026,7 +3040,6 @@ export async function dropImageAddressNow(tierList: TierListPage, address: strin
   await row.dispatchEvent('dragenter', {dataTransfer: transfer});
   await row.dispatchEvent('dragover', {dataTransfer: transfer});
   await row.dispatchEvent('drop', {dataTransfer: transfer});
-  await expect(tierList.itemIn(tierList.unranked, name)).toBeVisible();
 }
 
 /** The "Image address" field of the open "From a link" dialog. */

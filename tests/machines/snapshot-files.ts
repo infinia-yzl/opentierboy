@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const snapshotFilesMachine = createMachine({
   id: 'snapshotFiles',
-  description: 'Files opened in the editor with Open a Freeze Frame…, dropped on it or pasted into it. A picture becomes an item, one Back step for each file. A file with a list (a Freeze Frame download) asks first: Open list goes to its list with one Back step, Cancel changes nothing. A broken file or a file that is not a picture shows a message, and no other message shows. Files that come with a list file are not added. Leaving the editor drops the files that wait. A message closes by itself after 4 seconds (TOAST_TIMES_OUT), but not while the pointer rests on it. While a message shows, the visitor of this machine only reads it until it closes: what a change does while a message still shows is left out, since every list would need a state with each message.',
+  description: 'Files opened in the editor with Open a Freeze Frame…, dropped on it or pasted into it. A picture becomes an item, one Back step for each file. A file with a list (a Freeze Frame download) asks first: Open list goes to its list with one Back step (a list of this page opens in place, without a request), Cancel changes nothing. A broken file or a file that is not a picture shows a message, and no other message shows. Files that come with a list file are not added. Leaving the editor drops the files that wait. A message closes by itself after 4 seconds (TOAST_TIMES_OUT), but not while the pointer rests on it. While a message shows, the visitor of this machine only reads it until it closes: what a change does while a message still shows is left out, since every list would need a state with each message.',
   initial: 'editor',
   states: {
     editor: {
@@ -68,7 +68,7 @@ export const snapshotFilesMachine = createMachine({
               on: {
                 CANCEL: {target: '#snapshotFiles.editor.before.lists.lastList'},
                 PRESS_ESCAPE: {target: '#snapshotFiles.editor.before.lists.lastList'},
-                OPEN_LIST: {target: '#snapshotFiles.editor.opening'},
+                OPEN_LIST: {target: '#snapshotFiles.editor.fileList'},
               },
             },
             filesNotAdded: {
@@ -77,12 +77,8 @@ export const snapshotFilesMachine = createMachine({
             },
           },
         },
-        opening: {
-          description: 'Open list was clicked and the server has not answered yet. The dialog says “Opening the list…” and stays, and the page is busy: Cancel, Escape, a paste and a drop change nothing.',
-          on: {SERVER_ANSWERS: {target: 'fileList'}},
-        },
         fileList: {
-          description: 'The list in the file, titled Snapshot list, with its picture in row S. Back goes to the list before.',
+          description: 'Open list stored the file’s picture and opened its list in place, as one new history entry: titled Snapshot list, with its picture in row S. Back goes to the list before.',
           on: {
             BROWSER_BACK: {target: 'before.lists.lastList'},
             OPEN_LIST_FILE: {target: 'askingAgain'},

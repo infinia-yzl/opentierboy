@@ -143,11 +143,13 @@ tests/
 - **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`
   on a wait. Wait for what the user would see: web-first assertions such as `toHaveText`, the
   drag announcer for drag and drop, and the address bar for saved changes. Page object methods
-  that change the list return only after the new link is in the address bar.
+  that change the list return only after the new link is in the address bar. The editor writes
+  it in the event of the change (`history.pushState`), with no request to the server.
 - **Wait until the page is not busy.** The page says `aria-busy="true"` on `<main>` while it
   works on something the visitor started (`lib/busy.ts`): until it has started in the browser,
-  while a link is written, during a drag and its drop, and while files or pictures are added or
-  captured. `TierListPage.settled()` and `SitePage.settled()` wait until it is done; `goto`,
+  while it goes to another address (a link, Back or Forward), during a drag and its drop, and
+  while files or pictures are added or captured. A change to the list is not counted: its link
+  is in the address bar at once. `TierListPage.settled()` and `SitePage.settled()` wait until it is done; `goto`,
   `reload`, `goBack`, `goForward` and `gotoHome` end with it, and specs never navigate with a raw
   `page.goto`/`goBack`/`reload` (`goBackNow` is the one exception, for a test that presses Back
   while the page works on purpose). A test that acts while the page works, on purpose (two
@@ -160,8 +162,11 @@ tests/
 - **Lint guards the specs.** ESLint refuses `waitForTimeout`, `'networkidle'`, `.locator`, `$`,
   `$$`, `$eval` and `waitForSelector` in `tests/e2e/**`; selectors live in the page objects.
 - **The server answers when the test says so.** Where timing matters, a test holds the
-  server's answers to the editor's list writes (`holdListWrites`) or to the trip home
-  (`holdTripHome`), acts, then calls `release()`. No route delays answers by a time.
+  server's answers to a navigation to another `/rank` page (`holdRankPages`, for example a
+  list file of another template) or to the trip home (`holdTripHome`), or holds the device
+  image store as a slow disk would (`holdDeviceStore`), acts, then calls `release()`. No route
+  delays answers by a time. A change to the list asks nothing of the server, so there is no
+  answer to hold.
 - **Timers run on the page clock.** A toast ends by itself after a time (4 s, a tip's 10 s). A
   test that waits for that turns the page clock on with `test.use({pageClock: true})` (or calls
   `page.clock.install()` before the page opens) and moves the page's time on by the app's own
@@ -339,18 +344,18 @@ disagree, and its error lists every step with the machine's state.
   steps inside wait for what the page shows. With `testInfo`, a failing part attaches the
   failing run's trace (unless the tests run with the Vercel bypass secret), its `fixture.json`
   and a screenshot.
-- **Side effects.** A step often starts work that ends later: a link write that waits for the
-  server, a message that closes by itself, a picture that is stored, an image site that answers.
+- **Side effects.** A step often starts work that ends later: a page that waits for the server,
+  a message that closes by itself, a picture that is stored, an image site that answers.
   Each side effect is handled in one of two ways, never by a guess:
   - **Inside the step.** When its timing changes nothing the visitor sees, the step ends when
     the side effect has ended. The app counts it as busy from the event that starts it until it
     ends (`lib/busy.ts`), and `modelSut` waits until the page is not busy before each check.
   - **As an event of its own.** When its timing or its result changes what the visitor sees
-    (a change made while a link is still on its way, a message still showing or gone, an image
+    (a change made while Home is still on its way, a message still showing or gone, an image
     site that answers or fails), the machine has a waiting state and an event named after what
-    the outside world does: `SERVER_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`,
+    the outside world does: `HOME_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`,
     `IMAGE_CHECK_TIMES_OUT`. The test makes it happen at that step: it holds the server's
-    answers and releases them (`holdListWrites`), runs the page clock (`letToastTimeOut`), or
+    answers and releases them (`holdTripHome`), runs the page clock (`letToastTimeOut`), or
     holds the image site. The model names its waiting states in `busyIn`, where the page is
     busy on purpose.
 - **Page time.** With `pageTime: 'paused'`, page time stands still for the whole test
