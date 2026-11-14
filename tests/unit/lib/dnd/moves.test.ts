@@ -6,6 +6,7 @@ import {
   findItem,
   MAX_TIER_ROWS,
   moveItem,
+  moveRow,
   newTierId,
   removeTier,
   reorderRows,
@@ -238,6 +239,42 @@ describe('reorderRows', () => {
         }
       }
     }
+  });
+});
+
+describe('moveRow', () => {
+  it('returns the whole row, its name included, at the new place when a ranked row moves down or up', () => {
+    const tiers = deepFreeze(sampleTiers());
+    expect(names(moveRow(tiers, 0, 2)).slice(0, 4)).toEqual([
+      ['tier-a', 'A', ['ana']],
+      ['tier-b', 'B', []],
+      ['tier-s', 'S', ['mauga', 'winston', 'sigma']],
+      ['tier-c', 'C', names(tiers)[3][2]],
+    ]);
+    expect(names(moveRow(tiers, 3, 0)).map(([id]) => id)).toEqual(['tier-c', 'tier-s', 'tier-a', 'tier-b', 'tier-f', 'uncategorized']);
+  });
+
+  it('returns the same row objects, label position included, when rows move', () => {
+    const tiers = sampleTiers().map((tier, index) => (index === 1 ? {...tier, labelPosition: 'top' as const} : tier));
+    const next = moveRow(tiers, 1, 3);
+    expect(next[3]).toBe(tiers[1]);
+    expect(next[0]).toBe(tiers[0]);
+  });
+
+  it('returns the same array when the Unranked row moves or a row moves onto it', () => {
+    const tiers = deepFreeze(sampleTiers());
+    expect(moveRow(tiers, 5, 0)).toBe(tiers);
+    expect(moveRow(tiers, 0, 5)).toBe(tiers);
+  });
+
+  it('returns the same array when from equals to, an index does not fit, or the rows look the same', () => {
+    const tiers = sampleTiers();
+    expect(moveRow(tiers, 2, 2)).toBe(tiers);
+    expect(moveRow(tiers, -1, 2)).toBe(tiers);
+    expect(moveRow(tiers, 0, 6)).toBe(tiers);
+    expect(moveRow(tiers, 1.5, 2)).toBe(tiers);
+    const blanks = deepFreeze([tier('tier-1', ''), tier('tier-2', ''), tier('uncategorized', '', ['ana'])]);
+    expect(moveRow(blanks, 0, 1)).toBe(blanks);
   });
 });
 

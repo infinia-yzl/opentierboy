@@ -4,7 +4,7 @@ import type {LabelPosition} from "@/models/Tier";
 import type {ItemSet} from "@/models/ItemSet";
 import type {TierCortex} from "@/lib/TierCortex";
 import type {ListLayout} from "@/lib/listLink";
-import {addTier, moveItem, removeTier, reorderRows} from "@/lib/dnd/moves";
+import {addTier, moveItem, moveRow, removeTier, reorderRows} from "@/lib/dnd/moves";
 
 /**
  * The tier list editor's state and every change to it, as a pure reducer (no React, no
@@ -121,8 +121,11 @@ export type TierListAction =
   | {type: 'routerAddressChanged'; address: string | null; loaded: LoadedList | null}
   | {type: 'titleChanged'; title: string}
   | {type: 'itemMoved'; from: ItemPosition; to: ItemPosition}
+  /** The items of the row at `from` move to the place of the row at `to` (its stack); the labels stay. */
   | {type: 'tierMoved'; from: number; to: number}
-  /** Adds an empty row above Unranked (#182), labelled "Tier <n>", up to MAX_TIER_ROWS rows. */
+  /** The whole row at `from`, its name included, moves to `to` (its grip; owner decision, 2026-11-14). */
+  | {type: 'rowMoved'; from: number; to: number}
+  /** Adds an empty row above Unranked (#182), without a name (it reads "Row <n>"), up to MAX_TIER_ROWS rows. */
   | {type: 'tierAdded'}
   /** Removes a ranked row (#182); its items go to the end of Unranked. */
   | {type: 'tierRemoved'; tierId: string}
@@ -282,9 +285,13 @@ export function createTierListReducer(encode: ListEncoder, {layoutWrite = LAYOUT
         // Tier labels describe positions (product rule 6): the contents and the tier id move,
         // the names stay in place from top to bottom.
         return edit(state, reorderRows(state.tiers, action.from, action.to));
+      case 'rowMoved':
+        // The whole row moves, its name included; the colours stay with the positions.
+        return edit(state, moveRow(state.tiers, action.from, action.to));
       case 'tierAdded':
-        // The new row gets a visible label to click and rename: "Tier <its row number>".
-        return edit(state, addTier(state.tiers, {name: `Tier ${state.tiers.length}`})?.tiers ?? state.tiers);
+        // The new row has no name: the editor shows its position as a faint hint, "Row <n>",
+        // which the link never holds (owner decision, 2026-11-14).
+        return edit(state, addTier(state.tiers)?.tiers ?? state.tiers);
       case 'tierRemoved':
         return edit(state, removeTier(state.tiers, state.tiers.findIndex(tier => tier.id === action.tierId)));
       case 'tierRenamed':

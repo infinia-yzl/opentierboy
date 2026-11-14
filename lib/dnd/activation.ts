@@ -9,7 +9,7 @@
  *   scrolls the page. Holding still until CONTEXT_MENU_LONG_PRESS_MS opens the item's menu
  *   (Radix ContextMenu, "Delete"), and then the press no longer starts a drag. So long-press
  *   delete and hold-to-drag share one gesture without fighting.
- * - Touch and pen on a row handle: hold still for TOUCH_HOLD_MS and the drag starts (the
+ * - Touch and pen on a row handle (a grip or a stack): hold still for TOUCH_HOLD_MS and the drag starts (the
  *   handle has no menu).
  *
  * The timings are constants for the owner to try on a phone.

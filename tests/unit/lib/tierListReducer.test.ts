@@ -457,15 +457,38 @@ describe('createTierListReducer list actions', () => {
     expect(store.state.tiers.map(tier => tier.id).slice(0, 2)).toEqual(['tier-a', 'tier-s']);
   });
 
-  it('writes one link with an empty Tier 6 row above Unranked when tierAdded runs', () => {
+  it('writes one link with the whole row, name and items, at its new place when rowMoved runs', () => {
+    const store = setup(fiveRowLink({S: [MAU], A: [WIN]}));
+    store.dispatch({type: 'rowMoved', from: 0, to: 2});
+    expect(store.names()).toEqual(['A', 'B', 'S', 'C', 'F', '']);
+    expect(store.contents().slice(0, 3)).toEqual([['Winston'], [], ['Mauga']]);
+    expect(store.state.tiers.map(tier => tier.id).slice(0, 3)).toEqual(['tier-a', 'tier-b', 'tier-s']);
+    expect(store.state.writes).toHaveLength(1);
+    // The link holds the moved list: rows are ordered, with their names, so no new format.
+    const linked = decoded(store.links()[0]).tiers;
+    expect(linked.map(tier => tier.name)).toEqual(['A', 'B', 'S', 'C', 'F', '']);
+    expect(linked.map(tier => tier.items.map(item => item.id))).toEqual(store.state.tiers.map(tier => tier.items.map(item => item.id)));
+  });
+
+  it('writes no link when rowMoved runs onto Unranked, from Unranked, or to the same place', () => {
+    const store = setup(fiveRowLink({S: [MAU]}));
+    store.dispatch({type: 'rowMoved', from: 0, to: 5});
+    store.dispatch({type: 'rowMoved', from: 5, to: 0});
+    store.dispatch({type: 'rowMoved', from: 2, to: 2});
+    expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', '']);
+    expect(store.state.writes).toHaveLength(0);
+  });
+
+  it('writes one link with an empty row without a name above Unranked when tierAdded runs', () => {
     const store = setup(fiveRowLink({S: [MAU], '': [WIN]}));
     store.dispatch({type: 'tierAdded'});
-    expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
+    expect(store.names()).toEqual(['S', 'A', 'B', 'C', 'F', '', '']);
     expect(store.contents()).toEqual([['Mauga'], [], [], [], [], [], ['Winston']]);
     expect(store.state.tiers[5].id).toBe('tier-1');
     expect(store.state.writes).toHaveLength(1);
     // The link keeps the new row.
-    expect(decoded(store.links()[0]).tiers.map(tier => tier.name)).toEqual(['S', 'A', 'B', 'C', 'F', 'Tier 6', '']);
+    expect(decoded(store.links()[0]).tiers.map(tier => tier.name)).toEqual(['S', 'A', 'B', 'C', 'F', '', '']);
+    expect(decoded(store.links()[0]).tiers.map(tier => tier.id).slice(5)).toEqual(['tier-1', 'uncategorized']);
   });
 
   it('writes no link when tierAdded runs at MAX_TIER_ROWS rows', () => {

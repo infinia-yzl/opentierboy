@@ -2,8 +2,9 @@ import type Tier from '@/models/Tier';
 import type {ItemLike, ItemPosition, TierLike} from './model';
 
 /**
- * List changes made by dragging: moving items between and inside rows, reordering rows, and
- * adding or removing rows (#182). Pure functions. They never change their input. They return
+ * List changes made by dragging: moving items between and inside rows, moving a whole row
+ * (moveRow, by its grip), moving only a row's items (reorderRows, by its stack), and adding or
+ * removing rows (#182). Pure functions. They never change their input. They return
  * the input array itself when nothing changes (a drop where the drag started, or input that
  * does not fit the list), so the caller can skip the history entry:
  *
@@ -67,10 +68,10 @@ export function moveItem<I extends ItemLike, T extends TierLike<I>>(tiers: T[], 
 }
 
 /**
- * Moves a whole row from one position to another. Tier labels describe positions (product
- * rule 6): the contents move (items, id and every other field), and each position keeps its
- * label. Unranked, the last row, stays where it is: it is a fixed tray under the rows (owner
- * decision, 2026-10-31), so no row moves into its place and it moves into no other.
+ * Moves only the items of a row to another position (the row's stack). Tier labels describe
+ * positions (product rule 6): the contents move (items, id and every other field), and each
+ * position keeps its label. Unranked, the last row, stays where it is: it is a fixed tray under
+ * the rows (owner decision, 2026-10-31), so no row moves into its place and it moves into no other.
  */
 export function reorderRows<T extends TierLike>(tiers: T[], from: number, to: number): T[] {
   if (!isIndex(from, tiers.length) || !isIndex(to, tiers.length) || from === to) return tiers;
@@ -82,6 +83,22 @@ export function reorderRows<T extends TierLike>(tiers: T[], from: number, to: nu
   // Rows that look the same, such as two empty rows, swap only their ids: the list on screen
   // stays as it is, so nothing changes and no history entry is written.
   return result.every((tier, index) => looksTheSame(tier, tiers[index])) ? tiers : result;
+}
+
+/**
+ * Moves a whole row, its name included, from one position to another (the row's grip; owner
+ * decision, 2026-11-14). The row keeps everything it has (id, name, items, label position); the
+ * colours belong to the positions, so the row takes the colour of its new place. Unranked stays
+ * last, as with reorderRows. Rows that look the same (two empty rows without a name) change
+ * nothing on screen, so the input comes back and no history entry is written.
+ */
+export function moveRow<T extends TierLike>(tiers: T[], from: number, to: number): T[] {
+  if (!isIndex(from, tiers.length) || !isIndex(to, tiers.length) || from === to) return tiers;
+  if (isUnranked(tiers, from) || isUnranked(tiers, to)) return tiers;
+  const moved = tiers.slice();
+  const [row] = moved.splice(from, 1);
+  moved.splice(to, 0, row);
+  return moved.every((tier, index) => looksTheSame(tier, tiers[index])) ? tiers : moved;
 }
 
 /** True when two rows show the same: every field but the id is equal. */
@@ -107,7 +124,7 @@ export function newTierId(tiers: readonly TierLike[]): string {
 }
 
 export interface AddTierOptions {
-  /** Label of the new row. Default: empty, so the row reads "Tier <n>". */
+  /** Label of the new row. Default: empty, so the row reads "Row <n>", its position. */
   name?: string;
   /** Position of the new row. Default: just above Unranked. Unranked always stays last. */
   index?: number;
