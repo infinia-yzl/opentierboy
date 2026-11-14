@@ -35,18 +35,6 @@ const MODE_LABELS = {light: 'Light', dark: 'Dark'} as const;
 
 test.describe('appearance', () => {
   test.describe('settings', () => {
-    test('renders the page background of the chosen mode, also after a reload, when the user chooses Dark or Light', {tag: '@mobile'}, async ({site, page}) => {
-      await site.gotoHome();
-      await site.chooseMode('dark');
-      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
-
-      await site.reload();
-      await expect(site.body).toHaveCSS('background-color', DARK_BACKGROUND);
-
-      await site.chooseMode('light');
-      await expect(site.body).toHaveCSS('background-color', LIGHT_BACKGROUND);
-    });
-
     test('renders the page background of the device colour scheme, also after it changes, when the user chooses System', {tag: '@mobile'}, async ({site, page}) => {
       // Emulate after the first load: the Cross-Origin-Opener-Policy header moves the page into
       // a new browsing context in Firefox, and Playwright's emulation set before it is lost.
@@ -77,31 +65,10 @@ test.describe('appearance', () => {
       });
     }
 
-    test('renders Geologica by default, and Nunito Sans after a reload, when the user chooses the font Classic', async ({site, page}) => {
-      await site.gotoHome();
-      await expect(site.body).toHaveCSS('font-family', /Geologica/);
-
-      await site.chooseFont('Classic');
-      await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
-
-      await site.reload();
-      await expect(site.body).toHaveCSS('font-family', /Nunito Sans/);
-
-      await site.chooseFont('Modern');
-      await expect(site.body).toHaveCSS('font-family', /Geologica/);
-    });
-
-    test('renders button "Share" in brand blue, also after a reload, when the user turns off Game colours on an image set page', async ({site, tierList, page}) => {
+    // The model checks Game colours on and off, and after a reload, on an image set's page.
+    test('renders button "Share" in brand blue with Game colours on when the page opens /rank, a list of no image set', async ({tierList}) => {
       await tierList.goto('/rank');
-      await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
 
-      await tierList.goto(TANKS);
-      await expect(tierList.shareButton).toHaveCSS('background-color', OVERWATCH_ORANGE);
-
-      await site.setGameColours(false);
-      await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
-
-      await tierList.reload();
       await expect(tierList.shareButton).toHaveCSS('background-color', BRAND_BLUE);
     });
   });

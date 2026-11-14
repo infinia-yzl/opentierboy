@@ -34,14 +34,6 @@ test.describe('legacy sets', () => {
       });
     }
 
-    test('writes the hyphenated path with the same state parameter when the page opens an old tag path with underscores', async ({tierList, page}) => {
-      await tierList.goto('/rank/wuthering-waves/c_all', 'this-state-must-survive');
-
-      await expect(page).toHaveURL(/\/rank\/wuthering-waves\/c-all\?state=this-state-must-survive$/);
-      await expect(tierList.title).toHaveText('WUTHERING WAVES - All Resonators');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(legacyItems('image-wutheringwaves', 'c_all').length);
-    });
-
     test('renders every item image when the page opens a link with items from every legacy set', async ({tierList}) => {
       const firsts = LEGACY_SETS.map((set) => ({packageName: set.packageName, label: legacyItems(set.packageName)[0]}));
       const lasts = LEGACY_SETS.map((set) => ({packageName: set.packageName, label: legacyItems(set.packageName).at(-1)!}));

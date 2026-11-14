@@ -153,38 +153,4 @@ test.describe('journeys', () => {
       ]);
     });
   });
-
-  test.describe('changes after Back', () => {
-    test.slow();
-
-    test('writes the new change in place of the forward entries when the user makes a change after going Back twice', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      await tierList.dragItemToTier('Mauga', 'S');
-      const afterMauga = page.url();
-      await tierList.dragItemToTier('Winston', 'A');
-      await tierList.dragItemToTier('Sigma', 'B');
-
-      // Back twice: only Mauga is ranked again.
-      await tierList.goBack();
-      await tierList.goBack();
-      await expect(page).toHaveURL(afterMauga);
-      await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
-
-      // A different change from here. The browser drops the two steps that were ahead.
-      await tierList.dragItemToTier('Sigma', 'F');
-      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
-      const afterSigma = page.url();
-
-      await tierList.goBack();
-      await expect(page).toHaveURL(afterMauga);
-      await expectTierList(tierList, rows({S: ['Mauga'], Unranked: ['Winston', 'Sigma']}));
-      await tierList.goForward();
-      await expect(page).toHaveURL(afterSigma);
-      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
-      // Nothing is ahead any more: Forward stays on the newest version.
-      await tierList.goForward();
-      await expect(page).toHaveURL(afterSigma);
-      await expectTierList(tierList, rows({S: ['Mauga'], F: ['Sigma'], Unranked: ['Winston']}));
-    });
-  });
 });

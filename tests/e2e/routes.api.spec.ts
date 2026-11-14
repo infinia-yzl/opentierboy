@@ -19,9 +19,20 @@ test.describe('routes', () => {
     });
 
     test('returns 308 to the hyphenated path with the same state parameter when the request has an old tag path', async ({request}) => {
-      const response = await request.get('/rank/overwatch/h_all?state=this-state-must-survive', {maxRedirects: 0});
-      expect(response.status()).toBe(308);
-      expect(response.headers()['location']).toMatch(/\/rank\/overwatch\/h-all\?state=this-state-must-survive$/);
+      // An active set and a legacy set, and the title of the page each path names.
+      for (const [path, hyphenated, title] of [
+        ['/rank/overwatch/h_all', '/rank/overwatch/h-all', 'OVERWATCH - All Heroes'],
+        ['/rank/wuthering-waves/c_all', '/rank/wuthering-waves/c-all', 'WUTHERING WAVES - All Resonators'],
+      ]) {
+        const response = await request.get(`${path}?state=this-state-must-survive`, {maxRedirects: 0});
+        expect(response.status(), path).toBe(308);
+        expect(new URL(response.headers()['location'], 'http://localhost').pathname, path).toBe(hyphenated);
+        expect(response.headers()['location'], path).toMatch(/\?state=this-state-must-survive$/);
+        // The hyphenated path is the template's page.
+        const page = await request.get(hyphenated, {maxRedirects: 0});
+        expect(page.status(), hyphenated).toBe(200);
+        expect(await page.text(), hyphenated).toContain(`<title>${title}`);
+      }
     });
 
     test('returns 404 with "This page could not be found" when the request has a template path that does not exist', async ({request}) => {

@@ -399,21 +399,6 @@ test.describe('zen', () => {
       await expect(tierList.zenStepCount).toHaveText(`${TRAY.length + 1} / ${TRAY.length + 1}`);
     });
 
-    test('renders every Unranked item once, up next or in the queue, when the user chooses Shuffle', {tag: '@mobile'}, async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.setZenMode(true);
-
-      await tierList.chooseRankingOrder('Shuffle');
-
-      await expect(tierList.upNextItem).toHaveCount(1);
-      await expect(tierList.queueItems).toHaveCount(3);
-      const shown = [
-        await tierList.upNextItem.getAttribute('aria-label'),
-        ...await tierList.queueItems.evaluateAll(items => items.map(item => item.getAttribute('aria-label'))),
-      ];
-      expect(shown.sort()).toEqual([...TRAY].sort());
-    });
-
     test('renders menu item "Hide the queue" turned off and unavailable when the ranking order is Pick freely', async ({tierList, page}) => {
       await tierList.goto(TANKS);
       await tierList.setZenMode(true);

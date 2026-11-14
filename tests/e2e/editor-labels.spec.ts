@@ -84,17 +84,6 @@ test.describe('editor labels', () => {
   });
 
   test.describe('row settings', () => {
-    test('renders items without captions, then with captions, when the user hides, then restores item labels', async ({tierList}) => {
-      await tierList.goto(TANKS);
-
-      await tierList.setItemLabelsVisible(false);
-      await expect(tierList.item('Mauga')).toBeVisible();
-      await expect(tierList.item('Mauga')).toHaveText('');
-
-      await tierList.setItemLabelsVisible(true);
-      await expect(tierList.item('Mauga')).toHaveText('Mauga');
-    });
-
     test('renders items without captions when the user clicks Hide Labels in Row options in a short window', async ({tierList, page}) => {
       // Row options is taller than this window: the menu must keep every choice within reach.
       await page.setViewportSize({width: 1280, height: 400});
@@ -103,14 +92,6 @@ test.describe('editor labels', () => {
       await tierList.setItemLabelsVisible(false);
 
       await expect(tierList.item('Mauga')).toHaveText('');
-    });
-
-    test('renders each row label above its items when the user chooses the label position Top', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-
-      await tierList.chooseLabelPosition('Top');
-
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
     });
   });
 

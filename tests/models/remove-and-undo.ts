@@ -47,6 +47,8 @@ export interface RemoveAndUndoView {
   readonly toastWithUndo: string | null;
   /** The toast of this run's removal, which no state without Undo shows. Null before a removal. */
   readonly removalToast: string | null;
+  /** The history entries the page added since it opened: one for the removal, one more for an Undo that changed the list. */
+  readonly newEntries: 0 | 1 | 2;
 }
 
 type ListValue = string | Record<string, string>;
@@ -72,14 +74,20 @@ export function removeAndUndoViewOf(snapshot: RemoveAndUndoSnapshot): RemoveAndU
   const version = path.split('.').pop();
   const before = {rows: OPENED_ROWS, asOpened: true};
   if (path === 'opened' || path === 'confirming') {
-    return {...before, dialog: path === 'confirming', toastWithUndo: null, removalToast: null};
+    return {...before, dialog: path === 'confirming', toastWithUndo: null, removalToast: null, newEntries: 0};
   }
   if (!removal) throw new RangeError(`No removal in the state ${path}`);
   const shown = version === 'asOpened' ? before
     : version === 'removed' ? {rows: ROWS_AFTER[removal], asOpened: false}
       : {rows: OPENED_ROWS, asOpened: false};
   const toast = TOAST_OF[removal];
-  return {...shown, dialog: false, toastWithUndo: path.startsWith('undoOffered.') ? toast : null, removalToast: toast};
+  return {
+    ...shown,
+    dialog: false,
+    toastWithUndo: path.startsWith('undoOffered.') ? toast : null,
+    removalToast: toast,
+    newEntries: path.startsWith('undone.') ? 2 : 1,
+  };
 }
 
 /** True when Undo in this state changes the list, so it writes a new link (a new history entry). */

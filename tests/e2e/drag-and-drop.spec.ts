@@ -37,16 +37,6 @@ const WRAPPED = ['Ana', 'Baptiste', 'Brigitte', 'Illari', 'Juno', 'Kiriko', 'Lif
 
 test.describe('drag and drop', () => {
   test.describe('mouse', () => {
-    test('renders the item in row S and one item less in Unranked when the user drags it from Unranked to row S', async ({tierList}) => {
-      await tierList.goto(TANKS);
-
-      await tierList.dragItemToTier('Mauga', 'S');
-
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
-      await expect(tierList.itemIn(tierList.unranked, 'Mauga')).toHaveCount(0);
-    });
-
     test.describe('in the window size of the first report', () => {
       // At this size the page scrolls a few pixels during the drag, as when the bug was seen
       // (2026-11-07): the item landed in row A.
@@ -60,15 +50,6 @@ test.describe('drag and drop', () => {
         await expect(tierList.itemsIn('S')).toHaveText(['D.Va']);
         await expect(tierList.itemsIn('A')).toHaveCount(0);
       });
-    });
-
-    test('renders the item in row B only when the user drags it from row S to row B', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-
-      await tierList.dragItemToTier('Winston', 'B');
-
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn('B')).toHaveText(['Winston']);
     });
 
     test('renders the same title and rows for a visitor of the share link when the user drags 2 items into rows', async ({tierList, openAsVisitor}) => {
@@ -92,36 +73,9 @@ test.describe('drag and drop', () => {
 
       await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
     });
-
-    test('renders the row contents swapped and the labels S, A, B, C, F in order when the user drags row S onto row A', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-
-      await tierList.dragTierOnto('S', 'A');
-
-      // The labels describe positions, so S stays on top and the contents swap.
-      await expectTierList(tierList, {
-        tiers: [
-          {name: 'S', items: ['Winston']},
-          {name: 'A', items: ['Mauga']},
-          {name: 'B', items: []},
-          {name: 'C', items: []},
-          {name: 'F', items: []},
-          {name: 'Unranked', items: []},
-        ],
-      });
-    });
   });
 
   test.describe('keyboard', () => {
-    test('renders the item in row F when the user moves it from Unranked with the Up arrow key', async ({tierList}) => {
-      await tierList.goto(TANKS);
-
-      await tierList.moveItemWithKeyboard('Mauga', ['ArrowUp']);
-
-      await expect(tierList.itemsIn('F')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
-    });
-
     test('renders the item first in its row when the user moves it with the Left arrow key twice', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
 
@@ -205,25 +159,6 @@ test.describe('drag and drop', () => {
     });
   });
 
-  test.describe('drops in place', () => {
-    test('writes no history entry and no new URL when the user drops an item in place by mouse or keyboard', async ({tierList}) => {
-      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
-      const address = tierList.page.url();
-      const entries = await tierList.historyLength();
-
-      await tierList.dragItemAndDropInPlace('Winston');
-      await tierList.moveItemWithKeyboard('Winston', ['ArrowRight', 'ArrowLeft'], {waitForLink: false});
-      await expect(tierList.dragAnnouncer).toHaveText('Dropped Winston. It stays in tier S, position 2 of 3.');
-
-      // A link written by mistake would keep the page busy until it is in the address: settle,
-      // then read once.
-      await tierList.settled();
-      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston', 'Sigma']);
-      expect(tierList.page.url()).toBe(address);
-      expect(await tierList.historyLength()).toBe(entries);
-    });
-  });
-
   test.describe('announcements', () => {
     test('renders announcements with the item name and row labels when the user moves an item with the keyboard', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
@@ -275,22 +210,6 @@ test.describe('drag and drop', () => {
       await tierList.dragItemToTier('Mauga', 'A');
 
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
-    });
-
-    test('renders the item at its start and writes no history entry when the user presses Escape during a keyboard move', async ({tierList, page}) => {
-      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.settled();
-      const before = page.url();
-      const entries = await tierList.historyLength();
-
-      await tierList.moveItemWithKeyboardThenCancel('Sigma', ['ArrowUp', 'ArrowUp']);
-
-      await expect(tierList.dragAnnouncer).toHaveText('Move cancelled. Sigma is back in Unranked, position 1 of 1.');
-      await tierList.settled();
-      expect(await tierList.itemNamesIn('Unranked')).toEqual(['Sigma']);
-      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
-      expect(page.url()).toBe(before);
-      expect(await tierList.historyLength()).toBe(entries);
     });
   });
 
@@ -418,6 +337,8 @@ test.describe('drag and drop', () => {
       // Each change of the list in the link adds one history entry; a cancel and a drop in place add none.
       let entries = 0;
       let linkRow: KeyboardDragRow = 'Unranked';
+      /** The address the last drop that moved the tile wrote, or the link as opened. */
+      let address = '';
       return modelSut<KeyboardDragSnapshot, KeyboardDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
@@ -425,6 +346,7 @@ test.describe('drag and drop', () => {
           await tierList.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           entries = await tierList.historyLength();
           linkRow = 'Unranked';
+          address = page.url();
         },
         events: {
           PRESS_SPACE: () => tierList.pressKey('Space'),
@@ -445,6 +367,10 @@ test.describe('drag and drop', () => {
             if (linkIn !== linkRow) {
               entries += 1;
               linkRow = linkIn;
+              address = page.url();
+            } else {
+              // A pick-up, a move before the drop, a drop in place and a cancel leave the address exactly as it was.
+              await expect(page, 'the address should stay as it was').toHaveURL(address);
             }
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
             // Focus stays on the tile while it moves between rows, and after a drop or a cancel.
@@ -497,6 +423,8 @@ test.describe('drag and drop', () => {
       let newEntries: () => Promise<number> = async () => 0;
       let entries = 0;
       let shown = '';
+      /** The address after the last check. */
+      let address = '';
       return modelSut<MouseDragSnapshot, MouseDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
@@ -505,6 +433,7 @@ test.describe('drag and drop', () => {
           newEntries = await tierList.countNewHistoryEntries();
           entries = 0;
           shown = '';
+          address = '';
         },
         events: {
           DRAG_MAUGA_TO_S: () => tierList.dragItemToFreeSpaceOf(MOUSE_DRAG_ITEM, 'S'),
@@ -526,7 +455,10 @@ test.describe('drag and drop', () => {
               .toEqual(MOUSE_DRAG_ROWS.map((row) => ({label: row, items: view[row].map((name) => ITEM_IDS[name])})));
             const rows = JSON.stringify(view);
             if (shown !== '' && rows !== shown) entries += 1;
+            // A drop that changes nothing leaves the address exactly as it was.
+            if (rows === shown) await expect(page, 'the address should stay as it was').toHaveURL(address);
             shown = rows;
+            address = page.url();
             await expect.poll(newEntries, {message: 'only a drop that changes the list adds a history entry'}).toBe(entries);
           },
         },

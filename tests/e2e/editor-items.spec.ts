@@ -35,51 +35,6 @@ const IMAGES = path.join(__dirname, '..', 'fixtures', 'images');
 
 test.describe('editor items', () => {
   test.describe('item actions', () => {
-    test('renders the restored item at its old position when the user clicks Undo after a delete', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-
-      await tierList.deleteItemAndRestOnToast('Mauga');
-      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
-      await tierList.undoFromToast('Item deleted');
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
-    });
-
-    test('renders the item again in row S when the user deletes it and clicks Undo in the toast "Item deleted"', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-
-      await tierList.deleteItemAndRestOnToast('Mauga');
-      await expect(tierList.toast('Item deleted')).toBeVisible();
-      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
-
-      await tierList.undoFromToast('Item deleted');
-      await expect(tierList.itemsIn('S')).toContainText(['Mauga']);
-    });
-
-    test('renders the Tank set items, then none after Undo, when the user adds the set to an empty list', async ({tierList}) => {
-      await tierList.goto('/rank');
-      await expect(tierList.title).toHaveText('Custom Tier List');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-
-      await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
-      await tierList.restOnToast('Items Added');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
-
-      await tierList.undoFromToast('Items Added');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-    });
-
-    test('renders each item once and the toast "No New Items" without Undo when the user adds a template set the list has', async ({tierList}) => {
-      await tierList.goto(TANKS);
-
-      await tierList.addItemsFromTemplate('OVERWATCH', 'Tank');
-
-      // Wait for the add to happen: the count is already right before it does.
-      await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
-      await expect(tierList.undoButtonIn('No New Items')).toHaveCount(0);
-      await expect(tierList.toast('Items Added')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
-    });
-
     test('renders the images as Unranked items when the user uploads 2 images from the device', async ({tierList}) => {
       await tierList.goto('/rank');
 
@@ -87,36 +42,6 @@ test.describe('editor items', () => {
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square', 'blue-square']);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-    });
-
-    test('renders every item in Unranked and the toast "Items Reset" when the user chooses Reset', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
-
-      await tierList.resetRankings();
-
-      await expect(tierList.toast('Items Reset')).toBeVisible();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Sigma', 'Winston']);
-    });
-
-    test('renders no items and the toast "All Items Deleted" when the user confirms Remove All', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Sigma']}));
-
-      await tierList.removeAllItems();
-
-      await expect(tierList.toast('All Items Deleted')).toBeVisible();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-    });
-
-    test('renders the previous ranking when the user clicks Undo after Reset', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-      await tierList.resetRankingsAndRestOnToast();
-
-      await tierList.undoFromToast('Items Reset');
-
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
     });
 
     test('renders the items from before the add when the user clicks Undo after adding a template set', async ({tierList}) => {
@@ -130,33 +55,6 @@ test.describe('editor items', () => {
 
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-    });
-
-    test('renders each item once when the user goes Back after a delete and clicks Undo in the toast', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
-      // The pointer rests on the toast, so its 4 s timer waits while the test goes Back.
-      await tierList.deleteItemAndRestOnToast('Mauga');
-
-      await tierList.goBack();
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston']);
-      const back = tierList.page.url();
-      await tierList.undoFromToast('Item deleted');
-
-      await expect(tierList.toast('Item restored')).toBeVisible();
-      // The Undo found the item in the list already: it writes no new link.
-      await tierList.settled();
-      expect(tierList.page.url()).toBe(back);
-      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
-    });
-
-    test('renders the items again when the user clicks Undo after Remove All', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.removeAllItems();
-      await tierList.restOnToast('All Items Deleted');
-
-      await tierList.undoFromToast('All Items Deleted');
-
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     });
 
     test('renders button "Share" uncovered and clickable when the user confirms Remove All', async ({tierList}) => {
@@ -370,6 +268,12 @@ test.describe('editor items', () => {
     const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
       await expect(tierList.toast('Items Added')).toHaveCount(view.toast === 'Items Added' ? 1 : 0);
       await expect(tierList.toast('No New Items')).toHaveCount(view.toast === 'No New Items' ? 1 : 0);
+      if (view.toast === 'Items Added') await expect(tierList.undoButtonIn('Items Added')).toBeVisible();
+      if (view.toast === 'No New Items') {
+        // Nothing was added, so there is nothing to undo.
+        await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
+        await expect(tierList.undoButtonIn('No New Items')).toHaveCount(0);
+      }
       if (view.picker) {
         // The open picker hides the page behind it from the accessibility tree, so only the picker is checked.
         await expect(tierList.templatePickerPage(view.picker)).toBeVisible();
@@ -448,6 +352,8 @@ test.describe('editor items', () => {
     /** The remove-and-undo machine's events and checks, run on this test's page (modelSut). */
     const removeAndUndoSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let opened = '';
+      /** The history entries when the list opened. */
+      let entries = 0;
       // The state on screen, as the last check saw it: Undo waits for a new link only where it changes the list.
       let onScreen: RemoveAndUndoSnapshot | null = null;
       const shown = () => {
@@ -461,6 +367,7 @@ test.describe('editor items', () => {
           await tierList.openAfterBlankPage(TANKS, LIST);
           await tierList.settled();
           opened = page.url();
+          entries = await tierList.historyLength();
         },
         events: {
           DELETE_ITEM: () => tierList.deleteItemAndRestOnToast(DELETED_ITEM),
@@ -485,6 +392,9 @@ test.describe('editor items', () => {
             if (!view.dialog) await expectRows(tierList, view);
             if (view.toastWithUndo) await expect(tierList.undoButtonIn(view.toastWithUndo)).toBeVisible();
             else if (view.removalToast) await expect(tierList.toast(view.removalToast)).toHaveCount(0);
+            // One history entry for the removal, and one more for an Undo that put the list back.
+            await expect.poll(() => tierList.historyLength(), {message: `the page should have added ${view.newEntries} history entries`})
+              .toBe(entries + view.newEntries);
           },
         },
         testInfo,

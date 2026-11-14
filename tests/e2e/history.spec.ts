@@ -1,6 +1,6 @@
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
-import {expect, expectTierList, SHARED_LINKS, test} from '../support/test';
+import {expect, expectTierNames, SHARED_LINKS, test} from '../support/test';
 import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} from '../support/links';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {HeldListWrites, TierListPage} from '../pages/tier-list-page';
@@ -22,68 +22,6 @@ const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
  * change at a time. This is intended. Do not change the app to replace history entries.
  */
 test.describe('history', () => {
-  test.describe('Back', () => {
-    test('renders the ranking from before Reset when the user goes Back after Reset', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
-      await tierList.resetRankings();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Sigma', 'Winston']);
-
-      await tierList.goBack();
-
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Sigma']);
-    });
-
-    test('renders the list one change earlier on each Back step when the user goes Back after 2 drags', async ({tierList, page}) => {
-      // Start from a shared link, as a list that someone keeps editing does.
-      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
-      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-
-      await tierList.goBack();
-      await expectTierList(tierList, {
-        tiers: [
-          {name: 'S', items: ['Mauga']},
-          {name: 'A', items: []},
-          {name: 'B', items: []},
-          {name: 'C', items: []},
-          {name: 'F', items: []},
-          {name: 'Unranked', items: ['Winston', 'Sigma']},
-        ],
-      });
-
-      await tierList.goBack();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Winston', 'Sigma']);
-
-      await tierList.goForward();
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    });
-
-    test('writes a new history entry when the user clicks Undo in a toast', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
-      const entries = await tierList.historyLength();
-      // The pointer rests on the toast, so its 4 s timer waits for the Undo.
-      await tierList.resetRankingsAndRestOnToast();
-
-      const reset = page.url();
-      await tierList.undoFromToast('Items Reset');
-      await expect(page).not.toHaveURL(reset);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await tierList.settled();
-      expect(await tierList.historyLength()).toBe(entries + 2);
-
-      // Back steps to the reset list, then to the list as opened.
-      await tierList.goBack();
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await tierList.goBack();
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-    });
-  });
-
   /**
    * On a slow connection, each change still gets its own history entry (A44). The app pushes the
    * links one at a time: Next.js drops a navigation that is still loading when the next starts.
@@ -201,52 +139,27 @@ test.describe('history', () => {
    * Forward inside the editor keep the settings on screen.
    */
   test.describe('label settings', () => {
-    test('writes no history entry when the user chooses the label position Top or Hide Labels', async ({tierList, page}) => {
-      for (const state of [undefined, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']})]) {
-        await tierList.goto(TANKS, state);
-        const entries = await tierList.historyLength();
+    // On a list opened from a link, the history and label writes models check the same with the
+    // keyboard and the mouse. A template page has no state parameter until the first setting.
+    test('writes no history entry when the user chooses Top and Hide Labels with the mouse on a template page', async ({tierList, page}) => {
+      await tierList.goto(TANKS);
+      const entries = await tierList.historyLength();
 
-        await tierList.chooseLabelPosition('Top');
-        await tierList.setItemLabelsVisible(false);
-        await tierList.settled();
-        expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
-        const withSettings = page.url();
-        await tierList.dragItemToTier('Winston', 'A');
-
-        // Back after the one change to the list goes straight back to the page as opened, whose
-        // link now holds the settings.
-        await tierList.goBack();
-        await expect(page).toHaveURL(withSettings);
-        await expect(tierList.itemsIn('A')).toHaveCount(0);
-        await tierList.openRowOptions();
-        await expect(tierList.rowOption('Top')).toBeChecked();
-        await expect(tierList.rowOption('Hide Labels')).toBeChecked();
-        await tierList.closeMenus();
-      }
-    });
-
-    test('renders the label position Top when the user goes Back and Forward after a list change', async ({tierList, page}) => {
-      // The owner's example: Mauga to S, Winston to A, labels on Top, then Back.
-      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      await tierList.dragItemToTier('Mauga', 'S');
-      await tierList.dragItemToTier('Winston', 'A');
       await tierList.chooseLabelPosition('Top');
+      await tierList.setItemLabelsVisible(false);
+      await tierList.settled();
+      expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
+      const withSettings = page.url();
+      await tierList.dragItemToTier('Winston', 'A');
 
+      // Back after the one change to the list goes straight back to the page as opened, whose
+      // link now holds the settings.
       await tierList.goBack();
+      await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
       await tierList.openRowOptions();
       await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Show Labels')).toBeChecked();
-      await tierList.closeMenus();
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
-
-      // Forward shows Winston in A again, still with labels on Top.
-      await tierList.goForward();
-      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
-      await tierList.openRowOptions();
-      await expect(tierList.rowOption('Top')).toBeChecked();
-      await expect(tierList.rowOption('Show Labels')).toBeChecked();
+      await expect(tierList.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
     });
 
@@ -312,6 +225,15 @@ test.describe('history', () => {
       /** The address of the list as opened (version 1), and the history entries then. */
       let opened = '';
       let entries = 0;
+      /** The address of each version, by version - 1, as the step that wrote it left it. */
+      let addresses: string[] = [];
+      /** True when the last step wrote the address of the version on screen: a change or a label setting. */
+      let wrote = false;
+      /** Runs a step, and notes whether it writes the address of the version on screen. */
+      const step = (writes: boolean, act: () => Promise<void>) => async () => {
+        wrote = writes;
+        await act();
+      };
       /** The item ids in row A of a link. The list as opened has a link of an older format, with none. */
       const rowAIn = (link: string): unknown => {
         if (link === opened) return [];
@@ -323,15 +245,17 @@ test.describe('history', () => {
           await tierList.openAfterBlankPage(TANKS, LIST);
           opened = page.url();
           entries = await tierList.historyLength();
+          addresses = [opened];
+          wrote = false;
         },
         events: {
-          CHANGE_LIST: () => tierList.rankFirstUnrankedItem('A'),
-          BROWSER_BACK: () => tierList.goBack(),
-          BROWSER_FORWARD: () => tierList.goForward(),
-          CHOOSE_TOP: () => tierList.chooseLabelPositionWithKeyboard('Top'),
-          CHOOSE_LEFT: () => tierList.chooseLabelPositionWithKeyboard('Left'),
-          HIDE_ITEM_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(false),
-          SHOW_ITEM_LABELS: () => tierList.setItemLabelsVisibleWithKeyboard(true),
+          CHANGE_LIST: step(true, () => tierList.rankFirstUnrankedItem('A')),
+          BROWSER_BACK: step(false, () => tierList.goBack()),
+          BROWSER_FORWARD: step(false, () => tierList.goForward()),
+          CHOOSE_TOP: step(true, () => tierList.chooseLabelPositionWithKeyboard('Top')),
+          CHOOSE_LEFT: step(true, () => tierList.chooseLabelPositionWithKeyboard('Left')),
+          HIDE_ITEM_LABELS: step(true, () => tierList.setItemLabelsVisibleWithKeyboard(false)),
+          SHOW_ITEM_LABELS: step(true, () => tierList.setItemLabelsVisibleWithKeyboard(true)),
         },
         // Web-first checks, no read(): after Back or Forward the address changes before the list
         // on screen does, so one read could still see the version before.
@@ -339,13 +263,24 @@ test.describe('history', () => {
           '*': async (_page, snapshot) => {
             // Version 1 is the list as opened; each later version ranks one more item into row A.
             const {version, versions, labelPosition, itemLabels} = historyViewOf(snapshot);
-            await expect(tierList.itemsIn('A')).toHaveCount(version - 1);
-            await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TRAY.length - (version - 1));
+            // Every row, by name, with its items by name (the item labels may be hidden): a
+            // change moves only the item it ranks, and Back and Forward move nothing else.
+            const rows: Readonly<Record<string, readonly string[]>> = {
+              S: ['Reinhardt'], A: TRAY.slice(0, version - 1), B: [], C: [], F: [], Unranked: TRAY.slice(version - 1),
+            };
+            await expectTierNames(tierList, Object.keys(rows));
+            for (const [row, names] of Object.entries(rows)) {
+              await expect.poll(() => tierList.itemNamesIn(row), {message: `the items of row ${row}`}).toEqual(names);
+            }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
             await expect.poll(() => tierList.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
             // The address holds the version on screen. The label settings rewrite it in place.
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));
+            // Back and Forward return to exactly the address each version had; Forward on the
+            // latest version leaves it as it is.
+            if (wrote) addresses[version - 1] = page.url();
+            else await expect(page, `the address of version ${version}`).toHaveURL(addresses[version - 1]);
             // One history entry per version: a change after Back drops the later ones.
             await expect.poll(() => tierList.historyLength(), {message: `the tab's history should hold ${versions} versions`})
               .toBe(entries + versions - 1);

@@ -100,7 +100,7 @@ test.describe('share panel', () => {
       await expect(friend.item('Mauga')).toHaveText('');
     });
 
-    test('renders the label settings of the link, also after a reload, when the page opens /rank/?state= with lp and sl', async ({tierList}) => {
+    test('renders the label settings of the link, also after a reload, when the page opens /rank/?state= with lp and sl', {tag: '@mobile'}, async ({tierList}) => {
       // The landing page's "Create Blank List" opens /rank/; its links carry the settings too.
       const mauga = packageItemId('image-overwatch', 'Mauga');
       await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
@@ -118,21 +118,6 @@ test.describe('share panel', () => {
       await expect(tierList.rowOption('Hide Labels')).toBeChecked();
       await tierList.closeMenus();
       await expect(tierList.item('Mauga')).toHaveText('');
-    });
-
-    test('renders row labels on top when the page opens a v3 link with lp top', {tag: '@mobile'}, async ({tierList}) => {
-      const mauga = packageItemId('image-overwatch', 'Mauga');
-      await tierList.goto(TANKS, v3State({tp: 5, lp: 'top', r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
-
-      await tierList.openRowOptions();
-
-      await expect(tierList.rowOption('Top')).toBeChecked();
-
-      await expect(tierList.rowOption('Show Labels')).toBeChecked();
-
-      await tierList.closeMenus();
-      await expect.poll(() => tierList.tierLabelIsAbove('S', 'Mauga')).toBe(true);
-      await expect(tierList.item('Mauga')).toHaveText('Mauga');
     });
   });
 

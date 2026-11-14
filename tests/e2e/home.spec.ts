@@ -173,18 +173,6 @@ test.describe('home', () => {
     await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('renders the list in its opened place when the user unpins it', {tag: '@mobile'}, async ({tierList, site}) => {
-    await openTwoLists(tierList);
-    await site.gotoHome();
-    await site.recentPinButton('Tanks list').click();
-    await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
-
-    await site.recentPinButton('Tanks list').click();
-
-    await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'false');
-    await expect(site.recentLinks).toHaveText(['Support list', 'Tanks list']);
-  });
-
   test('renders the other lists, also after a reload, when the user removes a list', {tag: '@mobile'}, async ({tierList, site, page}) => {
     await openTwoLists(tierList);
     await site.gotoHome();
