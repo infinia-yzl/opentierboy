@@ -361,7 +361,11 @@ disagree, and its error lists every step with the machine's state.
   before its time and has closed 1 ms later, and `IMAGE_CHECK_TIMES_OUT` that the page still
   waits for the site 1 ms before it gives up. What the browser runs "as soon as possible" still
   runs at once: timers of 0 or 1 ms, animation frames and idle callbacks, which React, Sonner,
-  Radix and Next.js need to show a page, a toast or a dialog (`pausePageTime` says why). The
+  Radix and Next.js need to show a page, a toast or a dialog (`pausePageTime` says why). React's
+  reveal throttles run on real time too: React shows a loading state at least 300 ms before the
+  content replaces it, and a move inside the site can show two in turn (the route's, then the
+  editor's while its code loads), so React DOM's own timers use the real ones and the next page
+  shows without a time event. The app's timers, Sonner's included, stay on page time. The
   models with timed messages or checks use it: link images, the "From a link" dialog, snapshot
   files, tips, add-from-template, device images, recently viewed and remove-and-undo. The
   shared-list tip machine cannot (the page clock hides the navigation entry that tip reads), so

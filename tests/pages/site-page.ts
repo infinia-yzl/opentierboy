@@ -442,14 +442,6 @@ export class SitePage {
 /** How far page time moves on before each open of a list: the visitor comes back later, so each open records a later time. */
 const LATER_MS = 60_000;
 
-/**
- * How far page time moves on once a list starts to open from Home. A move inside the site shows
- * the route's loading state first, and React keeps it at least 300 ms of page time before the list
- * replaces it (its fallback throttle), which a timer counts: once page time has moved on, the list
- * shows as soon as it is ready.
- */
-const LOADING_MS = 1_000;
-
 /** Waits until Recently viewed records `title` after `before` (SitePage.recentOpenedAt), then goes back to Home. */
 async function recordedAndHome(site: SitePage, title: string, before: number) {
   await expect(site.main.getByRole('heading', {level: 1, name: title, exact: true})).toBeVisible();
@@ -468,15 +460,13 @@ export async function openListLaterAndReturnHome(site: SitePage, href: string, t
 
 /**
  * Opens a list from its link in Recently viewed a minute of page time later
- * (SitePage.reopenRecentLinkAndReturnHome). The link moves inside the site: once the list or its
- * loading state shows, page time moves on by LOADING_MS.
+ * (SitePage.reopenRecentLinkAndReturnHome). The link moves inside the site: the route's loading
+ * state and then the editor's show first, and React replaces each on the real timers
+ * (pausePageTime), so page time stays where it is.
  */
 export async function reopenRecentLinkLaterAndReturnHome(site: SitePage, title: string) {
   const before = await site.recentOpenedAt(title);
   await runPageClock(site.page, LATER_MS);
   await site.recentLink(title).click();
-  const heading = site.main.getByRole('heading', {level: 1, name: title, exact: true});
-  await expect(heading.or(site.main.getByText('Loading...', {exact: true}))).toBeVisible();
-  await runPageClock(site.page, LOADING_MS);
   await recordedAndHome(site, title, before);
 }

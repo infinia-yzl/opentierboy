@@ -48,8 +48,9 @@ export function pageTimePaused(page: Page): boolean {
  * in a zero-delay timer, lib/toast.ts ends `aria-busy` in another, and Radix dialogs add their
  * listeners and give back the focus in them. Playwright's runFor(0) cannot run them instead: its
  * clock gives a zero-delay timer set while timers run a delay of 1 ms, so it would wait forever.
- * The browser's own timers are kept by a first init script, before the clock replaces them, and
- * a second one routes those calls to them.
+ * React's reveal throttles also run on the real timers, so a move inside the site shows the next
+ * page without a step for it (see below). The browser's own timers are kept by a first init
+ * script, before the clock replaces them, and a second one routes those calls to them.
  */
 export async function pausePageTime(page: Page) {
   if (pausedPages.has(page)) return;
@@ -81,15 +82,43 @@ export async function pausePageTime(page: Page) {
     const real = (globalThis as unknown as Record<string, Record<string, (...args: unknown[]) => number> | undefined>)[key];
     if (!real) return;
     const clocked = {setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout};
-    const soon = new Set<unknown>();
-    globalThis.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
-      if (typeof delay === 'number' && delay > soonMs) return clocked.setTimeout(handler, delay, ...args);
+    const onRealTimers = new Set<unknown>();
+    const realTimeout = (handler: TimerHandler, delay?: number, ...args: unknown[]) => {
       const id = real.setTimeout(handler, delay, ...args);
-      soon.add(id);
+      onRealTimers.add(id);
       return id;
+    };
+    const pageTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => {
+      if (typeof delay === 'number' && delay > soonMs) return clocked.setTimeout(handler, delay, ...args);
+      return realTimeout(handler, delay, ...args);
     }) as typeof globalThis.setTimeout;
+    // React DOM keeps the setTimeout it finds when it loads, and uses it only to pace reveals: once
+    // a Suspense boundary has shown its fallback, the content that replaces it waits until 300 ms
+    // of page time have passed since then (React's FALLBACK_THROTTLE_MS). A move inside the site
+    // can show two fallbacks in turn (the route's loading state, then the editor's while its code
+    // loads), and the second wait would never end while page time stands still. So React gets its
+    // own setTimeout, which uses the real timers once React DOM has loaded: React announces itself
+    // to the DevTools hook right after it has kept its timers, and the page's setTimeout takes over
+    // from then on. Code that loads before React DOM sees no difference.
+    let reactLoaded = false;
+    globalThis.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) => (
+      reactLoaded ? realTimeout(handler, delay, ...args) : pageTimeout(handler, delay, ...args)
+    )) as typeof globalThis.setTimeout;
+    if (!('__REACT_DEVTOOLS_GLOBAL_HOOK__' in globalThis)) {
+      Object.defineProperty(globalThis, '__REACT_DEVTOOLS_GLOBAL_HOOK__', {
+        configurable: true,
+        value: {
+          supportsFiber: true,
+          inject: () => {
+            reactLoaded = true;
+            globalThis.setTimeout = pageTimeout;
+            return 1;
+          },
+        },
+      });
+    }
     globalThis.clearTimeout = ((id?: number) => {
-      if (soon.delete(id)) real.clearTimeout(id);
+      if (onRealTimers.delete(id)) real.clearTimeout(id);
       else clocked.clearTimeout(id);
     }) as typeof globalThis.clearTimeout;
     for (const name of ['requestAnimationFrame', 'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback'] as const) {
