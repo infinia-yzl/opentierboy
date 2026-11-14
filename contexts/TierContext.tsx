@@ -70,7 +70,7 @@ export interface TierContext {
   removeTier: (tierId: string) => void;
   renameTier: (index: number, name: string) => void;
   deleteItem: (itemId: string) => void;
-  /** Puts a deleted item back at the end of the tier it came from (toast Undo). */
+  /** Puts a deleted item back at its place in the tier it came from, or at the end when the tier is shorter now (toast Undo). */
   restoreItem: (item: Item, tierId: string, index: number) => void;
   /** Adds items to Unranked, leaving out items the list already holds. */
   addItems: (items: Item[]) => void;
