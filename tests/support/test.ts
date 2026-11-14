@@ -245,6 +245,9 @@ function watchPageErrors(context: BrowserContext, errors: string[]) {
  * requests). A step that waits for a page to load and times out names nothing else, so this is
  * how a failure shows what the page was still waiting for.
  */
+/** The network watch of each context, so the page fixture can probe its pages before they close. */
+const watches = new WeakMap<BrowserContext, {probe: () => Promise<void>}>();
+
 function watchNetwork(context: BrowserContext) {
   const started = Date.now();
   const at = () => `${((Date.now() - started) / 1000).toFixed(1)} s`;
@@ -265,12 +268,32 @@ function watchNetwork(context: BrowserContext) {
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) note(`navigated to ${short(frame.url())}`);
     });
+    page.on('response', (response) => {
+      if (response.request().isNavigationRequest()) note(`document answered ${response.status()}: ${short(response.url())}`);
+    });
+    page.on('requestfinished', (request) => {
+      if (request.isNavigationRequest()) note(`document received in full: ${short(request.url())}`);
+    });
     page.on('domcontentloaded', () => note(`DOMContentLoaded of ${short(page.url())}`));
     page.on('load', () => note(`load of ${short(page.url())}`));
     page.on('close', () => note('page closed'));
   };
   context.pages().forEach(watch);
   context.on('page', watch);
+  /**
+   * Asks each open page where it stands, while it is still open: how far its document is
+   * (document.readyState) and its address. A page whose main thread is blocked does not answer
+   * within 3 s; a page whose parser waits for the rest of its document answers "loading".
+   */
+  const probe = async () => {
+    for (const page of context.pages()) {
+      if (page.isClosed()) continue;
+      const answer = page.evaluate(() => `${document.readyState} at ${location.href}`).catch((error: Error) => `no answer: ${error.message.split('\n')[0]}`);
+      const silence = new Promise<string>((resolve) => void setTimeout(() => resolve('no answer in 3 s: its main thread is blocked'), 3_000));
+      note(`probe of the page: ${short(await Promise.race([answer, silence]))}`);
+    }
+  };
+  watches.set(context, {probe});
   return () => [
     `Requests still waiting (started at): ${waiting.size === 0 ? 'none' : ''}`,
     ...[...waiting.values()].map((line) => `  ${line}`),
@@ -335,9 +358,13 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     }
   },
   pageClock: [false, {option: true}],
-  page: async ({page, pageClock}, use) => {
+  page: async ({page, pageClock}, use, testInfo) => {
     if (pageClock) await page.clock.install();
     await use(page);
+    // Before the page closes: a failed or timed-out test notes where its pages stand (watchNetwork).
+    if (testInfo.status !== testInfo.expectedStatus && testInfo.status !== 'skipped') {
+      await watches.get(page.context())?.probe();
+    }
   },
   tierList: async ({page}, use) => {
     await use(new TierListPage(page));
