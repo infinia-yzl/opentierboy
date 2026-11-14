@@ -257,7 +257,7 @@ test.describe('tips', () => {
     test('renders the own-images toast after the link-save toast when the user uploads the first image', async ({tierList}) => {
       const tips = new Tips(tierList.page);
       await tierList.goto('/rank');
-      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
 
       await expect(tips.linkSaveToast).toBeVisible();
       await expect(tips.deviceImagesToast).toHaveCount(0);
@@ -330,7 +330,7 @@ test.describe('tips', () => {
           OPEN_TEMPLATE: () => tierList.goto(TANKS),
           DROP_IN_ROW: () => tierList.dragFirstUnrankedItemToTier('S'),
           CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
-          ADD_DEVICE_IMAGE: () => tierList.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
+          ADD_DEVICE_IMAGE: () => tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
           CLOSE_TIP: () => tips.close(),
           CLOSE_TOAST: () => closeTipToastAndLetItLeave(tips),
           TOAST_TIMES_OUT: () => tips.waitOutTipToast(),

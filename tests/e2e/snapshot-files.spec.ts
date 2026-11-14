@@ -115,7 +115,7 @@ function deviceItemsOf(url: string): number {
  */
 async function downloadSnapshotOf(tierList: TierListPage, {method, frame}: {method?: CaptureMethod; frame?: FreezeFrame} = {}): Promise<Buffer> {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks with a cat'));
-  await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+  await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
   await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
   await tierList.share.capturePreview(method, frame);
   // Download says what the file carries before anyone sends it on (owner decision, 2026-10-31).
@@ -200,7 +200,7 @@ test.describe('snapshot files', () => {
       await friend.files.openFile(pngFile('snapshot.png', snapshot));
       await expect(friend.files.openListDialog).toBeVisible();
       // The first URL is the one the editor draws the image through; the second one shows the tile.
-      await friend.failObjectUrl({skip: 1});
+      await friend.deviceImages.failObjectUrl({skip: 1});
       await friend.files.confirmOpenList();
 
       await expect(friend.toast('Some images could not be added')).toContainText('red-square: Your browser could not save the image.');
@@ -211,7 +211,7 @@ test.describe('snapshot files', () => {
       // Nothing is stuck: the same file opens again, with its image.
       await friend.files.openFile(pngFile('snapshot.png', snapshot));
       await friend.files.confirmOpenList();
-      await expect.poll(() => friend.itemShowsUpload('red-square')).toBe(true);
+      await expect.poll(() => friend.deviceImages.itemShowsUpload('red-square')).toBe(true);
     });
 
     test('writes 1 history entry when the user opens a snapshot file', async ({tierList, openAsVisitor}) => {
@@ -254,7 +254,7 @@ test.describe('snapshot files', () => {
     test('writes the state of the file and no new IndexedDB image when the user opens a snapshot file in its own browser', async ({tierList}) => {
       const snapshot = await downloadSnapshotOf(tierList);
       const state = JSON.parse(snapshotTextOf(snapshot) ?? 'null').state;
-      await expect.poll(() => tierList.deviceImageCount()).toBe(1);
+      await expect.poll(() => tierList.deviceImages.deviceImageCount()).toBe(1);
       await tierList.goto('/rank');
 
       await tierList.files.openFile(pngFile('snapshot.png', snapshot));
@@ -263,7 +263,7 @@ test.describe('snapshot files', () => {
       // The link is the file's own, and no copy of the image was stored.
       await expect(tierList.page).toHaveURL(new URL(`${TANKS}?state=${state}`, tierList.page.url()).href);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-      expect(await tierList.deviceImageCount()).toBe(1);
+      expect(await tierList.deviceImages.deviceImageCount()).toBe(1);
     });
 
     test('renders the stored copy and no error toast when the user opens a snapshot file with an AVIF under a stored id', async ({tierList}) => {
@@ -277,9 +277,9 @@ test.describe('snapshot files', () => {
       await tierList.files.confirmOpenList();
 
       // The AVIF is never read: the tile shows the stored copy, and no message says otherwise.
-      await expect.poll(() => tierList.itemShowsUpload('red-square')).toBe(true);
+      await expect.poll(() => tierList.deviceImages.itemShowsUpload('red-square')).toBe(true);
       await expect(tierList.toast('Some images could not be added')).toHaveCount(0);
-      await expect.poll(() => tierList.deviceImageCount()).toBe(1);
+      await expect.poll(() => tierList.deviceImages.deviceImageCount()).toBe(1);
     });
 
     test('writes no new image, URL or Recently viewed entry when the user opens the same snapshot file again', async ({tierList, openAsVisitor}) => {
@@ -289,7 +289,7 @@ test.describe('snapshot files', () => {
       await friend.files.openFile(pngFile('snapshot.png', snapshot));
       await friend.files.confirmOpenList();
       const link = friend.page.url();
-      const images = await friend.deviceImageCount();
+      const images = await friend.deviceImages.deviceImageCount();
       const length = await friend.historyLength();
       expect(images).toBe(1);
 
@@ -306,7 +306,7 @@ test.describe('snapshot files', () => {
       await friend.files.confirmOpenList();
       await expect(friend.page).toHaveURL(link);
       await expect.poll(() => friend.itemImageHasLoaded('red-square')).toBe(true);
-      expect(await friend.deviceImageCount()).toBe(images);
+      expect(await friend.deviceImages.deviceImageCount()).toBe(images);
       const friendSite = new SitePage(friend.page);
       await friendSite.gotoHome();
       await expect(friendSite.recentLinks).toHaveText(['Tanks with a cat']);
@@ -335,7 +335,7 @@ test.describe('snapshot files', () => {
         ['S', [packageItemId('image-overwatch', 'Mauga'), {u: 'https://i.imgur.com/red.png', c: 'Link image'}]],
         ['A', []], ['B', []], ['', []],
       ]}));
-      await tierList.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]);
       await expect.poll(() => tierList.itemImageHasLoaded('Link image')).toBe(true);
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
       await tierList.share.capturePreview();
@@ -377,12 +377,12 @@ test.describe('snapshot files', () => {
       const snapshot = await downloadSnapshotOf(tierList);
       const friend = await openAsVisitor('/rank');
 
-      await friend.pasteImages([pngFile('snapshot.png', snapshot)]);
+      await friend.deviceImages.pasteImages([pngFile('snapshot.png', snapshot)]);
       await expect(friend.files.openListDialog).toBeVisible();
       await friend.files.cancelOpenList();
       await expect(friend.page).toHaveURL(/\/rank$/);
 
-      await friend.pasteImages([pngFile('snapshot.png', snapshot)]);
+      await friend.deviceImages.pasteImages([pngFile('snapshot.png', snapshot)]);
       await friend.files.confirmOpenList();
       await expectTierList(friend, SNAPSHOT_LIST);
     });
@@ -406,14 +406,14 @@ test.describe('snapshot files', () => {
       await expect(tierList.toast('Could not open the file')).toContainText('This file is too large to open as a list.');
       await tierList.settled();
       await expect(tierList.files.openListDialog).toHaveCount(0);
-      expect(await tierList.deviceImageCount()).toBe(0);
+      expect(await tierList.deviceImages.deviceImageCount()).toBe(0);
     });
 
     /** Uploads 30 pictures and returns the v3 JSON of the list that holds them. */
     async function listOf30Uploads(tierList: TierListPage): Promise<V3Json> {
       await tierList.goto('/rank');
       const files = Array.from({length: 30}, (_, index) => imageFile(`pic${String(index).padStart(2, '0')}.png`, noisePng(12, 12, index + 1)));
-      await tierList.addItemsFromDevice(files);
+      await tierList.deviceImages.addItemsFromDevice(files);
       await tierList.settled();
       expect(deviceItemsOf(tierList.page.url())).toBe(30);
       return v3LinkJson(tierList.page.url()) as V3Json;
@@ -426,7 +426,7 @@ test.describe('snapshot files', () => {
       const written = stateNearCap(json, 13_000);
       expect(written.length).toBeGreaterThan(12_800);
       await tierList.goto('/rank', written);
-      await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
+      await expect.poll(() => tierList.deviceImages.itemShowsUpload('pic00')).toBe(true);
       await tierList.share.capturePreview();
       const picture = await tierList.share.downloadCapturedImageWithoutList();
       expect(snapshotTextOf(picture.buffer)).toBeNull();
@@ -437,7 +437,7 @@ test.describe('snapshot files', () => {
 
       // Further under the cap: the file keeps the list, and a friend opens it with its images.
       await tierList.goto('/rank', stateNearCap(json, 12_300));
-      await expect.poll(() => tierList.itemShowsUpload('pic00')).toBe(true);
+      await expect.poll(() => tierList.deviceImages.itemShowsUpload('pic00')).toBe(true);
       await tierList.share.capturePreview();
       const file = await tierList.share.downloadCapturedImage();
       expect(snapshotTextOf(file.buffer)).not.toBeNull();
@@ -445,7 +445,7 @@ test.describe('snapshot files', () => {
       await friend.files.openFile(pngFile(file.name, file.buffer));
       await friend.files.confirmOpenList();
       await expect.poll(() => deviceItemsOf(friend.page.url())).toBe(30);
-      await expect.poll(() => friend.itemShowsUpload('pic29')).toBe(true);
+      await expect.poll(() => friend.deviceImages.itemShowsUpload('pic29')).toBe(true);
     });
   });
 
@@ -475,7 +475,7 @@ test.describe('snapshot files', () => {
       const {hold} = await startOpeningWithServerHeld(tierList);
 
       // Meanwhile a paste (it lands in the dialog) adds nothing, and Escape does not close it.
-      await tierList.pasteImages([imageFile('early.png', BLUE_SQUARE)], tierList.files.openListDialog);
+      await tierList.deviceImages.pasteImages([imageFile('early.png', BLUE_SQUARE)], tierList.files.openListDialog);
       await page.keyboard.press('Escape');
       await expect(tierList.files.openListDialog).toContainText('Opening the list…');
       await hold.release();
@@ -492,7 +492,7 @@ test.describe('snapshot files', () => {
       await hold.release();
       await expect(tierList.files.openListDialog).toBeHidden();
 
-      await tierList.pasteImages([imageFile('late.png', BLUE_SQUARE)]);
+      await tierList.deviceImages.pasteImages([imageFile('late.png', BLUE_SQUARE)]);
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['late']);
       await tierList.settled();
@@ -527,11 +527,11 @@ test.describe('snapshot files', () => {
       await tierList.settled();
       // More than the 50 writes the editor follows until the router has shown them: none may be
       // merged. The device store is held until all 55 pastes have arrived, so they all wait.
-      const hold = await tierList.holdDeviceStore();
+      const hold = await tierList.deviceImages.holdDeviceStore();
       const newEntries = await tierList.countNewHistoryEntries();
       const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
 
-      await tierList.pasteImagesAtOnce(groups);
+      await tierList.deviceImages.pasteImagesAtOnce(groups);
       await hold.release();
 
       // The 55 writes land one after another. Each must land while the page is still busy with
@@ -553,7 +553,7 @@ test.describe('snapshot files', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       const before = await tierList.historyLength();
       // The first picture is tiny; the second is large, so it is still being stored at Back.
-      await tierList.pasteImagesAtOnce([
+      await tierList.deviceImages.pasteImagesAtOnce([
         [imageFile('b00.png', noisePng(8, 8, 1))],
         [imageFile('b01.png', noisePng(1600, 1600, 2))],
         [imageFile('b02.png', noisePng(8, 8, 3))],
@@ -579,7 +579,7 @@ test.describe('snapshot files', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
       const before = await tierList.historyLength();
       // Each picture takes a moment to store, so most still wait when the visitor leaves.
-      await tierList.pasteImagesAtOnce(Array.from({length: 8}, (_, index) => [imageFile(`l${index}.png`, noisePng(700, 700, index + 1))]));
+      await tierList.deviceImages.pasteImagesAtOnce(Array.from({length: 8}, (_, index) => [imageFile(`l${index}.png`, noisePng(700, 700, index + 1))]));
       await expect.poll(() => tierList.historyLength()).toBeGreaterThan(before);
 
       await tierList.leaveForHome();
@@ -714,12 +714,12 @@ test.describe('snapshot files', () => {
       await expect(refused).toContainText(`Photo: ${AVIF_HEIC_REFUSAL}`);
       await expect(refused).toContainText(`Phone: ${AVIF_HEIC_REFUSAL}`);
       await expect(tierList.itemsIn('S')).toHaveText(['Red', 'Photo', 'Phone']);
-      await expect.poll(() => tierList.itemShowsUpload('Red')).toBe(true);
+      await expect.poll(() => tierList.deviceImages.itemShowsUpload('Red')).toBe(true);
       // Only the PNG was stored; the refused images show the placeholder of a missing device image.
       await expect.poll(() => tierList.itemShowsPlaceholder('Photo')).toBe(true);
       await expect.poll(() => tierList.itemShowsPlaceholder('Phone')).toBe(true);
       await tierList.settled();
-      expect(await tierList.deviceImageCount()).toBe(1);
+      expect(await tierList.deviceImages.deviceImageCount()).toBe(1);
     });
 
     test('renders the damaged-file toast within 1 s when the user opens a snapshot file with a 12,000 x 12,000 PNG image', async ({tierList}) => {
@@ -799,7 +799,7 @@ test.describe('snapshot files', () => {
 
       await tierList.settled();
       expect(await tierList.itemNamesIn('Unranked')).toEqual([]);
-      expect(await tierList.deviceImageCount()).toBe(0);
+      expect(await tierList.deviceImages.deviceImageCount()).toBe(0);
     });
 
     test('renders no new item when the user drops a picture on an open menu', async ({tierList}) => {
@@ -820,13 +820,13 @@ test.describe('snapshot files', () => {
 
     test('renders no new item when the user drops a picture on an open dialog', async ({tierList}) => {
       await tierList.goto('/rank');
-      await tierList.openUploadDialog();
+      await tierList.deviceImages.openUploadDialog();
 
-      await tierList.files.dropFile(imageFile('red-square.png'), {onto: tierList.uploadDialog});
+      await tierList.files.dropFile(imageFile('red-square.png'), {onto: tierList.deviceImages.uploadDialog});
 
-      await expect(tierList.uploadDialog).toBeVisible();
+      await expect(tierList.deviceImages.uploadDialog).toBeVisible();
       await tierList.pressKey('Escape');
-      await expect(tierList.uploadDialog).toBeHidden();
+      await expect(tierList.deviceImages.uploadDialog).toBeHidden();
       await tierList.settled();
       expect(await tierList.itemNamesIn('Unranked')).toEqual([]);
       await expect(tierList.toast('Items Added')).toHaveCount(0);
@@ -1020,7 +1020,7 @@ test.describe('snapshot files', () => {
           DROP_PICTURE_FILE: () => tierList.files.dropFileWherePointed(imageFile('picture.png', BLUE_SQUARE)),
           PASTE_PICTURE_FILE: () => tierList.files.pasteFileWhereFocused(imageFile('picture.png', BLUE_SQUARE)),
           PASTE_TWO_PICTURES_AT_ONCE: async () => {
-            await tierList.pasteImagesAtOnce([[imageFile('picture.png', BLUE_SQUARE)], [imageFile('second.png', RED_SQUARE)]]);
+            await tierList.deviceImages.pasteImagesAtOnce([[imageFile('picture.png', BLUE_SQUARE)], [imageFile('second.png', RED_SQUARE)]]);
             // Each picture is its own write: the second one reaches the address last. The list as
             // opened has a link of an older format, without pictures.
             const link = () => (new URL(page.url()).searchParams.get('state')?.startsWith('3.') ? JSON.stringify(v3LinkJson(page.url())) : '');
@@ -1036,7 +1036,7 @@ test.describe('snapshot files', () => {
             await expect(tierList.files.openListDialog).toBeVisible();
           },
           PASTE_LIST_FILE: async () => {
-            await tierList.pasteImages([LIST_FILE]);
+            await tierList.deviceImages.pasteImages([LIST_FILE]);
             await expect(tierList.files.openListDialog).toBeVisible();
           },
           DROP_LIST_FILE_AND_PASTE_PICTURE: async () => {
@@ -1056,7 +1056,7 @@ test.describe('snapshot files', () => {
             await tierList.files.dropFile({name: textFile, mimeType: 'text/plain', buffer: Buffer.from('not a picture')});
             await tierList.restOnMessage(messageToast('notAPicture'));
           },
-          PASTE_TEXT_FILE: () => tierList.pasteImages([{name: `pasted-${++sent}.txt`, mimeType: 'text/plain', buffer: Buffer.from('not a picture')}]),
+          PASTE_TEXT_FILE: () => tierList.deviceImages.pasteImages([{name: `pasted-${++sent}.txt`, mimeType: 'text/plain', buffer: Buffer.from('not a picture')}]),
           CANCEL: () => tierList.files.chooseCancelInOpenListDialog(),
           PRESS_ESCAPE: () => tierList.files.pressEscapeInOpenListDialog(),
           // The list of the file is a list of this page: it opens in place, without a request, and
@@ -1066,7 +1066,7 @@ test.describe('snapshot files', () => {
           LEAVE_WHILE_PICTURES_WAIT: async () => {
             const at = ++sent;
             leavingPictures = [0, 1, 2].map((index) => `leaving-${at}-${index}.png`);
-            await tierList.leaveWhilePastesWait(leavingPictures.map((name, index) => [imageFile(name, noisePng(8, 8, index + 1))]));
+            await tierList.deviceImages.leaveWhilePastesWait(leavingPictures.map((name, index) => [imageFile(name, noisePng(8, 8, index + 1))]));
           },
           TOAST_TIMES_OUT: async () => {
             if (!onScreen) throw new Error('No state was checked yet');
@@ -1200,7 +1200,7 @@ test.describe('snapshot files', () => {
           await tierList.openAsNewBrowser(TANKS, MIXED_STATE);
           await tierList.settled();
           await tierList.linkImages.loadImagesFromOtherSites();
-          await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${PICTURE}.png`, BLUE_SQUARE)]);
+          await tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`${PICTURE}.png`, BLUE_SQUARE)]);
           [pictureId] = deviceIdsOf(page.url());
         },
         events: {
@@ -1217,7 +1217,7 @@ test.describe('snapshot files', () => {
             file = pngFile(saved.name, saved.buffer);
             fileState = payload.state;
             await tierList.share.closeSharePanelWithEscape();
-            storedAfterDownload = await tierList.deviceImageCount();
+            storedAfterDownload = await tierList.deviceImages.deviceImageCount();
             historyAfterDownload = await tierList.historyLength();
           },
           OPEN_FILE_IN_EDITOR: () => here().files.openFileAndWaitForDialog(savedFile()),
@@ -1280,7 +1280,7 @@ test.describe('snapshot files', () => {
                 const color = await shown.itemImageCenterColor(PICTURE);
                 return color !== null && color[2] > 200 && color[0] < 60;
               }, {message: 'the picture shows, blue'}).toBe(true);
-              await expect.poll(() => shown.itemShowsUpload(PICTURE), {message: 'the picture comes from the device store'}).toBe(true);
+              await expect.poll(() => shown.deviceImages.itemShowsUpload(PICTURE), {message: 'the picture comes from the device store'}).toBe(true);
               await expect.poll(() => shown.itemImageHasLoaded(TRUSTED_IMAGE.label), {message: `${TRUSTED_SITE} loads`}).toBe(true);
               if (view.otherSite === 'loads') {
                 await expect(shown.linkImages.imageSitesNotice).toHaveCount(0);
@@ -1298,8 +1298,8 @@ test.describe('snapshot files', () => {
               expect(others, 'the link holds one picture').toEqual([]);
               expect(id, 'the picture was drawn again and stored under a new id').toMatch(/^snap-/);
             }
-            if (view.list === 'mixedBag' && view.browser === 'new') expect(await shown.deviceImageCount(), 'the new browser stored the picture').toBe(1);
-            if (file && view.browser === 'same') expect(await tierList.deviceImageCount(), 'opening the file stored no new picture').toBe(storedAfterDownload);
+            if (view.list === 'mixedBag' && view.browser === 'new') expect(await shown.deviceImages.deviceImageCount(), 'the new browser stored the picture').toBe(1);
+            if (file && view.browser === 'same') expect(await tierList.deviceImages.deviceImageCount(), 'opening the file stored no new picture').toBe(storedAfterDownload);
             if (snapshot.matches('sameBrowser.editor.fileSaved')) expect(await tierList.historyLength(), 'no history entry since Download').toBe(historyAfterDownload);
           },
         },

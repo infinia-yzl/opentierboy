@@ -147,7 +147,7 @@ test.describe('share panel', () => {
 
     test('renders the note "1 image from your device isn\'t in the link." when the user adds an image from the device', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
 
       await tierList.share.openSharePanel();
 
@@ -258,7 +258,7 @@ test.describe('share panel', () => {
           COPY_MARKDOWN: () => tierList.share.copyMarkdownInOpenPanel(),
           ADD_DEVICE_IMAGE: async () => {
             const name = `picture-${++added}`;
-            await tierList.addItemsFromDeviceAndWaitForLink([imageFile(`${name}.png`)]);
+            await tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`${name}.png`)]);
             deviceImages.push(name);
           },
           // The file holds the list the picture shows, which the check of DOWNLOAD's state reads

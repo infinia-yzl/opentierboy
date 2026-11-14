@@ -74,7 +74,7 @@ test.describe('security', () => {
 
     test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
       await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
-      await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
       await tierList.share.capturePreview();
       const snapshot = await tierList.share.downloadCapturedImage();
@@ -100,7 +100,7 @@ test.describe('security', () => {
           ['A', []], ['B', []], ['', []],
         ]});
         await tierList.goto('/rank/overwatch/tank', state);
-        await tierList.addItemsFromDevice([imageFile('red-square.png')]);
+        await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
         await expect.poll(() => tierList.itemImageHasLoaded('Link image')).toBe(true);
         await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
 
@@ -147,7 +147,7 @@ test.describe('security', () => {
     test('renders the file name with markup as the item label when the user uploads a picture named with markup', async ({tierList}) => {
       await tierList.goto(TANKS);
       // The label is the name before its first dot, so the markup has none.
-      await tierList.addItemsFromDevice([imageFile('<img src=x onerror=__otbInjected=4>.png')]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('<img src=x onerror=__otbInjected=4>.png')]);
       await expect(tierList.item('<img src=x onerror=__otbInjected=4>')).toBeVisible();
       expect(await tierList.injectedMarkupRan()).toBe(false);
     });
@@ -170,7 +170,7 @@ test.describe('security', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Private pictures'));
       const sent = tierList.recordRequests();
 
-      await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('photo.png', photo)]);
       await tierList.files.dropFile(imageFile('dropped.png', BLUE_SQUARE));
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['photo', 'dropped']);
       await expect.poll(() => tierList.itemImageHasLoaded('dropped')).toBe(true);
@@ -185,7 +185,7 @@ test.describe('security', () => {
       await tierList.goto(TANKS);
       const sent = tierList.recordRequests();
 
-      await tierList.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
+      await tierList.deviceImages.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['pasted']);
       await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
       // A change asks nothing of the server (history.pushState); the reload loads the list's page
@@ -199,7 +199,7 @@ test.describe('security', () => {
     test('writes no image or snapshot file bytes to the network when the user opens a snapshot file', async ({tierList, openAsVisitor}) => {
       const photo = noisePng(40, 40, 11);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Shared pictures'));
-      await tierList.addItemsFromDevice([imageFile('photo.png', photo)]);
+      await tierList.deviceImages.addItemsFromDevice([imageFile('photo.png', photo)]);
       await expect.poll(() => tierList.itemImageHasLoaded('photo')).toBe(true);
       await tierList.share.capturePreview();
       const file = await tierList.share.downloadCapturedImage();

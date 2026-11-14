@@ -38,7 +38,7 @@ test.describe('editor items', () => {
     test('renders the images as Unranked items when the user uploads 2 images from the device', async ({tierList}) => {
       await tierList.goto('/rank');
 
-      await tierList.addItemsFromDevice([path.join(IMAGES, 'red-square.png'), path.join(IMAGES, 'blue-square.png')]);
+      await tierList.deviceImages.addItemsFromDevice([path.join(IMAGES, 'red-square.png'), path.join(IMAGES, 'blue-square.png')]);
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square', 'blue-square']);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
@@ -194,7 +194,7 @@ test.describe('editor items', () => {
 
       await tierList.items.emptyListAction('Upload').click();
 
-      await expect(tierList.uploadDialog).toBeVisible();
+      await expect(tierList.deviceImages.uploadDialog).toBeVisible();
     });
 
     test('renders focus on button "Add images" when the user adds an image with Link in the drop area of an empty list', async ({tierList, page}) => {

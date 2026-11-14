@@ -92,7 +92,7 @@ test.describe('zen', () => {
       const newEntries = await tierList.countNewHistoryEntries();
 
       await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
-      await tierList.pasteImages([imageFile('blue-square.png')]);
+      await tierList.deviceImages.pasteImages([imageFile('blue-square.png')]);
 
       await expect(tierList.item('blue-square')).toBeVisible();
       await expect.poll(newEntries).toBe(1);

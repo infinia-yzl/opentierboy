@@ -222,10 +222,10 @@ test.describe('shared links', () => {
             }
             await expect.poll(() => tierList.itemShowsPlaceholder(GONE_HERO.label), {message: `${GONE_HERO.label} should show the placeholder`}).toBe(true);
             if (view.deviceImageKept) {
-              await expect.poll(() => tierList.itemShowsUpload(MY_CAT), {message: `${MY_CAT} should show its picture`}).toBe(true);
+              await expect.poll(() => tierList.deviceImages.itemShowsUpload(MY_CAT), {message: `${MY_CAT} should show its picture`}).toBe(true);
             } else {
               await expect.poll(() => tierList.itemShowsPlaceholder(MY_CAT), {message: `${MY_CAT} should show the placeholder`}).toBe(true);
-              expect(await tierList.itemShowsUpload(MY_CAT), `a new browser has no picture for ${MY_CAT}`).toBe(false);
+              expect(await tierList.deviceImages.itemShowsUpload(MY_CAT), `a new browser has no picture for ${MY_CAT}`).toBe(false);
             }
             if (view.waiting) {
               await expect(tierList.linkImages.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
@@ -252,7 +252,7 @@ test.describe('shared links', () => {
         const makerSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
         // The maker's browser keeps a picture: the device image store gives it its id.
         await tierList.goto('/rank');
-        await tierList.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
+        await tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
         const [, deviceId] = /"d":"([A-Za-z0-9_-]+)"/.exec(JSON.stringify(v3LinkJson(await tierList.shareLink()))) ?? [];
         expect(deviceId, 'the upload should be a device image in the link').toBeTruthy();
         let visitorRequests: string[] = [];
