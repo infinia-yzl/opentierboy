@@ -1,7 +1,7 @@
 'use client';
 
 import React, {useEffect, useRef, useState} from 'react';
-import Link from 'next/link';
+import {IntentLink} from '@/components/IntentLink';
 import dynamic from 'next/dynamic';
 import {Button} from '@/components/ui/button';
 import {Card} from '@/components/ui/card';
@@ -73,7 +73,7 @@ const OwnListCard: React.FC = () => {
           icon where their pictures sit. */}
       <div className="flex grow flex-col gap-2">
         <Button asChild variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3">
-          <Link href="/rank/">
+          <IntentLink href="/rank/">
             <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <circle cx="12" cy="12" r="9"/>
@@ -81,7 +81,7 @@ const OwnListCard: React.FC = () => {
               </svg>
             </span>
             Create Blank List
-          </Link>
+          </IntentLink>
         </Button>
         <Button ref={openButton} variant="outline" className="w-full justify-start gap-2.5 pl-1.5 pr-3" onClick={() => fileInput.current?.click()}>
           <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center">
