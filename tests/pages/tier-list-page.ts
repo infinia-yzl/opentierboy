@@ -310,8 +310,52 @@ export class TierListPage {
 
   /** Leaves the editor for the landing page with the site's logo link in the header. */
   async leaveForHome() {
-    await this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'}).click();
+    await this.homeLink.click();
     await expect(this.page).toHaveURL(/^[^?]*\/$/);
+  }
+
+  /** The logo link to Home in the page's banner. */
+  get homeLink(): Locator {
+    return this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'});
+  }
+
+  /**
+   * Holds the server's answers for Home (its prefetch too) until `release`, so a test can act
+   * while the visitor's trip home still loads. Call it before the editor opens: the editor
+   * prefetches Home as soon as the logo shows.
+   */
+  async holdTripHome(): Promise<{release: () => Promise<void>}> {
+    let open!: () => void;
+    const released = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const handled: Promise<void>[] = [];
+    const handler = (route: Route) => {
+      const request = route.request();
+      const headers = request.headers();
+      const tripHome = headers['rsc'] === '1' && new URL(request.url()).pathname === '/';
+      if (!tripHome) return route.fallback();
+      const done = released.then(() => route.fallback().catch(() => undefined));
+      handled.push(done);
+      return done;
+    };
+    await this.page.route('**/*', handler);
+    return {
+      release: async () => {
+        open();
+        await Promise.all(handled);
+        await this.page.unroute('**/*', handler);
+      },
+    };
+  }
+
+  /** Pastes a file where the focus is, the way a browser does, without waiting for anything. */
+  async pasteFileNow(file: {name: string; mimeType: string; buffer: Buffer}) {
+    await this.page.evaluate(({name, mimeType, base64}) => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
+      (document.activeElement ?? document.body).dispatchEvent(new ClipboardEvent('paste', {clipboardData: transfer, bubbles: true, cancelable: true}));
+    }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
   }
 
   /** The number of entries in the tab's history (window.history.length). */

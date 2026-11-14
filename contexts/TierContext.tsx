@@ -7,6 +7,7 @@ import Item from "@/models/Item";
 import {ItemSet} from "@/models/ItemSet";
 import {createTierCortex, type TierCortex} from "@/lib/TierCortex";
 import {recordRecentLink} from "@/components/useRecentLinks";
+import {isLinkToAnotherPage} from "@/lib/leavingLink";
 import {
   addressNeedsLoading,
   createTierListReducer,
@@ -141,15 +142,31 @@ export function TierListProvider({initialItemSet, initialState, pageTitle, child
   // the server answers, so Back pressed before that loses the change (known-bug test in
   // tests/e2e/history.spec.ts). A fix would replace this call with history.pushState and a
   // metadata refresh.
+  //
+  // Leaving: a click on a link to another page starts a navigation that a later push would
+  // cancel (Next.js drops a navigation still loading when another starts), pulling the visitor
+  // back into the editor. So writes wait from that click until the visitor clicks or types in
+  // the editor again (the link went nowhere); when the editor closes, they go with it.
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => setLeaving(isLinkToAnotherPage(event, window.location));
+    const onKey = () => setLeaving(false);
+    document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKey, true);
+    };
+  }, []);
   const lastPushedWrite = useRef(-1);
   useEffect(() => {
     const next = state.writes[0];
-    if (!next || next.id <= lastPushedWrite.current) return;
+    if (leaving || !next || next.id <= lastPushedWrite.current) return;
     lastPushedWrite.current = next.id;
     const href = `${pathname}?state=${next.link}`;
     if (next.mode === 'replace') router.replace(href, {scroll: false});
     else router.push(href, {scroll: false});
-  }, [state.writes, router, pathname]);
+  }, [state.writes, router, pathname, leaving]);
 
   const actions = useMemo(() => ({
     setTitle: (title: string) => dispatch({type: 'titleChanged', title}),

@@ -39,6 +39,7 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
+import {isLinkToAnotherPage} from '@/lib/leavingLink';
 import {stateParam} from '@/lib/tierListReducer';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -177,11 +178,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     // A click on a link to another page starts a navigation that the next add would cancel
     // (Next.js drops a navigation still loading when another starts): stop adding.
     const onLinkClick = (event: MouseEvent) => {
-      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
-      if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
-      const url = new URL(link.href, window.location.href);
-      if (url.origin === window.location.origin && url.pathname !== window.location.pathname) leaving.current = true;
+      if (isLinkToAnotherPage(event, window.location)) leaving.current = true;
     };
     document.addEventListener('click', onLinkClick, true);
     return () => {

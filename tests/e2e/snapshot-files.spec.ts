@@ -559,6 +559,27 @@ test.describe('snapshot files', () => {
       await expect(page).toHaveURL(/^[^?]*\/$/);
     });
 
+    test('renders Home when a pasted image lands in the editor while the trip home still loads', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      const tripHome = await tierList.holdTripHome();
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
+      await tierList.waitUntilInteractive();
+      const listAddress = page.url();
+
+      try {
+        await tierList.homeLink.click();
+        // A change made after the click: the editor still shows, and it adds the picture.
+        await tierList.pasteFileNow(imageFile('late.png', BLUE_SQUARE));
+        await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(1);
+      } finally {
+        await tripHome.release();
+      }
+
+      await expect(page).toHaveURL(/^[^?]*\/$/);
+      await page.goBack();
+      await expect(page).toHaveURL(listAddress);
+    });
+
     test('renders the toast "Files not added" when the user pastes an image right after dropping a list file', async ({tierList, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
