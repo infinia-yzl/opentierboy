@@ -1,6 +1,7 @@
 'use client';
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {flushSync} from 'react-dom';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {toast} from 'sonner';
 import {
@@ -257,7 +258,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     if (items.length === 0) return;
     // The list may have changed while the images were stored: add them to the latest one.
     // Each add is its own change, so its own Back step (product rule 2), however many files wait.
-    latest.current.addItemsWithUndo(items);
+    flushSync(() => latest.current.addItemsWithUndo(items));
     // The next file waits until this add is on screen, so its labels are taken.
     await untilRendered();
   }, [untilRendered, notAdded, gone]);
@@ -369,7 +370,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
           description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
         });
       }
-      latest.current.addItemsWithUndo(latest.current.linkImageItems(images));
+      flushSync(() => latest.current.addItemsWithUndo(latest.current.linkImageItems(images)));
       await untilRendered();
     }
   }, [untilRendered, notAdded, gone]);
