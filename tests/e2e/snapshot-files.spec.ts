@@ -23,7 +23,6 @@ import {snapshotFilesModel, snapshotFilesViewOf, snapshotFilesWithoutPasteModel,
 import {freezeFrameLoadModel, freezeFrameLoadViewOf, type FreezeFrameLoadEvent, type FreezeFrameLoadSnapshot} from '../models/freeze-frame-load';
 
 const TANKS = '/rank/overwatch/tank';
-/** Another template page of the same set. */
 const SUPPORTS = '/rank/overwatch/sup';
 
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
@@ -205,7 +204,6 @@ test.describe('snapshot files', () => {
 
       await expect(friend.toast('Some images could not be added')).toContainText('red-square: Your browser could not save the image.');
       await expect(friend.itemsIn(friend.unranked)).toHaveText(['red-square']);
-      // The image was not stored: the tile shows the placeholder of a device image this browser lacks.
       await expect.poll(() => friend.itemShowsPlaceholder('red-square')).toBe(true);
 
       // Nothing is stuck: the same file opens again, with its image.
@@ -445,18 +443,9 @@ test.describe('snapshot files', () => {
     });
   });
 
-  /**
-   * A list file of another template path opens on another page (router.push), which asks the
-   * server. A list of the same page opens in place, without a request (the other tests).
-   */
   test.describe('slow server', () => {
     test.slow();
 
-    /**
-     * Opens a snapshot file of the tank template over the list "Old list" of the support template,
-     * and clicks Open list with the server's answer held: the dialog says "Opening the list…"
-     * until the test releases the answer.
-     */
     async function startOpeningWithServerHeld(tierList: TierListPage): Promise<{before: number; hold: HeldRankPages}> {
       await tierList.goto(SUPPORTS, rankingState('image-overwatch', {S: ['Mauga']}, 'Old list'));
       const before = await tierList.historyLength();
@@ -519,8 +508,6 @@ test.describe('snapshot files', () => {
     test('writes 55 history entries when the user pastes 55 images at once on a slow disk', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
-      // More than the 50 writes the editor follows until the router has shown them: none may be
-      // merged. The device store is held until all 55 pastes have arrived, so they all wait.
       const hold = await tierList.deviceImages.holdDeviceStore();
       const newEntries = await tierList.countNewHistoryEntries();
       const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
@@ -704,7 +691,6 @@ test.describe('snapshot files', () => {
       await expect(refused).toContainText(`Phone: ${AVIF_HEIC_REFUSAL}`);
       await expect(tierList.itemsIn('S')).toHaveText(['Red', 'Photo', 'Phone']);
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('Red')).toBe(true);
-      // Only the PNG was stored; the refused images show the placeholder of a missing device image.
       await expect.poll(() => tierList.itemShowsPlaceholder('Photo')).toBe(true);
       await expect.poll(() => tierList.itemShowsPlaceholder('Phone')).toBe(true);
       expect(await tierList.deviceImages.deviceImageCount()).toBe(1);
@@ -966,27 +952,12 @@ test.describe('snapshot files', () => {
     const DAMAGED = 'This file is damaged, or it was not made by OpenTierBoy.';
     const LIST_FILE = listFile('list.png', {title: 'Snapshot list', path: TANKS, images: [{id: 'snapImage001', label: 'From the file', png: RED_SQUARE}]});
 
-    /**
-     * The snapshot files machine's events and checks (modelSut). Each run starts on the
-     * list "Before" (Mauga in S). File names that a message shows are new on each send, so a
-     * message from an earlier step never stands in for the one a step expects.
-     *
-     * A message closes by itself after 4 s of page time, and page time stands still
-     * (`pageTime: 'paused'`): it moves only in TOAST_TIMES_OUT, which moves the pointer off and
-     * checks that the message closes after exactly 4 s (letToastTimeOut). Over the list, the step
-     * that shows a message rests the pointer on it (restOnMessage), as a visitor reading it would:
-     * Sonner holds the toasts while the pointer is over them. Each state checks every message on
-     * screen: the message of the state, or none (the toasts "Items Added" of the pictures added
-     * are not messages).
-     */
     const snapshotFilesSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
       let sent = 0;
       let textFile = '';
       let waitingPicture = '';
       let leavingPictures: string[] = [];
-      /** The state on screen, as the last check saw it: TOAST_TIMES_OUT ends its message. */
       let onScreen: SnapshotFilesSnapshot | null = null;
-      /** The message of a state, by what it says: each names its own file, but a damaged file's does not. */
       const messageToast = (message: SnapshotFilesView['message']) => {
         if (message === 'brokenFile') return tierList.toastAbout('Could not open the file', DAMAGED);
         if (message === 'notAPicture') return tierList.toastAbout('Could not open the file', `${textFile}: This file is not a picture.`);
@@ -1028,7 +999,6 @@ test.describe('snapshot files', () => {
             await expect(tierList.toastAbout('Files not added', waitingPicture)).toBeVisible();
           },
           OPEN_BROKEN_FILE: async () => {
-            // The message of an earlier broken file says the same: the state before shows none.
             await expect(messageToast('brokenFile')).toHaveCount(0);
             await tierList.files.openFile(pngFile(`broken-${++sent}.png`, pngWithSnapshotText(RED_SQUARE, 'this is not JSON')));
             await tierList.restOnMessage(messageToast('brokenFile'));
@@ -1041,8 +1011,6 @@ test.describe('snapshot files', () => {
           PASTE_TEXT_FILE: () => tierList.deviceImages.pasteImages([{name: `pasted-${++sent}.txt`, mimeType: 'text/plain', buffer: Buffer.from('not a picture')}]),
           CANCEL: () => tierList.files.chooseCancelInOpenListDialog(),
           PRESS_ESCAPE: () => tierList.files.pressEscapeInOpenListDialog(),
-          // The list of the file is a list of this page: it opens in place, without a request, and
-          // the dialog closes once it shows. Asked again, the address shows it already.
           OPEN_LIST: () => tierList.files.confirmOpenList({newAddress: false}),
           BROWSER_BACK: () => tierList.goBack(),
           LEAVE_WHILE_PICTURES_WAIT: async () => {
@@ -1059,11 +1027,8 @@ test.describe('snapshot files', () => {
           '*': async (_page, snapshot) => {
             onScreen = snapshot;
             const {list, dialog, message} = snapshotFilesViewOf(snapshot);
-            // Every message on screen: the one of the state, or none.
             await expect(tierList.files.messageToasts).toHaveCount(message ? 1 : 0);
             if (list === null && dialog === null) {
-              // The landing page: nothing brought the visitor back, and the waiting pictures were
-              // dropped quietly. Recently viewed holds the list as opened, once.
               await expect(page).toHaveURL(/^[^?]*\/$/);
               await expect(site.recentLink('Before')).toHaveCount(1);
               return;
@@ -1098,8 +1063,6 @@ test.describe('snapshot files', () => {
         await attachCoverage(testInfo, snapshotFilesModel, coverage, part);
       });
     }
-    // Firefox cannot take pasted files from a test, so there the walk of the same machine without
-    // the paste events runs: every state that opening and dropping files reach.
     for (const part of walkParts(snapshotFilesWithoutPasteModel)) {
       test(`renders each state of the snapshot files machine when the user walks every transition without pasting (${part.name})`, async ({tierList, page, browserName}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
@@ -1117,16 +1080,13 @@ test.describe('snapshot files', () => {
     const OTHER_SITE = 'images.example.org';
     const TRUSTED_IMAGE = {label: 'Imgur red', url: `https://${TRUSTED_SITE}/red.png`};
     const OTHER_IMAGE = {label: 'Example red', url: `https://${OTHER_SITE}/red.png`};
-    /** The picture from the device: a blue square, so its colour tells it from the red link images. */
     const PICTURE = 'cat';
-    /** The list as each run opens it: OVERWATCH items and the two link images. The run adds the picture. */
     const MIXED_STATE = v3State({t: MIXED_BAG, tp: 3, r: [
       ['S', [packageItemId('image-overwatch', 'Mauga'), {u: TRUSTED_IMAGE.url, c: TRUSTED_IMAGE.label}]],
       ['A', [packageItemId('image-overwatch', 'Winston'), {u: OTHER_IMAGE.url, c: OTHER_IMAGE.label}]],
       ['B', []],
       ['', []],
     ]});
-    /** The rows of Mixed bag. While its site waits, the label tile of the other site's image also names the site. */
     const mixedTiers = (otherSite: 'loads' | 'waits' | null) => [
       {name: 'S', items: ['Mauga', TRUSTED_IMAGE.label]},
       {name: 'A', items: ['Winston', otherSite === 'waits' ? `${OTHER_IMAGE.label}${OTHER_SITE}` : OTHER_IMAGE.label]},
@@ -1134,23 +1094,13 @@ test.describe('snapshot files', () => {
       {name: 'Unranked', items: [PICTURE]},
     ];
 
-    /** The ids of the device images (`{d}` items) in a v3 link. */
     const deviceIdsOf = (url: string) => (v3LinkJson(url) as V3Json).r
       .flatMap((row) => row[row.length - 1] as unknown[])
       .flatMap((item) => (typeof item === 'object' && item !== null && 'd' in item ? [(item as {d: string}).d] : []));
 
     type OpenAsVisitor = (link: string, options?: {beforeOpen?: (context: BrowserContext) => Promise<unknown>}) => Promise<TierListPage>;
 
-    /**
-     * The freeze frame load machine's events and checks (modelSut). Each run starts in
-     * the first browser, with its local storage cleared, on Mixed bag: the visitor clicks Load in
-     * the notice and adds the picture from the device. Download keeps the real downloaded file,
-     * which the later steps open. The device store keeps the pictures of earlier runs, so the
-     * checks compare with its count right after Download. A new browser is a new context
-     * (openAsVisitor), closed by the next reset.
-     */
     const freezeFrameLoadSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo, openAsVisitor: OpenAsVisitor, otherSite: {requests: string[]}) => {
-      /** The machine's state before the step that runs, as the last check saw it (null right after a reset). */
       let at: FreezeFrameLoadSnapshot | null = null;
       let file: {name: string; mimeType: string; buffer: Buffer} | null = null;
       let fileState = '';
@@ -1159,7 +1109,6 @@ test.describe('snapshot files', () => {
       let historyAfterDownload = 0;
       let visitor: TierListPage | null = null;
       let visitorOtherSite: {requests: string[]} = {requests: []};
-      /** The requests to images.example.org before the last page load of the browser on screen. */
       let loadedAt = 0;
       const inNewBrowser = () => at?.matches('newBrowser') ?? false;
       const here = () => {
@@ -1222,8 +1171,6 @@ test.describe('snapshot files', () => {
             else await here().files.confirmOpenList({newAddress: !at?.matches('sameBrowser.editor.askingOverSameList')});
           },
           BROWSER_BACK: async () => {
-            // The list on screen leaves: a list that waits for the other site later counts only
-            // the requests sent after this step.
             loadedAt = (inNewBrowser() ? visitorOtherSite : otherSite).requests.length;
             await here().goBack();
           },

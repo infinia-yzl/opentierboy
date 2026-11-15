@@ -1,41 +1,21 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 
-/**
- * Helpers that the page objects share (tier-list-page.ts and the area objects beside it): boxes
- * on screen, the window's scroll position, menus that give focus back, and changes that write a
- * new link. Specs do not use them: they call page object methods.
- */
 
 export const UNTIL_STARTED = {waitUntil: 'domcontentloaded'} as const;
 
-/** A box on screen, in CSS pixels. */
 export type Box = {x: number; y: number; width: number; height: number};
 export type Point = {x: number; y: number};
 
-/**
- * A ranked row inside a button name or an announcement, as the editor says it
- * (lib/dnd/labels.ts): "row S", or as it is for "Row 4" (a row without a label) and labels that
- * start with "Row" or "Tier".
- */
 export function rowPhrase(tierName: string): string {
   return /^(?:row|tier)\b/i.test(tierName) ? tierName : `row ${tierName}`;
 }
 
-/**
- * Runs an action that changes the ranking, and waits until the app has written the
- * change into the address bar. Only then is the link ready to share.
- */
 export async function changeAndWaitForLink(page: Page, action: () => Promise<void>) {
   const before = page.url();
   await action();
   await expect(page, 'the shareable link should update').not.toHaveURL(before);
 }
 
-/**
- * Waits until the menu has closed and given focus back to its button. The menu gives it back a
- * moment after it closes: a key pressed before that would go to the element focused meanwhile,
- * and then lose its focus.
- */
 export async function menuClosedOnto(page: Page, button: Locator) {
   await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(button).toBeFocused();

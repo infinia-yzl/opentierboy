@@ -21,18 +21,6 @@ import {useActiveStage} from "@/components/useZenLayout";
 import {shownQueue} from "@/lib/zen/layouts";
 import {cn} from "@/lib/utils";
 
-/**
- * The rows of the editor, with drag and drop from lib/dnd (dnd-kit). Items move inside and
- * between rows; a row moves whole by its grip, and its items alone by its stack (owner
- * decision, 2026-11-14), with the mouse, by touch (hold, then move) and with the keyboard. The
- * list changes only on drop: one history entry per move (product rule 2).
- *
- * The Clean layout (owner decisions, 2026-10-28 and 2026-10-31): the ranked rows sit flush, each
- * with its tier letter in a column on its gradient, its tiles flush, its grip beside it and its
- * stack at the end.
- * Unranked, the last row, is a fixed tray under them, with the hints and an "Add images" tile;
- * rows never move into its place (lib/dnd/moves.ts, reorderRows).
- */
 
 const TierItem = memo<{
   item: Item;
@@ -62,17 +50,12 @@ const TierItem = memo<{
 ));
 TierItem.displayName = 'TierItem';
 
-/**
- * A brief light wash after a drop, on what moved (owner decision, 2026-11-14). Render it with a
- * new key for every drop, so it starts again. People who ask for less motion get none.
- */
 const SettleWash: React.FC = () => <span aria-hidden="true" className="row-settle motion-reduce:hidden"/>;
 
 const TierItems = memo<{
   tier: Tier;
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
-  /** Changes with every drop of this row's items (its stack): the items area washes briefly. */
   washKey?: number;
   /** After the items, inside the drop area: the tray's "Add images" tile. */
   trailing?: React.ReactNode;
@@ -134,7 +117,6 @@ const STAGE_TRAY_FLEX = 'stage:basis-[0%] stage:shrink-[1000000] stage-wide:grow
  * (`--stage-letter`, lib/zen/layouts.ts).
  */
 function rowLabelClass(name: string, labelPosition: LabelPosition): string {
-  // A row without a name shows its position as a small hint, "Row 4": sized as a long name.
   const length = name.trim() ? Array.from(name.trim()).length : Infinity;
   const size = labelPosition === 'top' ? 'text-lg stage:text-[length:calc(var(--stage-letter)*0.4)]'
     : length <= 2 ? 'text-[1.625rem] sm:text-3xl compact:text-xl stage:text-(length:--stage-letter)'
@@ -145,9 +127,7 @@ function rowLabelClass(name: string, labelPosition: LabelPosition): string {
 
 const TierRow = memo<{
   tier: Tier;
-  /** The row's place on screen (during a row drag, in the preview): its colour and its "Row n" hint. */
   index: number;
-  /** The row's place in the list, where a rename goes. */
   listIndex: number;
   tiersLength: number;
   labelPosition: LabelPosition;
@@ -157,13 +137,8 @@ const TierRow = memo<{
 }>(({tier, index, listIndex, tiersLength, labelPosition, showLabels, onSaveLabel, onDeleteItem}) => {
   const {ref, handleRef, isDragging, itemsWaiting, settled} = useTierRow({tierId: tier.id, index});
   const describedBy = useTierDragDescription();
-  // After a drop, a brief wash on what moved: the row (its grip) or its items (its stack).
   const itemsWash = settled?.kind === 'stack' ? settled.count : undefined;
-  // Colours belong to positions (owner decision, 2026-11-14): a row takes the colour of the place
-  // it shows in, also while it is dragged, so the gap it would leave has that place's colour.
   const tierGradient = getTierGradient(index, tiersLength);
-  // Accessible name for the row. A row without a name is named after its position, "Row 4",
-  // which it also shows as a faint hint; the link never holds it.
   const tierLabel = rowLabel(tier.name, index);
   const label = (
     <EditableLabel
@@ -187,11 +162,8 @@ const TierRow = memo<{
       data-lifted={isDragging || undefined}
       data-items-waiting={itemsWaiting || undefined}
       className={`relative w-full min-h-16 md:min-h-20 compact:min-h-12 stage:min-h-(--stage-tile) flex border-b border-black/10 dark:border-white/10 ${isDragging ? 'z-10' : ''}`}
-      // A longhand: dnd-kit copies the row's style to the gap it leaves, and a var() in the
-      // background shorthand would not copy.
       style={{backgroundImage: tierGradient || undefined, '--row-colour': getTierColour(index, tiersLength)} as React.CSSProperties}
     >
-      {/* First, so Tab reaches it first in the row: grip, name, each item, stack. */}
       <RowGrip handleRef={handleRef} describedBy={describedBy} name={tier.name} index={index}/>
       {labelPosition === 'top' ? (
         <div className="flex-1 min-w-0 flex flex-col">
@@ -410,10 +382,6 @@ const RowList: React.FC<{children: React.ReactNode}> = ({children}) => {
     // In a frame layout the rows keep their size; only when they alone are taller than the frame
     // do they scroll inside it (owner decision, 2026-11-01).
     <div className="w-full stage:min-h-0 stage:overflow-y-auto stage:overflow-x-hidden" data-dragging={dragging || undefined}>
-      {/* Each row's grip hangs off its left edge, in the page space beside the list: 24 px in a
-          28 px gutter, a 44 px column on touch screens. Where the page leaves less space than that
-          beside the list (phones, narrow windows), the rows move in by what is missing. In a frame
-          layout the grip is a column inside the row (components/RowHandle.tsx). */}
       <div className="border-t border-black/10 dark:border-white/10 [--row-gutter:28px] pointer-coarse:[--row-gutter:44px] ml-[max(0px,calc(var(--row-gutter)-(100vw-100%)/2))] stage:ml-0">
         {children}
       </div>
@@ -440,7 +408,6 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImages
 
   const handleItemMove = useCallback((move: ItemMove) => moveItem(move.from, move.to), [moveItem]);
   const listIndexOf = useMemo(() => new Map(tiers.map((tier, index) => [tier.id, index])), [tiers]);
-  // The grip moves the whole row (its name too); the stack moves only the items (the names stay).
   const handleRowMove = useCallback((move: RowMove) => moveRow(move.from, move.to), [moveRow]);
   const handleRowItemsMove = useCallback((move: RowMove) => moveTier(move.from, move.to), [moveTier]);
 

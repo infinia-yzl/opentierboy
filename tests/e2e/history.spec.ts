@@ -11,17 +11,7 @@ import {serveImageSite} from '../support/image-sites';
 const TANKS = '/rank/overwatch/tank';
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
-/**
- * Product rule: the browser history is the undo feature.
- *
- * Every change to the list writes a new link into the address bar as a new history
- * entry, so the browser Back button steps back to the previous version of the list, one
- * change at a time. This is intended. Do not change the app to replace history entries.
- * The editor writes the entry itself, in the event of the change (history.pushState), and asks
- * nothing of the server.
- */
 test.describe('history', () => {
-  /** Back right after a change, and leaving right after one: the entry is written in the change's own event. */
   test.describe('Back', () => {
     test('writes the change as its own history entry when the user goes Back right after it', async ({tierList, site, page}) => {
       await site.goto('/about');
@@ -30,7 +20,6 @@ test.describe('history', () => {
       const entries = await tierList.historyLength();
 
       await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
-      // Back at once, before the page has done anything more, on purpose.
       await tierList.goBackNow();
 
       await expect(page).toHaveURL(opened);
@@ -53,10 +42,6 @@ test.describe('history', () => {
     });
   });
 
-  /**
-   * Quick changes each get their own history entry (A44): the editor writes each one in its own
-   * event, and the router catching up with them later merges none.
-   */
   test.describe('quick changes', () => {
     test('writes 1 history entry per move when the user makes 3 quick keyboard moves', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
@@ -162,8 +147,6 @@ test.describe('history', () => {
    * Forward inside the editor keep the settings on screen.
    */
   test.describe('label settings', () => {
-    // On a list opened from a link, the history model checks the same with the keyboard. A
-    // template page has no state parameter until the first setting.
     test('writes no history entry when the user chooses Top and Hide Labels with the mouse on a template page', async ({tierList, page}) => {
       await tierList.goto(TANKS);
       const entries = await tierList.historyLength();
@@ -174,8 +157,6 @@ test.describe('history', () => {
       const withSettings = page.url();
       await tierList.drag.dragItemToTier('Winston', 'A');
 
-      // Back after the one change to the list goes straight back to the page as opened, whose
-      // link now holds the settings.
       await tierList.goBack();
       await expect(page).toHaveURL(withSettings);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
@@ -195,7 +176,6 @@ test.describe('history', () => {
       const withTop = page.url();
 
       await tierList.goBack();
-      // Top rewrote the entry of the second change only (A3).
       await expect(page).toHaveURL(firstChange);
       await expect(tierList.itemsIn('A')).toHaveCount(0);
       await tierList.rows.openRowOptions();
@@ -230,34 +210,19 @@ test.describe('history', () => {
 
   });
 
-  /**
-   * The history machine (tests/machines/history.ts). Back and Forward are
-   * the browser's own buttons (page.goBack, page.goForward): product rule 2 makes the browser
-   * history the undo, for every visitor. The Zen bar's Back and Forward call the same history
-   * (components/useListSteps.ts), but only in Zen, which hides Row options and with them the
-   * label settings; zen.spec.ts checks them.
-   */
   test.describe('model', () => {
-    // One item in row S shows the label settings. Each change ranks the next Unranked item into
-    // row A, so version n of the list has n items in row A.
     const TRAY = ['Mauga', 'Winston', 'Sigma'];
     const LIST = rankingState('image-overwatch', {S: ['Reinhardt'], '': TRAY});
 
-    /** The history machine's events and checks, run on this test's page (modelSut). */
     const historySut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      /** The address of the list as opened (version 1), and the history entries then. */
       let opened = '';
       let entries = 0;
-      /** The address of each version, by version - 1, as the step that wrote it left it. */
       let addresses: string[] = [];
-      /** True when the last step wrote the address of the version on screen: a change or a label setting. */
       let wrote = false;
-      /** Runs a step, and notes whether it writes the address of the version on screen. */
       const step = (writes: boolean, act: () => Promise<void>) => async () => {
         wrote = writes;
         await act();
       };
-      /** The item ids in row A of a link. The list as opened has a link of an older format, with none. */
       const rowAIn = (link: string): unknown => {
         if (link === opened) return [];
         const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
@@ -280,14 +245,9 @@ test.describe('history', () => {
           HIDE_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(false)),
           SHOW_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(true)),
         },
-        // Web-first checks, no read(): after Back or Forward the address changes before the list
-        // on screen does, so one read could still see the version before.
         states: {
           '*': async (_page, snapshot) => {
-            // Version 1 is the list as opened; each later version ranks one more item into row A.
             const {version, versions, labelPosition, itemLabels} = historyViewOf(snapshot);
-            // Every row, by name, with its items by name (the item labels may be hidden): a
-            // change moves only the item it ranks, and Back and Forward move nothing else.
             const rows: Readonly<Record<string, readonly string[]>> = {
               S: ['Reinhardt'], A: TRAY.slice(0, version - 1), B: [], C: [], F: [], Unranked: TRAY.slice(version - 1),
             };
@@ -297,14 +257,10 @@ test.describe('history', () => {
             }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
             await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
-            // The address holds the version on screen. The label settings rewrite it in place.
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));
-            // Back and Forward return to exactly the address each version had; Forward on the
-            // latest version leaves it as it is.
             if (wrote) addresses[version - 1] = page.url();
             else await expect(page, `the address of version ${version}`).toHaveURL(addresses[version - 1]);
-            // One history entry per version: a change after Back drops the later ones.
             await expect.poll(() => tierList.historyLength(), {message: `the tab's history should hold ${versions} versions`})
               .toBe(entries + versions - 1);
           },
@@ -325,22 +281,14 @@ test.describe('history', () => {
     }
   });
 
-  /**
-   * The leaving machine (tests/machines/leaving.ts): the visitor clicks the logo link to Home, with
-   * or without a change right before. The test holds the server's answer for Home from before the
-   * list opens (holdTripHome), and HOME_ANSWERS releases it. CHANGE_LIST moves the first Unranked
-   * item up into row F with the keyboard.
-   */
   test.describe('model: leaving', () => {
     const LEAVE_TRAY = ['Mauga', 'Winston'];
     const LEAVE_LIST = rankingState('image-overwatch', {'': LEAVE_TRAY});
     const DROPPED = 'https://i.imgur.com/red.png';
     const DROPPED_NAME = 'red';
 
-    /** The leaving machine's events and checks, run on this test's page (modelSut). */
     const leavingSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let trip: {release: () => Promise<void>} | null = null;
-      /** The address of the list as opened (version 1), and the history entries then. */
       let opened = '';
       let entries = 0;
       const releaseTrip = async () => {
@@ -351,8 +299,6 @@ test.describe('history', () => {
       const sut = modelSut<LeavingSnapshot, LeavingEvent>(page, {
         reset: async () => {
           await releaseTrip();
-          // The editor asks for Home as soon as the logo shows, so the trip is held before it
-          // opens, and after the page before has gone, so that page's late asks pass.
           await tierList.openAfterBlankPage(TANKS, LEAVE_LIST, {onBlankPage: async () => {
             trip = await tierList.holdTripHome();
           }});

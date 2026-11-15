@@ -188,8 +188,6 @@ test.describe('editor layout', () => {
 
       await tierList.rows.openRowOptions();
       await expect(tierList.rows.rowOption('Hide Labels')).toHaveAttribute('aria-checked', 'true');
-      // The open menu hides the page from role queries, so the caption is checked after it closes.
-      // A Compact tile keeps its name in a hidden tooltip, so the caption is hidden, not gone.
       await tierList.pressKey('Escape');
       await expect(tierList.rowOptionsButton).toHaveAttribute('aria-expanded', 'false');
       await expect(tierList.itemCaption('Reinhardt')).toBeHidden();

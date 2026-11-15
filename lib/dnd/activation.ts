@@ -1,19 +1,3 @@
-/**
- * When a press turns into a drag. Pure rules and a small state machine (a reducer over plain
- * data); lib/dnd/dndKit.ts turns them into dnd-kit activation constraints.
- *
- * - Mouse: the drag starts after the pointer moves MOUSE_DRAG_DISTANCE pixels with the button
- *   down, as with @hello-pangea/dnd today. A click stays a click; a right click opens the
- *   item menu.
- * - Touch and pen on an item: hold still for TOUCH_HOLD_MS, then move to drag. Moving earlier
- *   scrolls the page. Holding still until CONTEXT_MENU_LONG_PRESS_MS opens the item's menu
- *   (Radix ContextMenu, "Delete"), and then the press no longer starts a drag. So long-press
- *   delete and hold-to-drag share one gesture without fighting.
- * - Touch and pen on a row handle (a grip or a stack): hold still for TOUCH_HOLD_MS and the drag starts (the
- *   handle has no menu).
- *
- * The timings are constants for the owner to try on a phone.
- */
 
 /** Pixels the mouse moves with the button down before a drag starts. */
 export const MOUSE_DRAG_DISTANCE = 5;

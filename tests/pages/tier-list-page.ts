@@ -19,11 +19,6 @@ export interface Size {
   height: number;
 }
 
-/**
- * The buttons in a row that are not items: the grip ("Move row S", "Move Row 4"), the stack ("Move
- * the 3 items of row S"; an empty row has none), the tray's "Add images to" tile and the
- * Template, Upload and Link buttons of an empty list's drop area.
- */
 const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images\b|(?:Template|Upload|Link)$)/;
 
 const NOT_A_TIP_BUTTON = /^(?!(?:Hide tips|Close tip)$)/;
@@ -36,43 +31,12 @@ export const SCRIPTED_PASTE_SKIP = 'Firefox drops the files of a paste event mad
 /** WebKit refuses page.goto() of a blob: URL in a new tab, which openImageInNewTab needs. */
 export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a new tab.';
 
-/** A request the page sent, as recordRequests() keeps it. */
 export interface SentRequest {
   method: string;
   url: string;
   body: Buffer;
 }
 
-/**
- * Page object for the tier list editor at /rank/...
- *
- * Locators follow https://playwright.dev/docs/locators#quick-guide: they use roles and
- * accessible names, the same handles that a screen-reader user relies on.
- *
- * - A tier row is a `group` named after its label. The unnamed last row is "Unranked", another
- *   row without a label is "Row <n>", its position.
- * - An item is a `button` named after its label (it is the drag handle as well).
- * - Each ranked row has two handles: its grip, a `button` named "Move row <label>" ("Move Row 4"
- *   for a row without a label), which moves the whole row; and its stack, a `button` named "Move
- *   the 3 items of row <label>", which moves only the items. An empty row has no stack.
- *
- * This object is the core of the editor: opening it, Back and Forward, the rows and items, the
- * title, menus, toasts and the buttons that are always on screen. Each area of the editor has its
- * own page object beside this file, reached through a property, so specs read
- * `tierList.zen.chooseLayout('16:9')`:
- *
- * - `rows` (rows.ts): row names, the Row options menu, adding and removing rows.
- * - `items` (editor-items.ts): the Add images menu, the template picker, Reset, Remove All, Delete
- *   and their toasts with Undo.
- * - `drag` (drag-and-drop.ts): mouse, keyboard and touch drags of items and rows.
- * - `linkImages` (link-images.ts): images from web addresses and the notice about other sites.
- * - `deviceImages` (device-images.ts): pictures from the device and the device image store.
- * - `files` (snapshot-files.ts): opening snapshot files and "Open the list in this file?".
- * - `share` (share-panel.ts): the share panel and Freeze Frame.
- * - `zen` (zen.ts): the Zen bar, the ranking order and the creator layouts.
- *
- * What the areas share lives in helpers.ts and toasts.ts.
- */
 export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
@@ -94,21 +58,13 @@ export class TierListPage {
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
   readonly zenModeToggle: Locator;
-  /** Row names, the Row options menu, adding and removing rows (rows.ts). */
   readonly rows: Rows;
-  /** Adding, removing and resetting items (editor-items.ts). */
   readonly items: EditorItems;
-  /** Drag and drop of items and rows (drag-and-drop.ts). */
   readonly drag: DragAndDrop;
-  /** Images from web addresses (link-images.ts). */
   readonly linkImages: LinkImages;
-  /** Pictures from the device, kept in this browser (device-images.ts). */
   readonly deviceImages: DeviceImages;
-  /** Opening snapshot files (snapshot-files.ts). */
   readonly files: SnapshotFiles;
-  /** The share panel and Freeze Frame (share-panel.ts). */
   readonly share: SharePanel;
-  /** Zen and its creator layouts (zen.ts). */
   readonly zen: Zen;
 
   constructor(page: Page) {
@@ -138,7 +94,6 @@ export class TierListPage {
     this.zen = new Zen(this);
   }
 
-  // ---- Opening the editor, Back and Forward -------------------------------------------------
 
   async goto(path: string, state?: string) {
     await this.page.goto(state ? `${path}?state=${state}` : path, UNTIL_STARTED);
@@ -162,7 +117,6 @@ export class TierListPage {
     }).toBe(true);
   }
 
-  /** The message Next.js shows instead of the page when the page crashed in the browser. */
   get crashMessage(): Locator {
     return this.page.getByRole('heading', {name: /Application error/});
   }
@@ -172,31 +126,16 @@ export class TierListPage {
     await this.ready();
   }
 
-  /**
-   * Reloads the page and returns once it has loaded, without waiting for the editor: for a
-   * speed budget that times what the page shows after the reload.
-   */
   async reloadNow() {
     await this.page.reload();
   }
 
-  /**
-   * Opens a list as a new history entry after a blank page, so no history entry follows it.
-   * Opening the address already on screen would replace its entry and keep the entries after it,
-   * from an earlier visit; the blank page in between drops them.
-   */
   async openAfterBlankPage(path: string, state: string, {onBlankPage}: {onBlankPage?: () => Promise<void>} = {}) {
     await this.page.goto('about:blank');
-    // Here the page before has gone, so it sends nothing more: a hold set up now holds only
-    // what the new page asks for.
     await onBlankPage?.();
     await this.goto(path, state);
   }
 
-  /**
-   * Opens a list as a new browser would: this site's local storage (the always-allowed image
-   * sites among it) is cleared on a blank page first. Context-wide init scripts run again.
-   */
   async openAsNewBrowser(path: string, state: string) {
     await this.page.goto('about:blank');
     await this.page.context().setStorageState({cookies: [], origins: []});
@@ -252,11 +191,6 @@ export class TierListPage {
     return this.page.evaluate(() => window.history.length);
   }
 
-  /**
-   * Starts counting the history entries this page adds from now on (history.pushState calls: the
-   * editor makes one per change, and Next.js one per router.push). Browsers keep at most 50
-   * entries, so history.length cannot count more. Returns a function that reads the count.
-   */
   async countNewHistoryEntries(): Promise<() => Promise<number>> {
     await this.page.evaluate(() => {
       const counted = window as unknown as {newHistoryEntries: number};
@@ -276,30 +210,19 @@ export class TierListPage {
     return this.page.url();
   }
 
-  /** The logo link to Home in the page's banner. */
   get homeLink(): Locator {
     return this.page.getByRole('banner').getByRole('link', {name: 'OpenTierBoy'});
   }
 
-  /** Leaves the editor for the landing page with the site's logo link in the header. */
   async leaveForHome() {
     await this.homeLink.click();
     await expect(this.page).toHaveURL(/^[^?]*\/$/);
   }
 
-  /**
-   * Clicks the logo link to Home while the trip home may wait for a held server answer
-   * (holdTripHome). Returns once the click is made, without waiting for Home.
-   */
   async clickHomeNow() {
     await this.homeLink.click();
   }
 
-  /**
-   * Holds the server's answers for Home (its prefetch too) until `release`, so a test can act
-   * while the visitor's trip home still loads. Call it before the editor opens: the editor
-   * prefetches Home as soon as the logo shows.
-   */
   async holdTripHome(): Promise<{release: () => Promise<void>}> {
     let open!: () => void;
     const released = new Promise<void>((resolve) => {
@@ -320,19 +243,15 @@ export class TierListPage {
       release: async () => {
         open();
         await Promise.all(handled);
-        // After a failed or timed-out test the page may be closed already: then there is
-        // nothing left to unroute, and an error here would hide the test's own.
         if (!this.page.isClosed()) await this.page.unroute('**/*', handler);
       },
     };
   }
 
-  /** Closes this page's browser context, as closing a browser window does. */
   async closeBrowser() {
     await this.page.context().close();
   }
 
-  // ---- Rows and items -----------------------------------------------------------------------
 
   tier(name: string): Locator {
     return this.main.getByRole('group', {name, exact: true});
@@ -342,29 +261,19 @@ export class TierListPage {
     return this.tier('Unranked');
   }
 
-  /** A tier's label: the row's h2 heading. */
   tierLabel(tierName: string): Locator {
     return this.tier(tierName).getByRole('heading', {level: 2});
   }
 
-  /** A row's grip, beside the row: it moves the whole row, its name included. */
   rowGrip(tierName: string): Locator {
     return this.main.getByRole('button', {name: `Move ${rowPhrase(tierName)}`, exact: true});
   }
 
-  /**
-   * A row's stack, at the row's end: it moves only the row's items; the names stay in place. An
-   * empty row has nothing to move, so its stack is hidden: this finds nothing then.
-   */
   rowStack(tierName: string): Locator {
     const phrase = escapeRegExp(rowPhrase(tierName));
     return this.main.getByRole('button', {name: new RegExp(`^Move the \\d+ items? of ${phrase}$`)});
   }
 
-  /**
-   * All items in a tier, in display order. Not items: the row's grip and stack, the tray's "Add
-   * images to Unranked" tile, and the Template, Upload and Link buttons of an empty list's drop area.
-   */
   itemsIn(tier: string | Locator): Locator {
     const row = typeof tier === 'string' ? this.tier(tier) : tier;
     return row.getByRole('button', {name: NOT_AN_ITEM});
@@ -374,32 +283,19 @@ export class TierListPage {
     return this.main.getByRole('button', {name, exact: true});
   }
 
-  /** An item, by its label, in a tier. */
   itemIn(tier: string | Locator, name: string): Locator {
     const row = typeof tier === 'string' ? this.tier(tier) : tier;
     return row.getByRole('button', {name, exact: true});
   }
 
-  /**
-   * Every item tile in the rows and the Unranked tray (in Zen, the item up next). The queue
-   * after the item up next is a list of pictures, not items to drag.
-   */
   get allItems(): Locator {
     return this.itemsIn(this.tiers);
   }
 
-  /**
-   * The names of a row's items, in order: their accessible names, so a label tile counts by its
-   * label without the site name it also shows.
-   */
   async itemNamesIn(tierName: string): Promise<string[]> {
     return this.itemsIn(tierName).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
   }
 
-  /**
-   * The lines of a row's items, top to bottom, each a list of item names, read from where the
-   * items are on screen. A row wraps onto a new line when its items do not fit.
-   */
   async itemLines(tierName: string): Promise<string[][]> {
     const items = this.itemsIn(tierName);
     const boxes = await Promise.all((await items.all()).map(async (item) => ({
@@ -410,7 +306,6 @@ export class TierListPage {
     return tops.map((top) => boxes.filter((box) => box.top === top).map((box) => box.name));
   }
 
-  /** The colour of each ranked row from top to bottom (its gradient), as computed CSS. */
   async rowColours(): Promise<string[]> {
     const rows = await this.tiers.all();
     const colours = await Promise.all(rows.slice(0, -1).map((row) => row.evaluate((element) => getComputedStyle(element).backgroundImage)));
@@ -431,50 +326,36 @@ export class TierListPage {
     }
   }
 
-  /** An item's image. An item without an image (a label tile) has none. */
   itemImage(name: string): Locator {
     return this.item(name).getByRole('img');
   }
 
-  /** The images of every tile in the rows and the Unranked tray, the item up next and the queue included. */
   get allItemImages(): Locator {
     return this.tiers.getByRole('img');
   }
 
-  /** The picture of an item's tile: 80 px wide with Comfortable tiles, 48 px with Compact. */
   itemPicture(name: string): Locator {
     return this.item(name).getByRole('img');
   }
 
-  /** The name a Compact tile shows under itself, with Show Labels on. */
   itemCaption(name: string): Locator {
     return this.item(name).getByText(name, {exact: true});
   }
 
-  /** The name tag that a Compact tile shows under itself on hover or keyboard focus. */
   itemNameTag(name: string): Locator {
     return this.item(name).getByRole('tooltip');
   }
 
-  /** Moves the mouse over an item. */
   async hoverItem(name: string) {
     await this.item(name).hover();
   }
 
-  /**
-   * Scrolls an item into view (tile images load lazily) and tells whether its image has
-   * loaded. Use it with expect.poll().
-   */
   async itemImageHasLoaded(name: string): Promise<boolean> {
     const image = this.itemImage(name);
     await image.scrollIntoViewIfNeeded();
     return image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0);
   }
 
-  /**
-   * The colour at the centre of an item's image as red, green and blue (0 to 255), or null
-   * while the image has not loaded. Scrolls the item into view first (images load lazily).
-   */
   async itemImageCenterColor(name: string): Promise<[number, number, number] | null> {
     const image = this.item(name).getByRole('img');
     await image.scrollIntoViewIfNeeded();
@@ -490,10 +371,6 @@ export class TierListPage {
     });
   }
 
-  /**
-   * Scrolls an item into view and tells whether its tile shows the loaded placeholder image (an
-   * unknown item, or a device image this browser does not have). Use it with expect.poll().
-   */
   async itemShowsPlaceholder(name: string): Promise<boolean> {
     const image = this.itemImage(name);
     if ((await image.count()) === 0) return false;
@@ -503,7 +380,6 @@ export class TierListPage {
     ));
   }
 
-  // ---- The title row ------------------------------------------------------------------------
 
   async setTitle(newTitle: string) {
     await changeAndWaitForLink(this.page, async () => {
@@ -522,76 +398,58 @@ export class TierListPage {
     return input;
   }
 
-  /** Every open text box in the editor (title and labels). */
   get openTextBoxes(): Locator {
     return this.main.getByRole('textbox');
   }
 
-  /** The h1 headings of the page. The list title is the only one. */
   get pageHeadings(): Locator {
     return this.page.getByRole('heading', {level: 1});
   }
 
-  /** The buttons in the title row's tools, in order. */
   get editorToolButtons(): Locator {
     return this.editorTools.getByRole('button');
   }
 
-  /** One button in Editor tools, by its name. */
   editorToolButton(name: string): Locator {
     return this.editorTools.getByRole('button', {name, exact: true});
   }
 
-  // ---- Menus --------------------------------------------------------------------------------
 
-  /** A menu item in the open menu, by its name (the item menu, Add images, Row options). */
   menuItem(name: string): Locator {
     return this.page.getByRole('menuitem', {name});
   }
 
-  /** A choice of the open menu that is a radio item, such as a ranking order or a layout. */
   menuItemRadio(name: string): Locator {
     return this.page.getByRole('menuitemradio', {name, exact: true});
   }
 
-  /** A choice of the open menu that is a check box, such as "Hide the queue". */
   menuItemCheckbox(name: string): Locator {
     return this.page.getByRole('menuitemcheckbox', {name, exact: true});
   }
 
-  /** The items of an open menu, whatever their kind (radio, check box or plain item), in order. */
   menuItems(menu: Locator): Locator {
     return menu.getByRole('menuitemradio').or(menu.getByRole('menuitemcheckbox')).or(menu.getByRole('menuitem'));
   }
 
-  /** The open menu (the Add images menu, an item menu, Row options). */
   get openMenu(): Locator {
     return this.page.getByRole('menu');
   }
 
-  /** Every open menu, also one that another open menu hides from assistive technology. */
   get openMenus(): Locator {
     return this.page.getByRole('menu', {includeHidden: true});
   }
 
-  /**
-   * Closes the open menu, and its open submenu, with Escape: the first Escape closes them all.
-   * A menu must be open.
-   */
   async closeMenus() {
     await expect(this.openMenus.first(), 'a menu should be open to close').toBeVisible();
     await this.page.keyboard.press('Escape');
     await expect(this.openMenus).toHaveCount(0);
   }
 
-  // ---- Toasts -------------------------------------------------------------------------------
 
-  /** A toast notification that contains the given text, in Sonner's region "Notifications". */
   toast(text: string | RegExp): Locator {
     return toasts(this.page).filter({hasText: text});
   }
 
-  /** The toast with this title whose text also names `detail`, such as a file name. */
   toastAbout(text: string | RegExp, detail: string): Locator {
     return this.toast(text).filter({hasText: detail});
   }
@@ -600,40 +458,23 @@ export class TierListPage {
     await this.toast(text).getByRole('button', {name: 'Undo'}).click();
   }
 
-  /**
-   * Rests the pointer on a message (a toast) once it shows, and waits until the toasts have
-   * expanded under it: Sonner holds every toast's 4 s timer while they are expanded, so the
-   * message stays until the pointer moves. A paste or a drop that a test sends leaves the pointer
-   * where it is. Not over a dialog: the dialog makes the page ignore the pointer.
-   */
   async restOnMessage(message: Locator) {
     await expect(message).toBeVisible();
     await message.hover();
     await expect(message).toHaveAttribute('data-expanded', 'true');
   }
 
-  // ---- Keys, pointer and page time ----------------------------------------------------------
 
-  /** Presses a key, such as Tab or Shift+Tab, wherever the focus is. */
   async pressKey(key: string) {
     await this.page.keyboard.press(key);
   }
 
-  /**
-   * Presses Escape with the focus on the list. After a menu choice the focus is on the menu's
-   * button, whose tooltip would take the first Escape (zen-layouts.spec.ts), so the focus leaves
-   * the button first, and the tooltip closes.
-   */
   async pressEscapeOnList() {
     await this.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await expect(this.page.getByRole('tooltip')).toHaveCount(0);
     await this.page.keyboard.press('Escape');
   }
 
-  /**
-   * Gives an element focus as the keyboard does, so it shows its focus ring (:focus-visible):
-   * focus the element before it, then Tab.
-   */
   async focusWithKeyboard(element: Locator) {
     await element.focus();
     await this.page.keyboard.press('Shift+Tab');
@@ -641,51 +482,39 @@ export class TierListPage {
     await expect(element).toBeFocused();
   }
 
-  /** Moves the mouse to a point of the window and leaves it there. */
   async restMouseAt(x: number, y: number) {
     await this.page.mouse.move(x, y);
   }
 
-  /** Moves the page clock on by `ms` (`pageClock`), and lets the page handle what those timers started. */
   async letTimePass(ms: number) {
     await runPageClock(this.page, ms);
   }
 
-  // ---- Measuring the page -------------------------------------------------------------------
 
-  /** The font size of an element in pixels, as the browser computes it. */
   async fontSize(element: Locator): Promise<number> {
     return element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
   }
 
-  /** The content of a meta tag in the page head, such as og:title. Meta tags have no role, so this is the one CSS selector. */
   metaTag(property: string): Locator {
     return this.page.locator(`meta[property="${property}"]`);
   }
 
-  /** The size of an element on screen, in CSS pixels, rounded. */
   async sizeOf(locator: Locator): Promise<Size> {
     const box = await locator.boundingBox();
     if (!box) throw new Error('The element is not on screen');
     return {width: Math.round(box.width), height: Math.round(box.height)};
   }
 
-  /** True when the box of `inner` lies within the box of `outer` on screen (to the nearest pixel). */
   async isInside(inner: Locator, outer: Locator): Promise<boolean> {
     const [a, b] = await Promise.all([boxOf(inner), boxOf(outer)]);
     return Math.round(a.x) >= Math.round(b.x) && Math.round(a.y) >= Math.round(b.y)
       && Math.round(a.x + a.width) <= Math.round(b.x + b.width) && Math.round(a.y + a.height) <= Math.round(b.y + b.height);
   }
 
-  /** The text the user has selected on the page. */
   async selectedText(): Promise<string> {
     return this.page.evaluate(() => String(window.getSelection()));
   }
 
-  /**
-   * The computed user-select and -webkit-touch-callout of an element. A browser that does not
-   * know the callout (all but Safari) returns ''; WebKit names user-select with its prefix.
-   */
   async textSelectionStyle(element: Locator): Promise<{userSelect: string; callout: string}> {
     return element.evaluate((node) => {
       const computed = getComputedStyle(node);
@@ -696,7 +525,6 @@ export class TierListPage {
     });
   }
 
-  // ---- Storage and safety checks ------------------------------------------------------------
 
   /**
    * Stores a localStorage value before the next page load, once, as an earlier visit would have.

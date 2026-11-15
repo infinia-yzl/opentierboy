@@ -36,26 +36,6 @@ import type {ItemLike, ItemMove, RowMove, TierLike} from './model';
 import {findItem, moveItem, reorderRows} from './moves';
 import {itemMoveFromPreview, moveRowInPreview, previewItemOver, previewRowOver, previewStackOver, rowMoveFromPreview} from './preview';
 
-/**
- * The React side of the drag and drop adapter. Components use these and never import dnd-kit.
- *
- *   <TierDragDrop tiers={tiers} onItemMove={...} onRowMove={...} onRowItemsMove={...} itemLabel={...}>
- *     {(shownTiers) => shownTiers.map((tier, index) => <Row .../>)}
- *   </TierDragDrop>
- *
- * - useTierRow: a row, sortable by its grip: the whole row moves, its name included.
- * - useTierStack: a row's stack, the handle that moves only the row's items (the names stay).
- * - useTierItems: the item area of a row, which takes items over its free space (and when the
- *   row is empty).
- * - DraggableTierItem: an item tile, sortable inside and between rows, keyed by its item id.
- *
- * The list changes only on drop (history is the undo, product rule 2). During a drag the rows
- * render a preview, a copy of the list that follows the pointer or the arrow keys
- * (lib/dnd/preview.ts). React draws every move; dnd-kit's optimistic sorting, which moves
- * elements behind React's back, is not used. On drop TierDragDrop calls onItemMove, onRowMove
- * or onRowItemsMove once, and only when something moved, so a drop where the drag started adds
- * no history entry.
- */
 
 /** dnd-kit's own aria-roledescription for draggables (its Accessibility plugin), which item tiles render themselves. */
 const DRAGGABLE_ROLE_DESCRIPTION = 'draggable';
@@ -63,12 +43,10 @@ const DRAGGABLE_ROLE_DESCRIPTION = 'draggable';
 /** No per-sortable dnd-kit plugins: no optimistic sorting (React draws the preview) and no sortable keyboard plugin (DragMoves). */
 const NO_SORTABLE_PLUGINS: never[] = [];
 
-/** What a drag moves: an item, a whole row (its grip), or only a row's items (its stack). */
 export type TierDragKind = 'item' | 'row' | 'stack';
 
 interface Drag<T extends TierLike> {
   kind: TierDragKind;
-  /** The app id of the dragged item, or the tier id of the dragged row or stack. */
   id: string;
   /** The dnd-kit id of the dragged item or row. */
   dndId: string;
@@ -89,25 +67,19 @@ interface Projection<T> {
  */
 const TierDragDescriptionContext = createContext<string>('');
 
-/** The last drop that moved something: which row to wash briefly, and a count that restarts the wash. */
 export interface TierDropSettled {
   kind: TierDragKind;
-  /** The tier id of the row (row and stack drags) or of the row the item landed in. */
   tierId: string;
-  /** Counts the drops, so the same row moved twice washes twice. */
   count: number;
 }
 
 interface TierDragTargetState {
   /** The tier id of the row that holds the dragged item in the preview, during an item drag. */
   itemTargetTierId: string | null;
-  /** True during a row drag (by the grip or the stack). */
   rowDrag: boolean;
-  /** The tier id of the row whose stack is dragged: its items wait, faded, where they would land. */
   stackTierId: string | null;
   /** True during any drag, from pick-up to drop. */
   dragging: boolean;
-  /** The last drop that moved something, or null. */
   settled: TierDropSettled | null;
 }
 
@@ -119,9 +91,7 @@ export interface TierDragDropProps<T extends TierLike> {
   tiers: T[];
   /** One item moved (on drop, only when it moved). `to.index` counts the target row after the move. */
   onItemMove: (move: ItemMove) => void;
-  /** A whole row moved by its grip (on drop, only when it moved). Apply it with moveRow: its name moves too. */
   onRowMove: (move: RowMove) => void;
-  /** Only the items of a row moved, by its stack (on drop, only when they moved). Apply it with reorderRows: the labels stay in place. */
   onRowItemsMove: (move: RowMove) => void;
   /** The name screen readers hear for an item. Default: its `content`. */
   itemLabel?: (item: T['items'][number]) => string;
@@ -172,7 +142,6 @@ function createDragSession<T extends TierLike>(id: string) {
     if (!drag.keyboard && (type === 'over' || drag.kind === 'item')) {
       // A pointer drag: a new target (dragover), or, for items, the pointer moving over the
       // same item (dragmove), since an item's place depends on the half of the item under the
-      // pointer. A row or a stack takes the place of the row it moves onto, once per new target.
       const pointer = (type === 'move' ? (event as DragMoveEvent).to : undefined) ?? manager.dragOperation.position.current;
       next = projectPointer(drag, before, event.operation.target, pointer.x);
     } else if (drag.keyboard && type === 'move' && latest === drawn) {
@@ -243,10 +212,6 @@ function createDragSession<T extends TierLike>(id: string) {
       if (drag.keyboard) keyboardMoveManager = manager;
       return latest;
     },
-    /**
-     * The drag ends: on a drop that moved something, one onItemMove, onRowMove or onRowItemsMove.
-     * Returns what moved (the row to wash), or null.
-     */
     end(event: DragEndEvent, manager: DragDropManager): {kind: TierDragKind; tierId: string} | null {
       let moved: {kind: TierDragKind; tierId: string} | null = null;
       if (drag && latest && !endedWithoutDrop(event, manager)) {
@@ -410,10 +375,8 @@ function projectKey<T extends TierLike>(drag: Drag<T>, before: T[], event: DragM
   if (!direction) return before;
   if (drag.kind === 'row' || drag.kind === 'stack') {
     const from = before.findIndex(tier => tier.id === drag.id);
-    // The ranked rows only: Unranked, the last row, is a fixed tray (lib/dnd/moves.ts).
     const to = keyboardRowTarget(from, direction, before.length - 1);
     if (to === null) return before;
-    // A row moves with its name; a stack moves only the items, and the names stay in place.
     return drag.kind === 'row' ? moveRowInPreview(before, from, to) : reorderRows(before, from, to);
   }
   const from = findItem(before, drag.id);
@@ -490,18 +453,8 @@ const itemCollisions: CollisionDetector = (input) => {
   return overAnotherArea ? null : collision;
 };
 
-/** Rows take a row (its grip) and a row's stack (its items). */
 const ROW_ACCEPTS = [DND_TYPES.row, DND_TYPES.stack];
 
-/**
- * A tier row, sortable by its grip: the whole row moves, its name included. Put `ref` on the
- * row and `handleRef` on its grip. Rows are also where a row's stack (its items) lands.
- *
- * - isDragging: the row is lifted by its grip.
- * - itemsWaiting: the row holds the items of a dragged stack, which wait here, faded, until the drop.
- * - settled: the last drop moved this row ('row') or its items ('stack'), with a count that
- *   changes with every drop, for a brief wash.
- */
 export function useTierRow({tierId, index}: {tierId: string; index: number}) {
   const {ref, handleRef, isDragging} = useSortable({
     id: rowDndId(tierId),
@@ -517,12 +470,6 @@ export function useTierRow({tierId, index}: {tierId: string; index: number}) {
   return {ref, handleRef, isDragging, itemsWaiting: stackTierId === tierId, settled: ownSettle};
 }
 
-/**
- * A row's stack: the handle that moves only the row's items, to the place of another row (the
- * names stay in place, product rule 6). Put `ref` on the stack. An empty row's stack is off
- * (`disabled`). The stack is also a droppable that takes nothing: its place in the row (the
- * placeholder while it is lifted) is where a keyboard move brings it back.
- */
 export function useTierStack({tierId, disabled}: {tierId: string; disabled: boolean}) {
   const id = stackDndId(tierId);
   const {ref: draggableRef, isDragging} = useDraggable({id, type: DND_TYPES.stack, disabled});
@@ -617,8 +564,6 @@ function useTierItem({itemId, tierId, index}: {itemId: string; tierId: string; i
   const describedBy = useContext(TierDragDescriptionContext);
   const manager = useDragDropManager();
   const {draggable} = sortable;
-  // A keyboard move to another row draws the tile there as a new element, and focus would fall
-  // back to the page: the tile in its new place takes the focus, so a screen reader keeps it.
   useEffect(() => {
     if (!isDragging || !manager || !isKeyboardDrag(manager)) return;
     const element = draggable.handle ?? draggable.element;

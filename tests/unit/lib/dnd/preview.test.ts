@@ -93,7 +93,6 @@ describe('previewStackOver', () => {
     const preview = previewStackOver(tiers, 'tier-s', 'tier-b');
     expect(preview.map(tier => tier.name)).toEqual(['S', 'A', 'B', '']);
     expect(ids(preview)).toEqual(['tier-a:d', 'tier-b:', 'tier-s:abc', 'uncategorized:ef']);
-    // Over its own row again: nothing changes, so the preview settles.
     expect(previewStackOver(preview, 'tier-s', 'tier-s')).toBe(preview);
   });
 

@@ -47,7 +47,6 @@ test.describe('editor items', () => {
     test('renders the items from before the add when the user clicks Undo after adding a template set', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.items.addItemsFromTemplate('OVERWATCH', 'Tank');
-      // The pointer rests on the toast, so its 4 s timer waits for the Undo.
       await tierList.items.restOnToast('Items Added');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
 
@@ -260,21 +259,16 @@ test.describe('editor items', () => {
     });
   });
 
-  // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/add-from-template.ts
-  // walked through the Playwright adapter of @xstate/test.
   test.describe('model: templates', () => {
-    /** What a state shows: Unranked's images, the drop area or the tile, the picker's page and the toast. */
     const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
       await expect(tierList.toast('Items Added')).toHaveCount(view.toast === 'Items Added' ? 1 : 0);
       await expect(tierList.toast('No New Items')).toHaveCount(view.toast === 'No New Items' ? 1 : 0);
       if (view.toast === 'Items Added') await expect(tierList.items.undoButtonIn('Items Added')).toBeVisible();
       if (view.toast === 'No New Items') {
-        // Nothing was added, so there is nothing to undo.
         await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
         await expect(tierList.items.undoButtonIn('No New Items')).toHaveCount(0);
       }
       if (view.picker) {
-        // The open picker hides the page behind it from the accessibility tree, so only the picker is checked.
         await expect(tierList.items.templatePickerPage(view.picker)).toBeVisible();
         return;
       }
@@ -293,11 +287,6 @@ test.describe('editor items', () => {
       }
     };
 
-    /**
-     * The add-from-template machine's events and checks. Each run starts on a new empty list.
-     * Page time stands still (`pageTime: 'paused'`): a toast closes only in TOAST_TIMES_OUT, which
-     * checks that it closes after exactly 4 s (letToastTimeOut).
-     */
     const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
       pageTime: 'paused',
       reset: async () => {
@@ -331,29 +320,18 @@ test.describe('editor items', () => {
     }
   });
 
-  /**
-   * The remove-and-undo machine (tests/machines/remove-and-undo.ts): Delete, Reset and Remove
-   * All, the toasts' Undo, and Back and Forward after them. Each run makes one removal. Page
-   * time stands still (`pageTime: 'paused'`), so the toast stays over Back, Forward and Undo until
-   * TOAST_TIMES_OUT moves the pointer off and checks that it closes after exactly 4 s
-   * (letToastTimeOut).
-   */
   test.describe('model: removing', () => {
     const LIST = rankingState('image-overwatch', {S: [...OPENED_ROWS.S], A: [...OPENED_ROWS.A], '': [...OPENED_ROWS.Unranked]});
 
-    /** The items of each row, in order. */
     const expectRows = async (tierList: TierListPage, {rows}: RemoveAndUndoView) => {
       await expect(tierList.itemsIn('S')).toHaveText([...rows.S]);
       await expect(tierList.itemsIn('A')).toHaveText([...rows.A]);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText([...rows.Unranked]);
     };
 
-    /** The remove-and-undo machine's events and checks, run on this test's page (modelSut). */
     const removeAndUndoSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let opened = '';
-      /** The history entries when the list opened. */
       let entries = 0;
-      // The state on screen, as the last check saw it: Undo waits for a new link only where it changes the list.
       let onScreen: RemoveAndUndoSnapshot | null = null;
       const shown = () => {
         if (!onScreen) throw new Error('No state was checked yet');
@@ -378,7 +356,6 @@ test.describe('editor items', () => {
           BROWSER_FORWARD: () => tierList.goForward(),
           TOAST_TIMES_OUT: () => tierList.items.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
         },
-        // Web-first checks: after Back or Forward the address changes before the list on screen does.
         states: {
           '*': async (_page, snapshot) => {
             onScreen = snapshot;
@@ -386,11 +363,9 @@ test.describe('editor items', () => {
             if (view.asOpened) await expect(page).toHaveURL(opened);
             else await expect(page).not.toHaveURL(opened);
             await expect(tierList.items.removeAllDialog).toHaveCount(view.dialog ? 1 : 0);
-            // The dialog is modal: the rows behind it leave the accessibility tree until it closes.
             if (!view.dialog) await expectRows(tierList, view);
             if (view.toastWithUndo) await expect(tierList.items.undoButtonIn(view.toastWithUndo)).toBeVisible();
             else if (view.removalToast) await expect(tierList.toast(view.removalToast)).toHaveCount(0);
-            // One history entry for the removal, and one more for an Undo that put the list back.
             await expect.poll(() => tierList.historyLength(), {message: `the page should have added ${view.newEntries} history entries`})
               .toBe(entries + view.newEntries);
           },

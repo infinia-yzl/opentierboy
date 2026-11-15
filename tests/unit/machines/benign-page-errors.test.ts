@@ -1,7 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {ignoringBenignPageErrors} from '../../support/machines';
 
-/** A sut whose page oracle reports `messages` the way @xstate/test/playwright does. */
 function sutReporting(messages: readonly string[]) {
   return {
     create: async () => ({

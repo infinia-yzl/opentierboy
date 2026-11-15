@@ -61,10 +61,6 @@ interface EditableLabelProps {
   placeholder?: string;
   /** Shown while the text is empty (the Unranked tray's heading). A click edits from empty. */
   emptyText?: string;
-  /**
-   * Shown faintly while the text is empty, and its name for screen readers: a row without a name
-   * shows its position, "Row 4" (owner decision, 2026-11-14). A click edits from empty.
-   */
   emptyHint?: string;
 }
 

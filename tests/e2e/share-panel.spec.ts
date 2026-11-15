@@ -73,7 +73,6 @@ test.describe('share panel', () => {
     }) => {
       await tierList.share.readCopiedText();
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
-      // The copy comes right after the moves: the share text is the list on screen (A46).
       for (const name of ['Mauga', 'Winston', 'Sigma']) {
         await tierList.drag.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
@@ -181,13 +180,8 @@ test.describe('share panel', () => {
   });
 
   test.describe('model', () => {
-    /** The note on one image from the device (components/ShareButton.tsx, LinkImageNotes). */
     const ONE_DEVICE_IMAGE_NOTE = '1 device image shows as a placeholder.';
 
-    /**
-     * A list as a link holds it (v3): the items of the rows above Unranked, all empty here, and
-     * Unranked's items, a device image as {d, c} with its local id left out.
-     */
     const listOfState = (state: string) => {
       const {r: rows} = v3LinkJson(`https://opentierboy.com${TANKS}?state=${state}`) as {r: unknown[][]};
       const itemsOf = (row: unknown[]) => (row.at(-1) as unknown[])
@@ -195,19 +189,13 @@ test.describe('share panel', () => {
       return {ranked: rows.slice(0, -1).flatMap((row) => itemsOf(row)), unranked: itemsOf(rows.at(-1)!)};
     };
 
-    /** The share panel machine's events and checks (modelSut). Each run opens the template with nothing copied. */
     const sharePanelSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let added = 0;
-      /** The template's items in Unranked, by id, as the run opened them. */
       let opened: string[] = [];
-      /** The names of the device images this run added, in order. */
       let deviceImages: string[] = [];
-      /** The file the last DOWNLOAD saved, until the next check reads it. */
       let downloaded: {name: string; buffer: Buffer} | null = null;
-      /** The list with the first `count` device images of this run, as a link holds it. */
       const expectedList = (count: 0 | 1) => ({ranked: [], unranked: [...opened, ...deviceImages.slice(0, count).map((c) => ({c}))]});
 
-      /** The panel, its tab and note, and the clipboard, as a state of the share panel machine shows them. */
       const expectSharePanel = async (view: SharePanelView) => {
         if (view.tab === null) {
           await expect(tierList.share.sharePanel).toBeHidden();
@@ -231,8 +219,6 @@ test.describe('share panel', () => {
           await expect.poll(() => tierList.share.clipboardText()).toBe('');
           return;
         }
-        // The link of the list as it was when Copy Markdown was clicked, from the editor's own
-        // copy of the list (A46): this page, written as a v3 link.
         const link = (await tierList.share.clipboardText()).match(/\]\((\S+)\)/)?.[1] ?? '';
         expect(link).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, page.url()).href)}\\?state=3\\.`));
         expect(listOfState(new URL(link).searchParams.get('state') ?? ''), 'the list in the copied link').toEqual(expectedList(view.clipboardDeviceImages));
@@ -261,8 +247,6 @@ test.describe('share panel', () => {
             await tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`${name}.png`)]);
             deviceImages.push(name);
           },
-          // The file holds the list the picture shows, which the check of DOWNLOAD's state reads
-          // from the machine: the picture, not the list on screen now (components/ShareButton.tsx).
           DOWNLOAD: async () => {
             downloaded = await tierList.share.downloadCapturedImage();
           },
@@ -291,7 +275,6 @@ test.describe('share panel', () => {
     for (const part of walkParts(sharePanelModel)) {
       test(`renders each state of the share panel machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
-        // Before the first page opens: Firefox and WebKit keep the copied text in the page.
         await tierList.share.readCopiedText();
         const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, sharePanelModel, coverage, part);

@@ -9,7 +9,6 @@ export type TipsSharedListEvent = EventFrom<typeof tipsSharedListMachine>;
 
 const seen = (...tips: TipId[]): ExpectedStoredTips => ({seen: tips, off: false});
 
-/** Each state of the shared-list machine, by its path, and what it shows. */
 const SHARED_LIST_VIEWS: Readonly<Record<string, TipsView>> = {
   'editor.sharedListTip': {shown: 'sharedList', stored: seen('shared-list')},
   'editor.linkSaveToast.afterSharedListTip': {shown: 'linkSave', stored: seen('first-drag', 'link-save', 'shared-list')},
@@ -22,7 +21,6 @@ const SHARED_LIST_VIEWS: Readonly<Record<string, TipsView>> = {
   about: {shown: null, stored: seen()},
 };
 
-/** What the page shows in a state of the shared-list machine. */
 export function sharedListViewOf(snapshot: TipsSharedListSnapshot): TipsView {
   const view = SHARED_LIST_VIEWS[statePath(snapshot.value)];
   if (!view) throw new RangeError(`No view for the shared-list state ${statePath(snapshot.value)}`);
@@ -32,13 +30,6 @@ export function sharedListViewOf(snapshot: TipsSharedListSnapshot): TipsView {
 const constant = fc.constant({});
 const inEditor = ({snapshot}: When) => snapshot.matches('editor');
 const toastShows = ({snapshot}: When) => snapshot.matches('editor.linkSaveToast');
-/**
- * The toast ends by itself after 10 s of real time: this campaign cannot install the page clock,
- * which hides the shared-list tip (see tips.spec.ts). The check of a state where the toast shows
- * rests the pointer on it, and Sonner holds it while the pointer is there. While the toast shows,
- * only what ends it (a click in it) or leaves the page is sent: another title change would move
- * the pointer off it.
- */
 const editsWithoutToast = (args: When) => inEditor(args) && !toastShows(args);
 
 export const tipsSharedListModel = defineModel({

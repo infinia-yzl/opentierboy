@@ -8,25 +8,11 @@ import type {MachineModel} from '../../support/machines';
 
 type StateNode = MachineModel['machine']['root'];
 
-/** Every state node of a machine, the root first. */
 const stateNodesOf = (node: StateNode): StateNode[] => [node, ...Object.values(node.states).flatMap(stateNodesOf)];
 
-/** The event types that any state of the machine declares in `on`. */
 const declaredEvents = (model: MachineModel) =>
   new Set(stateNodesOf(model.machine.root).flatMap((node) => Object.keys((node.config.on ?? {}) as object)));
 
-/**
- * Each file in tests/machines/ pastes into the Stately editor's Import Code as it is, and the
- * editor draws every arrow (tests/README.md, "Model-based tests"):
- * - the file holds only the machine: one import of createMachine, one exported machine;
- * - every transition is an object with a written-out target, never a function, as XState's
- *   agent guide asks when visual inspection matters (`analysis.transitionTargetsComplete`);
- * - the machine holds no code that a JSON export would leave out;
- * - the machine and each of its states say what they are (`description`), so the drawing explains
- *   itself; a history state is a pointer to another state and needs none;
- * - every event its model sends is declared in the machine, also an event that changes nothing
- *   (a transition without a target, with a description), so the drawing and EventFrom have it.
- */
 const machinesDir = path.join(process.cwd(), 'tests/machines');
 const files = fs.readdirSync(machinesDir).filter(name => name.endsWith('.ts')).sort();
 const SHAPE = /^import \{createMachine\} from 'xstate';\n\nexport const (\w+Machine) = createMachine\(\{\n[\s\S]*\n\}\);\n$/;

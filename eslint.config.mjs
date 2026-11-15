@@ -131,11 +131,6 @@ const GUARD_BYPASSES = [
   })),
 ];
 
-/**
- * Specs wait for what the visitor sees and find elements by role, with selectors kept in the page
- * objects (tests/README.md, "Writing tests"): no sleeps, no waiting for the network to go quiet,
- * and no CSS or XPath locators. Page objects and tests/support keep the few they need.
- */
 const SPEC_SYNTAX = [
   ...methodCall('/^waitForTimeout$/').map((selector) => ({
     selector,
@@ -277,7 +272,6 @@ export default defineConfig([
     ignores: ['tests/support/**', ...ZOD_FILES],
     rules: restrictSyntax(GUARD_BYPASSES),
   },
-  // Specs: also no sleeps, no 'networkidle' and no CSS locators (SPEC_SYNTAX).
   {
     files: ['tests/e2e/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
     rules: restrictSyntax([...GUARD_BYPASSES, ...SPEC_SYNTAX]),

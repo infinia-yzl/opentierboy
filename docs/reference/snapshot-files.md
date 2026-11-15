@@ -43,8 +43,8 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
     many files wait; the next file waits until the add is on screen. Waiting files are not added
     when Back or Forward shows another version of the list, or while a list file is being asked
     about or opened: a "Files not added" message names them. When the visitor leaves the editor
-    (a click on a link to another page), files that wait or arrive are dropped quietly until
-    the next click or key in the editor, so no add cancels that navigation.
+    (a click on a link to another page), waiting files are dropped quietly, so no later add
+    cancels that navigation. New files after the click are added, and the visitor stays.
   - A file with a list asks "Open the list in this file? Your current list stays one Back step
     away." Open list goes to the list with one new history entry: a list of this page opens in
     place (`history.pushState`, no request), a list of another template path is another page

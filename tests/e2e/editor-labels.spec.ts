@@ -30,7 +30,6 @@ test.describe('editor labels', () => {
 
       await tierList.setTitle('My tank picks');
       await expect(page).toHaveTitle('My tank picks');
-      // A long title is shortened in the tab, as in the page's metadata (A43).
       await tierList.setTitle(`Long ${'x'.repeat(120)}`);
       await expect(page).toHaveTitle(`Long ${'x'.repeat(94)}…`);
 
@@ -110,7 +109,6 @@ test.describe('editor labels', () => {
 
   test.describe('row settings', () => {
     test('renders items without captions when the user clicks Hide Labels in Row options in a short window', async ({tierList, page}) => {
-      // Row options is taller than this window: the menu must keep every choice within reach.
       await page.setViewportSize({width: 1280, height: 400});
       await tierList.goto(TANKS);
 

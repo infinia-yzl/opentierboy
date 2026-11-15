@@ -296,10 +296,6 @@ test.describe('tips', () => {
   });
 
   test.describe('model', () => {
-    /**
-     * The tip on screen (or none) and what `otb-tips` holds, in the editor or on About, as a state
-     * of a tips machine shows them. With tips off, only `off` is checked.
-     */
     const expectTips = async (tips: Tips, view: TipsView) => {
       const shown = {firstDrag: tips.firstDrag, linkSave: tips.linkSaveToast, deviceImages: tips.deviceImagesToast, sharedList: tips.sharedList};
       if (view.shown) await expect(shown[view.shown]).toBeVisible();
@@ -311,12 +307,6 @@ test.describe('tips', () => {
       }).toEqual(view.stored);
     };
 
-    /**
-     * The tips machine's events and checks (modelSut). Each run starts as a new browser on the
-     * template. Page time stands still (`pageTime: 'paused'`): a toast stays however long the
-     * steps take, also while the list changes under it, and closes only in TOAST_TIMES_OUT, which
-     * checks that it closes after exactly 10 s (letToastTimeOut).
-     */
     const tipsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       const tips = new Tips(page);
       let changes = 0;
@@ -345,7 +335,6 @@ test.describe('tips', () => {
       });
     };
 
-    /** The shared-list machine's events and checks. Each run starts as a new browser on the friend's link. */
     const sharedListSut = (tierList: TierListPage, site: SitePage, page: Page, testInfo: TestInfo) => {
       const tips = new Tips(page);
       let changes = 0;
@@ -387,10 +376,6 @@ test.describe('tips', () => {
       }
     });
 
-    // No page clock here, neither `pageClock` nor `pageTime: 'paused'`: Playwright's clock gives
-    // the page no navigation entry (performance.getEntriesByType('navigation') is empty), so the
-    // shared-list tip never shows. The pointer rests on the link-save toast instead (CHANGE_TITLE),
-    // which holds it while page time runs.
     for (const part of walkParts(tipsSharedListModel)) {
       test(`renders each state of the shared-list tip machine when the user walks every transition from a friend's link (${part.name})`, async ({tierList, site, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);

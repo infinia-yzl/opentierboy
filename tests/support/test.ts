@@ -36,12 +36,6 @@ type Fixtures = {
    * `test.use({tips: true})` (tests/e2e/tips.spec.ts): other tests check the page without them.
    */
   tips: boolean;
-  /**
-   * Installs Playwright's page clock before the first page opens, so a test can let a toast end
-   * by itself without waiting for it (tests/support/page-clock.ts). Off unless a test turns it on
-   * with `test.use({pageClock: true})`: the clock gives the page no navigation entry, which the
-   * shared-list tip needs (components/EditorTips.tsx).
-   */
   pageClock: boolean;
   tierList: TierListPage;
   site: SitePage;
@@ -63,24 +57,8 @@ type Fixtures = {
   externalRequests: string[];
   /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
-  /**
-   * Page errors (exceptions a page threw and nothing caught) that a test expects, besides the
-   * benign browser notices every test passes over. Set it with `test.use({allowedPageErrors: [...]})`.
-   */
   allowedPageErrors: RegExp[];
-  /**
-   * The page errors of every page this test opened (its own, openAsVisitor's and
-   * openInChromiumProfile's). After the test, any error that is neither a benign browser notice
-   * (BENIGN_PAGE_ERRORS, tests/support/machines.ts) nor in allowedPageErrors fails it.
-   */
   pageErrors: string[];
-  /**
-   * Reads, once, the Content Security Policy violations that the page reported in this test (the
-   * `securitypolicyviolation` events of every page load). It first waits until the page has
-   * started, then breaks the policy once on purpose (an <object>, which `object-src 'none'`
-   * blocks before any request) and waits for that report: reports arrive in order, so every
-   * earlier one has arrived too. The test's own report is left out of the list.
-   */
   cspViolations: () => Promise<string[]>;
 };
 
@@ -223,7 +201,6 @@ const guardedFetch = Object.assign((input: string | URL | Request, init?: Reques
     return originalFetch(input, init); // not an absolute address: fetch() refuses it itself
   }
   if (!isExternal(url, SITE_URL_FROM_ENV)) return originalFetch(input, init);
-  // The hosted inspector opens its session with fetch(), only in a local run with MODEL_INSPECT=1.
   if (modelInspectOn && url.protocol === 'https:' && INSPECTOR_HOSTNAMES.includes(url.hostname)) return originalFetch(input, init);
   currentBlockedList().push(url.href);
   const error = new TypeError(`Blocked a request to an external host: ${url.href}`);
@@ -232,20 +209,12 @@ const guardedFetch = Object.assign((input: string | URL | Request, init?: Reques
 }, {guardsExternalRequests: true});
 if (!(globalThis.fetch as Partial<typeof guardedFetch>).guardsExternalRequests) globalThis.fetch = guardedFetch;
 
-/** Records the page errors of every page of a context, the ones it has and the ones it opens later. */
 function watchPageErrors(context: BrowserContext, errors: string[]) {
   const watch = (page: Page) => page.on('pageerror', (error) => void errors.push(`${error.name}: ${error.message}`));
   context.pages().forEach(watch);
   context.on('page', watch);
 }
 
-/**
- * What the pages of a context did with the network, kept for a test that fails: the requests that
- * never finished, and the last page events (navigations, DOMContentLoaded, load, failed
- * requests). A step that waits for a page to load and times out names nothing else, so this is
- * how a failure shows what the page was still waiting for.
- */
-/** The network watch of each context, so the page fixture can probe its pages before they close. */
 const watches = new WeakMap<BrowserContext, {probe: () => Promise<void>}>();
 
 function watchNetwork(context: BrowserContext) {
@@ -280,11 +249,6 @@ function watchNetwork(context: BrowserContext) {
   };
   context.pages().forEach(watch);
   context.on('page', watch);
-  /**
-   * Asks each open page where it stands, while it is still open: how far its document is
-   * (document.readyState) and its address. A page whose main thread is blocked does not answer
-   * within 3 s; a page whose parser waits for the rest of its document answers "loading".
-   */
   const probe = async () => {
     for (const page of context.pages()) {
       if (page.isClosed()) continue;
@@ -336,7 +300,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   pageErrors: async ({allowedPageErrors}, use) => {
     const errors: string[] = [];
     await use(errors);
-    // Runs after every fixture that opened a page has closed it.
     const unexpected = errors.filter((message) => ![...BENIGN_PAGE_ERRORS, ...allowedPageErrors].some((allowed) => allowed.test(message)));
     if (unexpected.length > 0) {
       throw new Error(`The page threw errors that nothing caught (allow an expected one with test.use({allowedPageErrors})):\n${unexpected.join('\n')}`);
@@ -349,8 +312,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await sendBypassOnlyToSite(context, baseURL);
     if (!tips) await turnTipsOff(context);
     await use(context);
-    // A failed or timed-out test reports what its pages were still waiting for, as an error of its
-    // own after the test's: the reporters print every error of a test, also in CI logs.
     if (testInfo.status !== testInfo.expectedStatus && testInfo.status !== 'skipped') {
       const report = new Error(`What the page was doing when the test failed:\n${network()}`);
       report.name = 'NetworkReport';
@@ -361,7 +322,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   page: async ({page, pageClock}, use, testInfo) => {
     if (pageClock) await page.clock.install();
     await use(page);
-    // Before the page closes: a failed or timed-out test notes where its pages stand (watchNetwork).
     if (testInfo.status !== testInfo.expectedStatus && testInfo.status !== 'skipped') {
       await watches.get(page.context())?.probe();
     }

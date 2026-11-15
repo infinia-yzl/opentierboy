@@ -111,7 +111,6 @@ test.describe('shared links', () => {
       test(`renders the title and rows, and no Application error, when the page opens a link with ${link.name}`, async ({tierList}) => {
         await tierList.gotoPageThatMayCrash('/rank/overwatch/tank', stateFromJson(link.json));
 
-        // The page crashed or settled: one look tells which.
         expect(await tierList.crashMessage.isVisible(), 'the page should not crash').toBe(false);
         await expect(tierList.title).toBeVisible();
         await expect(tierList.tiers.first()).toBeVisible();
@@ -171,19 +170,11 @@ test.describe('shared links', () => {
   test.describe('model', () => {
     const TANKS = '/rank/overwatch/tank';
 
-    /** A browser that opens the shared link: its page and the requests its page sent to OTHER_SITE. */
     interface OpeningBrowser {
       readonly tierList: TierListPage;
       readonly otherSiteRequests: string[];
     }
 
-    /**
-     * The shared link machine's events and checks (modelSut). `maker` is this test's
-     * page, whose device image store keeps the picture `deviceId` names; `visitor` is a second
-     * browser that never stores a picture, so clearing its local storage makes it new again.
-     * Each run starts in the maker's browser on the shared link. `loadedAt` counts the requests
-     * to OTHER_SITE before the last page load, so a state checks only the page on screen.
-     */
     const sharedLinkSut = (maker: OpeningBrowser, visitor: OpeningBrowser, deviceId: string, page: Page, testInfo: TestInfo) => {
       const shared = v3State(sharedLinkJson('asShared', deviceId));
       let current = maker;
@@ -213,10 +204,8 @@ test.describe('shared links', () => {
             for (const row of view.rows) {
               await expect.poll(() => tierList.itemNamesIn(row.name), {message: `items in ${row.name}`}).toEqual(row.items);
             }
-            // The round trip: every link holds each custom item exactly as the shared link wrote it.
             await expect.poll(() => v3LinkJson(tierList.page.url()), {message: 'the link in the address bar'})
               .toEqual(sharedLinkJson(view.list, deviceId));
-            // Image-set items and the trusted site load at once, also while the notice waits.
             for (const label of [...PACKAGE_ITEMS, RED.label]) {
               await expect.poll(() => tierList.itemImageHasLoaded(label), {message: `${label} should load`}).toBe(true);
             }
@@ -250,7 +239,6 @@ test.describe('shared links', () => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         await serveImageSite(page, TRUSTED_SITE);
         const makerSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
-        // The maker's browser keeps a picture: the device image store gives it its id.
         await tierList.goto('/rank');
         await tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile('my-cat.png')]);
         const [, deviceId] = /"d":"([A-Za-z0-9_-]+)"/.exec(JSON.stringify(v3LinkJson(await tierList.shareLink()))) ?? [];

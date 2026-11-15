@@ -158,8 +158,6 @@ test.describe('drag and drop', () => {
     });
   });
 
-  // Each ranked row has two handles (owner decision, 2026-11-14): its grip moves the whole row,
-  // name included; its stack moves only its items, and the labels stay in place (product rule 6).
   test.describe('rows', () => {
     test('renders row S with its items after row A and writes 1 history entry when the user drags row S by its grip onto row A', async ({
       tierList,
@@ -391,7 +389,6 @@ test.describe('drag and drop', () => {
   // through the editor's drag and drop.
   test.describe('native drags', () => {
     test.describe('with the drop animation', () => {
-      // This test is about a press during the drop animation, so the animation stays on.
       test.use({reducedMotion: 'no-preference'});
 
       test('writes no native drag, no new item and 1 history entry when the user presses an item during the drop animation', async ({
@@ -435,17 +432,14 @@ test.describe('drag and drop', () => {
   });
 
   test.describe('model', () => {
-    // One tile in a list of two rows and the tray, so every place the tile can take is a state.
     const ITEM_ID = packageItemId('image-overwatch', KEYBOARD_DRAG_ITEM);
     const LIST = v3State({r: [['tier-s', 'S', []], ['tier-a', 'A', []], ['uncategorized', '', [ITEM_ID]]]});
 
-    /** The row labels of a v3 link, top to bottom ('Unranked' for the tray). */
     const linkOrderOf = (link: string): string[] => {
       const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
       return rows.map((entry) => (entry[entry.length - 2] as string) || 'Unranked');
     };
 
-    /** The row that holds the tile in a v3 link: rows are [id, label, items] or [label, items]. */
     const linkRowOf = (link: string): KeyboardDragRow | null => {
       const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
       const row = rows.find((entry) => (entry[entry.length - 1] as unknown[]).includes(ITEM_ID));
@@ -454,18 +448,14 @@ test.describe('drag and drop', () => {
       return label === '' ? 'Unranked' : label as KeyboardDragRow;
     };
 
-    /** The keyboard drag machine's events and checks, run on this test's page (modelSut). */
     const keyboardDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      // Each change of the list in the link adds one history entry; a cancel and a drop in place add none.
       let entries = 0;
       let linkRow: KeyboardDragRow = 'Unranked';
       let linkOrder = 'S,A,Unranked';
-      /** The address the last drop that moved the tile or a row wrote, or the link as opened. */
       let address = '';
       return modelSut<KeyboardDragSnapshot, KeyboardDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
-          // A keyboard user tabs to the tile first.
           await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           entries = await tierList.historyLength();
           linkRow = 'Unranked';
@@ -478,7 +468,6 @@ test.describe('drag and drop', () => {
           PRESS_UP: () => tierList.pressKey('ArrowUp'),
           PRESS_DOWN: () => tierList.pressKey('ArrowDown'),
           PRESS_ESCAPE: () => tierList.pressKey('Escape'),
-          // Row S moves whole by its grip, then the keyboard user tabs back to the tile.
           MOVE_ROW_S_DOWN: async () => {
             await tierList.drag.moveRowWithKeyboard('S', ['ArrowDown']);
             await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
@@ -488,7 +477,6 @@ test.describe('drag and drop', () => {
             await tierList.drag.focusItemReadyToDrag(KEYBOARD_DRAG_ITEM);
           },
         },
-        // Web-first checks: the preview draws at once, but a move is read out 500 ms later.
         states: {
           '*': async (_page, snapshot) => {
             const {shownIn, linkIn, carried, heard, order} = keyboardDragViewOf(snapshot);
@@ -505,14 +493,11 @@ test.describe('drag and drop', () => {
               linkOrder = order.join(',');
               address = page.url();
             } else {
-              // A pick-up, a move before the drop, a drop in place and a cancel leave the address exactly as it was.
               await expect(page, 'the address should stay as it was').toHaveURL(address);
             }
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
-            // Focus stays on the tile while it moves between rows, and after a drop or a cancel.
             await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
             if (!carried) {
-              // At rest, it takes the next drag.
               await tierList.drag.expectEveryItemDraggable();
             }
           },
@@ -533,7 +518,6 @@ test.describe('drag and drop', () => {
   });
 
   test.describe('model', () => {
-    // Two tiles in a list of two rows and the tray, so every arrangement the drags make is a state.
     const ITEM_IDS: Readonly<Record<string, string>> = {
       [MOUSE_DRAG_ITEM]: packageItemId('image-overwatch', MOUSE_DRAG_ITEM),
       [MOUSE_DRAG_OTHER_ITEM]: packageItemId('image-overwatch', MOUSE_DRAG_OTHER_ITEM),
@@ -544,25 +528,20 @@ test.describe('drag and drop', () => {
       ['uncategorized', '', [ITEM_IDS[MOUSE_DRAG_ITEM]]],
     ]});
 
-    /** The rows of a v3 link, top to bottom: each label ('Unranked' for the tray) and its item ids. Rows are [id, label, items] or [label, items]. */
     const linkRowsOf = (link: string) => {
       const {r: rows} = v3LinkJson(link) as {r: unknown[][]};
       return rows.map((entry) => ({label: (entry[entry.length - 2] as string) || 'Unranked', items: entry[entry.length - 1]}));
     };
 
-    /** The mouse drag machine's events and checks, run on this test's page (modelSut). */
     const mouseDragSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      // Each change of the list adds one history entry (one pushState); a drop that changes nothing adds none.
       let newEntries: () => Promise<number> = async () => 0;
       let entries = 0;
       let shown = '';
-      /** The address after the last check. */
       let address = '';
       return modelSut<MouseDragSnapshot, MouseDragEvent>(page, {
         reset: async () => {
           await tierList.goto(TANKS, LIST);
           await tierList.drag.expectEveryItemDraggable();
-          // A long walk changes the list more often than history.length can count (50 entries).
           newEntries = await tierList.countNewHistoryEntries();
           entries = 0;
           shown = '';
@@ -584,9 +563,7 @@ test.describe('drag and drop', () => {
         states: {
           '*': async (_page, snapshot) => {
             const view = mouseDragViewOf(snapshot);
-            // A stack drag moves only the tiles and the labels stay; a grip drag moves a row, label included.
             await expectTierList(tierList, {tiers: view.order.map((row) => ({name: row, items: [...view.items[row]]}))});
-            // A row with items has its stack; an empty row has nothing to move, and no stack.
             for (const row of view.order.filter((name) => name !== 'Unranked')) {
               await expect(tierList.rowStack(row)).toHaveCount(view.items[row].length > 0 ? 1 : 0);
             }
@@ -594,7 +571,6 @@ test.describe('drag and drop', () => {
               .toEqual(view.order.map((row) => ({label: row, items: view.items[row].map((name) => ITEM_IDS[name])})));
             const rows = JSON.stringify(view);
             if (shown !== '' && rows !== shown) entries += 1;
-            // A drop that changes nothing leaves the address exactly as it was.
             if (rows === shown) await expect(page, 'the address should stay as it was').toHaveURL(address);
             shown = rows;
             address = page.url();

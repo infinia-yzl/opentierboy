@@ -10,7 +10,6 @@ export type AppearanceMode = 'light' | 'dark' | 'system';
 export type AppearanceFont = 'modern' | 'classic';
 export type AppearanceTileSize = 'comfortable' | 'compact';
 
-/** What one state of the appearance machine shows, setting by setting. */
 export interface AppearanceView {
   readonly mode: AppearanceMode;
   readonly font: AppearanceFont;
@@ -26,7 +25,6 @@ type AppearanceValue = {
   tiles: 'comfortableWithLabels' | 'comfortableWithoutLabels' | 'compactWithoutLabels' | 'compactWithLabels';
 };
 
-/** The settings a snapshot of the appearance machine stands for. */
 export function appearanceViewOf(snapshot: AppearanceSnapshot): AppearanceView {
   const value = snapshot.value as AppearanceValue;
   return {
@@ -38,10 +36,6 @@ export function appearanceViewOf(snapshot: AppearanceSnapshot): AppearanceView {
   };
 }
 
-/**
- * What local storage holds for each mode (next-themes' `theme` key). System is the default:
- * before the visitor chooses a mode, the key is missing.
- */
 export const STORED_THEME: Readonly<Record<AppearanceMode, readonly (string | null)[]>> = {
   light: ['light'],
   dark: ['dark'],
@@ -53,8 +47,6 @@ const constant = fc.constant({});
 export const appearanceModel = defineModel({
   id: 'appearance',
   machine: appearanceMachine,
-  // Each menu choice is sent where the machine takes it. A mode or font that is already checked
-  // is a choice the page offers too, and changes nothing.
   events: {
     CHOOSE_LIGHT: {generate: constant, when: offered('CHOOSE_LIGHT')},
     CHOOSE_DARK: {generate: constant, when: offered('CHOOSE_DARK')},

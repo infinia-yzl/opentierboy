@@ -130,12 +130,10 @@ export function activationConstraintsFor(rule: ActivationRule): ActivationConstr
   }
 }
 
-/** The pointer sensor: rows (by their grip), row stacks and items follow lib/dnd/activation.ts. */
 export function createPointerSensor() {
   return PointerSensor.configure({
     activationConstraints(event, source) {
       const kind = parseDndId(source.id)?.kind;
-      // A handle (grip or stack) has no item menu: a touch drag starts after the hold alone.
       const target = kind === 'row' || kind === 'stack' ? 'row' : 'item';
       return activationConstraintsFor(activationRule(event.pointerType, target));
     },

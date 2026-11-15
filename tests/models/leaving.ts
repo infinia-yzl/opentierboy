@@ -31,14 +31,12 @@ const VIEWS: Readonly<Record<string, LeavingView>> = {
   'back.changed': editor(2, {homeAhead: true}),
 };
 
-/** The dotted path of a state, such as 'leaving.fromOpened'. */
 function pathOf(value: unknown): string {
   if (typeof value === 'string') return value;
   const [key, child] = Object.entries(value as Record<string, unknown>)[0];
   return `${key}.${pathOf(child)}`;
 }
 
-/** What the page shows in a state of the leaving machine. */
 export function leavingViewOf(snapshot: LeavingSnapshot): LeavingView {
   const view = VIEWS[pathOf(snapshot.value)];
   if (!view) throw new RangeError(`No view for the leaving state ${pathOf(snapshot.value)}`);

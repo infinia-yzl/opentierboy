@@ -13,10 +13,6 @@ import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 export interface RoundedItemCount {
   /** What the button shows: "70+" for 77 items, the exact number below 10. */
   text: string;
-  /**
-   * The count in words, for the accessible name: "70+ items", "9 items", "1 item". It holds what
-   * the button shows (WCAG 2.5.3, label in name), so a voice user can say what they see.
-   */
   label: string;
 }
 
@@ -52,7 +48,6 @@ export interface TemplateButton {
   count: number;
   /** The rounded count the button shows. */
   countText: string;
-  /** The button's accessible name: "<title>, <N>+ items" (or the exact count below 10). */
   ariaLabel: string;
   /** One of the template's items, as a picture: its image under public/images/ and its label. */
   preview: {src: string; alt: string} | null;

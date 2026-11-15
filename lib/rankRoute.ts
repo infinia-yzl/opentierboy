@@ -4,26 +4,6 @@ import type {ItemSet} from "@/models/ItemSet";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 
-/**
- * Which image set and tag a /rank path names, and what HTTP answer the path gets. Pure
- * functions over the image-set config: the editor (components/RankEditor.tsx), its pages and the
- * proxy (proxy.ts) share them.
- *
- * Two routes draw the editor (owner task "pre-build the editor", 2026-11-14). Both sit under
- * app/rank/layout.tsx, which holds the editor itself, so the editor stays the same while the
- * visitor moves between them:
- *
- * - app/rank/[[...slug]]: the template pages and the blank /rank, without a list in the link.
- *   Built once (static), so the CDN serves them.
- * - app/rank/~list/[[...slug]]: every address with a list in its link (`?state=`). The proxy
- *   rewrites those addresses to it (SHARED_LIST_SEGMENT), and it renders on request: a shared
- *   link's title and link preview come from the list in it.
- *
- * The proxy decides the status before the page renders. The page streams (app/loading.tsx is a
- * Suspense boundary), and a streamed page always answers 200: a redirect or a "not found" from
- * the page itself reaches the browser only as a 200 page with a client-side redirect or a
- * `noindex` tag.
- */
 
 export interface RankSet {
   packageName: string;
@@ -82,31 +62,16 @@ export function rankRoute(config: ImageSetConfig, segments: readonly string[], h
   return {kind: 'page', legacy};
 }
 
-/**
- * The internal path segment of the route for addresses with a list in their link
- * (app/rank/~list). The proxy rewrites /rank/<set>/<tag>?state=… to /rank/~list/<set>/<tag>?state=…;
- * the address in the browser stays as it was. No set slug can be `~list` (slugs are letters,
- * digits and hyphens).
- */
 export const SHARED_LIST_SEGMENT = '~list';
 
-/**
- * The segments after /rank of an address's path, decoded; null for a path with a malformed
- * escape (such as %E0%A4%A). The proxy and the editor read the path the browser asked for: the
- * editor's usePathname gives that path on the server too, also after the proxy's rewrite.
- */
 export function rankSegments(pathname: string): string[] | null {
   try {
     return pathname.split('/').slice(2).filter(Boolean).map(decodeURIComponent);
   } catch {
-    return null; // A malformed escape such as %E0%A4%A.
+    return null;
   }
 }
 
-/**
- * The template a /rank path names (`segments` after /rank, decoded): its set, its tag and the
- * files the template starts with. Null for /rank, a set without a tag, or an unknown set or tag.
- */
 export function rankItemSet(config: ImageSetConfig, segments: readonly string[]): ItemSet | null {
   const [nameOrPackage, tagSlug] = segments;
   if (nameOrPackage === undefined || tagSlug === undefined) return null;
@@ -114,7 +79,6 @@ export function rankItemSet(config: ImageSetConfig, segments: readonly string[])
   if (!set) return null;
   const {packageName, packageData} = set;
 
-  // The tag the slug names: the exact tag or its URL form.
   const originalTag = findRankTag(packageData, tagSlug);
   if (!originalTag) return null;
 
@@ -131,18 +95,10 @@ export function rankItemSet(config: ImageSetConfig, segments: readonly string[])
   };
 }
 
-/** The title of an editor page: "<set> - <tag>" for a template, else "Custom Tier List". */
 export function rankItemSetTitle(itemSet: ItemSet | null): string {
   return itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
 }
 
-/**
- * The tab title of an editor page: the title in the list's link, or the page's own title
- * (rankItemSetTitle) when the link has none, does not decode or is not there. A long title is
- * shortened (A43); the editor itself shows the whole title. The server puts it in the page's
- * metadata (app/rank/rankMetadata.ts), and the editor sets it again after each change and each
- * Back or Forward (contexts/TierContext.tsx), which ask nothing of the server.
- */
 export function rankPageTitle(pageTitle: string, listTitle: string | undefined): string {
   return shorten(listTitle || pageTitle, MAX_TITLE_LENGTH);
 }

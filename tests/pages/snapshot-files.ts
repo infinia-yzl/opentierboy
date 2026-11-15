@@ -3,14 +3,6 @@ import {changeAndWaitForLink} from './helpers';
 import {toasts} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
-/**
- * Snapshot files: opening a file (the menu item, a dropped or pasted file), the dialog "Open the
- * list in this file?", and the server's held answers while a list opens.
- *
- * docs/reference/snapshot-files.md. Freeze Frame, which makes the files, is in share-panel.ts.
- *
- * Specs reach it as `tierList.files` (TierListPage.files).
- */
 export class SnapshotFiles {
   readonly tierList: TierListPage;
   readonly page: Page;
@@ -20,12 +12,10 @@ export class SnapshotFiles {
     this.page = tierList.page;
   }
 
-  /** "Open the list in this file?", after opening a snapshot file. */
   get openListDialog(): Locator {
     return this.page.getByRole('alertdialog', {name: 'Open the list in this file?'});
   }
 
-  /** Pastes a file where the focus is, the way a browser does, without waiting for anything. */
   async pasteFileNow(file: {name: string; mimeType: string; buffer: Buffer}) {
     await this.page.evaluate(({name, mimeType, base64}) => {
       const transfer = new DataTransfer();
@@ -34,11 +24,6 @@ export class SnapshotFiles {
     }, {name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')});
   }
 
-  /**
-   * Sends several paste and drop events at once, in order, each with one file: as when a
-   * visitor pastes and drops quickly, before the editor has handled the first one. Firefox
-   * drops the files of a scripted paste (SCRIPTED_PASTE_SKIP).
-   */
   async sendFileEventsAtOnce(events: {event: 'paste' | 'drop'; file: {name: string; mimeType: string; buffer: Buffer}}[]) {
     await this.tierList.main.evaluate((_main, payload) => {
       for (const {event, name, mimeType, base64} of payload) {
@@ -70,11 +55,6 @@ export class SnapshotFiles {
     await element.dispatchEvent('drop', {dataTransfer: transfer});
   }
 
-  /**
-   * Confirms "Open the list in this file?" and waits until the list's link is in the address bar:
-   * the dialog says "Opening the list…" until then. With `newAddress: false` (the address already
-   * shows that list), it waits until the opening has finished instead.
-   */
   async confirmOpenList({newAddress = true} = {}) {
     const before = this.page.url();
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
@@ -83,11 +63,6 @@ export class SnapshotFiles {
     await expect(this.tierList.tiers.first()).toBeVisible();
   }
 
-  /**
-   * Chooses a file with "Open a Freeze Frame…" and returns how long the page took, measured in the page,
-   * from receiving the file until a toast with `text` appeared (milliseconds). Playwright's own
-   * waiting is not part of the time.
-   */
   async timeToOpenFile(file: {name: string; mimeType: string; buffer: Buffer}, text: string): Promise<number> {
     await this.page.evaluate((expected) => {
       const timing: {start?: number; end?: number} = {};
@@ -116,12 +91,6 @@ export class SnapshotFiles {
     await expect(this.openListDialog).toBeHidden();
   }
 
-  /**
-   * Holds the server's answers to navigations to /rank pages (the request a router.push to an
-   * editor address of another page makes; prefetches pass), as on a very slow connection, until
-   * `release`. `isHolding` turns true once a navigation is held. A change to the list makes no
-   * request: the editor writes the address itself.
-   */
   async holdRankPages(): Promise<HeldRankPages> {
     let open!: () => void;
     const released = new Promise<void>((resolve) => {
@@ -137,7 +106,6 @@ export class SnapshotFiles {
       if (!navigation) return route.fallback();
       holding = true;
       await released;
-      // The page may have dropped the request meanwhile (the visitor left): nothing to answer then.
       await route.fallback().catch(() => undefined);
     };
     const handler = (route: Route) => {
@@ -151,24 +119,16 @@ export class SnapshotFiles {
       release: async () => {
         open();
         await Promise.all(handled);
-        // After a failed or timed-out test the page may be closed already: then there is
-        // nothing left to unroute, and an error here would hide the test's own.
         if (!this.page.isClosed()) await this.page.unroute('**/*', handler);
       },
     };
   }
 
-  /** Waits until the dialog "Open the list in this file?" has closed or says "Opening the list…". */
   private async untilOpenListDialogClosesOrOpens() {
     await expect(this.openListDialog.filter({hasNotText: 'Opening the list…'}), 'the dialog should close or say "Opening the list…"')
       .toHaveCount(0);
   }
 
-  /**
-   * Chooses Cancel in "Open the list in this file?" with the keyboard (Playwright does not click
-   * a button that says aria-disabled, as Cancel does while the list opens; a person still can).
-   * Returns once the dialog closed, or once it says "Opening the list…".
-   */
   async chooseCancelInOpenListDialog() {
     const cancel = this.openListDialog.getByRole('button', {name: 'Cancel'});
     await cancel.focus();
@@ -177,18 +137,11 @@ export class SnapshotFiles {
     await this.untilOpenListDialogClosesOrOpens();
   }
 
-  /** Presses Escape in "Open the list in this file?". Returns once it closed, or once it says "Opening the list…". */
   async pressEscapeInOpenListDialog() {
     await this.page.keyboard.press('Escape');
     await this.untilOpenListDialogClosesOrOpens();
   }
 
-  /**
-   * Clicks Open list with the server's answers held (holdRankPages), for a list file of another
-   * template path: the list opens on another page. Returns the hold once the navigation is held
-   * and the dialog says "Opening the list…", or null once the dialog closed (the list opened
-   * without a request).
-   */
   async clickOpenListWithServerHeld(): Promise<HeldRankPages | null> {
     const hold = await this.holdRankPages();
     await this.openListDialog.getByRole('button', {name: 'Open list'}).click();
@@ -203,21 +156,12 @@ export class SnapshotFiles {
     return null;
   }
 
-  /**
-   * Returns once the address changed (a picture was added) or a dialog shows, where a paste or a
-   * drop changes nothing.
-   */
   private async untilAddressChangesOrDialogShows(before: string) {
     await expect.poll(async () => this.page.url() !== before || await this.openListDialog.isVisible(), {
       message: 'the link should change, unless a dialog shows',
     }).toBe(true);
   }
 
-  /**
-   * Pastes a file where the focus is, as Ctrl+V does: into the editor, or into the dialog when one
-   * shows. Returns once the link changed, or at once while a dialog shows. Firefox drops the files
-   * of a scripted paste (SCRIPTED_PASTE_SKIP).
-   */
   async pasteFileWhereFocused(file: {name: string; mimeType: string; buffer: Buffer}) {
     const before = this.page.url();
     await this.page.evaluate(({name, mimeType, base64}) => {
@@ -228,10 +172,6 @@ export class SnapshotFiles {
     await this.untilAddressChangesOrDialogShows(before);
   }
 
-  /**
-   * Drops a file where the pointer is: on the editor's first row, or on the dialog when one shows
-   * (it covers the page). Returns once the link changed, or at once while a dialog shows.
-   */
   async dropFileWherePointed(file: {name: string; mimeType: string; buffer: Buffer}) {
     const before = this.page.url();
     if (await this.openListDialog.isVisible()) await this.dropFile(file, {onto: this.openListDialog});
@@ -239,27 +179,21 @@ export class SnapshotFiles {
     await this.untilAddressChangesOrDialogShows(before);
   }
 
-  /** Chooses a picture with "Open a Freeze Frame…" and returns once the link holds it. */
   async openFileAndWaitForLink(file: {name: string; mimeType: string; buffer: Buffer}) {
     await changeAndWaitForLink(this.page, () => this.openFile(file));
   }
 
-  /** Chooses a file with "Open a Freeze Frame…", and returns once the dialog "Open the list in this file?" shows. */
   async openFileAndWaitForDialog(file: {name: string; mimeType: string; buffer: Buffer}) {
     await this.openFile(file);
     await expect(this.openListDialog).toBeVisible();
   }
 
-  /** The toasts on screen other than "Items Added", which each picture that is added shows: the messages. */
   get messageToasts(): Locator {
     return toasts(this.page).filter({hasNotText: 'Items Added'});
   }
 }
 
-/** The server's answers to navigations to /rank pages, held by TierListPage.holdRankPages. */
 export interface HeldRankPages {
-  /** True once a navigation is held. */
   readonly isHolding: () => boolean;
-  /** Lets the server answer every held navigation, and stops holding. */
   readonly release: () => Promise<void>;
 }

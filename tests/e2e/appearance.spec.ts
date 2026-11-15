@@ -21,7 +21,6 @@ const BRAND_BLUE = 'rgb(13, 98, 181)';
 
 const OVERWATCH_ORANGE = 'rgb(182, 61, 11)';
 
-/** The Share button's primary colour in dark mode, without and with OVERWATCH's colours (app/globals.css). */
 const DARK_BRAND_BLUE = 'rgb(138, 182, 240)';
 
 const DARK_OVERWATCH_ORANGE = 'rgb(251, 146, 60)';
@@ -65,7 +64,6 @@ test.describe('appearance', () => {
       });
     }
 
-    // The model checks Game colours on and off, and after a reload, on an image set's page.
     test('renders button "Share" in brand blue with Game colours on when the page opens /rank, a list of no image set', async ({tierList}) => {
       await tierList.goto('/rank');
 
@@ -94,13 +92,10 @@ test.describe('appearance', () => {
   });
 
   test.describe('model', () => {
-    /** Two ranked items and two in Unranked, on OVERWATCH's tank template. */
     const ITEMS = ['Reinhardt', 'Zarya', 'Mauga', 'Winston'];
     const LIST = rankingState('image-overwatch', {S: ITEMS.slice(0, 2), '': ITEMS.slice(2)});
 
-    /** What the page shows, and what this browser keeps, for one state of the appearance machine. */
     const expectAppearance = async (site: SitePage, tierList: TierListPage, view: AppearanceView) => {
-      // Playwright's browsers report a light colour scheme, so System shows the light page.
       const dark = view.mode === 'dark';
       await expect(site.body).toHaveCSS('background-color', dark ? DARK_BACKGROUND : LIGHT_BACKGROUND);
       await expect(site.body).toHaveCSS('font-family', view.font === 'classic' ? /Nunito Sans/ : /Geologica/);
@@ -111,7 +106,6 @@ test.describe('appearance', () => {
       const tileWidth = view.tileSize === 'compact' ? 48 : 80;
       for (const name of ITEMS) {
         await expect.poll(async () => (await tierList.sizeOf(tierList.itemPicture(name))).width, {message: `${name}'s tile width`}).toBe(tileWidth);
-        // Without labels, a Compact tile keeps its name in a hidden tag that shows on hover.
         if (view.labelsShown) await expect(tierList.itemCaption(name)).toBeVisible();
         else await expect(tierList.itemCaption(name)).toBeHidden();
       }
@@ -121,9 +115,7 @@ test.describe('appearance', () => {
       expect(await site.storedValue('otb-tile-size'), 'the stored tile size').toBe(view.tileSize === 'compact' ? 'compact' : null);
     };
 
-    /** The appearance machine's events and checks (modelSut). Each run starts as a new browser on the list. */
     const appearanceSut = (site: SitePage, tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      /** A choice in the Appearance menu, once the menu opens (right after a load it may not yet). */
       const inAppearanceMenu = (choose: () => Promise<void>) => async () => {
         await site.appearanceMenuReady();
         await choose();

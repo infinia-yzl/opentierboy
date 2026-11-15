@@ -69,16 +69,13 @@ function setup(address: string | null, cortex = createTierCortex(), layoutWrite:
       state = reducer(state, action);
       return state;
     },
-    /** The router shows an address: a write of this editor arriving, or a navigation of the router. */
     routerShows(to: string | null) {
       const loaded = addressNeedsLoading(state, to) ? load(to) : null;
       return store.dispatch({type: 'routerAddressChanged', address: to, loaded});
     },
-    /** Back or Forward (popstate) to `to`. Writes after `writtenThrough` never reached the history. */
     browserMoves(to: string | null, writtenThrough = state.nextWriteId - 1) {
       return store.dispatch({type: 'browserMoved', address: to, writtenThrough, loaded: load(to)});
     },
-    /** Back or Forward to `to`, then the router shows it. */
     visit(to: string | null) {
       store.browserMoves(to);
       return store.routerShows(to);
@@ -299,7 +296,6 @@ describe('createTierListReducer address changes', () => {
     const [first, second] = store.links();
     const tiers = store.state.tiers;
 
-    // The router shows the first write while the browser holds the second: the list stays as it is.
     store.routerShows(first);
     expect(store.state.tiers).toBe(tiers);
     expect(store.links()).toEqual([second]);
@@ -316,7 +312,6 @@ describe('createTierListReducer address changes', () => {
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     expect(store.state.address).toBe(store.links()[0]);
 
-    // Back at once: the router never showed the change, and shows the list as opened again.
     store.browserMoves(start);
     expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston']]);
     expect(store.state.address).toBe(start);
@@ -331,7 +326,6 @@ describe('createTierListReducer address changes', () => {
     const store = setup(start);
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
 
-    // The provider had written no link yet (writtenThrough -1): the change goes with the version it changed.
     store.browserMoves(start, -1);
     expect(store.state.writes).toEqual([]);
     expect(store.contents()).toEqual([[], [], [], [], [], ['Mauga', 'Winston']]);
@@ -345,7 +339,6 @@ describe('createTierListReducer address changes', () => {
 
     store.browserMoves(first);
     expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
-    // The router is still on its way through the writes: the second one shows up after Back.
     expect(addressNeedsLoading(store.state, second)).toBe(false);
     store.routerShows(second);
     expect(store.contents()).toEqual([['Mauga'], [], [], [], [], ['Winston']]);
@@ -393,7 +386,6 @@ describe('createTierListReducer address changes', () => {
     expect(store.state.writes).toEqual([]);
     expect(store.state.title).toBe('');
 
-    // After another write, the browser's address holds that one: the same change is a write again.
     store.dispatch({type: 'titleChanged', title: 'Mine'});
     store.dispatch({type: 'titleChanged', title: ''});
     expect(store.links()).toHaveLength(2);
@@ -420,7 +412,6 @@ describe('createTierListReducer address changes', () => {
     store.dispatch({type: 'itemMoved', from: {tierId: 'uncategorized', index: 0}, to: {tierId: 'tier-s', index: 0}});
     store.dispatch({type: 'titleChanged', title: 'Mine'});
     store.dispatch({type: 'labelPositionChanged', labelPosition: 'right'});
-    // The router catches up with the three writes, then Back goes to the plain template.
     store.routerShows(store.links()[2]);
 
     store.visit(null);
@@ -464,7 +455,6 @@ describe('createTierListReducer list actions', () => {
     expect(store.contents().slice(0, 3)).toEqual([['Winston'], [], ['Mauga']]);
     expect(store.state.tiers.map(tier => tier.id).slice(0, 3)).toEqual(['tier-a', 'tier-b', 'tier-s']);
     expect(store.state.writes).toHaveLength(1);
-    // The link holds the moved list: rows are ordered, with their names, so no new format.
     const linked = decoded(store.links()[0]).tiers;
     expect(linked.map(tier => tier.name)).toEqual(['A', 'B', 'S', 'C', 'F', '']);
     expect(linked.map(tier => tier.items.map(item => item.id))).toEqual(store.state.tiers.map(tier => tier.items.map(item => item.id)));

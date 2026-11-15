@@ -11,39 +11,24 @@ async function pageStarted(page: Page) {
   await expectHydrated(page);
 }
 
-/** createPlaywrightSut's config, with what modelSut adds. */
 export interface ModelSutConfig<TSnapshot extends AnyMachineSnapshot, TEvent extends EventObject>
   extends PlaywrightSutConfig<Page, TSnapshot, TEvent> {
-  /**
-   * The other pages the events act on, such as a second browser (openAsVisitor), read before
-   * each check: null or closed pages are left out. modelSut waits until they have started,
-   * checks their page errors, console errors and answers of status 400 or more, and keeps their
-   * trace of a failing run.
-   */
   readonly pages?: () => readonly (Page | null | undefined)[];
-  /**
-   * 'paused': page time stands still for the whole test (pausePageTime, before the first run
-   * opens anything), and moves only in the steps that run the page clock, such as
-   * TOAST_TIMES_OUT. Do not combine it with `pageClock`.
-   */
   readonly pageTime?: 'paused';
 }
 
-/** The same prefix as @xstate/test/playwright's, for the rejections the page logs. */
 const REJECTION_PREFIX = '[xstate-test] unhandledrejection: ';
 const REJECTION_SCRIPT = `window.addEventListener('unhandledrejection', function (event) {
   var reason = event.reason;
   console.error(${JSON.stringify(REJECTION_PREFIX)} + (reason && reason.message ? reason.message : String(reason)));
 });`;
 
-/** What createPlaywrightSut's oracles report about a console message, or null. */
 function consoleReport(message: ConsoleMessage): string | null {
   const text = message.text();
   if (text.startsWith(REJECTION_PREFIX)) return `unhandledrejection: ${text.slice(REJECTION_PREFIX.length)}`;
   return message.type() === 'error' ? `console.error: ${text}` : null;
 }
 
-/** One other page that modelSut watches: what its oracles found since the last check. */
 interface Watched {
   readonly page: Page;
   readonly label: string;
@@ -52,13 +37,6 @@ interface Watched {
   tracing: boolean;
 }
 
-/**
- * Watches another page with the oracles createPlaywrightSut gives the first page: page errors,
- * console errors, unhandled rejections and answers of status 400 or more. Each report starts
- * with the page's label, so the benign notices (machines.ts) still match their end. The page
- * opened before modelSut saw it, so its page errors and console messages so far are read back
- * (Playwright keeps the last 200 of each); answers count from now.
- */
 async function watchPage(page: Page, label: string, trace: boolean): Promise<Watched> {
   const found: string[] = [];
   const report = (text: string | null) => {
@@ -91,7 +69,6 @@ async function watchPage(page: Page, label: string, trace: boolean): Promise<Wat
       await page.context().tracing.start({screenshots: true, snapshots: true});
       watched.tracing = true;
     } catch {
-      // Tracing already runs for this context; that trace records it.
     }
   }
   return watched;
@@ -144,7 +121,6 @@ function withOtherPages<TSnapshot extends AnyMachineSnapshot, TEvent extends Eve
               }
               if (!tracing) continue;
               const path = result.passed ? undefined : testInfo!.outputPath(`xstate-test-failure-trace-${name}.zip`);
-              // A browser context that a step closed took its trace with it.
               const kept = await page.context().tracing.stop(path ? {path} : undefined).then(() => true, () => false);
               if (path && kept) failedFiles.push({name: `trace-${name}`, path, contentType: 'application/zip'});
             }

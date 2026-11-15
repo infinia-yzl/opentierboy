@@ -231,8 +231,6 @@ describe('reorderRows', () => {
             source: {droppableId: 'all-tiers', index: from},
             destination: {droppableId: 'all-tiers', index: to},
           });
-          // The pre-2.0.0 code also swapped the ids of rows that look the same (two empty rows),
-          // which wrote a history entry with no visible change. That case now changes nothing.
           const withoutIds = (rows: Tier[]) => rows.map(({id: _id, ...row}) => row);
           const expected = JSON.stringify(withoutIds(before)) === JSON.stringify(withoutIds(tiers)) ? tiers : before;
           expect(reorderRows(deepFreeze(tiers), from, to), `${from} → ${to}`).toEqual(expected);

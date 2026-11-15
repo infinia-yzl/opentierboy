@@ -450,10 +450,6 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Owner decision, 2026-11-01: rows move in every creator layout, as in the editor. A row's stack
-  // moves its items and the labels stay in place (product rule 6); its grip moves the whole row,
-  // name included (owner decision, 2026-11-14). The frames have no space beside the list, so the
-  // grip is a column at the row's left edge, inside the frame.
   test.describe('moving rows', () => {
     for (const layout of CREATOR_LAYOUTS) {
       test(`writes 1 history entry and renders the items of row S in row A when the user drags the stack of row S onto row A in ${layout}`, async ({
@@ -491,7 +487,6 @@ test.describe('zen layouts', () => {
         await page.setViewportSize(WINDOWS[layout]);
         await tierList.zen.gotoInLayout(TANKS, LIST, layout);
         const entries = await tierList.countNewHistoryEntries();
-        // Inside the frame: the grip is a column at the row's left edge.
         expect(await tierList.isInside(tierList.rowGrip('S'), tierList.zen.zenFrame)).toBe(true);
 
         await tierList.drag.dragRowOnto('S', 'A');
@@ -677,15 +672,10 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Model-based tests (tests/README.md, "Model-based tests"): tests/machines/zen-layout.ts walked
-  // through the Playwright adapter of @xstate/test.
   test.describe('model', () => {
-    /** The colour of the green key behind the overlay's frame. */
     const GREEN_KEY = 'rgb(0, 177, 64)';
 
-    /** The Zen layout machine's events and checks, run on this test's page (modelSut). */
     const zenLayoutSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      /** The address of the list as opened, and of the list after the change: a layout writes neither. */
       let opened = '';
       let changed = '';
       return modelSut<ZenLayoutSnapshot, ZenLayoutEvent>(page, {
@@ -713,7 +703,6 @@ test.describe('zen layouts', () => {
           '*': async (_page, snapshot) => {
             const layout = layoutOf(snapshot);
             const listChanged = listChangedIn(snapshot);
-            // The list on screen and in the address: a layout never writes the link.
             await expect(tierList.itemsIn('A')).toHaveText(listChanged ? [TRAY[0]] : []);
             await expect(page).toHaveURL(listChanged ? changed : opened);
             if (!layout) {

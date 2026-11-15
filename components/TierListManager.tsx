@@ -30,9 +30,7 @@ import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/compon
 import {EditorTips} from "@/components/EditorTips";
 
 interface TierListManagerProps {
-  /** The template of this page (/rank/<set>/<tag>), if any. */
   initialItemSet?: ItemSet;
-  /** The page title: the title of a list whose link has none. */
   title?: string;
 }
 

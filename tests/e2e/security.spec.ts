@@ -46,8 +46,6 @@ function carriesPicture(request: SentRequest, picture: Buffer): boolean {
 function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
   // data: and blob: addresses stay in the browser; only network requests count.
   const network = requests.filter((request) => /^https?:/.test(request.url));
-  // The recorder saw the page's own requests (each test loads a page after it started), so an
-  // empty list means the recorder missed them, not that nothing was sent.
   expect(network.length).toBeGreaterThan(0);
   for (const request of network) {
     for (const picture of pictures) {
@@ -56,11 +54,6 @@ function expectNoPictureSent(requests: SentRequest[], pictures: Buffer[]) {
   }
 }
 
-/**
- * The Content Security Policy (lib/security/csp.ts, A11). A page that breaks it shows a
- * `securitypolicyviolation` event; every test here expects none. The headers themselves, on
- * every kind of route, are checked in security.api.spec.ts.
- */
 test.describe('security', () => {
   test.describe('Content Security Policy', () => {
     test('writes no CSP violation report when the page opens home, a template, a blog article and a shared link', {tag: '@mobile'}, async ({tierList, site, cspViolations}) => {
@@ -187,8 +180,6 @@ test.describe('security', () => {
       await tierList.deviceImages.pasteImages([imageFile('pasted.png', RED_SQUARE)]);
       await expect(tierList.itemsIn(tierList.unranked)).toContainText(['pasted']);
       await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
-      // A change asks nothing of the server (history.pushState); the reload loads the list's page
-      // again, and the picture comes from this browser's store.
       await tierList.reload();
       await expect.poll(() => tierList.itemImageHasLoaded('pasted')).toBe(true);
 

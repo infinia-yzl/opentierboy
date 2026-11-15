@@ -127,9 +127,6 @@ test.describe('device images', () => {
 
     test('renders 300 device images within 20 s when the page reloads a list with 300 uploads', async ({tierList}) => {
       test.slow();
-      // A speed budget, one of the few named times in the tests (tests/README.md): adding 300
-      // pictures may take up to a minute on a slow runner; showing them again after a reload must
-      // take at most 20 s. The images of a list are read in one go, and each tile renders once.
       const ADD_BUDGET_MS = 60_000;
       const RELOAD_BUDGET_MS = 20_000;
       const count = 300;
@@ -245,7 +242,6 @@ test.describe('device images', () => {
     });
 
     test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList, page}) => {
-      // Before the page opens: the toast ends by itself on the page clock.
       await page.clock.install();
       await tierList.deviceImages.blockIndexedDb();
       await tierList.goto('/rank');
@@ -372,22 +368,14 @@ test.describe('device images', () => {
   });
 
   test.describe('model', () => {
-    /** The start of every run: Mauga in S, rows A and B and Unranked empty. */
     const START = listWith([]);
     const MAUGA = packageItemId('image-overwatch', 'Mauga');
     const FILES = {red: imageFile('red-square.png'), blue: imageFile('blue-square.png', BLUE_SQUARE)};
-    /** The blue test square is rgb(40, 80, 220). */
     const isBlue = (color: [number, number, number] | null) => color !== null && color[0] < 100 && color[1] < 120 && color[2] > 180;
     const SHOWS_PICTURE = {red: isRed, blue: isBlue};
-    /** A device image in the link: a local id of 16 characters and the name, never the picture. */
     const inLink = (key: DeviceImageKey) => ({d: expect.stringMatching(/^[A-Za-z0-9_-]{16}$/), c: DEVICE_IMAGE_NAMES[key]});
     const lastItems = (row: unknown[]) => row[row.length - 1];
 
-    /**
-     * What a state of the device images machine shows on `shown`, the page on screen: the rows,
-     * the link, each image's picture (its own picture in the browser that added it, the
-     * placeholder image in a new browser) and the toast "Items Added".
-     */
     const expectDeviceImages = async (shown: TierListPage, view: DeviceImagesView) => {
       const names = (keys: readonly DeviceImageKey[]) => keys.map((key) => DEVICE_IMAGE_NAMES[key]);
       await expect(shown.itemsIn('S')).toHaveText(['Mauga', ...names(view.ranked)]);
@@ -411,13 +399,6 @@ test.describe('device images', () => {
       else await expect(shown.deviceImages.itemsAddedToast).toHaveCount(0);
     };
 
-    /**
-     * The device images machine's events and checks (modelSut). Each run starts as a
-     * new browser on START. A new browser is a new browser context, open until the walk closes it
-     * or the next run starts. Page time stands still in the first browser (`pageTime: 'paused'`):
-     * the toast "Items Added" stays however long the steps take, and closes only in
-     * TOAST_TIMES_OUT, which checks that it closes after exactly 4 s (letToastTimeOut).
-     */
     const deviceImagesSut = (
       tierList: TierListPage,
       page: Page,

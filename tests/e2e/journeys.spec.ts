@@ -89,7 +89,6 @@ test.describe('journeys', () => {
         // Keyboard: Up from Unranked goes to the last ranked row, and Up again to the row above it.
         {act: () => tierList.drag.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], F: ['Sigma'], Unranked: ['Orisa']})},
         {act: () => tierList.drag.moveItemWithKeyboard('Sigma', ['ArrowUp']), list: rows({S: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
-        // A row's stack: the labels describe positions, so moving the items of row S down moves them into A.
         {act: () => tierList.drag.moveRowItemsWithKeyboard('S', ['ArrowDown']), list: rows({A: ['Winston', 'Mauga'], C: ['Sigma'], Unranked: ['Orisa']})},
         {act: () => tierList.drag.dragRowItemsOnto('C', 'S'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], Unranked: ['Orisa']})},
         {act: () => tierList.drag.dragItemToTier('Orisa', 'F'), list: rows({S: ['Sigma'], B: ['Winston', 'Mauga'], F: ['Orisa']})},
@@ -150,7 +149,6 @@ test.describe('journeys', () => {
         {act: () => tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowDown']), list: rows({A: ['Mauga', 'Winston'], F: ['Sigma']})},
         {act: () => tierList.drag.moveRowItemsWithKeyboard('A', ['ArrowUp']), list: rows({S: ['Mauga', 'Winston'], F: ['Sigma']})},
         {act: () => tierList.drag.moveRowItemsWithKeyboard('F', ['ArrowUp', 'ArrowUp']), list: rows({S: ['Mauga', 'Winston'], B: ['Sigma']})},
-        // A row's grip: the whole row moves, its name included.
         {act: () => tierList.drag.moveRowWithKeyboard('B', ['ArrowUp']), list: {tiers: [
           {name: 'S', items: ['Mauga', 'Winston']}, {name: 'B', items: ['Sigma']}, {name: 'A', items: []},
           {name: 'C', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},

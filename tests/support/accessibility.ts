@@ -2,17 +2,12 @@ import AxeBuilder from '@axe-core/playwright';
 import type {Page} from '@playwright/test';
 import {expectHydrated} from './hydrated';
 
-/** The rules of WCAG 2.1, levels A and AA, as axe-core tags them. */
 export const WCAG_21_AA_TAGS: readonly string[] = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-/** One rule that some elements break, as a failing test prints it. */
 export interface AxeViolation {
-  /** The axe-core rule id, such as 'color-contrast'. Its page: https://dequeuniversity.com/rules/axe/ */
   readonly rule: string;
   readonly impact: string | null;
-  /** What the rule asks for, in one line. */
   readonly help: string;
-  /** Each element that breaks it: the CSS path axe-core makes, then its opening tag (long values cut). */
   readonly elements: readonly string[];
 }
 

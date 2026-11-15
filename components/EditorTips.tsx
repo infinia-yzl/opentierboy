@@ -212,8 +212,6 @@ export function EditorTips() {
     request('shared-list');
   }, [session, openedWithList, request]);
 
-  // A change this browser made: the list or title changed with a link written (Back, Forward and
-  // opened links change the list without a write).
   useEffect(() => {
     const before = previous.current;
     previous.current = {tiers, title, linkWrites};

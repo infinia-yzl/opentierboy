@@ -19,7 +19,6 @@ test.describe('routes', () => {
     });
 
     test('returns 308 to the hyphenated path with the same state parameter when the request has an old tag path', async ({request}) => {
-      // An active set and a legacy set, and the title of the page each path names.
       for (const [path, hyphenated, title] of [
         ['/rank/overwatch/h_all', '/rank/overwatch/h-all', 'OVERWATCH - All Heroes'],
         ['/rank/wuthering-waves/c_all', '/rank/wuthering-waves/c-all', 'WUTHERING WAVES - All Resonators'],
@@ -28,7 +27,6 @@ test.describe('routes', () => {
         expect(response.status(), path).toBe(308);
         expect(new URL(response.headers()['location'], 'http://localhost').pathname, path).toBe(hyphenated);
         expect(response.headers()['location'], path).toMatch(/\?state=this-state-must-survive$/);
-        // The hyphenated path is the template's page.
         const page = await request.get(hyphenated, {maxRedirects: 0});
         expect(page.status(), hyphenated).toBe(200);
         expect(await page.text(), hyphenated).toContain(`<title>${title}`);
@@ -67,11 +65,6 @@ test.describe('routes', () => {
     });
   });
 
-  /**
-   * The template pages and /rank are built ahead, so a CDN serves them as they are; an address
-   * with a list in its link renders on request, for the list's title and link preview
-   * (lib/rankRoute.ts).
-   */
   test.describe('built pages', () => {
     test('returns a Cache-Control without no-store or private when the request has /rank or a template path', async ({request}) => {
       for (const path of ['/rank', '/rank/overwatch/tank', '/rank/the-finals/all']) {
@@ -104,9 +97,6 @@ test.describe('routes', () => {
       const link = lzWithRun('{"tiers":[{"i":"tier-s","n":"S","t":[]},{"i":"uncategorized","n":"","t":[]}],"title":"{run}"}', 'x', title.length).input;
       expect(link.length).toBeLessThan(3_000);
 
-      // A speed budget, one of the few named times in the tests (tests/README.md). It is generous
-      // on purpose: CI runners and the agents' sandbox can be slow and busy. It still catches a
-      // page that takes many seconds to build a 9 MB response.
       const PAGE_BUDGET_MS = 15_000;
       const started = Date.now();
       const response = await request.get(`/rank/overwatch/tank?state=${link}`);

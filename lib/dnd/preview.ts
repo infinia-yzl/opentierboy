@@ -45,10 +45,6 @@ export function previewItemOver<I extends ItemLike, T extends TierLike<I>>(previ
   return moveItem(preview, from, {tierId: to.tierId, index: index + (over.after ? 1 : 0)});
 }
 
-/**
- * The preview after a row dragged by its grip moves over another row: it takes that row's
- * place, with its label, as it will after the drop (rowMoveFromPreview, then moveRow).
- */
 export function previewRowOver<T extends TierLike>(preview: T[], tierId: string, overTierId: string): T[] {
   const from = preview.findIndex(tier => tier.id === tierId);
   const to = preview.findIndex(tier => tier.id === overTierId);
@@ -57,11 +53,6 @@ export function previewRowOver<T extends TierLike>(preview: T[], tierId: string,
   return moveRowInPreview(preview, from, to);
 }
 
-/**
- * The preview after a row's stack (its items) moves over another row: the items take that row's
- * place and the labels stay where they are, as they will after the drop (rowMoveFromPreview, then
- * reorderRows). The dragged items keep their tier id, so the preview finds them again.
- */
 export function previewStackOver<T extends TierLike>(preview: T[], tierId: string, overTierId: string): T[] {
   const from = preview.findIndex(tier => tier.id === tierId);
   const to = preview.findIndex(tier => tier.id === overTierId);
@@ -90,10 +81,6 @@ export function itemMoveFromPreview(tiers: readonly TierLike[], preview: readonl
   return {itemId, from, to};
 }
 
-/**
- * The row move from the list to the preview, by row index: for a row and for a row's stack, the
- * place of its tier id. Null when it ends where it started.
- */
 export function rowMoveFromPreview(tiers: readonly TierLike[], preview: readonly TierLike[], tierId: string): RowMove | null {
   const from = tiers.findIndex(tier => tier.id === tierId);
   const to = preview.findIndex(tier => tier.id === tierId);

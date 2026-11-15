@@ -429,11 +429,9 @@ test.describe('zen', () => {
   });
 
   test.describe('model', () => {
-    /** The Unranked tray in Zen with In order or Shuffle: the item up next first, then the queue. */
     const expectUpNext = async (tierList: TierListPage, snapshot: ZenOrderSnapshot) => {
       await expect(tierList.unranked.getByRole('heading', {level: 2})).toHaveText('Up next');
       await expect(tierList.unranked.getByText(`${TRAY.length} left`, {exact: true})).toBeVisible();
-      // In order: the tray's order. Shuffle: any order, so only its parts are checked.
       if (orderOf(snapshot) === 'inOrder') await expect(tierList.zen.upNextItem).toHaveAccessibleName(TRAY[0]);
       const next = await tierList.zen.upNextItemName();
       expect(TRAY).toContain(next);
@@ -451,12 +449,9 @@ test.describe('zen', () => {
       }
     };
 
-    /** The Zen ranking order machine's events and checks, run on this test's page (modelSut). */
     const zenOrderSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
-      /** The address and the history entries as the run opened the list: view settings change neither. */
       let address = '';
       let entries = 0;
-      /** The state on screen, as the last check saw it: in Pick freely the box is unavailable. */
       let onScreen: ZenOrderSnapshot | null = null;
       const pressHideQueue = async (on: boolean) => {
         if (!onScreen) throw new Error('No state was checked yet');
@@ -482,12 +477,10 @@ test.describe('zen', () => {
         states: {
           '*': async (_page, snapshot) => {
             onScreen = snapshot;
-            // View settings: no new link and no history entry.
             await expect(page).toHaveURL(address);
             expect(await tierList.historyLength(), 'view settings should add no history entry').toBe(entries);
             const order = orderOf(snapshot);
             if (!order) {
-              // Out of Zen the tray is the editor's, whatever the order.
               await expect(tierList.zen.zenBar).toHaveCount(0);
               await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
               await expect(tierList.hints).toBeVisible();
@@ -499,7 +492,6 @@ test.describe('zen', () => {
               await expectUpNext(tierList, snapshot);
               return;
             }
-            // Pick freely: the whole tray, with no queue, also with "Hide the queue" left on.
             await expect(tierList.tierLabel('Unranked')).toHaveText('Unranked');
             await expect(tierList.unranked.getByText(`· ${TRAY.length} left`)).toBeVisible();
             await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
@@ -521,17 +513,10 @@ test.describe('zen', () => {
     }
   });
 
-  /**
-   * The Zen steps machine (tests/machines/zen-steps.ts): the Zen bar's Back and Forward and its
-   * step count, beside the browser's own Back and Forward, over the list as opened and two
-   * changes made in Zen. Each change ranks the next Unranked item into row A, so version n has
-   * n - 1 items in row A.
-   */
   test.describe('model: steps', () => {
     const STEPS_TRAY = TRAY.slice(0, MAX_ZEN_STEPS - 1);
     const STEPS_LIST = rankingState('image-overwatch', {'': STEPS_TRAY});
 
-    /** The Zen steps machine's events and checks, run on this test's page (modelSut). */
     const zenStepsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<ZenStepsSnapshot, ZenStepsEvent>(page, {
       reset: async () => {
         await tierList.openAfterBlankPage(TANKS, STEPS_LIST);
@@ -544,7 +529,6 @@ test.describe('zen', () => {
         BROWSER_BACK: () => tierList.goBack(),
         BROWSER_FORWARD: () => tierList.goForward(),
       },
-      // Web-first checks: after Back or Forward the address changes before the list on screen does.
       states: {
         '*': async (_page, snapshot) => {
           const {step, total} = zenStepsViewOf(snapshot);

@@ -162,7 +162,6 @@ test.describe('link previews', () => {
     // Links made to hang or crash the server (A29). Each one must get the default preview quickly,
     // and the server must keep answering other requests. The links are built here in milliseconds
     // (tests/unit/support/lz-stream.ts); lz-string itself would take seconds to compress them.
-    // A speed budget, one of the few named times in the tests (tests/README.md).
     const HOSTILE_BUDGET_MS = 5_000;
     const hostileLinks = [
       {name: 'a 5-million-character tier name', state: () => lzWithRun(HUGE_NAME_JSON, 'x', 5_000_000).input},
@@ -175,8 +174,6 @@ test.describe('link previews', () => {
       ]})},
     ];
     test.describe('hostile links', () => {
-      // One after another, in one worker: the budget times the server, not the other tests of
-      // this file running beside it on a small runner. Unlike 'serial', a failure skips no other test.
       test.describe.configure({mode: 'default'});
 
       for (const link of hostileLinks) {
@@ -234,9 +231,7 @@ test.describe('link previews', () => {
   test.describe('lists at the limits', () => {
     test.skip(({baseURL}) => isLocalServerNotOnPort3000(baseURL),
       'Preview images need the local server on port 3000, see defaultBaseUrl in lib/linkPreview.ts.');
-    // One after another, in one worker (see "hostile links"): two requests at a time already.
     test.describe.configure({mode: 'default'});
-    // A speed budget, one of the few named times in the tests (tests/README.md).
     const LIMITS_BUDGET_MS = 5_000;
 
     for (const list of listsAtLimits) {

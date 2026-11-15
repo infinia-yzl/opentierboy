@@ -29,7 +29,6 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  // Four workers in CI (owner decision).
   workers: isCI ? 4 : undefined,
   reporter: isCI
     ? [['github'], ['html', {open: 'never'}]]
@@ -47,12 +46,7 @@ export default defineConfig({
     trace: secret ? 'off' : 'on-first-retry',
     screenshot: 'only-on-failure',
     extraHTTPHeaders: sharedHeaders,
-    // As people who ask their system for less motion: nothing slides while a test measures the
-    // page (app/globals.css). A test about an animation turns it back on with test.use.
     reducedMotion: 'reduce',
-    // Limits, not waits: a navigation or an action that is stuck fails with its own name and
-    // stack, as an assertion does after `expect.timeout`. Without them, a stuck step would run
-    // until the test's timeout, and the error would not say which step it was.
     navigationTimeout: 30_000,
     actionTimeout: 15_000,
   },

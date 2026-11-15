@@ -8,7 +8,6 @@ import {editorRowsModel, editorRowsViewOf, type EditorRowsEvent, type EditorRows
 
 const TANKS = '/rank/overwatch/tank';
 
-/** The row names a v3 link holds, top to bottom: rows are [id, label, items] or [label, items]. */
 const linkRowNames = (link: string) => (v3LinkJson(link) as {r: unknown[][]}).r.map((row) => row[row.length - 2]);
 
 test.describe('editor rows', () => {
@@ -18,7 +17,6 @@ test.describe('editor rows', () => {
 
     await tierList.rows.addTierRow();
 
-    // The new row has no name: it shows its position as a hint (owner decision, 2026-11-14).
     await expect(tierList.tiers).toHaveCount(7);
     await expect(tierList.tiers.nth(5)).toHaveAccessibleName('Row 6');
     await expect(tierList.tierLabel('Row 6')).toHaveText('Row 6');
@@ -147,7 +145,6 @@ test.describe('editor rows', () => {
 
     test('renders the same 7 rows for the user and a share link visitor when both choose 7 Rows after a row move', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
-      // Moving the items of row S onto A's place moves the items and the tier id; the labels stay in place.
       await tierList.drag.dragRowItemsOnto('S', 'A');
       await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
@@ -165,12 +162,6 @@ test.describe('editor rows', () => {
     });
   });
 
-  /**
-   * The editor rows machine (tests/machines/editor-rows.ts): rows added and removed up to both
-   * limits, and the row templates, from a list of 19 ranked rows. Each state checks the rows,
-   * Add row and Remove a row, and the history entries: a step that moves the machine to another
-   * state adds exactly one (product rule 2), a step that leaves it where it is adds none.
-   */
   test.describe('model: rows', () => {
     const id = (name: string) => packageItemId('image-overwatch', name);
     const middle = Array.from({length: 13}, (_, index) => [`row-${index + 6}`, `R${index + 6}`, []]);
@@ -179,10 +170,8 @@ test.describe('editor rows', () => {
       ...middle, ['row-19', 'R19', [id('Winston')]], ['uncategorized', '', [id('Sigma')]],
     ]});
 
-    /** The editor rows machine's events and checks, run on this test's page (modelSut). */
     const rowsSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       let pushes: () => Promise<number> = async () => 0;
-      /** The state at the last check, and the history entries the page had added then. */
       let last: {state: string; entries: number} | null = null;
       return modelSut<EditorRowsSnapshot, EditorRowsEvent>(page, {
         reset: async () => {

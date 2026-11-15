@@ -261,18 +261,12 @@ test.describe('home', () => {
   });
 
   test.describe('model', () => {
-    /** The walk's two lists: their links (path and `state`), by the machine's names for them. */
     const WALK_LINKS = {
       tanks: {path: TANKS, state: rankingState('image-overwatch', {S: ['Mauga']}, WALK_LISTS.tanks)},
       support: {path: SUPPORT, state: rankingState('image-overwatch', {S: ['Ana']}, WALK_LISTS.support)},
     } as const;
     const hrefOf = (list: WalkList) => `${WALK_LINKS[list].path}?state=${WALK_LINKS[list].state}`;
 
-    /**
-     * What `otb-recent-links` holds when a run starts: the other lists of the model, one short of
-     * each cap. The pinned ones were pinned and opened in the past; the unpinned ones were opened
-     * a year from now, so the walk's lists are always the oldest unpinned ones.
-     */
     const seededRecentLinks = () => {
       const now = Date.now();
       const day = 86_400_000;
@@ -286,7 +280,6 @@ test.describe('home', () => {
       return JSON.stringify({version: 1, links: [...pinned, ...recent]});
     };
 
-    /** The links of Recently viewed, the pin state of the walk's lists and the pin-limit toast, as a state shows them. */
     const expectRecentlyViewed = async (site: SitePage, view: RecentlyViewedView) => {
       await expect(site.recentLinks).toHaveText(recentLinkNames(view));
       await expect(site.pressedRecentPinButtons).toHaveCount(OTHER_PINNED_LISTS.length + (view.pinned ? 1 : 0));
@@ -295,13 +288,6 @@ test.describe('home', () => {
       await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(view.pinRefused ? 1 : 0);
     };
 
-    /**
-     * The Recently viewed machine's events and checks (modelSut). Each run starts on Home with the
-     * seeded lists. Page time stands still (`pageTime: 'paused'`): the pin-limit toast closes only
-     * in TOAST_TIMES_OUT, which checks that it closes after exactly 4 s (letToastTimeOut). Page
-     * time also moves on before each open and reopen, while no toast shows (the machine sends
-     * nothing else while one does), so Recently viewed records each one at a later time.
-     */
     const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => modelSut<RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
       pageTime: 'paused',
       reset: async () => {

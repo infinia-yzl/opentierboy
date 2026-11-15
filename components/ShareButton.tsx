@@ -162,8 +162,6 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   // list on screen has changed since.
   const [capture, setCapture] = useState<(Capture & {previewUrl: string}) | null>(null);
   const imageBlob = capture?.picture ?? null;
-  // One object URL per captured picture, made when it is captured: the next capture, or leaving
-  // the editor, frees it.
   const previewUrl = capture?.previewUrl ?? null;
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -253,7 +251,6 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
       }
 
-      // The toast waits for the picture, so it never shows before the preview can.
       canvas.toBlob((blob: Blob | null) => {
         if (blob) {
           setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});

@@ -74,7 +74,6 @@ const PackageCard: React.FC<PackageCardProps> = ({packageName, packageData, temp
                   "hover:group-hover:bg-white/30"  // Additional hover effect when card is hovered
                 )}
               >
-                {/* Home lists many templates: each loads ahead only on intent (components/IntentLink.tsx). */}
                 <IntentLink href={template.href} aria-label={template.ariaLabel}>
                   {template.preview ? (
                     // eslint-disable-next-line @next/next/no-img-element -- a plain 24 px picture from public/images/, loaded lazily
@@ -90,7 +89,6 @@ const PackageCard: React.FC<PackageCardProps> = ({packageName, packageData, temp
                     <span aria-hidden="true" className="size-6 shrink-0 rounded-[4px] bg-muted"/>
                   )}
                   <span className="min-w-0 grow truncate">{template.title}</span>
-                  {/* A space between the title and the count, so their words stay apart as text. */}
                   {' '}
                   <span
                     aria-hidden="true"

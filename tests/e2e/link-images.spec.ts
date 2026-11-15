@@ -289,8 +289,6 @@ test.describe('link images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('Blue')).toBe(true);
       expect(other.requests).toContain(`https://${OTHER}/blue.png`);
 
-      // Load counts for this page only. Once Red has loaded again, a request for Blue would have
-      // gone out with it.
       const requestsBefore = other.requests.length;
       await tierList.reload();
       await expect(tierList.linkImages.imageSitesNotice).toBeVisible();
@@ -324,34 +322,18 @@ test.describe('link images', () => {
 
   test.describe('model', () => {
     const item = ({label, url}: LinkImage) => ({u: url, c: label});
-    /** The first list of the machine: Blue (an unknown site) and Red (a trusted site) in Unranked. */
     const FIRST_LIST = listWith([item(BLUE), item(RED)]);
-    /** The other list: Navy, from the same unknown site. */
     const OTHER_LIST = listWith([item(NAVY)]);
 
-    /**
-     * The link images machine's events and checks (modelSut). Each run starts as a new
-     * browser on the first list. Before each page load the unknown site holds its answers for
-     * Blue and Navy again (`held`), until IMAGE_SITE_ANSWERS or IMAGE_SITE_FAILS; it answers
-     * Green at once. `loadedAt` counts the unknown site's requests before the last page load,
-     * so a state checks only the requests of the page on screen. Page time stands still
-     * (`pageTime: 'paused'`), so the page waits for a held answer however long the steps take,
-     * until IMAGE_CHECK_TIMES_OUT runs its clock. While the notice waits, no request may reach
-     * the unknown site: a state checks that when it shows, and the next step checks it again
-     * before it acts, so the check covers the whole time the notice waited.
-     */
     const linkImagesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, otherSite: ImageSite) => {
       let loadedAt = 0;
       let held: HeldImageSite = otherSite.hold(HELD_ADDRESSES);
       const sinceLoad = () => otherSite.requests.slice(loadedAt);
-      /** The last state checked showed the notice waiting. */
       let noticeWaited = false;
-      /** Before a step acts: if the notice waited, still no request reached the site since the page loaded. */
       const afterWaiting = () => {
         if (noticeWaited) expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
         noticeWaited = false;
       };
-      /** An event's action, after the check of the time the notice waited (afterWaiting). */
       const acting = (action: () => Promise<void>) => async () => {
         afterWaiting();
         await action();
@@ -396,7 +378,6 @@ test.describe('link images', () => {
             if (view.answer === 'answering') {
               await expect.poll(() => held.isHolding(), {message: `${OTHER_SITE} should hold its answer`}).toBe(true);
             }
-            // Trusted sites load at once, also while the notice waits.
             await expectLoaded(view.trustedImages);
             const otherSiteImages = [...view.heldImages, ...view.addedImages];
             if (view.waiting) {
@@ -408,7 +389,6 @@ test.describe('link images', () => {
             }
             await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
             await expect.poll(sinceLoad).toEqual(expect.arrayContaining(otherSiteImages.map(({url}) => url)));
-            // The site answers the images the visitor added at once.
             await expectLoaded(view.addedImages);
             if (view.answer === 'answering' || view.answer === 'failed' || view.answer === 'gaveUp') {
               await expectLabelTiles(view.heldImages);
@@ -434,18 +414,9 @@ test.describe('link images', () => {
     }
   });
 
-  /**
-   * The link dialog machine (tests/machines/link-dialog.ts): "From a link", from the address
-   * check to the image check and Add Anyway. Three trusted sites play one address each; before
-   * each address is submitted, its site holds the answer until IMAGE_SITE_ANSWERS. Page time
-   * stands still (`pageTime: 'paused'`), so the check waits for a held answer however long the
-   * steps take, until IMAGE_CHECK_TIMES_OUT runs its clock.
-   */
   test.describe('model: link dialog', () => {
-    /** Mauga in row S, nothing in Unranked. */
     const LIST = listWith([]);
 
-    /** The link dialog machine's events and checks, run on this test's page (modelSut). */
     const linkDialogSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, sites: Readonly<Record<string, ImageSite>>) => {
       let held: HeldImageSite | null = null;
       const releaseHeld = async () => {
@@ -453,14 +424,8 @@ test.describe('link images', () => {
         held = null;
         await hold?.release();
       };
-      /**
-       * The address typed last. Each submit types a new one: a browser that has shown a picture
-       * shows it again without asking the site (WebKit does, even across pages), and then no
-       * answer is left to hold.
-       */
       let submitted: string | null = null;
       let submits = 0;
-      /** Submits an address that the site of `image` holds the answer to, and returns once the page has asked for it. */
       const submitHeld = async (image: DialogImage) => {
         await releaseHeld();
         const address = `${image.url}?submit=${++submits}`;
@@ -512,7 +477,6 @@ test.describe('link images', () => {
               }
               return;
             }
-            // The dialog is modal: the rows behind it leave the accessibility tree until it closes.
             await expect(tierList.linkImages.linkImageDialog).toBeVisible();
             const address = tierList.linkImages.linkDialogAddressField;
             const button = tierList.linkImages.linkDialogButton;

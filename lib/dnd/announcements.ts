@@ -3,15 +3,6 @@ import {itemLabel, tierPhrase} from './labels';
 import {findItem} from './moves';
 import type {ItemPosition, TierLike} from './model';
 
-/**
- * What screen readers hear while someone drags with the keyboard (or a pointer). The texts
- * name rows by their labels ("row S", "Unranked", "Row 3") and items by their labels,
- * never by internal ids. Positions count from 1.
- *
- * `tiers` is always the list as it was when the drag started: the list itself changes only
- * on drop (one history entry per change, product rule 2), while the editor shows a preview
- * during the drag (lib/dnd/preview.ts).
- */
 
 /** Read once when a draggable gets focus (aria-describedby). */
 export const SCREEN_READER_INSTRUCTIONS =
@@ -58,22 +49,14 @@ export function itemAnnouncement(
   return unchanged ? `Dropped ${name}. It stays in ${start}.` : `Dropped ${name} in ${target}.`;
 }
 
-/** The first letter in upper case, for a row phrase at the start of a sentence ("row S" → "Row S"). */
 function capitalised(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** True when `index` is a ranked row of the list (not Unranked, the last row, which never moves). */
 function isRankedRow(tiers: readonly TierLike[], index: number | null | undefined): index is number {
   return typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < tiers.length - 1;
 }
 
-/**
- * The announcement for a whole row moved by its grip: the row moves with its name and items
- * (owner decision, 2026-11-14). `tiers` is the list from the start of the drag, `preview` the
- * list as the drag shows it (for 'over', the row next to it). Positions count the ranked rows:
- * Unranked never moves.
- */
 export function rowAnnouncement(
   phase: DragPhase,
   tiers: readonly TierLike[],
@@ -97,16 +80,10 @@ export function rowAnnouncement(
   return to === from ? `Dropped ${row}. It stays at ${at(from)}.` : `Dropped ${row} at ${at(to)}.`;
 }
 
-/** "the 3 items", "the 1 item": how a row's items are counted in a sentence. */
 export function itemsCount(count: number): string {
   return `the ${count} item${count === 1 ? '' : 's'}`;
 }
 
-/**
- * The announcement for the items of a row moved by its stack. The labels stay in place
- * (product rule 6): the texts say where the items go, named by the label of the target position,
- * and whose items take their place. `tiers` is the list from the start of the drag.
- */
 export function rowItemsAnnouncement(
   phase: DragPhase,
   tiers: readonly TierLike[],
@@ -124,20 +101,12 @@ export function rowItemsAnnouncement(
   const target = tierPhrase(tiers, to);
   if (phase === 'over') return to === from ? `${capitalised(items)}, back in ${start}.` : `${capitalised(items)}, over ${target}.`;
   if (to === from) return `Dropped. ${capitalised(items)} stay in ${start}.`;
-  // The rows between move one place towards the start: one row when the two are neighbours.
   const shifted = Math.abs(to - from) === 1
     ? `${capitalised(target)}'s items are now in ${start}.`
     : `The items of ${tierPhrase(tiers, Math.min(from, to) + (to > from ? 1 : 0))} to ${tierPhrase(tiers, Math.max(from, to) - (to > from ? 0 : 1))} move ${to > from ? 'up' : 'down'} one row.`;
   return `Dropped ${items} in ${target}. ${shifted}`;
 }
 
-/**
- * The announcement for a drag by the dnd-kit id of what is dragged (an item, a row or a row's
- * stack), or
- * undefined. `tiers` is the list from the start of the drag; `preview` is the list as the
- * drag shows it now (lib/dnd/preview.ts), so 'over' and 'drop' name the position after the
- * move, as the screen shows it.
- */
 export function previewAnnouncement(
   phase: DragPhase,
   tiers: readonly TierLike[],

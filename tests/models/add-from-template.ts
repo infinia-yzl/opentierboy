@@ -3,7 +3,6 @@ import type {EventFrom, SnapshotFrom} from 'xstate';
 import {addFromTemplateMachine} from '../machines/add-from-template';
 import {always, defineModel, offered} from '../support/machines';
 
-/** The OVERWATCH sets the walk adds: their tags, their titles in the picker, and an image of each. */
 export const TEMPLATE_SETS = {
   tank: {tag: 'tank', title: 'Tank', example: 'Mauga'},
   support: {tag: 'sup', title: 'Support', example: 'Mercy'},
@@ -11,18 +10,13 @@ export const TEMPLATE_SETS = {
 export const TEMPLATE_SET_KEYS = ['tank', 'support'] as const;
 export type TemplateSetKey = typeof TEMPLATE_SET_KEYS[number];
 
-/** The toasts that adding a set shows (components/useAddItems.ts). */
 export type AddToast = 'Items Added' | 'No New Items';
 
-/** The page of the template picker, by the heading of its group of options, or null when it is closed. */
 export type PickerPage = 'Packages' | 'OVERWATCH' | null;
 
-/** What one state of the add-from-template machine shows. */
 export interface AddFromTemplateView {
-  /** The sets whose images Unranked holds, each image once. */
   readonly sets: readonly TemplateSetKey[];
   readonly picker: PickerPage;
-  /** The toast on screen: "Items Added" with its Undo, "No New Items" without, or none. */
   readonly toast: AddToast | null;
 }
 
@@ -36,7 +30,6 @@ const SETS_BY_CONTENTS: Readonly<Record<string, readonly TemplateSetKey[]>> = {
   both: ['tank', 'support'],
 };
 
-/** Each state below a contents state, by its path, and what the picker and the toast show. */
 const OVERLAYS: Readonly<Record<string, Pick<AddFromTemplateView, 'picker' | 'toast'>>> = {
   closed: {picker: null, toast: null},
   'picker.packages': {picker: 'Packages', toast: null},
@@ -47,14 +40,12 @@ const OVERLAYS: Readonly<Record<string, Pick<AddFromTemplateView, 'picker' | 'to
   nothingAdded: {picker: null, toast: 'No New Items'},
 };
 
-/** The dotted path of a state value, such as 'empty.picker.overwatch'. */
 function statePath(value: unknown): string {
   if (typeof value === 'string') return value;
   const [key, child] = Object.entries(value as Record<string, unknown>)[0];
   return `${key}.${statePath(child)}`;
 }
 
-/** What the page shows in a state of the add-from-template machine. */
 export function addFromTemplateViewOf(snapshot: AddFromTemplateSnapshot): AddFromTemplateView {
   const path = statePath(snapshot.value);
   const [contents, ...rest] = path.split('.');
@@ -69,8 +60,6 @@ const constant = fc.constant({});
 export const addFromTemplateModel = defineModel({
   id: 'add-from-template',
   machine: addFromTemplateMachine,
-  // Every control is sent where the page offers it. Escape is sent everywhere: with the picker
-  // closed, the page must ignore it.
   events: {
     OPEN_FROM_MENU: {generate: constant, when: offered('OPEN_FROM_MENU')},
     OPEN_FROM_DROP_AREA: {generate: constant, when: offered('OPEN_FROM_DROP_AREA')},
