@@ -305,22 +305,30 @@ export class DragAndDrop {
     }).toBe(true);
   }
 
-  /**
-   * Scrolls the window so that the handle and the drop point (in window coordinates) both show,
-   * when they fit in the window together and do not show already.
-   */
   private async scrollToShow(handle: Locator, dropAt: Point) {
     const margin = 16;
     const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
     const scroll = await scrollPosition(this.page);
     const from = await boxOf(handle);
-    const top = Math.min(from.y, dropAt.y) + scroll.y;
-    const bottom = Math.max(from.y + from.height, dropAt.y) + scroll.y;
-    const shows = top >= scroll.y + margin && bottom <= scroll.y + viewport.height - margin;
-    if (shows || bottom - top > viewport.height - 2 * margin) return;
-    const y = Math.max(0, Math.round((top + bottom - viewport.height) / 2));
+    const handleTop = from.y + scroll.y;
+    const handleBottom = from.y + from.height + scroll.y;
+    const drop = dropAt.y + scroll.y;
+    const band = Math.ceil(viewport.height * AUTO_SCROLL_EDGE) + 1;
+    const lowest = Math.max(handleBottom - viewport.height + margin, drop - viewport.height + band, 0);
+    const maxScroll = await this.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+    const highest = Math.min(handleTop - margin, drop - band, maxScroll);
+    let y: number;
+    if (lowest <= highest) {
+      if (scroll.y >= lowest && scroll.y <= highest) return;
+      y = Math.round(scroll.y < lowest ? lowest : highest);
+    } else {
+      const top = Math.min(handleTop, drop);
+      const bottom = Math.max(handleBottom, drop);
+      const shows = top >= scroll.y + margin && bottom <= scroll.y + viewport.height - margin;
+      if (shows || bottom - top > viewport.height - 2 * margin) return;
+      y = Math.max(0, Math.round((top + bottom - viewport.height) / 2));
+    }
     await this.page.evaluate((toY) => window.scrollTo({top: toY, behavior: 'instant'}), y);
-    // The window may stop short of the point (the end of the page): wait until it holds still.
     let last = await scrollPositionAfterFrames(this.page, 2);
     await expect.poll(async () => {
       const now = await scrollPositionAfterFrames(this.page, 2);
@@ -674,3 +682,5 @@ export class DragAndDrop {
  * waits five frames, so 100 tries let the page auto-scroll for about 500 frames.
  */
 const DROP_POINT_TRIES = 100;
+
+const AUTO_SCROLL_EDGE = 0.2;
