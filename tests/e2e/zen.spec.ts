@@ -422,10 +422,9 @@ test.describe('zen', () => {
       await tierList.zen.chooseRankingOrder('Shuffle');
       await tierList.zen.chooseRankingOrder('Pick freely');
 
-      await tierList.settled();
+      await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
-      await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
     });
   });
 

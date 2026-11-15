@@ -41,9 +41,6 @@ export class Rows {
       await rename();
       return;
     }
-    // From a page that has finished the last step (a drop): text typed while the
-    // drag library still blocks text selection could land beside the old name (WebKit).
-    await this.tierList.settled();
     await changeAndWaitForLink(this.page, rename);
   }
 
@@ -76,12 +73,7 @@ export class Rows {
     return this.page.getByRole('menuitem', {name: 'Remove a row'});
   }
 
-  /**
-   * Opens the Row options menu, once the page has settled (a test may come from Back) and no
-   * menu is open: a click on Row options with its menu open would close it.
-   */
   async openRowOptions() {
-    await this.tierList.settled();
     await expect(this.tierList.openMenus, 'no menu should be open before Row options opens').toHaveCount(0);
     await this.tierList.rowOptionsButton.click();
     await expect(this.removeRowMenuItem).toBeVisible();
@@ -166,16 +158,17 @@ export class Rows {
     return !!(label && item && label.y + label.height <= item.y);
   }
 
-  /**
-   * Chooses a tile size in the Row options menu. A view setting: it writes no link of its own.
-   * Choosing Compact with Show Labels on also turns Show Labels off, which rewrites the link in
-   * place; the page is busy until that link is written, so this returns once it has settled.
-   */
   async chooseTileSize(name: TileSizeName) {
     await this.openRowOptions();
-    await this.rowOption(name).click();
+    await this.chooseTileSizeInOpenMenu(name, () => this.rowOption(name).click());
+  }
+
+  private async chooseTileSizeInOpenMenu(name: TileSizeName, choose: () => Promise<void>) {
+    const turnsLabelsOff = name === 'Compact' && (await this.rowOption('Show Labels').getAttribute('aria-checked')) === 'true';
+    const before = this.page.url();
+    await choose();
     await expect(this.tierList.openMenus).toHaveCount(0);
-    await this.tierList.settled();
+    if (turnsLabelsOff) await expect(this.page, 'Compact should turn Show Labels off in the link').not.toHaveURL(before);
   }
 
   /**
@@ -198,16 +191,9 @@ export class Rows {
     await changeAndWaitForLink(this.page, () => this.chooseOpenRowOption(option));
   }
 
-  /**
-   * Chooses a tile size in Row options with the keyboard (see chooseLabelPositionWithKeyboard:
-   * Tile Size is the menu's last group). Choosing Compact with Show Labels on also turns Show
-   * Labels off, which rewrites the link in place: the page is busy until that link is written,
-   * so this returns once it has settled.
-   */
   async chooseTileSizeWithKeyboard(name: TileSizeName) {
     await this.openRowOptions();
-    await this.chooseOpenRowOption(this.rowOption(name));
-    await this.tierList.settled();
+    await this.chooseTileSizeInOpenMenu(name, () => this.chooseOpenRowOption(this.rowOption(name)));
   }
 
   /** Chooses an option of the open Row options menu with the keyboard, and waits until the menu closes. */
@@ -226,15 +212,11 @@ export class Rows {
     await expect(this.page, 'the shareable link should update').not.toHaveURL(before);
   }
 
-  /**
-   * Chooses a row count in Row options, and returns once the page has settled. The count the list
-   * has already changes nothing when the rows are the template's, so this waits for no new link.
-   */
-  async chooseRowCountAndSettle(count: RowCount) {
+  async chooseRowCountAndWaitForRows(count: RowCount) {
     await this.openRowOptions();
     await this.rowOption(`${count} Rows`).click();
     await expect(this.tierList.openMenus).toHaveCount(0);
-    await this.tierList.settled();
+    await expect(this.tierList.tiers).toHaveCount(count + 1);
   }
 }
 

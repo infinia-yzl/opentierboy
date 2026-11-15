@@ -13,9 +13,7 @@ export function toasts(page: Page): Locator {
 /**
  * Runs an action, and waits until the toasts it showed are exactly one toast that contains
  * `text`. The toasts already on screen are marked first, so an older toast with the same text
- * does not count, and a toast of another outcome (an error) fails the wait. It waits for the
- * toast, not for the page to settle: the page may be busy on purpose, for example while list
- * writes wait for a held server answer.
+ * does not count, and a toast of another outcome (an error) fails the wait.
  */
 export async function expectOnlyNewToast(page: Page, action: () => Promise<void>, text: string) {
   const marker = 'data-shown-before-step';

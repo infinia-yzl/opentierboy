@@ -357,22 +357,18 @@ test.describe('tips', () => {
         events: {
           OPEN_SHARED_LINK: () => tierList.goto(TANKS, SHARED),
           OPEN_FROM_RECENTLY_VIEWED: () => site.openRecentLink('Tanks by a friend'),
-          CHANGE_TITLE: async () => {
-            await tierList.setTitle(`My tanks ${++changes}`);
-            // The tip's toast ends by itself after 10 s, and this campaign cannot run the page
-            // clock (see above). Once the change has settled, the toast shows or it does not; when
-            // it shows, the pointer rests on it, as a reader's does, so it stays until a step
-            // closes it.
-            await tierList.settled();
-            if (await tips.linkSaveToast.count() > 0) await tierList.restOnMessage(tips.linkSaveToast);
-          },
+          CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
           CLOSE_TIP: () => tips.close(),
           CLOSE_TOAST: () => tips.closeTipToast(),
           HIDE_TIPS: () => tips.hideTips(),
           SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
         },
         states: {
-          '*': (_page, snapshot) => expectTips(tips, sharedListViewOf(snapshot)),
+          '*': async (_page, snapshot) => {
+            const view = sharedListViewOf(snapshot);
+            if (view.shown === 'linkSave') await tierList.restOnMessage(tips.linkSaveToast);
+            await expectTips(tips, view);
+          },
         },
         testInfo,
         step: (name, body) => test.step(name, body),

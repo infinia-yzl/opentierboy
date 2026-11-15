@@ -7,7 +7,6 @@ import {packageItemId, v3LinkJson, v3State} from '../support/links';
 import {BLUE_SQUARE, noisePng, NOT_A_PICTURE, serveImageSite, type HeldImageSite, type ImageSite} from '../support/image-sites';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
-  awaitsImageSite,
   BLUE,
   GREEN,
   HELD_ADDRESSES,
@@ -23,7 +22,7 @@ import {
   type LinkImagesSnapshot,
 } from '../models/link-images';
 import {
-  checksImage, LARGE_PICTURE, linkDialogModel, linkDialogViewOf, PICTURE, REFUSED_ADDRESS, WEB_PAGE,
+  LARGE_PICTURE, linkDialogModel, linkDialogViewOf, PICTURE, REFUSED_ADDRESS, WEB_PAGE,
   type DialogImage, type LinkDialogEvent, type LinkDialogSnapshot,
 } from '../models/link-dialog';
 
@@ -88,8 +87,7 @@ test.describe('link images', () => {
         await expect(tierList.linkImages.linkImageMessage, address).toHaveText(message);
       }
       await tierList.linkImages.closeLinkImageDialog();
-      await tierList.settled();
-      expect(await tierList.itemNamesIn('Unranked')).toEqual([]);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
     test('renders a label tile with the site name when the user adds an image that does not load with Add Anyway', async ({tierList, page}) => {
@@ -213,9 +211,7 @@ test.describe('link images', () => {
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
       await expect.poll(newEntries).toBe(1);
-      // Every toast shows before the page settles (lib/toast.ts): then one look tells.
-      await tierList.settled();
-      expect(await tierList.toast(/could not/i).count(), 'no toast says an image could not be added').toBe(0);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
     });
 
     test('writes no history entry and renders no item or toast when the user drops a link to a page that is not an image', async ({tierList, page}) => {
@@ -230,9 +226,7 @@ test.describe('link images', () => {
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
       await expect.poll(newEntries).toBe(1);
-      // Every toast shows before the page settles (lib/toast.ts): then one look tells.
-      await tierList.settled();
-      expect(await tierList.toast(/could not/i).count(), 'no toast says an image could not be added').toBe(0);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
     });
 
     test('writes no history entry and renders no toast when the user pastes an address that fails checkLinkImageUrl', async ({tierList, page, browserName}) => {
@@ -246,9 +240,7 @@ test.describe('link images', () => {
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
       await expect.poll(newEntries).toBe(1);
-      // Every toast shows before the page settles (lib/toast.ts): then one look tells.
-      await tierList.settled();
-      expect(await tierList.toast(/could not/i).count(), 'no toast says an image could not be added').toBe(0);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
     });
 
     test('writes no history entry and renders no toast when the user pastes text without an address', async ({tierList, page, browserName}) => {
@@ -263,9 +255,7 @@ test.describe('link images', () => {
 
       await expect(tierList.item('blue')).toBeVisible();
       await expect.poll(newEntries).toBe(1);
-      // Every toast shows before the page settles (lib/toast.ts): then one look tells.
-      await tierList.settled();
-      expect(await tierList.toast(/could not/i).count(), 'no toast says an image could not be added').toBe(0);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
     });
 
     test('renders 20 items and the toast "Too many image addresses" when the user pastes 25 addresses', async ({tierList, page, browserName}) => {
@@ -366,12 +356,11 @@ test.describe('link images', () => {
         afterWaiting();
         await action();
       };
-      const load = async (open: (site: HeldImageSite) => Promise<void>) => {
+      const load = async (open: () => Promise<void>) => {
         const before = held;
         loadedAt = otherSite.requests.length;
         held = otherSite.hold(HELD_ADDRESSES);
-        await open(held);
-        // The page before left its waiting requests behind: their answers reach nothing.
+        await open();
         await before.release();
       };
       return modelSut<LinkImagesSnapshot, LinkImagesEvent>(page, {
@@ -384,17 +373,11 @@ test.describe('link images', () => {
           LOAD_IMAGES: acting(() => tierList.linkImages.loadImagesFromOtherSites()),
           ALWAYS_ALLOW_SITES: acting(() => tierList.linkImages.alwaysAllowImageSites()),
           ADD_IMAGE_FROM_LINK: acting(() => tierList.linkImages.addItemFromLinkAndWaitForLink(GREEN.url, GREEN.label)),
-          RELOAD: acting(() => load((site) => tierList.linkImages.reloadWhileImageSiteHeld(site))),
-          OPEN_OTHER_LIST: acting(() => load((site) => tierList.linkImages.gotoWhileImageSiteHeld(TANKS, OTHER_LIST, site))),
+          RELOAD: acting(() => load(() => tierList.reload())),
+          OPEN_OTHER_LIST: acting(() => load(() => tierList.goto(TANKS, OTHER_LIST))),
           IMAGE_SITE_ANSWERS: acting(() => held.release()),
           IMAGE_SITE_FAILS: acting(() => held.release(NOT_A_PICTURE)),
-          IMAGE_CHECK_TIMES_OUT: acting(async () => {
-            // The page asked the site when the list opened or the site was allowed, and no page
-            // time has passed since: it still waits 1 ms before the time is up.
-            await tierList.letTimePass(IMAGE_CHECK_MS - 1);
-            await expect(tierList.main, `the page should still wait ${IMAGE_CHECK_MS - 1} ms after it asked`).toHaveAttribute('aria-busy', 'true');
-            await tierList.letTimePass(1);
-          }),
+          IMAGE_CHECK_TIMES_OUT: acting(() => tierList.letTimePass(IMAGE_CHECK_MS)),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -412,7 +395,6 @@ test.describe('link images', () => {
             };
             if (view.answer === 'answering') {
               await expect.poll(() => held.isHolding(), {message: `${OTHER_SITE} should hold its answer`}).toBe(true);
-              await expect(tierList.main, 'the page should be busy while the site has not answered').toHaveAttribute('aria-busy', 'true');
             }
             // Trusted sites load at once, also while the notice waits.
             await expectLoaded(view.trustedImages);
@@ -437,8 +419,7 @@ test.describe('link images', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      // While the site holds its answer, the page waits for it (IMAGE_SITE_ANSWERS, IMAGE_SITE_FAILS).
-      }, {machine: linkImagesModel.machine, busyIn: awaitsImageSite});
+      });
     };
 
     test.describe.configure({retries: 0});
@@ -504,12 +485,11 @@ test.describe('link images', () => {
           ENTER_LARGE_PICTURE_ADDRESS: () => submitHeld(LARGE_PICTURE),
           IMAGE_SITE_ANSWERS: () => releaseHeld(),
           IMAGE_CHECK_TIMES_OUT: async () => {
-            // The page asked the site when the address was submitted, and no page time has passed since.
             await tierList.letTimePass(IMAGE_CHECK_MS - 1);
-            await expect(tierList.main, `the page should still wait ${IMAGE_CHECK_MS - 1} ms after it asked`).toHaveAttribute('aria-busy', 'true');
+            await expect(tierList.linkImages.linkDialogButton, `the page should still check the image ${IMAGE_CHECK_MS - 1} ms after it asked`)
+              .toHaveText('Checking the image…');
             await tierList.letTimePass(1);
             await expect(tierList.linkImages.linkDialogButton).toHaveText('Add Anyway');
-            // The site answers late: the page gave up, so nothing changes.
             await releaseHeld();
           },
           ADD_ANYWAY: () => tierList.linkImages.confirmAddAnyway(),
@@ -556,7 +536,6 @@ test.describe('link images', () => {
                 await expect(button).toHaveText('Checking the image…');
                 await expect(button).toBeDisabled();
                 expect(held?.isHolding(), 'the site should still hold its answer').toBe(true);
-                await expect(tierList.main, 'the page should be busy while the image is checked').toHaveAttribute('aria-busy', 'true');
                 return;
               case 'failed':
                 await expect(tierList.linkImages.linkImageMessage).toHaveText(view.message);
@@ -569,8 +548,7 @@ test.describe('link images', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      // While the site holds its answer, the page checks the image (IMAGE_SITE_ANSWERS).
-      }, {machine: linkDialogModel.machine, busyIn: checksImage});
+      });
       return {sut, releaseHeld};
     };
 

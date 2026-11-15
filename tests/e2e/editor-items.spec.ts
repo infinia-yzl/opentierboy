@@ -61,7 +61,6 @@ test.describe('editor items', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
       await tierList.items.removeAllItems();
-      await tierList.settled();
 
       // A trial click runs every check of a real click, including that nothing covers the button.
       await tierList.shareButton.click({trial: true});
@@ -365,7 +364,6 @@ test.describe('editor items', () => {
         reset: async () => {
           onScreen = null;
           await tierList.openAfterBlankPage(TANKS, LIST);
-          await tierList.settled();
           opened = page.url();
           entries = await tierList.historyLength();
         },

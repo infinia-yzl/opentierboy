@@ -141,7 +141,6 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.deviceImages.loadedUploadImageCount(), {timeout: ADD_BUDGET_MS}).toBe(count);
       const addMs = Date.now() - addStarted;
       expect(addMs, `${count} uploads should be added within ${ADD_BUDGET_MS} ms`).toBeLessThan(ADD_BUDGET_MS);
-      await tierList.settled();
 
       const loadStarted = Date.now();
       await tierList.reloadNow();
@@ -153,7 +152,6 @@ test.describe('device images', () => {
 
       test.info().annotations.push({type: 'timing', description: `${count} uploads: added in ${addMs} ms, shown after a reload in ${loadMs} ms`});
       expect(loadMs, `${count} uploads should show within ${RELOAD_BUDGET_MS} ms of a reload`).toBeLessThan(RELOAD_BUDGET_MS);
-      await tierList.settled();
     });
 
     test('renders the red centre of the drawing when the user uploads an SVG file', async ({tierList}) => {
@@ -223,7 +221,6 @@ test.describe('device images', () => {
       // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
       await expect.poll(() => tierList.deviceImages.oldUploadIds()).toEqual(['legacyUp3']);
       await expect.poll(() => tierList.itemShowsPlaceholder('old 3')).toBe(true);
-      await tierList.settled();
       expect(await tierList.deviceImages.evictedImageIds()).toEqual([]);
     });
 
@@ -244,7 +241,6 @@ test.describe('device images', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['base', 'first']);
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('first')).toBe(true);
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('base')).toBe(true);
-      await tierList.settled();
       expect(await tierList.deviceImages.evictedImageIds()).toEqual([]);
     });
 
@@ -331,9 +327,7 @@ test.describe('device images', () => {
       const input = await tierList.typeTitle('My list');
       await tierList.deviceImages.pasteImages([imageFile('image.png')], input);
       await input.press('Escape');
-      // A picture that the editor took would keep the page busy until it is added.
-      await tierList.settled();
-      expect(await tierList.itemNamesIn('Unranked')).toEqual([]);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
       // The same paste outside the field adds the picture, so the empty list above is no accident.
       await tierList.deviceImages.pasteImages([imageFile('image.png')]);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);

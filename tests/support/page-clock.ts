@@ -44,10 +44,10 @@ export function pageTimePaused(page: Page): boolean {
  *
  * Only real waits stop. What the browser runs "as soon as possible" still runs at once, as it
  * would without the clock: timers of at most SOON_MS, animation frames and idle callbacks. A page
- * needs them to settle: React reveals streamed content in an animation frame, Sonner shows a toast
- * in a zero-delay timer, lib/toast.ts ends `aria-busy` in another, and Radix dialogs add their
- * listeners and give back the focus in them. Playwright's runFor(0) cannot run them instead: its
- * clock gives a zero-delay timer set while timers run a delay of 1 ms, so it would wait forever.
+ * needs them to show itself: React reveals streamed content in an animation frame, Sonner shows a
+ * toast in a zero-delay timer, and Radix dialogs add their listeners and give back the focus in
+ * them. Playwright's runFor(0) cannot run them instead: its clock gives a zero-delay timer set
+ * while timers run a delay of 1 ms, so it would wait forever.
  * React's reveal throttles also run on the real timers, so a move inside the site shows the next
  * page without a step for it (see below). The browser's own timers are kept by a first init
  * script, before the clock replaces them, and a second one routes those calls to them.

@@ -61,9 +61,6 @@ export function linkDialogViewOf(snapshot: LinkDialogSnapshot): LinkDialogView {
   return view;
 }
 
-/** True where the page waits for the image site on purpose (modelSut's `busyIn`). */
-export const checksImage = (snapshot: LinkDialogSnapshot) => linkDialogViewOf(snapshot).dialog === 'checking';
-
 const constant = fc.constant({});
 
 /**

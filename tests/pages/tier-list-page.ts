@@ -1,8 +1,8 @@
 import {expect, type Locator, type Page, type Route} from '@playwright/test';
-import {expectSettled} from '../support/settled';
+import {expectHydrated} from '../support/hydrated';
 import {escapeRegExp} from '../support/regexp';
 import {runPageClock} from '../support/page-clock';
-import {boxOf, changeAndWaitForLink, rowPhrase, startedAndIdle, UNTIL_STARTED} from './helpers';
+import {boxOf, changeAndWaitForLink, rowPhrase, UNTIL_STARTED} from './helpers';
 import {toasts} from './toasts';
 import {Rows} from './rows';
 import {EditorItems} from './editor-items';
@@ -25,6 +25,8 @@ export interface Size {
  * Template, Upload and Link buttons of an empty list's drop area.
  */
 const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images\b|(?:Template|Upload|Link)$)/;
+
+const NOT_A_TIP_BUTTON = /^(?!(?:Hide tips|Close tip)$)/;
 
 /**
  * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
@@ -111,9 +113,6 @@ export class TierListPage {
 
   constructor(page: Page) {
     this.page = page;
-    // An open dialog or menu hides <main> from assistive technology, but <main> still says
-    // aria-busy and still takes events, so it is found also while hidden. What it holds is
-    // looked up by role as usual, so a hidden title or row is still not found.
     this.main = page.getByRole('main', {includeHidden: true});
     this.title = this.main.getByRole('heading', {level: 1});
     this.editTitleButton = this.main.getByRole('button', {name: 'Edit title'});
@@ -141,36 +140,25 @@ export class TierListPage {
 
   // ---- Opening the editor, Back and Forward -------------------------------------------------
 
-  /** Opens a tier list. `state` is the raw value of the `state` query parameter. */
   async goto(path: string, state?: string) {
     await this.page.goto(state ? `${path}?state=${state}` : path, UNTIL_STARTED);
-    await expect(this.tiers.first()).toBeVisible();
-    await this.settled();
+    await this.ready();
   }
 
-  /** Opens a full link, for example one copied from another page. */
   async gotoLink(link: string) {
     await this.page.goto(link, UNTIL_STARTED);
-    await expect(this.tiers.first()).toBeVisible();
-    await this.settled();
+    await this.ready();
   }
 
-  /** Opens a page by its address as typed, for example with parameters the app does not read. */
   async gotoAddress(address: string) {
     await this.page.goto(address, UNTIL_STARTED);
-    await expect(this.tiers.first()).toBeVisible();
-    await this.settled();
+    await this.ready();
   }
 
-  /**
-   * Opens a link that might crash the page in the browser. Unlike goto(), it does not wait for
-   * the editor: it returns once Next.js shows its crash message, or once the page has started
-   * and settled (a crash while it starts comes before that).
-   */
   async gotoPageThatMayCrash(path: string, state: string) {
     await this.page.goto(`${path}?state=${state}`, UNTIL_STARTED);
-    await expect.poll(async () => await this.crashMessage.isVisible() || await startedAndIdle(this.main), {
-      message: 'the page should crash, or start and settle',
+    await expect.poll(async () => await this.crashMessage.isVisible() || await this.isReady(), {
+      message: 'the page should crash, or show the editor ready to drag',
     }).toBe(true);
   }
 
@@ -179,11 +167,9 @@ export class TierListPage {
     return this.page.getByRole('heading', {name: /Application error/});
   }
 
-  /** Reloads the page, and waits until the editor shows the list again. */
   async reload() {
     await this.page.reload(UNTIL_STARTED);
-    await expect(this.tiers.first()).toBeVisible();
-    await this.settled();
+    await this.ready();
   }
 
   /**
@@ -217,41 +203,46 @@ export class TierListPage {
     await this.goto(path, state);
   }
 
-  /**
-   * Waits until the page has finished what the last step started: <main> no longer says
-   * `aria-busy` (lib/busy.ts). The page is busy until the editor has started in the browser,
-   * while a link is written, during a drag, and while files or pictures are added or captured.
-   */
-  async settled() {
-    await expectSettled(this.page);
+  async ready() {
+    await expectHydrated(this.page);
+    await expect.poll(() => this.notReadyToDrag(), {
+      message: 'every row grip and item tile should take a drag (role description "draggable")',
+    }).toEqual([]);
   }
 
-  /**
-   * The browser's Back button. Returns once the address of the entry before is in the address bar
-   * and the page has settled: Back to another version of the list keeps the page busy until the
-   * router shows it (components/NavigationBusy.tsx), Back to another page until it has started.
-   */
+  async isReady(): Promise<boolean> {
+    const hydrated = await this.page.locator('html').getAttribute('data-hydrated');
+    return hydrated === 'true' && (await this.notReadyToDrag()).length === 0;
+  }
+
+  private async notReadyToDrag(): Promise<string[]> {
+    const grips = this.main.getByRole('button', {name: /^Move (?!the \d+ items? of )/, includeHidden: true});
+    if ((await grips.count()) === 0) return ['no row grip yet'];
+    const rows = this.main.getByRole('group', {includeHidden: true}).filter({has: this.page.getByRole('heading', {level: 2, includeHidden: true})});
+    const items = rows.getByRole('button', {name: NOT_AN_ITEM, includeHidden: true})
+      .and(this.page.getByRole('button', {name: NOT_A_TIP_BUTTON, includeHidden: true}));
+    return grips.or(items).evaluateAll((handles) => handles
+      .filter((handle) => handle.getAttribute('aria-roledescription') !== 'draggable')
+      .map((handle) => handle.getAttribute('aria-label') ?? ''));
+  }
+
   async goBack() {
     await changeAndWaitForLink(this.page, async () => {
       await this.page.goBack(UNTIL_STARTED);
     });
-    await this.settled();
+    await this.readyWhereverItLands();
   }
 
-  /**
-   * The browser's Forward button. Returns once the page has settled. With an entry after this
-   * one, the address is the entry's then (see goBack); with none, the browser stays where it is,
-   * and so do the address and the page.
-   */
   async goForward() {
     await this.page.goForward(UNTIL_STARTED);
-    await this.settled();
+    await this.readyWhereverItLands();
   }
 
-  /**
-   * Back with the browser while the page may be busy on purpose, for example right after a change
-   * or while files wait: it returns once Back has been sent, without waiting for anything.
-   */
+  private async readyWhereverItLands() {
+    await expectHydrated(this.page);
+    if (new URL(this.page.url()).pathname.startsWith('/rank')) await this.ready();
+  }
+
   async goBackNow() {
     await this.page.goBack({waitUntil: 'commit'});
   }
@@ -426,13 +417,8 @@ export class TierListPage {
     return colours;
   }
 
-  /**
-   * The names of what Tab reaches inside a row, in order: from the element before the row, Tab
-   * until the focus leaves the row.
-   */
   async tabOrderIn(tierName: string): Promise<string[]> {
     const row = this.tier(tierName);
-    await this.settled();
     const first = row.getByRole('button').first();
     await first.focus();
     await this.page.keyboard.press('Shift+Tab');
@@ -519,9 +505,7 @@ export class TierListPage {
 
   // ---- The title row ------------------------------------------------------------------------
 
-  /** Renames the list: clicks the title, types the new one and presses Enter. Returns once the new link is written. */
   async setTitle(newTitle: string) {
-    await this.settled();
     await changeAndWaitForLink(this.page, async () => {
       const input = await this.typeTitle(newTitle);
       await input.press('Enter');

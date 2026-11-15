@@ -1,5 +1,4 @@
 import {expect, type Locator, type Page} from '@playwright/test';
-import {type HeldImageSite} from '../support/image-sites';
 import {changeAndWaitForLink} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
@@ -93,12 +92,7 @@ export class LinkImages {
     await expect(this.imageSitesNotice).toBeHidden();
   }
 
-  /**
-   * The text an item's right-click (or long-press) menu shows about the image's site, if any.
-   * The menu renders whole: once its last item, Delete, shows, the site line is there or not.
-   */
   async itemImageSite(itemName: string): Promise<string | null> {
-    await this.tierList.settled();
     await this.tierList.item(itemName).click({button: 'right'});
     const menu = this.page.getByRole('menu');
     await expect(menu.getByRole('menuitem', {name: 'Delete'})).toBeVisible();
@@ -123,9 +117,7 @@ export class LinkImages {
     }, data);
   }
 
-  /** Drops links or text from another page onto the editor's first row. */
   async dropText(data: {uriList?: string; html?: string; plain?: string}) {
-    await this.tierList.settled();
     const transfer = await this.textTransfer(data);
     const element = this.tierList.tiers.first();
     await element.dispatchEvent('dragenter', {dataTransfer: transfer});
@@ -133,21 +125,14 @@ export class LinkImages {
     await element.dispatchEvent('drop', {dataTransfer: transfer});
   }
 
-  /**
-   * Fires a dragstart on an item that a handler on the item cancels, as a tile does for the
-   * browser's own drag of its picture. No drag starts, so no dragend follows.
-   */
   async fireCancelledDragStartOn(itemName: string) {
-    await this.tierList.settled();
     await this.tierList.item(itemName).evaluate((element) => {
       element.addEventListener('dragstart', (event) => event.preventDefault(), {once: true});
       element.dispatchEvent(new DragEvent('dragstart', {bubbles: true, cancelable: true}));
     });
   }
 
-  /** Drags a link from another page over the editor and keeps it there (no drop yet). */
   async dragLinkOver(address: string) {
-    await this.tierList.settled();
     const transfer = await this.textTransfer({uriList: address, plain: address});
     const element = this.tierList.tiers.first();
     await element.dispatchEvent('dragenter', {dataTransfer: transfer});
@@ -160,12 +145,7 @@ export class LinkImages {
     await this.tierList.tiers.first().dispatchEvent('dragleave', {dataTransfer: transfer});
   }
 
-  /**
-   * Pastes text into the editor, as pasting a copied image address does. The test builds the
-   * paste event; Firefox drops the data of such an event (SCRIPTED_PASTE_SKIP).
-   */
   async pasteText(text: string) {
-    await this.tierList.settled();
     await this.tierList.main.evaluate((element, pasted) => {
       const transfer = new DataTransfer();
       transfer.setData('text/plain', pasted);
@@ -178,35 +158,6 @@ export class LinkImages {
     await changeAndWaitForLink(this.page, () => this.addItemFromLink(address, name));
   }
 
-  /**
-   * Reloads the page while an image site holds its answers (ImageSite.hold). Returns once the
-   * editor shows the list and the page has settled or waits for the site, which keeps it busy.
-   */
-  async reloadWhileImageSiteHeld(site: HeldImageSite) {
-    // Firefox fires the load event only once every picture on screen has loaded, and the site
-    // holds the picture: the reload waits for the new page to start, not for its load event.
-    await this.page.reload({waitUntil: 'commit'});
-    await this.untilSettledOrWaitingFor(site);
-  }
-
-  /** Opens a tier list while an image site holds its answers (see reloadWhileImageSiteHeld). */
-  async gotoWhileImageSiteHeld(path: string, state: string, site: HeldImageSite) {
-    await this.page.goto(`${path}?state=${state}`, {waitUntil: 'commit'});
-    await this.untilSettledOrWaitingFor(site);
-  }
-
-  private async untilSettledOrWaitingFor(site: HeldImageSite) {
-    await expect(this.tierList.tiers.first()).toBeVisible();
-    await expect.poll(async () => site.isHolding() || (await this.tierList.main.getAttribute('aria-busy')) !== 'true', {
-      message: 'the page should settle or wait for the image site',
-    }).toBe(true);
-  }
-
-  /**
-   * Drops an image address on the first row, as a link dragged from another page, while the page
-   * may be busy on purpose (dropText waits until it is not). Returns once the drop is sent: the
-   * page takes it in the drop event. A drop is neither a click nor a key.
-   */
   async dropImageAddressNow(address: string) {
     const transfer = await this.page.evaluateHandle((uri) => {
       const data = new DataTransfer();

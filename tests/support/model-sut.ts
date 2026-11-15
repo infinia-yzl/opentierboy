@@ -1,27 +1,14 @@
 import {createPlaywrightSut, PlaywrightOracleError, type PlaywrightSutConfig} from '@xstate/test/playwright';
 import type {TestSut, TestSutSession} from '@xstate/test';
-import {initialTransition, transition, type AnyMachineSnapshot, type AnyStateMachine, type EventObject} from 'xstate';
+import type {AnyMachineSnapshot, EventObject} from 'xstate';
 import type {ConsoleMessage, Page, Response} from '@playwright/test';
-import {expectSettled} from './settled';
+import {expectHydrated} from './hydrated';
 import {bypassSecret} from './vercel-bypass';
 import {pausePageTime} from './page-clock';
 
-/**
- * Waits until the page's document has been read and the page has finished what the last step
- * started (expectSettled). Not for the load event: it waits for every picture and held answer.
- */
-export async function pageSettled(page: Page) {
+async function pageStarted(page: Page) {
   await page.waitForLoadState('domcontentloaded');
-  await expectSettled(page);
-}
-
-/**
- * The states of a machine in which the page is busy on purpose, such as a drag in progress or a
- * list that waits for a held server answer: there a step has finished once the document is read.
- */
-export interface BusyStates<TSnapshot extends AnyMachineSnapshot> {
-  readonly machine: AnyStateMachine;
-  readonly busyIn: (snapshot: TSnapshot) => boolean;
+  await expectHydrated(page);
 }
 
 /** createPlaywrightSut's config, with what modelSut adds. */
@@ -29,8 +16,9 @@ export interface ModelSutConfig<TSnapshot extends AnyMachineSnapshot, TEvent ext
   extends PlaywrightSutConfig<Page, TSnapshot, TEvent> {
   /**
    * The other pages the events act on, such as a second browser (openAsVisitor), read before
-   * each check: null or closed pages are left out. modelSut settles them, checks their page
-   * errors, console errors and answers of status 400 or more, and keeps their trace of a failing run.
+   * each check: null or closed pages are left out. modelSut waits until they have started,
+   * checks their page errors, console errors and answers of status 400 or more, and keeps their
+   * trace of a failing run.
    */
   readonly pages?: () => readonly (Page | null | undefined)[];
   /**
@@ -109,10 +97,6 @@ async function watchPage(page: Page, label: string, trace: boolean): Promise<Wat
   return watched;
 }
 
-/**
- * The sut of the first page, with the other pages of `pages`: settled before each check (with
- * `settle`), checked by the same oracles, and with their trace and screenshot when a run fails.
- */
 function withOtherPages<TSnapshot extends AnyMachineSnapshot, TEvent extends EventObject>(
   sut: TestSut<TSnapshot, TEvent>,
   pages: () => readonly (Page | null | undefined)[],
@@ -180,45 +164,19 @@ function withOtherPages<TSnapshot extends AnyMachineSnapshot, TEvent extends Eve
   };
 }
 
-/**
- * createPlaywrightSut (@xstate/test/playwright) as every model's Playwright test uses it:
- * - `settle`: before each check the page has finished what the step started (pageSettled), so a
- *   check never looks at a page halfway through a change. With `busy`, the sut follows the
- *   machine (xstate's initialTransition and transition) and, in a state where the page is busy
- *   on purpose, waits only for the pages' documents to be read (DOMContentLoaded). Not for the
- *   load event: Firefox fires it only once every picture on screen has loaded, and a step that
- *   holds an image site's answer holds the load event with it.
- * - `pages`: the other pages the events act on get the same settle, page oracles and failure
- *   trace as `page`.
- * - `pageTime: 'paused'`: page time moves only in the steps that run the page clock.
- * - `trace`: the trace of a failing run, unless the tests run with the Vercel bypass secret,
- *   which a trace would record (playwright.config.ts).
- */
 export function modelSut<TSnapshot extends AnyMachineSnapshot, TEvent extends EventObject>(
   page: Page,
   {pages, pageTime, ...config}: ModelSutConfig<TSnapshot, TEvent>,
-  busy?: BusyStates<TSnapshot>,
 ): TestSut<TSnapshot, TEvent> {
   const trace = config.trace ?? (bypassSecret() ? 'off' : 'retain-on-failure');
-  let current: TSnapshot | null = busy ? initialTransition(busy.machine)[0] as TSnapshot : null;
-  const settle = (target: Page) => (busy && current && busy.busyIn(current) ? target.waitForLoadState('domcontentloaded') : pageSettled(target));
-  const events = !busy ? config.events : Object.fromEntries(Object.entries(config.events).map(([type, action]) => [
-    type,
-    async (target: Page, event: TEvent) => {
-      await (action as (page: Page, event: TEvent) => void | Promise<void>)(target, event);
-      current = transition(busy.machine, current!, event)[0] as TSnapshot;
-    },
-  ])) as unknown as PlaywrightSutConfig<Page, TSnapshot, TEvent>['events'];
   const sut = createPlaywrightSut<Page, TSnapshot, TEvent>(page, {
-    settle,
+    settle: pageStarted,
     ...config,
     trace,
-    events,
     reset: async (target) => {
-      if (busy) current = initialTransition(busy.machine)[0] as TSnapshot;
       if (pageTime === 'paused') await pausePageTime(target);
       await config.reset?.(target);
     },
   });
-  return pages ? withOtherPages(sut, pages, settle, {testInfo: config.testInfo, trace}) : sut;
+  return pages ? withOtherPages(sut, pages, pageStarted, {testInfo: config.testInfo, trace}) : sut;
 }

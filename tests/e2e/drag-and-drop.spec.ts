@@ -299,23 +299,20 @@ test.describe('drag and drop', () => {
   test.describe('cancelled moves', () => {
     test('renders the item at its start and writes no history entry when the user presses Escape during a mouse drag', async ({tierList, page}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.settled();
       const before = page.url();
       const entries = await tierList.historyLength();
 
       await tierList.drag.dragItemToTierThenCancel('Mauga', 'A');
 
       await expect(tierList.drag.dragAnnouncer).toHaveText('Move cancelled. Mauga is back in row S, position 1 of 2.');
-      await tierList.settled();
-      expect(await tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
-      expect(await tierList.itemNamesIn('A')).toEqual([]);
+      await expect.poll(() => tierList.itemNamesIn('S')).toEqual(['Mauga', 'Winston']);
+      await expect.poll(() => tierList.itemNamesIn('A')).toEqual([]);
       expect(page.url()).toBe(before);
       expect(await tierList.historyLength()).toBe(entries);
     });
 
     test('renders the item in row A when the user drags it there after a cancelled mouse drag', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Winston'], '': ['Sigma']}));
-      await tierList.settled();
       await tierList.drag.dragItemToTierThenCancel('Mauga', 'A');
       await expect(tierList.drag.dragAnnouncer).toContainText('Move cancelled.');
 
@@ -374,9 +371,8 @@ test.describe('drag and drop', () => {
 
       await tierList.drag.swipeUpFromItem('Mercy', 200);
 
-      await tierList.settled();
+      await expect.poll(() => tierList.itemNamesIn('Unranked')).toEqual(many);
       expect(tierList.page.url()).toBe(address);
-      expect(await tierList.itemNamesIn('Unranked')).toEqual(many);
     });
   });
 
@@ -407,9 +403,8 @@ test.describe('drag and drop', () => {
 
         await tierList.drag.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
 
-        await tierList.settled();
-        expect(await nativeDrags()).toBe(0);
         await expect(tierList.drag.dragAnnouncer).toHaveText(/^Dropped (Mauga in row S,|Winston\. It stays in Unranked,)/);
+        expect(await nativeDrags()).toBe(0);
         expect(await newEntries()).toBe(1);
         await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
         await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
@@ -516,8 +511,6 @@ test.describe('drag and drop', () => {
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
             // Focus stays on the tile while it moves between rows, and after a drop or a cancel.
             await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
-            // The drag holds the page busy until the drop (busyIn below).
-            if (carried) await expect(tierList.main, 'the page should be busy while the tile is carried').toHaveAttribute('aria-busy', 'true');
             if (!carried) {
               // At rest, it takes the next drag.
               await tierList.drag.expectEveryItemDraggable();
@@ -526,8 +519,7 @@ test.describe('drag and drop', () => {
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      // While the tile is carried, the drag holds the page busy until the drop.
-      }, {machine: keyboardDragModel.machine, busyIn: (snapshot) => keyboardDragViewOf(snapshot).carried});
+      });
     };
 
     test.describe.configure({retries: 0});

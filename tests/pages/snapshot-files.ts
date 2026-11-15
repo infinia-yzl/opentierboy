@@ -1,5 +1,5 @@
 import {expect, type Locator, type Page, type Route} from '@playwright/test';
-import {changeAndWaitForLink, startedAndIdle} from './helpers';
+import {changeAndWaitForLink} from './helpers';
 import {toasts} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
@@ -40,7 +40,6 @@ export class SnapshotFiles {
    * drops the files of a scripted paste (SCRIPTED_PASTE_SKIP).
    */
   async sendFileEventsAtOnce(events: {event: 'paste' | 'drop'; file: {name: string; mimeType: string; buffer: Buffer}}[]) {
-    await this.tierList.settled();
     await this.tierList.main.evaluate((_main, payload) => {
       for (const {event, name, mimeType, base64} of payload) {
         const data = new DataTransfer();
@@ -53,26 +52,14 @@ export class SnapshotFiles {
     }, events.map(({event, file}) => ({event, name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
   }
 
-  /**
-   * Chooses a file with "Open a Freeze Frame…" in the Add images menu, as the file chooser
-   * would. Pass `waitForEditor: false` when the test already waited for the editor
-   * (settled), for example to time the opening.
-   */
-  async openFile(file: {name: string; mimeType: string; buffer: Buffer}, {waitForEditor = true} = {}) {
-    if (waitForEditor) await this.tierList.settled();
+  async openFile(file: {name: string; mimeType: string; buffer: Buffer}) {
     const chooser = this.page.waitForEvent('filechooser');
     await this.tierList.manageItemsButton.click();
     await this.page.getByRole('menuitem', {name: 'Open a Freeze Frame…'}).click();
     await (await chooser).setFiles(file);
   }
 
-  /**
-   * Drops a file onto the editor's first row, as dragging it from the desktop would. With
-   * `onto`, it drops onto that element instead (for example an open menu or dialog), without
-   * waiting for the editor first.
-   */
   async dropFile(file: {name: string; mimeType: string; buffer: Buffer}, {onto}: {onto?: Locator} = {}) {
-    if (!onto) await this.tierList.settled();
     const transfer = await this.page.evaluateHandle(({name, mimeType, base64}) => {
       const data = new DataTransfer();
       data.items.add(new File([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], name, {type: mimeType}));
@@ -102,7 +89,6 @@ export class SnapshotFiles {
    * waiting is not part of the time.
    */
   async timeToOpenFile(file: {name: string; mimeType: string; buffer: Buffer}, text: string): Promise<number> {
-    await this.tierList.settled();
     await this.page.evaluate((expected) => {
       const timing: {start?: number; end?: number} = {};
       (window as unknown as {__openFileTiming: typeof timing}).__openFileTiming = timing;
@@ -117,7 +103,7 @@ export class SnapshotFiles {
       });
       observer.observe(document.body, {childList: true, subtree: true, characterData: true});
     }, text);
-    await this.openFile(file, {waitForEditor: false});
+    await this.openFile(file);
     await expect(this.tierList.toast(text)).toBeVisible();
     return this.page.evaluate(() => {
       const timing = (window as unknown as {__openFileTiming: {start?: number; end?: number}}).__openFileTiming;
@@ -248,11 +234,6 @@ export class SnapshotFiles {
    */
   async dropFileWherePointed(file: {name: string; mimeType: string; buffer: Buffer}) {
     const before = this.page.url();
-    // The dialog shows once a dropped list file has been read, which keeps the page busy, and it
-    // stays until the visitor answers it: once it shows or the page has settled, one look tells.
-    await expect.poll(async () => await this.openListDialog.isVisible() || await startedAndIdle(this.tierList.main), {
-      message: 'the dialog should show, or the page settle',
-    }).toBe(true);
     if (await this.openListDialog.isVisible()) await this.dropFile(file, {onto: this.openListDialog});
     else await this.dropFile(file);
     await this.untilAddressChangesOrDialogShows(before);

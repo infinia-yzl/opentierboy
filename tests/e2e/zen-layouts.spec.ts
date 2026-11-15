@@ -660,10 +660,9 @@ test.describe('zen layouts', () => {
         await tierList.zen.chooseLayout(layout);
       }
 
-      await tierList.settled();
+      await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
       expect(await newEntries()).toBe(0);
       expect(page.url()).toBe(address);
-      await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
     });
 
     test('renders the frame and the list before the drag when the user drags an item in the overlay and clicks button "Back"', async ({tierList}) => {

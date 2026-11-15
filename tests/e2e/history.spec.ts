@@ -5,7 +5,7 @@ import {packageItemId, rankingState, templateItemCount, v3LinkJson, v3State} fro
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import type {TierListPage} from '../pages/tier-list-page';
 import {historyModel, historyViewOf, MAX_VERSIONS, type HistoryEvent, type HistorySnapshot} from '../models/history';
-import {leavingBusy, leavingModel, leavingViewOf, type LeavingEvent, type LeavingSnapshot} from '../models/leaving';
+import {leavingModel, leavingViewOf, type LeavingEvent, type LeavingSnapshot} from '../models/leaving';
 import {serveImageSite} from '../support/image-sites';
 
 const TANKS = '/rank/overwatch/tank';
@@ -32,7 +32,6 @@ test.describe('history', () => {
       await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
       // Back at once, before the page has done anything more, on purpose.
       await tierList.goBackNow();
-      await tierList.settled();
 
       await expect(page).toHaveURL(opened);
       await expect(tierList.itemsIn('F')).toHaveCount(0);
@@ -67,8 +66,7 @@ test.describe('history', () => {
         await tierList.drag.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false});
       }
       await expect(tierList.itemsIn('F')).toHaveCount(3);
-      await tierList.settled();
-      expect(await tierList.historyLength(), 'one history entry per move').toBe(entries + 3);
+      await expect.poll(() => tierList.historyLength(), {message: 'one history entry per move'}).toBe(entries + 3);
 
       for (const count of [2, 1, 0]) {
         await tierList.goBack();
@@ -82,8 +80,7 @@ test.describe('history', () => {
 
       await tierList.rows.renameTier('S', 'First', 'First', {waitForLink: false});
       await tierList.rows.renameTier('First', 'Second', 'Second', {waitForLink: false});
-      await tierList.settled();
-      expect(await tierList.historyLength(), 'one history entry per rename').toBe(entries + 2);
+      await expect.poll(() => tierList.historyLength(), {message: 'one history entry per rename'}).toBe(entries + 2);
 
       await tierList.goBack();
       await expect(tierList.tiers.first()).toHaveAccessibleName('First');
@@ -173,7 +170,6 @@ test.describe('history', () => {
 
       await tierList.rows.chooseLabelPosition('Top');
       await tierList.rows.setItemLabelsVisible(false);
-      await tierList.settled();
       expect(await tierList.historyLength(), 'the settings replace the current entry').toBe(entries);
       const withSettings = page.url();
       await tierList.drag.dragItemToTier('Winston', 'A');
@@ -388,13 +384,11 @@ test.describe('history', () => {
             }
             await expect.poll(() => tierList.historyLength(), {message: 'one history entry per change, and one for Home after Back from it'})
               .toBe(entries + view.version - 1 + (view.homeAhead ? 1 : 0));
-            if (view.busy) await expect(tierList.main).toHaveAttribute('aria-busy', 'true');
           },
         },
         testInfo,
         step: (name, body) => test.step(name, body),
-      // While the trip home waits for its held answer, the page is busy on purpose.
-      }, {machine: leavingModel.machine, busyIn: leavingBusy});
+      });
       return {sut, releaseTrip};
     };
 

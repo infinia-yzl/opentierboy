@@ -44,11 +44,6 @@ export interface LinkImagesView {
   readonly trustedImages: readonly LinkImage[];
   /** True while the notice "Images from other sites" lists OTHER_SITE and its images wait. */
   readonly waiting: boolean;
-  /**
-   * Once the site is allowed, how it answered for the held images on this page: not yet (the
-   * page is busy), with the picture, with something that is not a picture, or not in time (the
-   * page gave up). Null while the notice waits: the page asked the site nothing.
-   */
   readonly answer: Answer | null;
 }
 
@@ -71,9 +66,6 @@ export function linkImagesViewOf(snapshot: LinkImagesSnapshot): LinkImagesView {
 
 /** How long the page waits for a link image before it gives up (lib/images/imageCheck.ts). */
 export const IMAGE_CHECK_MS = DEFAULT_IMAGE_CHECK_LIMITS.timeoutMs;
-
-/** True where the page waits for the image site's answer on purpose (modelSut's `busyIn`). */
-export const awaitsImageSite = (snapshot: LinkImagesSnapshot) => linkImagesViewOf(snapshot).answer === 'answering';
 
 const constant = fc.constant({});
 /** The page gave up on the held images: a late answer from the site must change nothing. */

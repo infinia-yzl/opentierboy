@@ -62,13 +62,7 @@ export class SharePanel {
     await expect(this.sharePanel).toBeVisible();
   }
 
-  /**
-   * Opens the Image tab of the share panel (Freeze Frame), where a capture stays until the next
-   * one, opening the panel first when it is closed. The panel opens and closes in the event that
-   * asks for it, so once the page has settled one look tells whether it is open.
-   */
   async openImageTab() {
-    await this.tierList.settled();
     if (!(await this.sharePanel.isVisible())) await this.openSharePanel();
     await this.chooseShareTab('Image');
   }
@@ -202,12 +196,9 @@ export class SharePanel {
     return this.page.evaluate(countColors, {src, column: {x: 36 + 120, y: 0, width: 92, height: 92}, cardWidth: CARD_WIDTH});
   }
 
-  /** Waits for the captured preview image to load, then measures it. */
   async capturedImageDetails(): Promise<CapturedImage> {
+    await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled();
     await expect(this.capturedImage).toBeVisible();
-    // The capture is done once the page is no longer busy; decode() waits until the picture
-    // has loaded.
-    await this.tierList.settled();
     const details = await this.capturedImage.evaluate(async (img: HTMLImageElement) => {
       await img.decode();
       const size = 64;
@@ -288,7 +279,6 @@ export class SharePanel {
    */
   async captureInOpenPanel() {
     await this.captureAndExpectSuccess();
-    await this.tierList.settled();
     await expect(this.sharePanel.getByRole('button', {name: 'Capture Preview'})).toBeEnabled();
     await expect(this.capturedImage).toBeVisible();
   }

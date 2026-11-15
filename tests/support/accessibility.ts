@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import type {Page} from '@playwright/test';
-import {expectSettled} from './settled';
+import {expectHydrated} from './hydrated';
 
 /** The rules of WCAG 2.1, levels A and AA, as axe-core tags them. */
 export const WCAG_21_AA_TAGS: readonly string[] = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
@@ -16,14 +16,8 @@ export interface AxeViolation {
   readonly elements: readonly string[];
 }
 
-/**
- * Waits until the page is still, then scans it with axe-core for the WCAG 2.1 A and AA rules.
- * Still means: the page is not busy (`aria-busy` on <main>), its fonts have loaded, and every
- * animation that ends has ended (motion is reduced in the tests, so most take no time). An
- * open dialog or menu is scanned as the page shows it, with the page behind it hidden.
- */
 export async function scanForViolations(page: Page): Promise<AxeViolation[]> {
-  await expectSettled(page);
+  await expectHydrated(page);
   await page.evaluate(async () => {
     await document.fonts.ready;
     const ending = document.getAnimations().filter((animation) => animation.effect?.getComputedTiming().endTime !== Infinity);

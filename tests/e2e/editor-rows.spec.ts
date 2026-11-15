@@ -194,9 +194,9 @@ test.describe('editor rows', () => {
           ADD_ROW: () => tierList.rows.addTierRow(),
           REMOVE_FIRST_ROW: () => tierList.rows.removeFirstTierRow(),
           CLEAR_SECOND_LABEL: () => tierList.rows.renameTier('A', '', 'Row 2'),
-          CHOOSE_3_ROWS: () => tierList.rows.chooseRowCountAndSettle(3),
-          CHOOSE_5_ROWS: () => tierList.rows.chooseRowCountAndSettle(5),
-          CHOOSE_7_ROWS: () => tierList.rows.chooseRowCountAndSettle(7),
+          CHOOSE_3_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(3),
+          CHOOSE_5_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(5),
+          CHOOSE_7_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(7),
         },
         states: {
           '*': async (_page, snapshot) => {

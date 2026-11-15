@@ -49,12 +49,9 @@ function countOf(count: number): {text: string; words: string} {
   return {text: `${rounded}+`, words: `${rounded}+ items`};
 }
 
-/** Opens two lists, Tanks list then Support list. The editor records a list once it has started in the browser. */
 async function openTwoLists(tierList: TierListPage) {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks list'));
-  await tierList.settled();
   await tierList.goto(SUPPORT, rankingState('image-overwatch', {S: ['Ana']}, 'Support list'));
-  await tierList.settled();
 }
 
 test.describe('home', () => {
@@ -153,7 +150,6 @@ test.describe('home', () => {
     await openTwoLists(tierList);
     // A template without a list is not recorded.
     await tierList.goto(TANKS);
-    await tierList.settled();
 
     await site.gotoHome();
     await expect(site.recentlyViewed).toContainText('Lists you opened in this browser. Bookmark one to open it anywhere.');
@@ -206,7 +202,6 @@ test.describe('home', () => {
 
   test('renders the page name OVERWATCH - Tank in Recently viewed when the opened link has no title', {tag: '@mobile'}, async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.settled();
     await site.gotoHome();
     await expect(site.recentLinks).toHaveText(['OVERWATCH - Tank']);
   });

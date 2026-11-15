@@ -1,5 +1,5 @@
 import {expect, type Locator, type Page} from '@playwright/test';
-import {expectSettled} from '../support/settled';
+import {expectHydrated} from '../support/hydrated';
 import {letToastTimeOut, runPageClock} from '../support/page-clock';
 import {toasts} from './toasts';
 import {UNTIL_STARTED} from './helpers';
@@ -24,24 +24,18 @@ export class SitePage {
     await this.goto('/');
   }
 
-  /** Opens a page of the site by its path, and waits until it has started and settled. */
   async goto(path: string) {
     await this.page.goto(path, UNTIL_STARTED);
-    await this.settled();
+    await this.ready();
   }
 
-  /** Reloads the page, and waits until it has started again and settled. */
   async reload() {
     await this.page.reload(UNTIL_STARTED);
-    await this.settled();
+    await this.ready();
   }
 
-  /**
-   * Waits until the page has finished what the last step started: <main> no longer says
-   * `aria-busy` (lib/busy.ts). A page is busy until it has started in the browser.
-   */
-  async settled() {
-    await expectSettled(this.page);
+  async ready() {
+    await expectHydrated(this.page);
   }
 
   async openFromNavigation(linkName: 'About' | 'Blog') {
@@ -308,10 +302,6 @@ export class SitePage {
     return this.page.evaluate((storageKey) => localStorage.getItem(storageKey), key);
   }
 
-  /**
-   * Opens About from the site navigation, then goes back with the browser's Back button.
-   * Returns once the address before is back, and the page that shows it has started.
-   */
   async visitAboutAndGoBack() {
     const before = this.page.url();
     await this.openFromNavigation('About');
@@ -319,7 +309,7 @@ export class SitePage {
     await expect(this.pageHeading).toBeVisible();
     await this.page.goBack(UNTIL_STARTED);
     await expect(this.page).toHaveURL(before);
-    await this.settled();
+    await this.ready();
     await this.appearanceMenuReady();
   }
 

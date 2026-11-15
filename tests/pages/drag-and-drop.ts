@@ -45,15 +45,14 @@ export class DragAndDrop {
     await this.expectEveryItemDraggable();
   }
 
-  /** Drags an item with the mouse and drops it at the end of a tier. */
   async dragItemToTier(itemName: string, tierName: string) {
     await this.dropAndWaitForLink(() =>
-      // Drop in the free space at the end of the row, left of the row handle.
       this.dragWithMouse(this.tierList.item(itemName), this.tierList.tier(tierName), (box) => ({
         x: box.x + box.width - 120,
         y: box.y + box.height / 2,
       })),
     );
+    await expect(this.tierList.itemIn(tierName, itemName)).toBeVisible();
   }
 
   /**
@@ -257,13 +256,13 @@ export class DragAndDrop {
       throw new Error(`The drag did not settle on its drop point in ${DROP_POINT_TRIES} tries. Last check: ${check}`, {cause: lastProblem});
     }
     if (cancel) {
-      // Escape ends the drag where it is; the button is released after that.
       await this.page.keyboard.press('Escape');
       await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     }
     await mouse.up();
     await afterRelease?.();
     await this.dropEnded();
+    await expect(this.dragAnnouncer, 'the drop should be announced').toHaveText(/^(?:Dropped |Move cancelled\. )/);
     await this.expectEveryItemDraggable();
   }
 
@@ -292,13 +291,6 @@ export class DragAndDrop {
     }
   }
 
-  /**
-   * Waits until no drag or drop is in progress, a drop animation included: the rows carry
-   * `data-dragging` until then (components/DragDropTierList.tsx, RowList), and the page is busy
-   * (lib/dnd/react.tsx). Until then the drag library blocks text selection on the whole page
-   * (typing into a label right away goes nowhere) and a press starts no new drag. Other work,
-   * such as a link on its way to the address, may go on: a quick test does not wait for it.
-   */
   private async dropEnded() {
     await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
       message: 'the last drop should have ended',
@@ -591,11 +583,6 @@ export class DragAndDrop {
     await this.dragItemToTier(name, tierName);
   }
 
-  /**
-   * Moves the first item of the Unranked tray up into the last row with the keyboard: one change
-   * to the list. Returns once the drop is announced, the focus is back and the address has
-   * changed, also while the page is busy on purpose (the trip home waits).
-   */
   async moveFirstUnrankedItemUpWithKeyboard() {
     const name = await this.tierList.itemsIn(this.tierList.unranked).first().getAttribute('aria-label');
     if (!name) throw new Error('The Unranked tray has no item to move');

@@ -23,7 +23,7 @@ export const leavingMachine = createMachine({
       },
     },
     leaving: {
-      description: 'The visitor clicked the logo link to Home, and Home is on its way: the editor still shows, and the page is busy.',
+      description: 'The visitor clicked the logo link to Home, and Home is on its way: the editor still shows.',
       initial: 'fromOpened',
       states: {
         fromOpened: {
@@ -48,7 +48,7 @@ export const leavingMachine = createMachine({
       initial: 'homeHeld',
       states: {
         homeHeld: {
-          description: 'The server still holds its answer for Home. The page is not busy: the trip home was cancelled.',
+          description: 'The server still holds its answer for Home: the trip home was cancelled.',
           on: {HOME_ANSWERS: {target: 'homeAnswered'}},
         },
         homeAnswered: {

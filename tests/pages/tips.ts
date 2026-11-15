@@ -1,5 +1,5 @@
 import {expect, type BrowserContext, type Locator, type Page} from '@playwright/test';
-import {expectSettled} from '../support/settled';
+import {expectHydrated} from '../support/hydrated';
 import {letToastTimeOut} from '../support/page-clock';
 import {letClosedToastLeave, toasts} from './toasts';
 import {UNTIL_STARTED} from './helpers';
@@ -112,10 +112,9 @@ export class Tips {
     return element.evaluate((node) => getComputedStyle(node).boxShadow);
   }
 
-  /** Opens About and presses "Show the tips again". */
   async showTipsAgainOnAbout() {
     await this.page.goto('/about', UNTIL_STARTED);
-    await expectSettled(this.page);
+    await expectHydrated(this.page);
     await this.page.getByRole('button', {name: 'Show the tips again'}).click();
     await expect(toasts(this.page).filter({hasText: 'The tips will show again'})).toBeVisible();
   }

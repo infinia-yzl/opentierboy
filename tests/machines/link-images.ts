@@ -39,7 +39,7 @@ export const linkImagesMachine = createMachine({
           },
           states: {
             answering: {
-              description: 'The page asked the site for Blue (or Navy) and the site has not answered: the image shows as a label tile with the site’s name, and the page is busy.',
+              description: 'The page asked the site for Blue (or Navy) and the site has not answered: the image shows as a label tile with the site’s name.',
               on: {
                 IMAGE_SITE_ANSWERS: {target: 'answered'},
                 IMAGE_SITE_FAILS: {target: 'failed'},
@@ -47,8 +47,8 @@ export const linkImagesMachine = createMachine({
               },
             },
             answered: {description: 'The site answered with the picture: every image from the site shows its picture.'},
-            failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name, and the page is no longer busy.'},
-            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name, and the page is no longer busy. A late answer changes nothing.'},
+            failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name.'},
+            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name. A late answer changes nothing.'},
           },
         },
         alwaysAllowed: {
@@ -60,7 +60,7 @@ export const linkImagesMachine = createMachine({
           },
           states: {
             answering: {
-              description: 'The page asked the site for Blue (or Navy) and the site has not answered: the image shows as a label tile with the site’s name, and the page is busy.',
+              description: 'The page asked the site for Blue (or Navy) and the site has not answered: the image shows as a label tile with the site’s name.',
               on: {
                 IMAGE_SITE_ANSWERS: {target: 'answered'},
                 IMAGE_SITE_FAILS: {target: 'failed'},
@@ -68,8 +68,8 @@ export const linkImagesMachine = createMachine({
               },
             },
             answered: {description: 'The site answered with the picture: every image from the site shows its picture.'},
-            failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name, and the page is no longer busy.'},
-            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name, and the page is no longer busy. A late answer changes nothing.'},
+            failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name.'},
+            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name. A late answer changes nothing.'},
           },
         },
       },

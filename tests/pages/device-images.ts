@@ -153,15 +153,7 @@ export class DeviceImages {
     return this.page.evaluate(() => JSON.parse(localStorage.getItem('evictedDeviceImages') ?? '[]') as string[]);
   }
 
-  /**
-   * Pastes image files into the editor (or into `target`, for example a text field), as a paste
-   * from the clipboard would. The test builds the paste event: browsers do not let tests write
-   * images to the real clipboard. Firefox ignores the files in such an event, so paste tests skip
-   * Firefox (SCRIPTED_PASTE_SKIP).
-   */
   async pasteImages(files: {name: string; mimeType: string; buffer: Buffer}[], target?: Locator) {
-    // A target (such as a text field the test typed into) proves the page has started already.
-    if (!target) await this.tierList.settled();
     await (target ?? this.tierList.main).evaluate((element, payload) => {
       const transfer = new DataTransfer();
       for (const file of payload) {
@@ -172,12 +164,7 @@ export class DeviceImages {
     }, files.map((file) => ({name: file.name, mimeType: file.mimeType, base64: file.buffer.toString('base64')})));
   }
 
-  /**
-   * Pastes several groups of images at once, one paste event per group, as quick pastes do: the
-   * editor handles them while the earlier ones are still being added.
-   */
   async pasteImagesAtOnce(groups: {name: string; mimeType: string; buffer: Buffer}[][]) {
-    await this.tierList.settled();
     await this.tierList.main.evaluate((element, payload) => {
       for (const group of payload) {
         const transfer = new DataTransfer();

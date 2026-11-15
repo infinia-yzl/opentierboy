@@ -7,7 +7,7 @@ import {SitePage} from '../pages/site-page';
 import sharedLinks from '../fixtures/shared-links.json';
 import {sendBypassOnlyToSite} from './vercel-bypass';
 import {INSPECTOR_HOSTNAMES, modelInspectOn} from './model-inspect';
-import {expectSettled} from './settled';
+import {expectHydrated} from './hydrated';
 import {BENIGN_PAGE_ERRORS} from './machines';
 
 export interface SharedLinkFixture {
@@ -77,7 +77,7 @@ type Fixtures = {
   /**
    * Reads, once, the Content Security Policy violations that the page reported in this test (the
    * `securitypolicyviolation` events of every page load). It first waits until the page has
-   * settled, then breaks the policy once on purpose (an <object>, which `object-src 'none'`
+   * started, then breaks the policy once on purpose (an <object>, which `object-src 'none'`
    * blocks before any request) and waits for that report: reports arrive in order, so every
    * earlier one has arrived too. The test's own report is left out of the list.
    */
@@ -419,7 +419,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     let probes = 0;
     await use(async () => {
       await page.waitForLoadState('load');
-      await expectSettled(page);
+      await expectHydrated(page);
       probes += 1;
       const probe = `/csp-reporting-probe-${probes}`;
       const object = await page.evaluateHandle((data) => {
@@ -456,16 +456,10 @@ export async function expectTierNames(tierList: TierListPage, names: string[]) {
   }
 }
 
-/**
- * Asserts that a page shows exactly the expected tiers and items, in order. It waits until the
- * page has settled first: each row has a check of its own, so on a page still on its way from one
- * version of the list to another (after Back), the rows could pass on a mix of the two.
- */
 export async function expectTierList(
   tierList: TierListPage,
   expected: {title?: string; tiers: {name: string; items: string[]}[]},
 ) {
-  await tierList.settled();
   if (expected.title !== undefined) {
     await expect(tierList.title).toHaveText(expected.title);
   }
