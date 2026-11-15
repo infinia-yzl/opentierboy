@@ -2,7 +2,6 @@ import {Metadata} from "next";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
 import {permanentRedirect} from "next/navigation";
 import {visibleImageSets} from "@/lib/imageSets";
-import {PageStarted} from "@/components/StartHold";
 import {rankMetadata} from "@/app/rank/rankMetadata";
 
 /**
@@ -49,5 +48,5 @@ export default async function TemplatePage(props: Props) {
     if (normalizedTagSlug !== tagSlug) permanentRedirect(`/rank/${nameOrPackage}/${normalizedTagSlug}`);
   }
 
-  return <PageStarted/>;
+  return null;
 }

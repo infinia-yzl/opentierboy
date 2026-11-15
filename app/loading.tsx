@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import OTB_LOGO from '@/public/brand/otb-logo-wide.webp'
-import {BusyWhileLoading} from '@/components/StartHold'
 
 export default function Loading() {
   return (
@@ -9,7 +8,6 @@ export default function Loading() {
         <Image src={OTB_LOGO} alt="Loading"/>
         <p>Loading...</p>
       </span>
-      <BusyWhileLoading/>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
-import {toast} from '@/lib/toast';
+import {toast} from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,10 +40,7 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
-import {isLinkToAnotherPage} from '@/lib/leavingLink';
 import {stateParam} from '@/lib/tierListReducer';
-import {pageBusy} from '@/lib/busy';
-import {useBusyWhile} from '@/components/useBusy';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';
@@ -121,8 +118,7 @@ export interface UseSnapshotFiles {
    * asks whether to open the list; pictures become items; other files show a message. Files wait
    * their turn, each until the previous add is on screen and in the address. Files that wait
    * while a list is being asked about or opened, or across Back or Forward, are not added
-   * ("Files not added"). When the visitor leaves the editor (a click on a link to another page),
-   * files that wait or arrive are dropped quietly.
+   * ("Files not added"); when the visitor leaves the editor, waiting files are dropped quietly.
    */
   openFiles: (files: File[]) => void;
   /**
@@ -158,8 +154,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
   /** True from Open list until the list is in the address (or the opening ends otherwise). */
   const [opening, setOpening] = useState(false);
-  // The page is busy while a list opens: its pictures are stored, then its link is written.
-  useBusyWhile(opening);
   /** Where the opening list goes, and the address it leaves. */
   const target = useRef<{path: string; state: string; from: string; title: string} | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -169,11 +163,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const queue = useRef<Promise<void>>(Promise.resolve());
   /** False once the editor has closed: waiting files are dropped, quietly. */
   const alive = useRef(true);
-  /**
-   * True from a click on a link to another page until the next click or key in the editor:
-   * waiting and new files are dropped, quietly. Adding one would write the address, and Next.js
-   * drops a navigation still loading when the address changes: it would keep the visitor here.
-   */
+  /** True once a link to another page was clicked: waiting files are dropped, quietly. */
   const leaving = useRef(false);
   /** Counts Back and Forward: files that waited across one are dropped. */
   const historyMoves = useRef(0);
@@ -187,21 +177,20 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       historyMoves.current += 1;
     };
     window.addEventListener('popstate', onHistoryMove);
-    // A click on a link to another page starts a navigation that the next add would cancel:
-    // stop adding. Another click or a key in the editor means the visitor stays.
-    const onClick = (event: MouseEvent) => {
-      leaving.current = isLinkToAnotherPage(event, window.location);
+    // A click on a link to another page starts a navigation that the next add would cancel
+    // (Next.js drops a navigation still loading when another starts): stop adding.
+    const onLinkClick = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!(link instanceof HTMLAnchorElement) || (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin === window.location.origin && url.pathname !== window.location.pathname) leaving.current = true;
     };
-    const onKey = () => {
-      leaving.current = false;
-    };
-    document.addEventListener('click', onClick, true);
-    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('click', onLinkClick, true);
     return () => {
       alive.current = false;
       window.removeEventListener('popstate', onHistoryMove);
-      document.removeEventListener('click', onClick, true);
-      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('click', onLinkClick, true);
     };
   }, []);
 
@@ -274,16 +263,16 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   }, [untilRendered, notAdded, gone]);
 
   const openFiles = useCallback((files: File[]) => {
-    if (files.length === 0 || gone()) return;
+    if (files.length === 0 || !alive.current) return;
+    // New files: the visitor stays (a click on a link that went nowhere).
+    leaving.current = false;
     if (busy.current) {
       notAdded(files, 'list');
       return;
     }
     // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
-    // The page is busy from now until these files are done (lib/busy.ts).
     const moves = historyMoves.current;
-    const done = pageBusy.begin();
-    const run = queue.current.then(() => openNow(files)).finally(done);
+    const run = queue.current.then(() => openNow(files));
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
@@ -336,15 +325,15 @@ export function useSnapshotFiles(): UseSnapshotFiles {
    * images of one drop or paste are one change: one Back step.
    */
   const openLinks = useCallback((found: FoundLinkImages) => {
-    if (gone() || found.accepted.length === 0) return;
+    if (!alive.current || found.accepted.length === 0) return;
     const names = found.accepted.map((link) => linkImageLabel(link.url, link.displayDomain));
+    leaving.current = false;
     if (busy.current) {
       notAdded(names, 'list');
       return;
     }
     const moves = historyMoves.current;
-    const done = pageBusy.begin();
-    const run = queue.current.then(() => addLinksNow()).finally(done);
+    const run = queue.current.then(() => addLinksNow());
     queue.current = run.catch(() => undefined);
 
     async function addLinksNow() {

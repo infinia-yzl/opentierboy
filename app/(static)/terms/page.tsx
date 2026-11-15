@@ -7,12 +7,10 @@ import {
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
 import React from "react";
-import {PageStarted} from '@/components/StartHold';
 
 export default function TermsPage() {
   return (
     <div>
-      <PageStarted/>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

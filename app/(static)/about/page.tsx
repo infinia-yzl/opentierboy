@@ -17,7 +17,6 @@ import rankGif from "@/public/about/rank.gif";
 import imagesGif from "@/public/about/images.gif";
 import freezeFrameGif from "@/public/about/freeze-frame.gif";
 import {ShowTipsAgain} from "@/components/ShowTipsAgain";
-import {PageStarted} from '@/components/StartHold';
 
 /** "How it works": the README's GIFs, one line each. */
 const HOW_IT_WORKS = [
@@ -44,7 +43,6 @@ const HOW_IT_WORKS = [
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <PageStarted/>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

@@ -15,9 +15,7 @@ import {FaDiscord, FaXTwitter} from "react-icons/fa6";
 import otbLogo from "@/public/brand/otb-logo-wide.webp";
 import {Separator} from "@/components/ui/separator";
 import StructuredMetadata from "@/components/StructuredMetadata";
-import {BusyMain} from '@/components/BusyMain';
-import {NavigationBusy} from '@/components/NavigationBusy';
-import {Suspense} from 'react';
+import {HydrationMarker} from '@/components/HydrationMarker';
 
 // Modern (the default): Geologica, with its Sharpness axis for titles and tier letters.
 // Classic: the look before the revamp, Nunito Sans with Urbanist headings. app/globals.css picks
@@ -188,15 +186,12 @@ export default function RootLayout({
         </div>
       </header>
 
-      <BusyMain className="grow my-2 md:my-4">
+      <main className="grow my-2 md:my-4">
         <div className="max-w-(--breakpoint-lg) zen-mode:max-w-(--breakpoint-2xl) mx-auto px-4 transition-all duration-75 ease-in-out">
           {children}
         </div>
-      </BusyMain>
-      {/* The page is busy from a link click or Back until the router shows the new address. */}
-      <Suspense fallback={null}>
-        <NavigationBusy/>
-      </Suspense>
+      </main>
+      <HydrationMarker/>
 
       <footer className="w-full mt-8 py-8 border-t hide-in-zen" data-html2canvas-ignore>
         <div className="max-w-(--breakpoint-lg) zen-mode:hide-in-zen mx-auto px-4">

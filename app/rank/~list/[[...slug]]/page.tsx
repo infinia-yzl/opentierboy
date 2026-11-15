@@ -1,7 +1,6 @@
 import {Metadata} from "next";
 import {createSEOFriendlyTagSlug} from "@/lib/utils";
 import {permanentRedirect} from "next/navigation";
-import {PageStarted} from "@/components/StartHold";
 import {rankMetadata} from "@/app/rank/rankMetadata";
 
 /**
@@ -39,5 +38,5 @@ export default async function SharedListPage(props: Props) {
     }
   }
 
-  return <PageStarted/>;
+  return null;
 }

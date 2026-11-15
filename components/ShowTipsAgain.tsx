@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import {toast} from '@/lib/toast';
+import {toast} from 'sonner';
 import {Button} from '@/components/ui/button';
 import {resetTips} from '@/components/useTips';
 

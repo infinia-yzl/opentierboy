@@ -1,7 +1,6 @@
 "use client";
 
 import React, {useCallback, useEffect, useRef, useState} from 'react'
-import {flushSync} from 'react-dom'
 import {zodResolver} from "@hookform/resolvers/zod"
 import {useForm} from "react-hook-form"
 import {z} from "@/lib/zod"
@@ -11,10 +10,8 @@ import {Input} from "@/components/ui/input"
 import Image from 'next/image'
 import Item from "@/models/Item";
 import {useCustomImages} from "@/contexts/CustomImagesContext";
-import {toast} from "@/lib/toast";
+import {toast} from "sonner";
 import {previewableImage} from "@/lib/images/prepareImage";
-import {useBusyWhile} from '@/components/useBusy';
-import {pageBusy} from '@/lib/busy';
 
 const formSchema = z.object({
   files: z.any().refine((files) => files?.length > 0, "At least one file is required."),
@@ -47,8 +44,6 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
 
   const [uploadedItems, setUploadedItems] = useState<UploadedItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  // The page is busy while the chosen images are stored and added (lib/busy.ts).
-  useBusyWhile(isAdding);
   const [errors, setErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,24 +93,17 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
     setErrors([]);
     const choice = ++fileChoice.current;
     const chosen = Array.from(files);
-    // The page is busy until the previews are on screen. flushSync renders them before busy
-    // ends: after an await, React would render them in a later task.
-    const end = pageBusy.begin();
-    try {
-      const previews = await Promise.all(chosen.map((file) => previewableImage(file).catch(() => null)));
-      if (choice !== fileChoice.current) return;
-      flushSync(() => setUploadedItems(chosen.map((file, index) => {
-        const preview = previews[index];
-        return {
-          key: `${index}-${file.name}`,
-          content: file.name.split('.')[0],
-          imageUrl: preview ? URL.createObjectURL(preview.blob) : null,
-          file,
-        };
-      })));
-    } finally {
-      end();
-    }
+    const previews = await Promise.all(chosen.map((file) => previewableImage(file).catch(() => null)));
+    if (choice !== fileChoice.current) return;
+    setUploadedItems(chosen.map((file, index) => {
+      const preview = previews[index];
+      return {
+        key: `${index}-${file.name}`,
+        content: file.name.split('.')[0],
+        imageUrl: preview ? URL.createObjectURL(preview.blob) : null,
+        file,
+      };
+    }));
   };
 
   const handleNameChange = (key: string, newName: string) => {
@@ -126,9 +114,7 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
 
   return (
     <Form {...form}>
-      {/* handleSubmit runs in the submit event: onSubmit clears the file input through its ref.
-          The page is busy from the submit event, through the form's checks, until the images are added. */}
-      <form onSubmit={(event) => void pageBusy.during(() => form.handleSubmit(onSubmit)(event))} className="flex flex-col overflow-y-hidden">
+      <form onSubmit={(event) => form.handleSubmit(onSubmit)(event)} className="flex flex-col overflow-y-hidden">
         <FormField
           control={form.control}
           name="files"

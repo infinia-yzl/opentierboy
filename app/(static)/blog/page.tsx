@@ -13,7 +13,6 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator
 } from "@/components/ui/breadcrumb";
-import {PageStarted} from '@/components/StartHold';
 
 interface BlogPost {
   slug: string;
@@ -76,7 +75,6 @@ const BlogPostList: React.FC = () => {
 
   return (
     <div className="max-w-4xl md:max-w-(--breakpoint-2xl) mx-auto">
-      <PageStarted/>
       <Breadcrumb className="pb-4">
         <BreadcrumbList>
           <BreadcrumbItem>
