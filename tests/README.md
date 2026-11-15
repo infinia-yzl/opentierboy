@@ -131,7 +131,7 @@ tests/
 spec that needs it (`new Tips(tierList.page)`).
 
 `TierListPage` (`tier-list-page.ts`) is the core of the editor: opening it (`goto`, `reload`,
-`settled`), Back and Forward, the rows and items (`tier`, `unranked`, `itemsIn`, `item`), the
+`ready`), Back and Forward, the rows and items (`tier`, `unranked`, `itemsIn`, `item`), the
 title, menus, toasts, and the buttons that are always on screen. Each area of the editor has its
 own page object, reached through a property of `TierListPage`, also on a visitor's page from
 `openAsVisitor`:
@@ -176,19 +176,29 @@ that only a model needs goes in the object of its area too.
   on a wait. (`playwright.config.ts` limits each navigation to 30 s and each action to 15 s,
   as `expect` limits each assertion to 10 s: a stuck step fails with its own name. These are
   limits, not waits.) Navigations wait for the document, not for its load event (`UNTIL_STARTED`
-  in `tests/pages/helpers.ts`), and then for the page to settle. Wait for what the user would see: web-first assertions such as `toHaveText`, the
-  drag announcer for drag and drop, and the address bar for saved changes. Page object methods
-  that change the list return only after the new link is in the address bar. The editor writes
-  it in the event of the change (`history.pushState`), with no request to the server.
-- **Wait until the page is not busy.** The page says `aria-busy="true"` on `<main>` while it
-  works on something the visitor started (`lib/busy.ts`): until it has started in the browser,
-  while it goes to another address (a link, Back or Forward), during a drag and its drop, and
-  while files or pictures are added or captured. A change to the list is not counted: its link
-  is in the address bar at once. `TierListPage.settled()` and `SitePage.settled()` wait until it is done; `goto`,
-  `reload`, `goBack`, `goForward` and `gotoHome` end with it, and specs never navigate with a raw
-  `page.goto`/`goBack`/`reload` (`goBackNow` is the one exception, for a test that presses Back
-  while the page works on purpose). A test that acts while the page works, on purpose (two
-  quick moves), does not wait for it. A page that may crash opens with `gotoPageThatMayCrash`.
+  in `tests/pages/helpers.ts`), and then until the page is ready (see below). Wait for what the
+  user would see: web-first assertions such as `toHaveText`, the drag announcer for drag and
+  drop, and the address bar for saved changes. Page object methods that change the list return
+  only after the new link is in the address bar. The editor writes it in the event of the change
+  (`history.pushState`), with no request to the server.
+- **Wait until the page is ready, then for what each step shows.** The app has no busy signal
+  for tests. A page is ready to use once React has started in the browser: then `<html>` says
+  `data-hydrated="true"` (`components/HydrationMarker.tsx`). A click before that is lost. The
+  editor's own code loads later, so the editor is ready once every row grip and every item tile
+  takes a drag: each has the role description "draggable", which the server's page does not
+  have. `SitePage.ready()` waits for the first, `TierListPage.ready()` for both. `goto`,
+  `gotoLink`, `gotoAddress`, `reload`, `openAfterBlankPage` and `gotoHome` end with them;
+  `goBack` and `goForward` wait for the editor where they land on a `/rank` page, and for the
+  page to start elsewhere. Specs never navigate with a raw `page.goto`/`goBack`/`reload`
+  (`goBackNow` is the one exception, for a test that presses Back right after a change). After
+  that, each step waits for its own outcome, as a person would look for it: the drag announcer
+  and the tile in its row after a drop, the new address after a change, the toast, the dialog
+  open or closed, the item in the tray, the link image as a picture or a label tile, the captured
+  picture in the share panel. A step that acts while the page still works, on purpose (two quick
+  moves), does not wait in between. Where a step changes nothing on purpose (a paste into a text
+  box), the test follows it with a step that does change something: files and addresses are
+  handled in turn, so the outcome of the second one shows that the first added nothing. A page
+  that may crash opens with `gotoPageThatMayCrash`.
 - **Toasts are found in Sonner's region** (`toasts(page)`, the region named "Notifications"),
   and a step that shows a toast waits for its own new toast, never for one already on screen.
 - **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
@@ -256,7 +266,12 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   after 5 px) and waits for the lift announcement. After the drop it waits until the drop has
   ended (the rows drop `data-dragging`), its animation included where motion is not reduced:
   until then a press starts no drag and the drag library blocks text selection on the page, so
-  typing into a label would go nowhere.
+  typing into a label would go nowhere. Then it waits for the drop's announcement ("Dropped ..."
+  or "Move cancelled. ..."), and `dragItemToTier` for the item in its row.
+- **Before the drag**, the window scrolls so that the handle and the drop point both show, and
+  the drop point lies outside the top and bottom fifths of the window, where the drag library
+  scrolls the page by itself. With page time paused, that scroll would leave the library's
+  boxes of the rows out of date, and the item would land in the row next to the one aimed at.
 - **Where to aim.** Drops on a row (its free space, or the place of another row) measure the
   drop point once, before the drag starts: a row measured during the drag has already moved.
   Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
@@ -320,7 +335,7 @@ purpose.
 `tests/e2e/accessibility.spec.ts` opens each page, dialog and menu in its list (`SCANS`), in light
 and dark mode, and scans it with [axe-core](https://github.com/dequelabs/axe-core) for the WCAG 2.1
 A and AA rules (`scanForViolations` in `tests/support/accessibility.ts`). The scan starts once the
-page has settled, its fonts have loaded and its animations have ended. Every scan expects no
+page has started (`data-hydrated`), its fonts have loaded and its animations have ended. Every scan expects no
 violation at all.
 
 A failing scan prints its violations: for each, the axe-core rule id (its page is
@@ -370,11 +385,12 @@ disagree, and its error lists every step with the machine's state.
 - **The campaign** sits at the end of its area's spec in a `describe('model')`, with one test
   per part. `reset` opens the start list through the URL, each event calls a page object action,
   and `states` holds web-first checks. The sut comes from `modelSut` (`tests/support/model-sut.ts`):
-  before each check it waits until the page is not busy, so a check never sees a page halfway
-  through a step. Where the page is busy on purpose (a drag in progress, a held server answer),
-  the model names those states (`busyIn`), and there the check waits only for the page to load.
-  Where the events act in a second browser (`openAsVisitor`), `pages` names its page: `modelSut`
-  settles it too, checks it for page errors, console errors and answers of status 400 or more,
+  before each check it waits only until the page's document is read and React has started
+  (`data-hydrated`). Each step waits for its own outcome, and each check asserts what its state
+  shows with web-first assertions, so a check that runs while the page still catches up waits
+  for the state, and a state where the page waits on purpose (a drag in progress, a held server
+  answer) is checked as it shows. Where the events act in a second browser (`openAsVisitor`),
+  `pages` names its page: `modelSut` waits for it too, checks it for page errors, console errors and answers of status 400 or more,
   and keeps its trace and a screenshot of a failing run. `attachCoverage` adds the coverage
   report of the part to the Playwright report. It checks nothing: a run that passes took every
   step of its part, since a step that fails throws. Model tests have no retries
@@ -387,16 +403,16 @@ disagree, and its error lists every step with the machine's state.
   a message that closes by itself, a picture that is stored, an image site that answers.
   Each side effect is handled in one of two ways, never by a guess:
   - **Inside the step.** When its timing changes nothing the visitor sees, the step ends when
-    the side effect has ended. The app counts it as busy from the event that starts it until it
-    ends (`lib/busy.ts`), and `modelSut` waits until the page is not busy before each check.
+    the side effect shows its outcome: the item in the row, the new address, the toast, the
+    dialog.
   - **As an event of its own.** When its timing or its result changes what the visitor sees
     (a change made while Home is still on its way, a message still showing or gone, an image
     site that answers or fails), the machine has a waiting state and an event named after what
     the outside world does: `HOME_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`,
     `IMAGE_CHECK_TIMES_OUT`. The test makes it happen at that step: it holds the server's
     answers and releases them (`holdTripHome`), runs the page clock (`letToastTimeOut`), or
-    holds the image site. The model names its waiting states in `busyIn`, where the page is
-    busy on purpose.
+    holds the image site. The waiting state's check asserts what the page shows while it waits,
+    such as "Checking the image…" on the dialog's button.
 - **Page time.** With `pageTime: 'paused'`, page time stands still for the whole test
   (`pausePageTime` in `tests/support/page-clock.ts`): Date, `performance.now()` and every timer
   with a delay wait until a time event runs the page clock (`runPageClock`). A slow step on a
@@ -523,7 +539,7 @@ annotation when there is a GitHub issue. The suite stays green while the bug exi
 fix lands, Playwright reports "Expected to fail, but passed": remove the marker then and move
 the test next to the other tests of that feature.
 
-A known-bug test waits until the page has settled (`settled()`), then reads the page once
+A known-bug test waits for what the steps before it show, then reads the page once
 (`expect(await ...)`) instead of waiting: it fails at once while the bug exists, and never runs
 into the test timeout, which would not count as the expected failure.
 
