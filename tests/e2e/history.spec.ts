@@ -328,14 +328,14 @@ test.describe('history', () => {
   /**
    * The leaving machine (tests/machines/leaving.ts): the visitor clicks the logo link to Home, with
    * or without a change right before. The test holds the server's answer for Home from before the
-   * list opens (holdTripHome), and HOME_ANSWERS releases it. Each change moves the first Unranked
+   * list opens (holdTripHome), and HOME_ANSWERS releases it. CHANGE_LIST moves the first Unranked
    * item up into row F with the keyboard.
    */
   test.describe('model: leaving', () => {
     const LEAVE_TRAY = ['Mauga', 'Winston'];
     const LEAVE_LIST = rankingState('image-overwatch', {'': LEAVE_TRAY});
-    /** An image of a trusted site, dropped as a link from another page. */
     const DROPPED = 'https://i.imgur.com/red.png';
+    const DROPPED_NAME = 'red';
 
     /** The leaving machine's events and checks, run on this test's page (modelSut). */
     const leavingSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
@@ -362,7 +362,7 @@ test.describe('history', () => {
         events: {
           CHANGE_LIST: () => tierList.drag.moveFirstUnrankedItemUpWithKeyboard(),
           CLICK_HOME: () => tierList.clickHomeNow(),
-          DROP_IMAGE_LINK: () => tierList.linkImages.dropImageAddressNow(DROPPED),
+          DROP_IMAGE_LINK: () => tierList.linkImages.dropImageAddressAndWaitForItem(DROPPED, DROPPED_NAME),
           HOME_ANSWERS: () => releaseTrip(),
           BROWSER_BACK: () => tierList.goBack(),
         },
@@ -375,15 +375,17 @@ test.describe('history', () => {
               return;
             }
             await expect(page).toHaveURL(new RegExp(`${TANKS}\\?`));
-            await expect(tierList.itemsIn('F')).toHaveText(view.version === 2 ? ['Mauga'] : []);
-            await expect(tierList.itemsIn(tierList.unranked)).toHaveText(view.version === 2 ? LEAVE_TRAY.slice(1) : LEAVE_TRAY);
-            if (view.version === 1) {
+            const changes = view.version - 1 + (view.imageAdded ? 1 : 0);
+            await expect.poll(() => tierList.itemNamesIn('F')).toEqual(view.version === 2 ? ['Mauga'] : []);
+            await expect.poll(() => tierList.itemNamesIn('Unranked'))
+              .toEqual([...(view.version === 2 ? LEAVE_TRAY.slice(1) : LEAVE_TRAY), ...(view.imageAdded ? [DROPPED_NAME] : [])]);
+            if (changes === 0) {
               expect(page.url(), 'the address should hold the list as opened').toBe(opened);
             } else {
               await expect(page).not.toHaveURL(opened);
             }
             await expect.poll(() => tierList.historyLength(), {message: 'one history entry per change, and one for Home after Back from it'})
-              .toBe(entries + view.version - 1 + (view.homeAhead ? 1 : 0));
+              .toBe(entries + changes + (view.homeAhead ? 1 : 0));
           },
         },
         testInfo,

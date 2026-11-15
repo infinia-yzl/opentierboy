@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const leavingMachine = createMachine({
   id: 'leaving',
-  description: 'Leaving the editor by the logo link to Home, while the server holds its answer for Home until the test lets it answer (HOME_ANSWERS). A change is in the address and in the history at once, so a click on Home right after it loses nothing: Back from Home shows it. While Home is on its way, a dropped image address, which is neither a click nor a key, adds nothing, so nothing keeps the visitor from Home. A change the visitor makes with a key before Home comes is written at once, and the editor stays: the change cancels the trip home.',
+  description: 'Leaving the editor by the logo link to Home, while the server holds its answer for Home until the test lets it answer (HOME_ANSWERS). A change is in the address and in the history at once, so a click on Home right after it loses nothing: Back from Home shows it. A change the visitor makes before Home comes, with a key or by dropping an image address on the list, is written at once, and the editor stays: the change cancels the trip home.',
   initial: 'editing',
   states: {
     editing: {
@@ -29,30 +29,43 @@ export const leavingMachine = createMachine({
         fromOpened: {
           description: 'Version 1 on screen and in the address.',
           on: {
-            DROP_IMAGE_LINK: {description: 'An image address dropped on the list adds nothing while Home is on its way: the list and the address stay as they are.'},
-            CHANGE_LIST: {target: '#leaving.stayed'},
+            CHANGE_LIST: {target: '#leaving.stayed.list.changed'},
+            DROP_IMAGE_LINK: {target: '#leaving.stayed.list.imageAdded'},
             HOME_ANSWERS: {target: '#leaving.home.fromOpened'},
           },
         },
         fromChanged: {
           description: 'Version 2 on screen and in the address: the change was written before the click.',
           on: {
-            DROP_IMAGE_LINK: {description: 'An image address dropped on the list adds nothing while Home is on its way: the list and the address stay as they are.'},
+            DROP_IMAGE_LINK: {target: '#leaving.stayed.list.changedAndImageAdded'},
             HOME_ANSWERS: {target: '#leaving.home.fromChanged'},
           },
         },
       },
     },
     stayed: {
-      description: 'The visitor moved Mauga up into row F with the keyboard before Home came: version 2, on screen and in the address at once, as one new history entry. Writing the address cancelled the trip home, so the editor stays.',
-      initial: 'homeHeld',
+      description: 'A change before Home came was written at once, on screen and in the address, as one new history entry. Writing the address cancelled the trip home, so the editor stays.',
+      type: 'parallel',
       states: {
-        homeHeld: {
-          description: 'The server still holds its answer for Home: the trip home was cancelled.',
-          on: {HOME_ANSWERS: {target: 'homeAnswered'}},
+        list: {
+          description: 'The list the change wrote.',
+          initial: 'changed',
+          states: {
+            changed: {description: 'The visitor moved Mauga up into row F with the keyboard: version 2.'},
+            imageAdded: {description: 'The image address dropped on the list added the image red at the end of Unranked, to version 1.'},
+            changedAndImageAdded: {description: 'The image address dropped on the list added the image red at the end of Unranked, to version 2.'},
+          },
         },
-        homeAnswered: {
-          description: 'The server answered the cancelled trip home, which changes nothing: the editor still shows version 2.',
+        home: {
+          description: 'The server’s answer for the cancelled trip home.',
+          initial: 'held',
+          states: {
+            held: {
+              description: 'The server still holds its answer for Home.',
+              on: {HOME_ANSWERS: {target: 'answered'}},
+            },
+            answered: {description: 'The server answered the cancelled trip home, which changes nothing: the editor still shows the list the change wrote.'},
+          },
         },
       },
     },

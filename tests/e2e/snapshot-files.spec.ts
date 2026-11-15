@@ -580,26 +580,27 @@ test.describe('snapshot files', () => {
       await expect(page).toHaveURL(/^[^?]*\/$/);
     });
 
-    test('renders Home and no new item when the user pastes an image while the trip home still loads', async ({tierList, page, browserName}) => {
+    test('renders the new item in the editor, and not Home, when the user pastes an image while the trip home still loads', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       const tripHome = await tierList.holdTripHome();
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Leaving'));
       const listAddress = page.url();
 
       try {
-        await tierList.homeLink.click();
-        // A paste after the click, without a key: the editor still shows, and the picture is
-        // dropped quietly. Adding it would write the address and cancel the trip home.
+        await tierList.clickHomeNow();
         await tierList.files.pasteFileNow(imageFile('late.png', BLUE_SQUARE));
-        await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-        expect(page.url()).toBe(listAddress);
+        await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['late']);
+        await expect(page).not.toHaveURL(listAddress);
       } finally {
         await tripHome.release();
       }
 
-      await expect(page).toHaveURL(/^[^?]*\/$/);
+      const withPicture = page.url();
+      await expect(tierList.title).toHaveText('Leaving');
+      expect(page.url()).toBe(withPicture);
       await tierList.goBack();
       await expect(page).toHaveURL(listAddress);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
     test('renders the toast "Files not added" when the user pastes an image right after dropping a list file', async ({tierList, browserName}) => {

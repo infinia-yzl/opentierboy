@@ -1,32 +1,30 @@
 import * as fc from 'fast-check';
 import type {EventFrom, SnapshotFrom} from 'xstate';
 import {leavingMachine} from '../machines/leaving';
-import {defineModel, offered, type When} from '../support/machines';
+import {defineModel, offered} from '../support/machines';
 
 export type LeavingSnapshot = SnapshotFrom<typeof leavingMachine>;
 export type LeavingEvent = EventFrom<typeof leavingMachine>;
 
-/** What one state of the leaving machine shows. */
 export type LeavingView =
   | {
     readonly page: 'editor';
-    /** The version on screen and in the address: 1 is the list as opened, 2 has Mauga in row F. */
     readonly version: 1 | 2;
-    /** True after Back from Home: Home's history entry follows, for Forward. */
+    readonly imageAdded: boolean;
     readonly homeAhead: boolean;
   }
   | {readonly page: 'home'};
 
-const editor = (version: 1 | 2, {homeAhead = false} = {}): LeavingView => ({page: 'editor', version, homeAhead});
+const editor = (version: 1 | 2, {imageAdded = false, homeAhead = false} = {}): LeavingView => ({page: 'editor', version, imageAdded, homeAhead});
 
-/** Each state, by its path, and what it shows. */
 const VIEWS: Readonly<Record<string, LeavingView>> = {
   'editing.opened': editor(1),
   'editing.changed': editor(2),
   'leaving.fromOpened': editor(1),
   'leaving.fromChanged': editor(2),
-  'stayed.homeHeld': editor(2),
-  'stayed.homeAnswered': editor(2),
+  'stayed.list.changed': editor(2),
+  'stayed.list.imageAdded': editor(1, {imageAdded: true}),
+  'stayed.list.changedAndImageAdded': editor(2, {imageAdded: true}),
   'home.fromOpened': {page: 'home'},
   'home.fromChanged': {page: 'home'},
   'back.opened': editor(1, {homeAhead: true}),
@@ -48,17 +46,14 @@ export function leavingViewOf(snapshot: LeavingSnapshot): LeavingView {
 }
 
 const constant = fc.constant({});
-/** Home is on its way: a dropped image address adds nothing (a transition without a target, which `offered` does not see). */
-const leavingForHome = ({snapshot}: When) => (snapshot as LeavingSnapshot).matches('leaving');
 
-/** Every event is sent only where the machine takes it: the server answers only what it holds. */
 export const leavingModel = defineModel({
   id: 'leaving',
   machine: leavingMachine,
   events: {
     CHANGE_LIST: {generate: constant, when: offered('CHANGE_LIST')},
     CLICK_HOME: {generate: constant, when: offered('CLICK_HOME')},
-    DROP_IMAGE_LINK: {generate: constant, when: leavingForHome},
+    DROP_IMAGE_LINK: {generate: constant, when: offered('DROP_IMAGE_LINK')},
     HOME_ANSWERS: {generate: constant, when: offered('HOME_ANSWERS')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
   },

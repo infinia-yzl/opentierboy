@@ -158,17 +158,20 @@ export class LinkImages {
     await changeAndWaitForLink(this.page, () => this.addItemFromLink(address, name));
   }
 
-  async dropImageAddressNow(address: string) {
-    const transfer = await this.page.evaluateHandle((uri) => {
-      const data = new DataTransfer();
-      data.setData('text/uri-list', uri);
-      data.setData('text/plain', uri);
-      return data;
-    }, address);
-    const row = this.tierList.tiers.first();
-    await row.dispatchEvent('dragenter', {dataTransfer: transfer});
-    await row.dispatchEvent('dragover', {dataTransfer: transfer});
-    await row.dispatchEvent('drop', {dataTransfer: transfer});
+  async dropImageAddressAndWaitForItem(address: string, name: string) {
+    await changeAndWaitForLink(this.page, async () => {
+      const transfer = await this.page.evaluateHandle((uri) => {
+        const data = new DataTransfer();
+        data.setData('text/uri-list', uri);
+        data.setData('text/plain', uri);
+        return data;
+      }, address);
+      const row = this.tierList.tiers.first();
+      await row.dispatchEvent('dragenter', {dataTransfer: transfer});
+      await row.dispatchEvent('dragover', {dataTransfer: transfer});
+      await row.dispatchEvent('drop', {dataTransfer: transfer});
+      await expect(this.tierList.itemIn(this.tierList.unranked, name)).toBeVisible();
+    });
   }
 
   /** The "Image address" field of the open "From a link" dialog. */
