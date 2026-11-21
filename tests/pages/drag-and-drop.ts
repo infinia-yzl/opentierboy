@@ -42,6 +42,14 @@ export class DragAndDrop {
     return {x: box.x + box.width * (side === 'before' ? 0.25 : 0.75), y: box.y + box.height / 2};
   }
 
+  private async shownUnderPointer(tile: Locator, pointer: () => Promise<Point>) {
+    const at = await pointer();
+    await expect.poll(async () => {
+      const box = await boxOf(tile);
+      return box.x <= at.x && at.x <= box.x + box.width && box.y <= at.y && at.y <= box.y + box.height;
+    }, {message: 'the dragged tile should show under the pointer before the drop'}).toBe(true);
+  }
+
   private overRow(itemName: string, tierName: string) {
     return () => expect(this.tierList.itemIn(tierName, itemName), `${itemName} should show in ${tierName} before the drop`).toBeVisible();
   }
@@ -371,15 +379,15 @@ export class DragAndDrop {
   }
 
   async moveFirstUnrankedItemUpWithKeyboard() {
-    const [name] = await this.tierList.itemNamesIn('Unranked');
-    if (!name) throw new Error('The Unranked tray has no item to move');
-    await this.moveItemWithKeyboard(name, ['ArrowUp']);
+    const first = this.tierList.itemsIn('Unranked').first();
+    await expect(first, 'the Unranked tray should show an item to move').toBeVisible();
+    await this.moveItemWithKeyboard(await first.getAttribute('aria-label') ?? '', ['ArrowUp']);
   }
 
   async dragFirstUnrankedItemToTier(tierName: string) {
-    const [name] = await this.tierList.itemNamesIn('Unranked');
-    if (!name) throw new Error('The Unranked tray has no item to rank');
-    await this.dragItemToTier(name, tierName);
+    const first = this.tierList.itemsIn('Unranked').first();
+    await expect(first, 'the Unranked tray should show an item to rank').toBeVisible();
+    await this.dragItemToTier(await first.getAttribute('aria-label') ?? '', tierName);
   }
 
   async focusItemReadyToDrag(name: string) {
@@ -404,7 +412,8 @@ export class DragAndDrop {
   }
 
   async dragItemOutOfTheRows(itemName: string) {
-    await this.dragWithMouse(this.tierList.item(itemName), () => centerOf(this.siteFooter));
+    const item = this.tierList.item(itemName);
+    await this.dragWithMouse(item, () => centerOf(this.siteFooter), {over: () => this.shownUnderPointer(item, () => centerOf(this.siteFooter))});
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Move cancelled\\. ${escapeRegExp(itemName)} is back in `));
   }
 }

@@ -17,9 +17,7 @@ export interface Size {
   height: number;
 }
 
-const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images\b|(?:Template|Upload|Link)$)/;
-
-const NOT_A_TIP_BUTTON = /^(?!(?:Hide tips|Close tip)$)/;
+const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add images\b|(?:Template|Upload|Link|Hide tips|Close tip)$)/;
 
 export const SCRIPTED_PASTE_SKIP = 'Firefox drops the files of a paste event made by a test (ClipboardEvent clipboardData).';
 export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a new tab.';
@@ -137,8 +135,7 @@ export class TierListPage {
     const grips = this.main.getByRole('button', {name: /^Move (?!the \d+ items? of )/, includeHidden: true});
     if ((await grips.count()) === 0) return ['no row grip yet'];
     const rows = this.main.getByRole('group', {includeHidden: true}).filter({has: this.page.getByRole('heading', {level: 2, includeHidden: true})});
-    const items = rows.getByRole('button', {name: NOT_AN_ITEM, includeHidden: true})
-      .and(this.page.getByRole('button', {name: NOT_A_TIP_BUTTON, includeHidden: true}));
+    const items = rows.getByRole('button', {name: NOT_AN_ITEM, includeHidden: true});
     return grips.or(items).evaluateAll((handles) => handles
       .filter((handle) => handle.getAttribute('aria-roledescription') !== 'draggable')
       .map((handle) => handle.getAttribute('aria-label') ?? ''));
