@@ -15,13 +15,12 @@ export interface EditorRow {
 export interface EditorRowsView {
   readonly rows: readonly EditorRow[];
   readonly canAdd: boolean;
-  readonly canRemove: boolean;
 }
 
 const MIDDLE_ROWS: readonly EditorRow[] = Array.from({length: 13}, (_, index) => ({name: `R${index + 6}`, items: []}));
 const empty = (...names: string[]): EditorRow[] => names.map((name) => ({name, items: []}));
 const unranked = (...items: string[]): EditorRow => ({name: 'Unranked', items});
-const ranked = (rows: readonly EditorRow[], canAdd = true, canRemove = true): EditorRowsView => ({rows, canAdd, canRemove});
+const ranked = (rows: readonly EditorRow[], canAdd = true): EditorRowsView => ({rows, canAdd});
 
 const VIEWS: Readonly<Record<EditorRowsState, EditorRowsView>> = {
   nineteen: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'F'), ...MIDDLE_ROWS, {name: 'R19', items: ['Winston']}, unranked('Sigma')], false),
@@ -30,7 +29,7 @@ const VIEWS: Readonly<Record<EditorRowsState, EditorRowsView>> = {
   three: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B'), unranked('Winston', 'Sigma')]),
   threeCleared: ranked([{name: 'S', items: ['Mauga']}, ...empty('Row 2', 'B'), unranked('Winston', 'Sigma')]),
   twoCleared: ranked([...empty('Row 1', 'B'), unranked('Winston', 'Sigma', 'Mauga')]),
-  one: ranked([...empty('B'), unranked('Winston', 'Sigma', 'Mauga')], true, false),
+  one: ranked([...empty('B'), unranked('Winston', 'Sigma', 'Mauga')]),
   twoAdded: ranked([...empty('B', 'Row 2'), unranked('Winston', 'Sigma', 'Mauga')]),
   five: ranked([{name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'F'), unranked('Winston', 'Sigma')]),
   seven: ranked([...empty('SS'), {name: 'S', items: ['Mauga']}, ...empty('A', 'B', 'C', 'D', 'F'), unranked('Winston', 'Sigma')]),
