@@ -51,6 +51,10 @@ export class Zen {
     return this.queue().getByRole('listitem');
   }
 
+  async queueItemNames(): Promise<string[]> {
+    return this.queueItems.evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
+  }
+
   async setZenMode(on: boolean) {
     if (on) {
       await this.tierList.zenModeToggle.click();

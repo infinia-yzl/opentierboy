@@ -104,7 +104,7 @@ test.describe('zen layouts', () => {
     });
 
     test('renders the editor with no Zen bar or frame when the page opens an address with layout=16x9', async ({tierList, page}) => {
-      await tierList.gotoAddress(`${TANKS}?state=${LIST}&layout=16x9`);
+      await tierList.gotoLink(`${TANKS}?state=${LIST}&layout=16x9`);
 
       await expect(tierList.editorTools).toBeVisible();
       await expect(tierList.zen.siteHeader).toBeVisible();
@@ -648,7 +648,7 @@ test.describe('zen layouts', () => {
           CHOOSE_TALL: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.tall),
           CHOOSE_OVERLAY: () => tierList.zen.chooseLayout(ZEN_LAYOUT_NAMES.overlay),
           CHANGE_LIST: async () => {
-            await tierList.drag.rankFirstUnrankedItem('A');
+            await tierList.drag.dragFirstUnrankedItemToTier('A');
             changed = page.url();
           },
           BROWSER_BACK: () => tierList.goBack(),

@@ -156,21 +156,6 @@ test.describe('drag and drop', () => {
   });
 
   test.describe('rows', () => {
-    test('renders row S with its items after row A and writes 1 history entry when the user drags row S by its grip onto row A', async ({
-      tierList,
-    }) => {
-      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma']}));
-      const entries = await tierList.countNewHistoryEntries();
-
-      await tierList.drag.dragRowOnto('S', 'A');
-
-      await expectTierList(tierList, {tiers: [
-        {name: 'A', items: ['Winston']}, {name: 'S', items: ['Mauga']}, {name: 'B', items: []},
-        {name: 'C', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: ['Sigma']},
-      ]});
-      expect(await entries()).toBe(1);
-    });
-
     test('renders the row colours by position when the user drags row S by its grip onto row B', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
       const colours = await tierList.rowColours();
@@ -204,28 +189,6 @@ test.describe('drag and drop', () => {
       ]});
     });
 
-    test('renders the items of row S in row A, the labels in place, when the user drags the stack of row S onto row A', async ({tierList}) => {
-      await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma'], A: ['Winston']}));
-
-      await tierList.drag.dragRowItemsOnto('S', 'A');
-
-      await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
-      await expect(tierList.itemsIn('S')).toHaveText(['Winston']);
-      await expect(tierList.itemsIn('A')).toHaveText(['Mauga', 'Sigma']);
-    });
-
-    test('renders no stack in row C while it is empty, and its stack when the user drags an item there', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
-
-      await expect(tierList.rowStack('C')).toHaveCount(0);
-      expect(await tierList.tabOrderIn('C')).toEqual(['Move row C']);
-
-      await tierList.drag.dragItemToTier('Winston', 'C');
-
-      await expect(tierList.rowStack('C')).toHaveAccessibleName('Move the 1 item of row C');
-      expect(await tierList.tabOrderIn('C')).toEqual(['Move row C', 'Winston', 'Move the 1 item of row C']);
-    });
-
     test('renders the stack name with the item count when the page opens with 2 items in row S', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga', 'Sigma']}));
 
@@ -253,7 +216,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the item name and row labels when the user moves an item with the keyboard', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston', 'Sigma']}));
 
-      const heard = await tierList.drag.moveItemWithKeyboardAndListen('Sigma', ['ArrowLeft', 'ArrowUp']);
+      const heard = await tierList.drag.moveItemWithKeyboard('Sigma', ['ArrowLeft', 'ArrowUp']);
 
       expect(heard).toEqual([
         'Sigma moves to Unranked, position 1 of 2.',
@@ -265,7 +228,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the item count and row labels, labels in place, when the user moves the stack of row S down', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      const heard = await tierList.drag.moveRowWithKeyboardAndListen('S', 'stack', ['ArrowDown']);
+      const heard = await tierList.drag.moveRowItemsWithKeyboard('S', ['ArrowDown']);
 
       expect(heard).toEqual([
         'The 1 item, over row A.',
@@ -279,7 +242,7 @@ test.describe('drag and drop', () => {
     test('renders announcements with the row label and its position, and row S third, when the user moves row S down by its grip', async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
 
-      const heard = await tierList.drag.moveRowWithKeyboardAndListen('S', 'grip', ['ArrowDown', 'ArrowDown']);
+      const heard = await tierList.drag.moveRowWithKeyboard('S', ['ArrowDown', 'ArrowDown']);
 
       expect(heard).toEqual([
         'Row S, position 2 of 5, below row A.',

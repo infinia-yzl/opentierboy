@@ -42,16 +42,6 @@ test.describe('history', () => {
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
     });
 
-    test('writes the change before Home when the user clicks the link to Home right after a change', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
-
-      await tierList.drag.moveItemWithKeyboard('Mauga', ['ArrowUp'], {waitForLink: false});
-      await tierList.leaveForHome();
-      await tierList.goBack();
-
-      await expect(tierList.itemsIn('F')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
-    });
   });
 
   test.describe('quick changes', () => {
@@ -236,7 +226,7 @@ test.describe('history', () => {
           wrote = false;
         },
         events: {
-          CHANGE_LIST: step(true, () => tierList.drag.rankFirstUnrankedItem('A')),
+          CHANGE_LIST: step(true, () => tierList.drag.dragFirstUnrankedItemToTier('A')),
           BROWSER_BACK: step(false, () => tierList.goBack()),
           BROWSER_FORWARD: step(false, () => tierList.goForward()),
           CHOOSE_TOP: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Top')),

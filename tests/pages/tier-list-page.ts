@@ -89,11 +89,6 @@ export class TierListPage {
     await this.ready();
   }
 
-  async gotoAddress(address: string) {
-    await this.page.goto(address, UNTIL_STARTED);
-    await this.ready();
-  }
-
   async gotoPageThatMayCrash(path: string, state: string) {
     await this.page.goto(`${path}?state=${state}`, UNTIL_STARTED);
     await expect.poll(async () => await this.crashMessage.isVisible() || await this.isReady(), {
@@ -314,10 +309,6 @@ export class TierListPage {
 
   get allItemImages(): Locator {
     return this.tiers.getByRole('img');
-  }
-
-  itemPicture(name: string): Locator {
-    return this.item(name).getByRole('img');
   }
 
   itemCaption(name: string): Locator {

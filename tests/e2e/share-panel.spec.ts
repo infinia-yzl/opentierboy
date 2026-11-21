@@ -34,7 +34,6 @@ test.describe('share panel', () => {
 
       const markdown = await tierList.share.clipboardText();
       expect(markdown).toContain('**OVERWATCH - Tank**');
-      // The link of the list on screen (A46): this page, written as a v3 link.
       const linkInMarkdown = markdown.match(/\]\((\S+)\)/)?.[1];
       expect(linkInMarkdown).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, tierList.page.url()).href)}\\?state=3\\.`));
       const friend = await openAsVisitor(linkInMarkdown!);
@@ -50,8 +49,6 @@ test.describe('share panel', () => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
       await tierList.drag.dragItemToTier('Mauga', 'S');
       await tierList.rows.chooseLabelPosition('Top');
-      // Back: Mauga leaves S, and the labels stay on Top, while the address holds the entry
-      // before (labels on the left).
       await tierList.goBack();
       await expect(tierList.itemsIn('S')).toHaveCount(0);
 
@@ -98,7 +95,6 @@ test.describe('share panel', () => {
     });
 
     test('renders the label settings of the link, also after a reload, when the page opens /rank/?state= with lp and sl', {tag: '@mobile'}, async ({tierList}) => {
-      // The landing page's "Create Blank List" opens /rank/; its links carry the settings too.
       const mauga = packageItemId('image-overwatch', 'Mauga');
       await tierList.goto('/rank/', v3State({t: 'Blank list', tp: 5, lp: 'top', sl: false, r: [['S', [mauga]], ['A', []], ['B', []], ['C', []], ['F', []], ['', []]]}));
 
@@ -118,8 +114,6 @@ test.describe('share panel', () => {
     });
   });
 
-  // The share panel says which images the link carries (the board "SharePanel"): link images
-  // travel in the link, device images stay in this browser and go along only in a Freeze Frame file.
   test.describe('images in the link', () => {
     test('renders no image note in the share panel when the page opens a list with only image-set items', {tag: '@mobile'}, async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
@@ -228,7 +222,7 @@ test.describe('share panel', () => {
         reset: async () => {
           await tierList.goto(TANKS);
           await tierList.share.emptyClipboard();
-          const names = await tierList.itemsIn(tierList.unranked).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
+          const names = await tierList.itemNamesIn('Unranked');
           opened = names.map((name) => packageItemId('image-overwatch', name));
           deviceImages = [];
           downloaded = null;

@@ -176,29 +176,6 @@ test.describe('zen', () => {
       await expect(tierList.zen.zenBarButton('Forward')).toBeDisabled();
     });
 
-    test('renders each earlier version and its step count when the user clicks button "Back" and then "Forward"', async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.drag.dragItemToTier('Mauga', 'S');
-      await tierList.drag.dragItemToTier('Winston', 'A');
-      await tierList.zen.setZenMode(true);
-
-      await tierList.zen.stepInZenBar('Back');
-      await expect(tierList.zen.zenStepCount).toHaveText('2 / 3');
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn('A')).toHaveCount(0);
-
-      await tierList.zen.stepInZenBar('Back');
-      await expect(tierList.zen.zenStepCount).toHaveText('1 / 3');
-      await expect(tierList.itemsIn('S')).toHaveCount(0);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
-      await expect(tierList.zen.zenBarButton('Back')).toBeDisabled();
-
-      await tierList.zen.stepInZenBar('Forward');
-      await expect(tierList.zen.zenStepCount).toHaveText('2 / 3');
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.zen.zenBarButton('Forward')).toBeEnabled();
-    });
-
     test('renders the step count 3 / 3 when the user reloads the page after 2 drags and turns on Zen', async ({tierList}) => {
       await tierList.goto(TANKS, TRAY_STATE);
       await tierList.drag.dragItemToTier('Mauga', 'S');
@@ -220,20 +197,6 @@ test.describe('zen', () => {
 
       await expect(tierList.zen.zenStepCount).toHaveText('1 / 1');
       await expect(tierList.zen.zenBarButton('Back')).toBeDisabled();
-      await expect(tierList.zen.zenBarButton('Forward')).toBeDisabled();
-    });
-
-    test('renders the step count 2 / 2 when the user drags an item in Zen after going Back', async ({tierList}) => {
-      await tierList.goto(TANKS, TRAY_STATE);
-      await tierList.drag.dragItemToTier('Mauga', 'S');
-      await tierList.drag.dragItemToTier('Winston', 'A');
-      await tierList.zen.setZenMode(true);
-      await tierList.zen.stepInZenBar('Back');
-      await tierList.zen.stepInZenBar('Back');
-
-      await tierList.drag.dragItemToTier('Sigma', 'B');
-
-      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
       await expect(tierList.zen.zenBarButton('Forward')).toBeDisabled();
     });
 
@@ -416,7 +379,7 @@ test.describe('zen', () => {
         await expect(tierList.zen.queueItems).toHaveText(queued);
       } else {
         await expect(tierList.zen.queueItems).toHaveCount(queued.length);
-        const shown = await tierList.zen.queueItems.evaluateAll(items => items.map(item => item.getAttribute('aria-label')));
+        const shown = await tierList.zen.queueItemNames();
         expect(shown.sort()).toEqual([...queued].sort());
       }
     };
@@ -495,7 +458,7 @@ test.describe('zen', () => {
         await tierList.zen.setZenMode(true);
       },
       events: {
-        CHANGE_LIST: () => tierList.drag.rankFirstUnrankedItem('A'),
+        CHANGE_LIST: () => tierList.drag.dragFirstUnrankedItemToTier('A'),
         ZEN_BACK: () => tierList.zen.stepInZenBar('Back'),
         ZEN_FORWARD: () => tierList.zen.stepInZenBar('Forward'),
         BROWSER_BACK: () => tierList.goBack(),

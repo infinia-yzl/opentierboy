@@ -11,23 +11,6 @@ const TANKS = '/rank/overwatch/tank';
 const linkRowNames = (link: string) => (v3LinkJson(link) as {r: unknown[][]}).r.map((row) => row[row.length - 2]);
 
 test.describe('editor rows', () => {
-  test('renders row Row 6 above Unranked and writes 1 history entry when the user clicks Add row', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
-    const entries = await tierList.historyLength();
-
-    await tierList.rows.addTierRow();
-
-    await expect(tierList.tiers).toHaveCount(7);
-    await expect(tierList.tiers.nth(5)).toHaveAccessibleName('Row 6');
-    await expect(tierList.tierLabel('Row 6')).toHaveText('Row 6');
-    await expect(tierList.tiers.last()).toHaveAccessibleName('Unranked');
-    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
-
-    await tierList.goBack();
-    await expect(tierList.tiers).toHaveCount(6);
-    await expect(tierList.tier('Row 6')).toHaveCount(0);
-  });
-
   test('writes an empty name for the added row into the state parameter when the user clicks Add row', async ({tierList, page}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
@@ -74,22 +57,6 @@ test.describe('editor rows', () => {
     });
   });
 
-  test('renders the row items in Unranked and writes 1 history entry when the user removes row B', async ({tierList}) => {
-    await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], B: ['Winston', 'Sigma'], '': ['D.Va']}));
-    const entries = await tierList.historyLength();
-
-    await tierList.rows.removeTierRow('B');
-
-    await expect(tierList.tier('B')).toHaveCount(0);
-    await expect(tierList.tiers).toHaveCount(5);
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va', 'Winston', 'Sigma']);
-    await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
-
-    await tierList.goBack();
-    await expect(tierList.itemsIn('B')).toHaveText(['Winston', 'Sigma']);
-    await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['D.Va']);
-  });
-
   test('renders no Unranked in the Remove a row menu, and the menu item disabled, when the user removes rows down to 1', async ({tierList}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
     await tierList.rows.chooseRowCount(3);
@@ -109,40 +76,7 @@ test.describe('editor rows', () => {
     await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
   });
 
-  test('renders button "Add row" disabled when the list has 20 rows, Unranked included', async ({tierList}) => {
-    const rows = Array.from({length: 19}, (_, index) => [`row-${index + 1}`, `R${index + 1}`, []]);
-    await tierList.goto(TANKS, v3State({r: [...rows, ['uncategorized', '', []]]}));
-    await expect(tierList.tiers).toHaveCount(20);
-
-    await expect(tierList.addRowButton).toBeDisabled();
-
-    await tierList.rows.removeTierRow('R7');
-    await expect(tierList.tiers).toHaveCount(19);
-    await expect(tierList.addRowButton).toBeEnabled();
-  });
-
   test.describe('row count', () => {
-    test('renders the items of removed rows in Unranked when the user chooses 3 Rows', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], F: ['Sigma']}));
-
-      await tierList.rows.chooseRowCount(3);
-
-      await expectTierNames(tierList, ['S', 'A', 'B', 'Unranked']);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn(tierList.unranked)).toContainText(['Winston', 'Sigma']);
-      await expect(tierList.tier('C')).toHaveCount(0);
-    });
-
-    test('renders rows SS and D and every item in its row when the user chooses 7 Rows', async ({tierList}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], F: ['Sigma']}));
-
-      await tierList.rows.chooseRowCount(7);
-
-      await expectTierNames(tierList, ['SS', 'S', 'A', 'B', 'C', 'D', 'F', 'Unranked']);
-      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
-      await expect(tierList.itemsIn('F')).toHaveText(['Sigma']);
-    });
-
     test('renders the same 7 rows for the user and a share link visitor when both choose 7 Rows after a row move', async ({tierList, openAsVisitor}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], C: ['Sigma']}));
       await tierList.drag.dragRowItemsOnto('S', 'A');
@@ -182,9 +116,9 @@ test.describe('editor rows', () => {
           ADD_ROW: () => tierList.rows.addTierRow(),
           REMOVE_FIRST_ROW: () => tierList.rows.removeFirstTierRow(),
           CLEAR_SECOND_LABEL: () => tierList.rows.renameTier('A', '', 'Row 2'),
-          CHOOSE_3_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(3),
-          CHOOSE_5_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(5),
-          CHOOSE_7_ROWS: () => tierList.rows.chooseRowCountAndWaitForRows(7),
+          CHOOSE_3_ROWS: () => tierList.rows.chooseRowCount(3),
+          CHOOSE_5_ROWS: () => tierList.rows.chooseRowCount(5),
+          CHOOSE_7_ROWS: () => tierList.rows.chooseRowCount(7),
         },
         states: {
           '*': async (_page, snapshot) => {

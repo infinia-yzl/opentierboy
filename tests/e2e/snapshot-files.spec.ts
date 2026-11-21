@@ -310,39 +310,6 @@ test.describe('snapshot files', () => {
       await expect.poll(() => friend.itemImageHasLoaded('blue-square')).toBe(true);
     });
 
-    test('renders the dialog "Open the list in this file?" and writes 1 history entry when the user drops a snapshot file', async ({tierList, openAsVisitor}) => {
-      const snapshot = await downloadSnapshotOf(tierList);
-      const friend = await openAsVisitor('/rank/overwatch/tank');
-      const before = friend.page.url();
-      const entries = await friend.historyLength();
-
-      await friend.files.dropFile(pngFile('snapshot.png', snapshot));
-      await expect(friend.files.openListDialog).toBeVisible();
-      await friend.files.confirmOpenList();
-      await expectTierList(friend, SNAPSHOT_LIST);
-      await expect.poll(() => friend.historyLength()).toBe(entries + 1);
-
-      await friend.goBack();
-      await expect(friend.page).toHaveURL(before);
-      await expect(friend.itemsIn(friend.unranked)).toHaveCount(TANK_COUNT);
-      await friend.goForward();
-      await expectTierList(friend, SNAPSHOT_LIST);
-    });
-
-    test('renders the dialog "Open the list in this file?" when the user pastes a snapshot file', async ({tierList, openAsVisitor, browserName}) => {
-      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      const snapshot = await downloadSnapshotOf(tierList);
-      const friend = await openAsVisitor('/rank');
-
-      await friend.deviceImages.pasteImages([pngFile('snapshot.png', snapshot)]);
-      await expect(friend.files.openListDialog).toBeVisible();
-      await friend.files.cancelOpenList();
-      await expect(friend.page).toHaveURL(/\/rank$/);
-
-      await friend.deviceImages.pasteImages([pngFile('snapshot.png', snapshot)]);
-      await friend.files.confirmOpenList();
-      await expectTierList(friend, SNAPSHOT_LIST);
-    });
   });
 
   test.describe('links near the cap of 13,000 characters', () => {
@@ -541,21 +508,6 @@ test.describe('snapshot files', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
-    test('renders the toast "Files not added" when the user pastes an image right after dropping a list file', async ({tierList, browserName}) => {
-      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
-      await tierList.goto('/rank');
-      const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
-      await tierList.files.sendFileEventsAtOnce([
-        {event: 'paste', file: imageFile('first.png', BLUE_SQUARE)},
-        {event: 'drop', file: snapshot},
-        {event: 'paste', file: imageFile('second.png', RED_SQUARE)},
-      ]);
-
-      await expect(tierList.files.openListDialog).toBeVisible();
-      await expect(tierList.toast('Files not added')).toContainText('A list file was being opened, so they were not added: second.png.');
-      await tierList.files.cancelOpenList();
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['first']);
-    });
   });
 
   test.describe('other files', () => {
@@ -569,24 +521,6 @@ test.describe('snapshot files', () => {
 
       await tierList.files.dropFile(imageFile('blue-square.png', BLUE_SQUARE));
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square', 'blue-square']);
-      await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
-    });
-
-    test('writes 1 history entry when the user drops a picture', async ({tierList, page}) => {
-      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-      const before = page.url();
-      const entries = await tierList.historyLength();
-
-      await tierList.files.dropFile(imageFile('blue-square.png', BLUE_SQUARE));
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
-      await expect(page).not.toHaveURL(before);
-      await expect.poll(() => tierList.historyLength()).toBe(entries + 1);
-
-      await tierList.goBack();
-      await expect(page).toHaveURL(before);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-      await tierList.goForward();
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue-square']);
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
     });
 

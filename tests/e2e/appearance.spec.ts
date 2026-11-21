@@ -9,10 +9,8 @@ import {
   appearanceModel, appearanceViewOf, STORED_THEME, type AppearanceEvent, type AppearanceSnapshot, type AppearanceView,
 } from '../models/appearance';
 
-// The Appearance menu (owner decisions, 2026-10-28): Mode, Game colours and Font.
 const TANKS = '/rank/overwatch/tank';
 
-// The page background in each mode, and the primary colour of the Share button (app/globals.css).
 const LIGHT_BACKGROUND = 'rgb(255, 255, 255)';
 
 const DARK_BACKGROUND = 'rgb(12, 10, 9)';
@@ -25,18 +23,13 @@ const DARK_BRAND_BLUE = 'rgb(138, 182, 240)';
 
 const DARK_OVERWATCH_ORANGE = 'rgb(251, 146, 60)';
 
-// Toasts take the page's colours in every theme. Sonner, the toast library, ships its own
-// styles; if they win, a toast can turn transparent over the tier list.
 const MODES: ThemeMode[] = ['light', 'dark'];
-/** Themes saved before 2.0.0, and the mode each one applies (THEME_CLASSES in lib/appearance.ts). */
 const RETIRED_THEMES: [string, 'light' | 'dark'][] = [['ocean-light', 'light'], ['ocean-dark', 'dark'], ['forest-light', 'light'], ['forest-dark', 'dark']];
 const MODE_LABELS = {light: 'Light', dark: 'Dark'} as const;
 
 test.describe('appearance', () => {
   test.describe('settings', () => {
     test('renders the page background of the device colour scheme, also after it changes, when the user chooses System', {tag: '@mobile'}, async ({site, page}) => {
-      // Emulate after the first load: the Cross-Origin-Opener-Policy header moves the page into
-      // a new browsing context in Firefox, and Playwright's emulation set before it is lost.
       await site.gotoHome();
       await page.emulateMedia({colorScheme: 'dark'});
       await site.chooseMode('light');
@@ -105,7 +98,7 @@ test.describe('appearance', () => {
       await expect(tierList.shareButton).toHaveCSS('background-color', shareColour);
       const tileWidth = view.tileSize === 'compact' ? 48 : 80;
       for (const name of ITEMS) {
-        await expect.poll(async () => (await tierList.sizeOf(tierList.itemPicture(name))).width, {message: `${name}'s tile width`}).toBe(tileWidth);
+        await expect.poll(async () => (await tierList.sizeOf(tierList.itemImage(name))).width, {message: `${name}'s tile width`}).toBe(tileWidth);
         if (view.labelsShown) await expect(tierList.itemCaption(name)).toBeVisible();
         else await expect(tierList.itemCaption(name)).toBeHidden();
       }

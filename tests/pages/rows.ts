@@ -78,13 +78,6 @@ export class Rows {
     return rows;
   }
 
-  async chooseRowCount(count: RowCount) {
-    await changeAndWaitForLink(this.page, async () => {
-      await this.tierList.rowOptionsButton.click();
-      await this.page.getByRole('menuitemradio', {name: `${count} Rows`}).click();
-    });
-  }
-
   async chooseLabelPosition(position: LabelPosition) {
     await changeAndWaitForLink(this.page, async () => {
       await this.tierList.rowOptionsButton.click();
@@ -152,7 +145,7 @@ export class Rows {
     await changeAndWaitForLink(this.page, () => this.page.keyboard.press('Enter'));
   }
 
-  async chooseRowCountAndWaitForRows(count: RowCount) {
+  async chooseRowCount(count: RowCount) {
     await this.openRowOptions();
     await this.rowOption(`${count} Rows`).click();
     await expect(this.tierList.openMenus).toHaveCount(0);

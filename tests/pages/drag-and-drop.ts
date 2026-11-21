@@ -164,6 +164,7 @@ export class DragAndDrop {
 
   private async dragWithMouse(handle: Locator, dropPoint: () => Promise<Point>, {over, follow = false, cancel = false, afterRelease}: {over?: () => Promise<void>; follow?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await this.dropEnded();
+    await expect(handle, 'the handle should take a drag').toHaveAttribute('aria-roledescription', 'draggable');
     expect(await this.page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight),
       'a mouse drag needs a window that shows the whole page, so that nothing scrolls while it drags').toBe(true);
     const from = await centerOf(handle);
@@ -199,23 +200,23 @@ export class DragAndDrop {
     await expect(this.tierList.tiers.getByRole('button', {pressed: true}), 'no tile or handle should still be held').toHaveCount(0);
   }
 
-  async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
-    const move = () => this.moveWithKeyboard(this.tierList.item(itemName), keys, itemName);
-    await (waitForLink ? this.dropAndWaitForLink(move) : move());
-  }
-
-  async moveItemWithKeyboardAndListen(itemName: string, keys: string[]): Promise<string[]> {
+  async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}): Promise<string[]> {
     const heard: string[] = [];
-    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.item(itemName), keys, itemName, heard));
+    const move = () => this.moveWithKeyboard(this.tierList.item(itemName), keys, itemName, heard);
+    await (waitForLink ? this.dropAndWaitForLink(move) : move());
     return heard;
   }
 
-  async moveRowWithKeyboard(tierName: string, keys: string[]) {
-    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.rowGrip(tierName), keys, /^Move (?:row |Row \d+$)/));
+  async moveRowWithKeyboard(tierName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.rowGrip(tierName), keys, /^Move (?:row |Row \d+$)/, heard));
+    return heard;
   }
 
-  async moveRowItemsWithKeyboard(tierName: string, keys: string[]) {
-    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.rowStack(tierName), keys, /^Move the \d+ items? of /));
+  async moveRowItemsWithKeyboard(tierName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.rowStack(tierName), keys, /^Move the \d+ items? of /, heard));
+    return heard;
   }
 
   async moveRowWithKeyboardThenCancel(tierName: string, keys: string[]) {
@@ -233,15 +234,6 @@ export class DragAndDrop {
     await expect(this.dragAnnouncer).toContainText('Move cancelled.');
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '')).toBe(`Move ${rowPhrase(tierName)}`);
     await this.expectEveryItemDraggable();
-  }
-
-  async moveRowWithKeyboardAndListen(tierName: string, handle: 'grip' | 'stack', keys: string[]): Promise<string[]> {
-    const heard: string[] = [];
-    const [locator, focusAfter] = handle === 'grip'
-      ? [this.tierList.rowGrip(tierName), /^Move (?:row |Row \d+$)/]
-      : [this.tierList.rowStack(tierName), /^Move the \d+ items? of /];
-    await this.dropAndWaitForLink(() => this.moveWithKeyboard(locator, keys, focusAfter, heard));
-    return heard;
   }
 
   private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
@@ -378,27 +370,16 @@ export class DragAndDrop {
     });
   }
 
-  async rankFirstUnrankedItem(tierName: string) {
-    const name = await this.tierList.itemsIn(this.tierList.unranked).first().getAttribute('aria-label');
-    if (!name) throw new Error('The Unranked tray has no item to rank');
-    await this.dragItemToTier(name, tierName);
-  }
-
   async moveFirstUnrankedItemUpWithKeyboard() {
-    const name = await this.tierList.itemsIn(this.tierList.unranked).first().getAttribute('aria-label');
+    const [name] = await this.tierList.itemNamesIn('Unranked');
     if (!name) throw new Error('The Unranked tray has no item to move');
-    await changeAndWaitForLink(this.page, () => this.moveItemWithKeyboard(name, ['ArrowUp'], {waitForLink: false}));
+    await this.moveItemWithKeyboard(name, ['ArrowUp']);
   }
 
   async dragFirstUnrankedItemToTier(tierName: string) {
-    let name: string | null = null;
-    await expect.poll(async () => {
-      [name = null] = await this.tierList.itemsIn(this.tierList.unranked).evaluateAll((items) => items
-        .filter((item) => item.getAttribute('aria-roledescription') === 'draggable')
-        .map((item) => item.getAttribute('aria-label')));
-      return name;
-    }, {message: 'Unranked should hold an item that takes a drag'}).not.toBeNull();
-    await this.dragItemToTier(name!, tierName);
+    const [name] = await this.tierList.itemNamesIn('Unranked');
+    if (!name) throw new Error('The Unranked tray has no item to rank');
+    await this.dragItemToTier(name, tierName);
   }
 
   async focusItemReadyToDrag(name: string) {
@@ -406,11 +387,6 @@ export class DragAndDrop {
     await expect(item).toHaveAttribute('aria-roledescription', 'draggable');
     await item.focus();
     await expect(item).toBeFocused();
-  }
-
-  async dragItemToTierWhenReady(itemName: string, tierName: string) {
-    await expect(this.tierList.item(itemName), `${itemName} should take a drag`).toHaveAttribute('aria-roledescription', 'draggable');
-    await this.dragItemToTier(itemName, tierName);
   }
 
   async dragItemToFreeSpaceOf(itemName: string, tierName: string) {
