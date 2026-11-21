@@ -175,16 +175,8 @@ export class TierListPage {
   }
 
   async countNewHistoryEntries(): Promise<() => Promise<number>> {
-    await this.page.evaluate(() => {
-      const counted = window as unknown as {newHistoryEntries: number};
-      counted.newHistoryEntries = 0;
-      const push = window.history.pushState.bind(window.history);
-      window.history.pushState = (...args: Parameters<History['pushState']>) => {
-        counted.newHistoryEntries += 1;
-        push(...args);
-      };
-    });
-    return () => this.page.evaluate(() => (window as unknown as {newHistoryEntries: number}).newHistoryEntries);
+    const before = await this.historyLength();
+    return async () => await this.historyLength() - before;
   }
 
   async shareLink(): Promise<string> {

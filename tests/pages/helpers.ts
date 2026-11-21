@@ -1,6 +1,5 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 
-
 export const UNTIL_STARTED = {waitUntil: 'domcontentloaded'} as const;
 
 export type Box = {x: number; y: number; width: number; height: number};
@@ -38,10 +37,6 @@ export async function boxOf(locator: Locator): Promise<Box> {
   const box = await locator.boundingBox();
   if (!box) throw new Error(`Element is not visible: ${locator}`);
   return box;
-}
-
-export function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 export function centerOfBox(box: Box): Point {

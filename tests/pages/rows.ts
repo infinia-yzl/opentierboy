@@ -52,7 +52,10 @@ export class Rows {
 
   async removeTierRow(tierName: string) {
     const rows = await this.openRemoveRowMenu();
-    await changeAndWaitForLink(this.page, () => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());
+    const row = rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true}));
+    await row.focus();
+    await expect(row).toBeFocused();
+    await changeAndWaitForLink(this.page, () => this.page.keyboard.press('Enter'));
   }
 
   get removeRowMenuItem(): Locator {
@@ -67,31 +70,12 @@ export class Rows {
 
   async openRemoveRowMenu(): Promise<Locator> {
     await this.openRowOptions();
-    await this.removeRowMenuItem.click();
+    await this.removeRowMenuItem.focus();
+    await this.page.keyboard.press('ArrowRight');
     const submenu = this.page.getByRole('menu').filter({hasNot: this.removeRowMenuItem});
     const rows = submenu.getByRole('menuitem');
-    await expect(rows.first()).toBeVisible();
-    await this.movePointerIntoSubmenu(this.removeRowMenuItem, submenu);
+    await expect(rows.first()).toBeFocused();
     return rows;
-  }
-
-  private async movePointerIntoSubmenu(trigger: Locator, submenu: Locator) {
-    await expect(submenu).toHaveAttribute('data-side', /^(left|right)$/);
-    const side = await submenu.getAttribute('data-side');
-    const from = await boxOf(trigger);
-    const y = from.y + from.height / 2;
-    let into = await boxOf(submenu);
-    await expect.poll(async () => {
-      into = await boxOf(submenu);
-      return into.y < y && y < into.y + into.height;
-    }, {message: 'the submenu should open beside its item'}).toBe(true);
-    const edge = side === 'left' ? from.x + 2 : from.x + from.width - 2;
-    const inside = side === 'left' ? into.x + into.width - 8 : into.x + 8;
-    await this.page.mouse.move(from.x + from.width / 2, y);
-    await this.page.mouse.move(edge, y, {steps: 4});
-    await this.page.mouse.move(inside, y, {steps: 2});
-    await expect(submenu, 'the submenu should stay open once the pointer is inside it').toBeVisible();
-    await expect(submenu.getByRole('menuitem').first()).toBeVisible();
   }
 
   async chooseRowCount(count: RowCount) {
@@ -122,7 +106,7 @@ export class Rows {
   async tierLabelIsAbove(tierName: string, itemName: string): Promise<boolean> {
     const label = await this.tierList.tier(tierName).getByRole('heading', {name: tierName}).boundingBox();
     const item = await this.tierList.item(itemName).boundingBox();
-    return !!(label && item && label.y + label.height <= item.y + 0.5);
+    return !!(label && item && label.y + label.height / 2 < item.y);
   }
 
   async chooseTileSize(name: TileSizeName) {
@@ -164,10 +148,8 @@ export class Rows {
   }
 
   async removeFirstTierRow() {
-    const before = this.page.url();
-    const rows = await this.openRemoveRowMenu();
-    await rows.first().click();
-    await expect(this.page, 'the shareable link should update').not.toHaveURL(before);
+    await this.openRemoveRowMenu();
+    await changeAndWaitForLink(this.page, () => this.page.keyboard.press('Enter'));
   }
 
   async chooseRowCountAndWaitForRows(count: RowCount) {

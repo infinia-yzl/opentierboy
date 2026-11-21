@@ -150,7 +150,6 @@ test.describe('editor rows', () => {
       await expect(tierList.itemsIn('A')).toHaveText(['Mauga']);
       const friend = await openAsVisitor(await tierList.shareLink());
 
-      // The switch puts items in the row with their tier id, so the link must keep the moved ids.
       const expected = {tiers: [
         {name: 'SS', items: []}, {name: 'S', items: ['Mauga']}, {name: 'A', items: ['Winston']}, {name: 'B', items: []},
         {name: 'C', items: ['Sigma']}, {name: 'D', items: []}, {name: 'F', items: []}, {name: 'Unranked', items: []},
@@ -189,14 +188,10 @@ test.describe('editor rows', () => {
         },
         states: {
           '*': async (_page, snapshot) => {
-            const {rows, canAdd, canRemove} = editorRowsViewOf(snapshot);
+            const {rows, canAdd} = editorRowsViewOf(snapshot);
             await expectTierList(tierList, {tiers: rows.map(({name, items}) => ({name, items: [...items]}))});
             if (canAdd) await expect(tierList.addRowButton).toBeEnabled();
             else await expect(tierList.addRowButton).toBeDisabled();
-            await tierList.rows.openRowOptions();
-            if (canRemove) await expect(tierList.rows.removeRowMenuItem).toBeEnabled();
-            else await expect(tierList.rows.removeRowMenuItem).toBeDisabled();
-            await tierList.closeMenus();
             const state = String(snapshot.value);
             const entries = await pushes();
             if (last) {

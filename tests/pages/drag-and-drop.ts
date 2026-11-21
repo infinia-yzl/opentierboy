@@ -1,6 +1,6 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 import {escapeRegExp} from '../support/regexp';
-import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, clamp, rowPhrase, scrollPosition, scrollPositionAfterFrames, type Box, type Point} from './helpers';
+import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, rowPhrase, scrollPosition, scrollPositionAfterFrames, type Box, type Point} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
 export class DragAndDrop {
@@ -25,12 +25,38 @@ export class DragAndDrop {
     await this.expectEveryItemDraggable();
   }
 
+  private async freeSpaceIn(tierName: string, itemName: string): Promise<Point> {
+    const row = this.tierList.tier(tierName);
+    const rowBox = await boxOf(row);
+    const others = (await this.tierList.itemNamesIn(tierName)).filter((name) => name !== itemName);
+    const addImages = row.getByRole('button', {name: /^Add images\b/});
+    if (others.length === 0 && await addImages.count() === 0) return centerOfBox(rowBox);
+    const last = await boxOf(await addImages.count() > 0 ? addImages : this.tierList.itemIn(tierName, others[others.length - 1]));
+    const stack = this.tierList.rowStack(tierName);
+    const end = await stack.count() > 0 ? (await boxOf(stack)).x : rowBox.x + rowBox.width;
+    return {x: (last.x + last.width + end) / 2, y: last.y + last.height / 2};
+  }
+
+  private async halfOf(itemName: string, side: 'before' | 'after'): Promise<Point> {
+    const box = await boxOf(this.tierList.item(itemName));
+    return {x: box.x + box.width * (side === 'before' ? 0.25 : 0.75), y: box.y + box.height / 2};
+  }
+
+  private overRow(itemName: string, tierName: string) {
+    return () => expect(this.tierList.itemIn(tierName, itemName), `${itemName} should show in ${tierName} before the drop`).toBeVisible();
+  }
+
+  private besideTarget(itemName: string, targetItemName: string, side: 'before' | 'after') {
+    return () => expect.poll(async () => {
+      const row = this.tierList.tiers.filter({has: this.page.getByRole('button', {name: targetItemName, exact: true})});
+      const names = await this.tierList.itemsIn(row).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')));
+      return names.indexOf(itemName) - names.indexOf(targetItemName);
+    }, {message: `${itemName} should show ${side} ${targetItemName} before the drop`, timeout: 1_000}).toBe(side === 'before' ? -1 : 1);
+  }
+
   async dragItemToTier(itemName: string, tierName: string) {
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.item(itemName), this.tierList.tier(tierName), (box) => ({
-        x: box.x + box.width - 120,
-        y: box.y + box.height / 2,
-      })),
+      this.dragWithMouse(this.tierList.item(itemName), () => this.freeSpaceIn(tierName, itemName), {over: this.overRow(itemName, tierName)}),
     );
     try {
       await expect(this.tierList.itemIn(tierName, itemName)).toBeVisible();
@@ -51,9 +77,9 @@ export class DragAndDrop {
       await mouse.down();
       await mouse.move(from.x + 10, from.y + 10, {steps: 4});
       await expect(this.dragAnnouncer).toHaveText(/^Picked up /);
-      await mouse.move(row.x + 150, row.y + row.height / 2, {steps: 16});
+      const to = await this.freeSpaceIn(tierName, itemName);
+      await mouse.move(to.x, to.y, {steps: 16});
       await expect(this.dragAnnouncer).toHaveText(/ moves to row /);
-      await scrollPositionAfterFrames(this.page);
       await mouse.up();
       await this.dropEnded();
     });
@@ -63,10 +89,8 @@ export class DragAndDrop {
   async dragItemToTierThenPressItem(itemName: string, tierName: string, pressedName: string) {
     const pressed = this.tierList.item(pressedName);
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.item(itemName), this.tierList.tier(tierName), (box) => ({
-        x: box.x + box.width - 120,
-        y: box.y + box.height / 2,
-      }), {
+      this.dragWithMouse(this.tierList.item(itemName), () => this.freeSpaceIn(tierName, itemName), {
+        over: this.overRow(itemName, tierName),
         afterRelease: async () => {
           const from = await centerOf(pressed);
           const mouse = this.page.mouse;
@@ -99,10 +123,7 @@ export class DragAndDrop {
   }
 
   async dragItemToTierThenCancel(itemName: string, tierName: string) {
-    await this.dragWithMouse(this.tierList.item(itemName), this.tierList.tier(tierName), (box) => ({
-      x: box.x + box.width - 120,
-      y: box.y + box.height / 2,
-    }), {cancel: true});
+    await this.dragWithMouse(this.tierList.item(itemName), () => this.freeSpaceIn(tierName, itemName), {over: this.overRow(itemName, tierName), cancel: true});
   }
 
   async dragItemOnto(itemName: string, targetItemName: string) {
@@ -113,59 +134,55 @@ export class DragAndDrop {
 
   async dragItemNextTo(itemName: string, targetItemName: string, side: 'before' | 'after') {
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.item(itemName), this.tierList.item(targetItemName), (box) => ({
-        x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
-        y: box.y + box.height / 2,
-      }), {followTarget: true}),
+      this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {over: this.besideTarget(itemName, targetItemName, side), follow: true}),
     );
   }
 
   async dragItemAndDropInPlace(itemName: string) {
-    await this.dragWithMouse(this.tierList.item(itemName), this.tierList.item(itemName), centerOfBox);
+    await this.dragWithMouse(this.tierList.item(itemName), () => centerOf(this.tierList.item(itemName)));
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\. It stays in `));
   }
 
   async dragRowOnto(tierName: string, targetTierName: string) {
+    const names = await this.tierList.tiers.evaluateAll((rows) => rows.map((row) => row.getAttribute('aria-label')));
+    const at = names.indexOf(targetTierName);
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.rowGrip(tierName), this.tierList.tier(targetTierName), centerOfBox),
+      this.dragWithMouse(this.tierList.rowGrip(tierName), () => centerOf(this.tierList.tier(targetTierName)), {
+        over: () => expect(this.tierList.tiers.nth(at), `${tierName} should take the place of ${targetTierName} before the drop`).not.toHaveAccessibleName(targetTierName),
+      }),
     );
   }
 
   async dragRowItemsOnto(tierName: string, targetTierName: string) {
+    const moving = await this.tierList.itemNamesIn(tierName);
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.rowStack(tierName), this.tierList.tier(targetTierName), centerOfBox),
+      this.dragWithMouse(this.tierList.rowStack(tierName), () => centerOf(this.tierList.tier(targetTierName)), {
+        over: () => expect.poll(() => this.tierList.itemNamesIn(targetTierName), {message: `the items of ${tierName} should show in ${targetTierName} before the drop`}).toEqual(moving),
+      }),
     );
   }
 
-  private async dragWithMouse(handle: Locator, target: Locator, pointIn: (box: Box) => Point, {followTarget = false, cancel = false, afterRelease}: {followTarget?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
-    await handle.scrollIntoViewIfNeeded();
-    await this.scrollToShow(handle, pointIn(await boxOf(target)));
-    const scrollBefore = await scrollPosition(this.page);
-    const onPage = (point: Point, scroll: Point) => ({x: point.x + scroll.x, y: point.y + scroll.y});
-    const dropAtOnPage = onPage(pointIn(await boxOf(target)), scrollBefore);
-    const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
-
-    const mouse = this.page.mouse;
+  private async dragWithMouse(handle: Locator, dropPoint: () => Promise<Point>, {over, follow = false, cancel = false, afterRelease}: {over?: () => Promise<void>; follow?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await this.dropEnded();
+    expect(await this.page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight),
+      'a mouse drag needs a window that shows the whole page, so that nothing scrolls while it drags').toBe(true);
     const from = await centerOf(handle);
+    const mouse = this.page.mouse;
     await mouse.move(from.x, from.y);
     await mouse.down();
     await mouse.move(from.x + 8, from.y + 8, {steps: 4});
     await expect(this.dragAnnouncer, 'the drag should start').toHaveText(/^Picked up /);
-
-    let lastProblem: unknown = null;
-    for (let tryNumber = 1; tryNumber <= DROP_POINT_TRIES; tryNumber++) {
-      try {
-        await this.moveToDropPoint(target, pointIn, {followTarget, dropAtOnPage, onPage, viewport});
-        lastProblem = null;
-        break;
-      } catch (error) {
-        lastProblem = error;
-      }
-    }
-    if (lastProblem !== null) {
-      const check = lastProblem instanceof Error ? lastProblem.message.split('\n').slice(0, 3).join(' ') : String(lastProblem);
-      throw new Error(`The drag did not settle on its drop point in ${DROP_POINT_TRIES} tries. Last check: ${check}`, {cause: lastProblem});
+    const to = await dropPoint();
+    await mouse.move(to.x, to.y, {steps: 10});
+    await mouse.move(to.x, to.y);
+    if (follow && over) {
+      await expect(async () => {
+        const now = await dropPoint();
+        await mouse.move(now.x, now.y, {steps: 2});
+        await over();
+      }, 'the pointer should follow its target tile, which moves when the dragged tile enters its row').toPass();
+    } else {
+      await over?.();
     }
     if (cancel) {
       await this.page.keyboard.press('Escape');
@@ -178,62 +195,8 @@ export class DragAndDrop {
     await this.expectEveryItemDraggable();
   }
 
-  private async moveToDropPoint(target: Locator, pointIn: (box: Box) => Point, {followTarget, dropAtOnPage: measured, onPage, viewport}: {
-    followTarget: boolean;
-    dropAtOnPage: Point;
-    onPage: (point: Point, scroll: Point) => Point;
-    viewport: {width: number; height: number};
-  }) {
-    const scroll = await scrollPosition(this.page);
-    const dropAtOnPage = followTarget ? onPage(pointIn(await boxOf(target)), scroll) : measured;
-    const x = clamp(dropAtOnPage.x - scroll.x, 1, viewport.width - 2);
-    const y = clamp(dropAtOnPage.y - scroll.y, 1, viewport.height - 2);
-    await this.page.mouse.move(x, y, {steps: 5});
-    const scrollAfter = await scrollPositionAfterFrames(this.page);
-    expect(scrollAfter, 'the page should stop auto-scrolling').toEqual(scroll);
-    expect({x: x + scroll.x, y: y + scroll.y}, 'the pointer should be on the drop point').toEqual(dropAtOnPage);
-    if (followTarget) {
-      expect(onPage(pointIn(await boxOf(target)), scrollAfter), 'the target should stay put').toEqual(dropAtOnPage);
-    }
-  }
-
   private async dropEnded() {
-    await expect.poll(() => this.page.evaluate(() => document.querySelector('[data-dragging]') === null), {
-      message: 'the last drop should have ended',
-    }).toBe(true);
-  }
-
-  private async scrollToShow(handle: Locator, dropAt: Point) {
-    const margin = 16;
-    const viewport = this.page.viewportSize() ?? {width: 1280, height: 720};
-    const scroll = await scrollPosition(this.page);
-    const from = await boxOf(handle);
-    const handleTop = from.y + scroll.y;
-    const handleBottom = from.y + from.height + scroll.y;
-    const drop = dropAt.y + scroll.y;
-    const band = Math.ceil(viewport.height * AUTO_SCROLL_EDGE) + 1;
-    const lowest = Math.max(handleBottom - viewport.height + margin, drop - viewport.height + band, 0);
-    const maxScroll = await this.page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
-    const highest = Math.min(handleTop - margin, drop - band, maxScroll);
-    let y: number;
-    if (lowest <= highest) {
-      if (scroll.y >= lowest && scroll.y <= highest) return;
-      y = Math.round(scroll.y < lowest ? lowest : highest);
-    } else {
-      const top = Math.min(handleTop, drop);
-      const bottom = Math.max(handleBottom, drop);
-      const shows = top >= scroll.y + margin && bottom <= scroll.y + viewport.height - margin;
-      if (shows || bottom - top > viewport.height - 2 * margin) return;
-      y = Math.max(0, Math.round((top + bottom - viewport.height) / 2));
-    }
-    await this.page.evaluate((toY) => window.scrollTo({top: toY, behavior: 'instant'}), y);
-    let last = await scrollPositionAfterFrames(this.page, 2);
-    await expect.poll(async () => {
-      const now = await scrollPositionAfterFrames(this.page, 2);
-      const still = now.x === last.x && now.y === last.y;
-      last = now;
-      return still;
-    }, {message: 'the window should stop scrolling'}).toBe(true);
+    await expect(this.tierList.tiers.getByRole('button', {pressed: true}), 'no tile or handle should still be held').toHaveCount(0);
   }
 
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}) {
@@ -314,7 +277,7 @@ export class DragAndDrop {
       await touch('touchMove', {x: from.x, y: from.y - 10}, start + 0.32);
       await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(itemName)},`));
       const box = await boxOf(this.tierList.tier(tierName));
-      const to = {x: box.x + box.width - 80, y: box.y + box.height / 2};
+      const to = await this.freeSpaceIn(tierName, itemName);
       for (let step = 1; step <= 10; step++) {
         await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
         await scrollPositionAfterFrames(this.page, 2);
@@ -405,11 +368,8 @@ export class DragAndDrop {
       const mouse = this.page.mouse;
       await mouse.move(from.x, from.y);
       await mouse.down();
-      const to = {x: row.x + row.width - 120, y: row.y + row.height / 2};
+      const to = await this.freeSpaceIn(tierName, itemName);
       await mouse.move(to.x, to.y, {steps: 20});
-      await scrollPositionAfterFrames(this.page);
-      await mouse.move(to.x + 1, to.y);
-      await scrollPositionAfterFrames(this.page);
       await mouse.move(to.x, to.y);
       const atRow = new RegExp(`^${escapeRegExp(itemName)} moves to ${escapeRegExp(rowPhrase(tierName))},`);
       await expect(this.dragAnnouncer, 'the press should drag the item to the row').toHaveText(atRow);
@@ -454,18 +414,12 @@ export class DragAndDrop {
   }
 
   async dragItemToFreeSpaceOf(itemName: string, tierName: string) {
-    await this.dragWithMouse(this.tierList.item(itemName), this.tierList.tier(tierName), (box) => ({
-      x: box.x + box.width - 120,
-      y: box.y + box.height / 2,
-    }));
+    await this.dragWithMouse(this.tierList.item(itemName), () => this.freeSpaceIn(tierName, itemName), {over: this.overRow(itemName, tierName)});
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\b`));
   }
 
   async dragItemBeside(itemName: string, targetItemName: string, side: 'before' | 'after') {
-    await this.dragWithMouse(this.tierList.item(itemName), this.tierList.item(targetItemName), (box) => ({
-      x: box.x + box.width * (side === 'before' ? 0.25 : 0.75),
-      y: box.y + box.height / 2,
-    }), {followTarget: true});
+    await this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {over: this.besideTarget(itemName, targetItemName, side), follow: true});
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\b`));
   }
 
@@ -474,11 +428,8 @@ export class DragAndDrop {
   }
 
   async dragItemOutOfTheRows(itemName: string) {
-    await this.dragWithMouse(this.tierList.item(itemName), this.siteFooter, centerOfBox);
+    await this.dragWithMouse(this.tierList.item(itemName), () => centerOf(this.siteFooter));
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Move cancelled\\. ${escapeRegExp(itemName)} is back in `));
   }
 }
 
-const DROP_POINT_TRIES = 100;
-
-const AUTO_SCROLL_EDGE = 0.2;

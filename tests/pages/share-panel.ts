@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
 import {boxOf, scrollPosition, type Box} from './helpers';
+import {LIST_CARD} from '@/lib/listCard/model';
 import {expectOneNewToast} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
@@ -142,7 +143,8 @@ export class SharePanel {
 
   async capturedCardTileColors(): Promise<number> {
     const src = await this.capturedImage.evaluate((img: HTMLImageElement) => img.currentSrc);
-    return this.page.evaluate(countColors, {src, column: {x: 36 + 120, y: 0, width: 92, height: 92}, cardWidth: CARD_WIDTH});
+    const {padding, labelWidth, tileMax, width} = LIST_CARD;
+    return this.page.evaluate(countColors, {src, column: {x: padding.x + labelWidth, y: 0, width: tileMax, height: tileMax}, cardWidth: width});
   }
 
   async capturedImageDetails(): Promise<CapturedImage> {
@@ -240,8 +242,6 @@ export interface CapturedImage {
   pixelDigest: string;
   cornerBrightness: number;
 }
-
-const CARD_WIDTH = 1200;
 
 async function countColors({src, column, cardWidth}: {src: string; column?: Box; cardWidth?: number}): Promise<number> {
   const image = new Image();

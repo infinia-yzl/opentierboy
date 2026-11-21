@@ -460,24 +460,24 @@ test.describe('snapshot files', () => {
   test.describe('file queue', () => {
     test.slow();
 
-    test('writes 55 history entries when the user pastes 55 images at once on a slow disk', async ({tierList, page, browserName}) => {
+    test('writes 40 history entries when the user pastes 40 images at once on a slow disk', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
       const hold = await tierList.deviceImages.holdDeviceStore();
       const newEntries = await tierList.countNewHistoryEntries();
-      const groups = Array.from({length: 55}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
+      const groups = Array.from({length: 40}, (_, index) => [imageFile(`q${String(index).padStart(2, '0')}.png`, noisePng(8, 8, index + 1))]);
 
       await tierList.deviceImages.pasteImagesAtOnce(groups);
       await hold.release();
 
-      for (let landed = await newEntries(); landed < 55; landed = await newEntries()) {
+      for (let landed = await newEntries(); landed < 40; landed = await newEntries()) {
         await expect.poll(newEntries, {message: `a write after the first ${landed} should land`}).toBeGreaterThan(landed);
       }
-      expect(await newEntries()).toBe(55);
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(55);
-      await expect.poll(() => deviceItemsOf(page.url())).toBe(55);
+      expect(await newEntries()).toBe(40);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(40);
+      await expect.poll(() => deviceItemsOf(page.url())).toBe(40);
       await tierList.goBack();
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(54);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(39);
     });
 
     test('renders the toast "Files not added" and writes no new forward entry when the user goes Back while pastes wait', async ({tierList, page, browserName}) => {

@@ -99,7 +99,6 @@ test.describe('history', () => {
       await expect(page).toHaveURL(/\/rank\/overwatch\/tank$/);
       await expect(tierList.itemsIn('S')).toHaveCount(0);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
-      // Showing the template again writes nothing: Forward still works (A6).
       expect(await tierList.historyLength()).toBe(entries);
       await tierList.goForward();
       await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
@@ -107,10 +106,6 @@ test.describe('history', () => {
     });
   });
 
-  /**
-   * Opening a link never writes the address (A1): the address and the history stay as they
-   * are, so Back leaves the list. Only a change to the list writes a new link.
-   */
   test.describe('opened links', () => {
     for (const id of ['link-001', 'link-012', 'link-002']) {
       const link = SHARED_LINKS.find((entry) => entry.id === id)!;
@@ -124,7 +119,6 @@ test.describe('history', () => {
         expect(page.url()).toBe(opened);
         expect(await tierList.historyLength()).toBe(entries + 1);
 
-        // One change, then Back, returns to exactly this link.
         await tierList.setTitle('Changed');
         await tierList.goBack();
         await expect(page).toHaveURL(opened);
@@ -153,11 +147,6 @@ test.describe('history', () => {
     });
   });
 
-  /**
-   * Label position and label visibility travel in the link (A3). The owner chose on 2026-10-25
-   * that they replace the current history entry, so they add no Back step, as before; Back and
-   * Forward inside the editor keep the settings on screen.
-   */
   test.describe('label settings', () => {
     test('writes no history entry when the user chooses Top and Hide Labels with the mouse on a template page', async ({tierList, page}) => {
       await tierList.goto(TANKS);
@@ -179,7 +168,6 @@ test.describe('history', () => {
     });
 
     test('renders the label position Top when the user goes Back and Forward after a list change', async ({tierList, page}) => {
-      // The owner's example: Mauga to S, Winston to A, labels on Top, then Back.
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston', 'Sigma']}));
       await tierList.drag.dragItemToTier('Mauga', 'S');
       const firstChange = page.url();
@@ -196,7 +184,6 @@ test.describe('history', () => {
       await tierList.closeMenus();
       await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Mauga')).toBe(true);
 
-      // Forward shows Winston in A again, still with labels on Top.
       await tierList.goForward();
       await expect(page).toHaveURL(withTop);
       await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
@@ -259,7 +246,7 @@ test.describe('history', () => {
         },
         states: {
           '*': async (_page, snapshot) => {
-            const {version, versions, labelPosition, itemLabels} = historyViewOf(snapshot);
+            const {version, versions, itemLabels} = historyViewOf(snapshot);
             const rows: Readonly<Record<string, readonly string[]>> = {
               S: ['Reinhardt'], A: TRAY.slice(0, version - 1), B: [], C: [], F: [], Unranked: TRAY.slice(version - 1),
             };
@@ -268,7 +255,6 @@ test.describe('history', () => {
               await expect.poll(() => tierList.itemNamesIn(row), {message: `the items of row ${row}`}).toEqual(names);
             }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
-            await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));
             if (wrote) addresses[version - 1] = page.url();

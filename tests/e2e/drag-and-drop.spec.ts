@@ -1,4 +1,3 @@
-/** Moving items and rows: mouse drags, the keyboard, touch, and what screen readers hear. */
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, expectTierNames, test} from '../support/test';
@@ -26,19 +25,15 @@ import {
 
 const TANKS = '/rank/overwatch/tank';
 
-// Active sets grow with new versions, so counts come from imageset.config.json.
 const TANK_COUNT = templateItemCount('image-overwatch', 'tank');
 
 const ALL = '/rank/overwatch/all';
 
-// Twelve tiles do not fit on one line of a row at the default window size, so row S wraps (#142).
 const WRAPPED = ['Ana', 'Baptiste', 'Brigitte', 'Illari', 'Juno', 'Kiriko', 'Lifeweaver', 'Lucio', 'Mercy', 'Moira', 'Zenyatta', 'Ashe'];
 
 test.describe('drag and drop', () => {
   test.describe('mouse', () => {
     test.describe('in the window size of the first report', () => {
-      // At this size the page scrolls a few pixels during the drag, as when the bug was seen
-      // (2026-11-07): the item landed in row A.
       test.use({viewport: {width: 1200, height: 880}});
 
       test('renders the item in row S when the user sweeps it up from Unranked into the left part of row S', async ({tierList}) => {
@@ -85,6 +80,8 @@ test.describe('drag and drop', () => {
   });
 
   test.describe('rows that wrap', () => {
+    test.use({viewport: {width: 1280, height: 1400}});
+
     test.beforeEach(async ({tierList}) => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: WRAPPED, '': ['Mauga', 'Winston']}));
       await expect.poll(async () => (await tierList.itemLines('S')).length, {message: 'row S should wrap'}).toBeGreaterThan(1);
@@ -347,7 +344,6 @@ test.describe('drag and drop', () => {
 
       const menu = await tierList.drag.longPressItem('Mauga');
 
-      // No drag started, and no text is selected.
       await expect(tierList.drag.dragAnnouncer).toHaveText(announcement ?? '');
       await expect.poll(() => tierList.selectedText()).toBe('');
       await expect(menu).toBeVisible();
@@ -379,14 +375,11 @@ test.describe('drag and drop', () => {
       await tierList.goto(ALL, rankingState('image-overwatch', {S: ['Mauga']}));
 
       for (const element of [tierList.item('Mauga'), tierList.rowGrip('S'), tierList.rowStack('S')]) {
-        // Only Safari knows the touch callout; other browsers return nothing for it.
         await expect.poll(() => tierList.textSelectionStyle(element)).toEqual({userSelect: 'none', callout: expect.stringMatching(/^(none)?$/)});
       }
     });
   });
 
-  // A tile's picture never starts the browser's own drag (components/ItemTile.tsx): items move only
-  // through the editor's drag and drop.
   test.describe('native drags', () => {
     test.describe('with the drop animation', () => {
       test.use({reducedMotion: 'no-preference'});

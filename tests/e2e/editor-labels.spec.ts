@@ -90,13 +90,12 @@ test.describe('editor labels', () => {
 
   test.describe('long labels', () => {
     test('renders a 2,000-character row label after a later change, Back and a reload when the user renames row S', async ({tierList, page}) => {
-      // The editor accepts text of any length, so links must keep opening with it (A43).
       const longName = 'A very long tier name. '.repeat(87).trim();
       expect(longName.length).toBe(2_000);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
 
       await tierList.rows.renameTier('S', longName);
-      await tierList.drag.dragItemToTier('Winston', 'A');
+      await tierList.drag.moveItemWithKeyboard('Winston', ['ArrowUp']);
       await tierList.goBack();
 
       await expect(tierList.itemsIn(longName)).toHaveText(['Mauga']);
@@ -128,7 +127,6 @@ test.describe('editor labels', () => {
 
       await expect(tierList.openTextBoxes).toHaveCount(0);
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
-      // Nothing was saved: clicking elsewhere keeps the old name, and the link is unchanged.
       await tierList.hints.click();
       await expect(tierList.tiers.first()).toHaveAccessibleName('S');
       await tierList.drag.dragItemToTier('Mauga', 'A');
