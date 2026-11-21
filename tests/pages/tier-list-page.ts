@@ -292,6 +292,15 @@ export class TierListPage {
     return this.itemsIn(this.tiers);
   }
 
+  async rowsReport(): Promise<string> {
+    const rows = await this.tiers.all();
+    const contents = await Promise.all(rows.map(async (row) => [
+      await row.getAttribute('aria-label'),
+      await this.itemsIn(row).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? '')),
+    ]));
+    return JSON.stringify({url: this.page.url(), rows: contents});
+  }
+
   async itemNamesIn(tierName: string): Promise<string[]> {
     return this.itemsIn(tierName).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label') ?? ''));
   }

@@ -32,7 +32,11 @@ export class DragAndDrop {
         y: box.y + box.height / 2,
       })),
     );
-    await expect(this.tierList.itemIn(tierName, itemName)).toBeVisible();
+    try {
+      await expect(this.tierList.itemIn(tierName, itemName)).toBeVisible();
+    } catch (error) {
+      throw new Error(`${(error as Error).message}\nThe rows: ${await this.tierList.rowsReport()}`);
+    }
   }
 
   async dragItemToTierStartInOneSweep(itemName: string, tierName: string) {

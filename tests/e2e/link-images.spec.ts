@@ -433,7 +433,12 @@ test.describe('link images', () => {
         held = hold;
         submitted = address;
         await tierList.linkImages.submitInLinkImageDialog(address, image.name);
-        await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
+        try {
+          await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
+        } catch (error) {
+          const dialog = await tierList.linkImages.linkImageDialog.innerText().catch(() => 'no dialog');
+          throw new Error(`${(error as Error).message}\nRequests: ${JSON.stringify(sites[image.site].requests)}\nDialog: ${dialog}`);
+        }
       };
       const sut = modelSut<LinkDialogSnapshot, LinkDialogEvent>(page, {
         pageTime: 'paused',
