@@ -3,7 +3,7 @@ import {toast} from 'sonner';
 import Item from '@/models/Item';
 import {useTierContext} from '@/contexts/TierContext';
 import {useCustomImages} from '@/contexts/CustomImagesContext';
-import {itemsToAdd} from '@/lib/tierListReducer';
+import {itemsToAdd} from '@/lib/tierList';
 
 /**
  * Adds items to Unranked with the "Items Added" toast and its Undo, as every way of adding
@@ -16,8 +16,12 @@ export function useAddItemsWithUndo(): (newItems: Item[]) => void {
   return useCallback((newItems: Item[]) => {
     const addedIds = itemsToAdd(tiers, newItems).map((item) => item.id);
     addItems(newItems);
+    if (addedIds.length === 0) {
+      toast('No New Items', {description: 'Every item is already in the list.'});
+      return;
+    }
     toast('Items Added', {
-      description: `${newItems.length} item(s) have been added.`,
+      description: `${addedIds.length} item(s) have been added.`,
       action: {
         label: 'Undo',
         onClick: () => removeItems(addedIds),

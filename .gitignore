@@ -46,6 +46,8 @@ public/images/*
 /public/placeholder-image.preview.png
 /test-results/
 /playwright-report/
+# Failing model test sequences that @xstate/test saves and replays first (tests/README.md).
+/.xstate-test/
 /blob-report/
 /playwright/.cache/
 

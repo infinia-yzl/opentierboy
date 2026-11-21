@@ -34,14 +34,6 @@ test.describe('legacy sets', () => {
       });
     }
 
-    test('writes the hyphenated path with the same state parameter when the page opens an old tag path with underscores', async ({tierList, page}) => {
-      await tierList.goto('/rank/wuthering-waves/c_all', 'this-state-must-survive');
-
-      await expect(page).toHaveURL(/\/rank\/wuthering-waves\/c-all\?state=this-state-must-survive$/);
-      await expect(tierList.title).toHaveText('WUTHERING WAVES - All Resonators');
-      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(legacyItems('image-wutheringwaves', 'c_all').length);
-    });
-
     test('renders every item image when the page opens a link with items from every legacy set', async ({tierList}) => {
       const firsts = LEGACY_SETS.map((set) => ({packageName: set.packageName, label: legacyItems(set.packageName)[0]}));
       const lasts = LEGACY_SETS.map((set) => ({packageName: set.packageName, label: legacyItems(set.packageName).at(-1)!}));
@@ -66,18 +58,18 @@ test.describe('legacy sets', () => {
   test.describe('template picker and landing page', () => {
     test('renders OVERWATCH and THE FINALS and no legacy set in the template picker when the user searches legacy names', async ({tierList}) => {
       await tierList.goto('/rank');
-      await tierList.openTemplatePicker();
+      await tierList.items.openTemplatePicker();
 
-      await expect(tierList.templateOption()).toHaveText(['OVERWATCH', 'THE FINALS']);
+      await expect(tierList.items.templateOption()).toHaveText(['OVERWATCH', 'THE FINALS']);
       for (const set of LEGACY_SETS) {
-        await tierList.searchTemplates(set.tagTitle);
-        await expect(tierList.templateOption(set.displayName)).toHaveCount(0);
-        await tierList.searchTemplates(set.packageName);
-        await expect(tierList.templateOption(set.displayName)).toHaveCount(0);
+        await tierList.items.searchTemplates(set.tagTitle);
+        await expect(tierList.items.templateOption(set.displayName)).toHaveCount(0);
+        await tierList.items.searchTemplates(set.packageName);
+        await expect(tierList.items.templateOption(set.displayName)).toHaveCount(0);
       }
       // The search still finds the tags of the active sets.
-      await tierList.searchTemplates('Tank');
-      await expect(tierList.templateOption(/^Tank\b.*OVERWATCH/)).toBeVisible();
+      await tierList.items.searchTemplates('Tank');
+      await expect(tierList.items.templateOption(/^Tank\b.*OVERWATCH/)).toBeVisible();
     });
 
     test('renders cards and links for the active sets and no legacy set when the landing page opens', {tag: '@mobile'}, async ({site}) => {

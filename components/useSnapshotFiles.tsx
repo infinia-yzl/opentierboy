@@ -1,6 +1,7 @@
 'use client';
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {flushSync} from 'react-dom';
 import {usePathname, useRouter, useSearchParams} from 'next/navigation';
 import {toast} from 'sonner';
 import {
@@ -18,6 +19,7 @@ import {type SnapshotDeviceImage, useCustomImages} from '@/contexts/CustomImages
 import {useAddItemsWithUndo, useLinkImageItems} from '@/components/useAddItems';
 import {zenModeIsOn} from '@/components/usePageState';
 import {recordRecentLink} from '@/components/useRecentLinks';
+import {listAddressWritten} from '@/components/useListSteps';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {pastedImageLabel} from '@/lib/images/listImages';
 import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/imageCheck';
@@ -39,7 +41,7 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
-import {stateParam} from '@/lib/tierListReducer';
+import {stateParam} from '@/lib/tierList';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';
@@ -112,13 +114,6 @@ export function snapshotImages(snapshot: SnapshotToOpen): SnapshotDeviceImage[] 
 
 
 export interface UseSnapshotFiles {
-  /**
-   * Opens files that someone chose, dropped or pasted. One file with a list (a snapshot file)
-   * asks whether to open the list; pictures become items; other files show a message. Files wait
-   * their turn, each until the previous add is in the address. Files that wait while a list is
-   * being asked about or opened, or across Back or Forward, are not added ("Files not added");
-   * when the visitor leaves the editor, waiting files are dropped quietly.
-   */
   openFiles: (files: File[]) => void;
   /**
    * Adds image addresses that someone dropped or pasted as link images, in turn with the files
@@ -131,20 +126,11 @@ export interface UseSnapshotFiles {
   openFileButtonRef: React.RefObject<HTMLButtonElement | null>;
 }
 
-/**
- * Files in the editor: snapshot files (a Freeze Frame download with the list inside) and pictures.
- *
- * Opening a snapshot asks first. Then its images are drawn again (A10) and stored in the device
- * store under content-addressed ids (the list's `{d}` items follow), and the editor goes to the
- * list with one router.push: the list on screen before stays one Back step away. The dialog
- * stays open ("Opening the list…") until the list is in the address. Opening the same file again
- * stores nothing new, and when the address already shows the list nothing changes.
- */
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
   const pathname = usePathname();
   const address = stateParam(useSearchParams().get('state'));
-  const {tiers, writing} = useTierContext();
+  const {tiers} = useTierContext();
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const linkImageItems = useLinkImageItems();
@@ -209,29 +195,20 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     });
   }, []);
 
-  // The handlers below run after awaits: read the latest list, address and helpers through refs.
-  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address});
+  const latest = useRef({tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname});
   useEffect(() => {
-    latest.current = {tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address};
-  }, [tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname, address]);
+    latest.current = {tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname};
+  }, [tiers, addDeviceImages, addItemsWithUndo, linkImageItems, pathname]);
 
-  /** Callers waiting until the address shows the list on screen. */
   const waiters = useRef<(() => void)[]>([]);
   const [waitTick, setWaitTick] = useState(0);
   useEffect(() => {
-    if (writing || waiters.current.length === 0) return;
     waiters.current.splice(0).forEach((resolve) => resolve());
-  }, [writing, waitTick]);
+  }, [waitTick]);
   useEffect(() => () => {
-    // The editor closed: nothing waits for its address any more.
     waiters.current.splice(0).forEach((resolve) => resolve());
   }, []);
-  /**
-   * Resolves once the address shows the list on screen, with every change made before the call
-   * (TierContext's `writing` is false again). The tick makes a render after those changes, so the
-   * effect above sees them.
-   */
-  const untilWritten = useCallback(() => new Promise<void>((resolve) => {
+  const untilRendered = useCallback(() => new Promise<void>((resolve) => {
     waiters.current.push(resolve);
     setWaitTick((tick) => tick + 1);
   }), []);
@@ -254,11 +231,9 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
     if (items.length === 0) return;
     // The list may have changed while the images were stored: add them to the latest one.
-    latest.current.addItemsWithUndo(items);
-    // The next file waits until this change is in the address: each add is its own Back step
-    // (product rule 2), however many files wait.
-    await untilWritten();
-  }, [untilWritten, notAdded, gone]);
+    flushSync(() => latest.current.addItemsWithUndo(items));
+    await untilRendered();
+  }, [untilRendered, notAdded, gone]);
 
   const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || !alive.current) return;
@@ -367,10 +342,10 @@ export function useSnapshotFiles(): UseSnapshotFiles {
           description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
         });
       }
-      latest.current.addItemsWithUndo(latest.current.linkImageItems(images));
-      await untilWritten();
+      flushSync(() => latest.current.addItemsWithUndo(latest.current.linkImageItems(images)));
+      await untilRendered();
     }
-  }, [untilWritten, notAdded, gone]);
+  }, [untilRendered, notAdded, gone]);
 
   /** Ends the opening: the dialog closes, and files are handled again. */
   const finishOpening = useCallback(() => {
@@ -380,11 +355,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     setPending(null);
   }, []);
 
-  /**
-   * Opens a snapshot's list. The dialog stays open, saying "Opening the list…", until the address
-   * shows the list: nothing can change the list meanwhile, so no later change replaces the
-   * navigation (Next.js drops a navigation still loading when another starts).
-   */
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     setOpening(true);
     const moves = historyMoves.current;
@@ -406,30 +376,32 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         return;
       }
       if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-      // A change made just before Open list may still be on its way to the address: a push now
-      // would cancel it.
-      await untilWritten();
-      if (abandoned()) return;
-      const here = latest.current;
+      const {pathname: here} = latest.current;
+      const address = stateParam(new URLSearchParams(window.location.search).get('state'));
       const title = snapshot.list.title ?? '';
-      if (here.pathname === snapshot.path && here.address === state) {
+      if (here === snapshot.path && address === state) {
         // The address shows this list already: opening it again changes nothing.
         recordRecentLink({path: snapshot.path, state, title});
         finishOpening();
         return;
       }
-      target.current = {path: snapshot.path, state, from: `${here.pathname}?state=${here.address}`, title};
-      router.push(`${snapshot.path}?state=${state}`);
+      target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
+      const href = `${snapshot.path}?state=${state}`;
+      if (snapshot.path === here) {
+        window.history.pushState(null, '', href);
+        listAddressWritten('push');
+      } else {
+        router.push(href);
+      }
     } catch {
       if (!alive.current) return;
       toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.damaged});
       finishOpening();
     }
-  }, [importDeviceImages, router, untilWritten, finishOpening]);
+  }, [importDeviceImages, router, finishOpening]);
 
   // The opening ends when the address shows the list: Recently viewed records it then (on
   // another editor page, the new editor records it as a list opened fresh). It also ends when
-  // another address replaces the one it left (Back or Forward during the round trip).
   useEffect(() => {
     const opened = target.current;
     if (!opened) return;

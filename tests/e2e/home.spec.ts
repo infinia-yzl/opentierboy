@@ -1,19 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type {Page, TestInfo} from '@playwright/test';
+import {modelSut} from '../support/model-sut';
 import {expect, expectTierList, test} from '../support/test';
 import {rankingState, templateItemCount} from '../support/links';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
-import type {TierListPage} from '../pages/tier-list-page';
+import {type TierListPage} from '../pages/tier-list-page';
+import {type SitePage} from '../pages/site-page';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {
+  OTHER_PINNED_LISTS,
+  OTHER_RECENT_LISTS,
+  PIN_LIMIT_TOAST,
+  recentLinkNames,
+  recentlyViewedModel,
+  recentlyViewedViewOf,
+  WALK_LISTS,
+  type RecentlyViewedEvent,
+  type RecentlyViewedSnapshot,
+  type RecentlyViewedView,
+  type WalkList,
+} from '../models/recently-viewed';
 import golden from '../fixtures/snapshots/snapshots.json';
 
 const TANKS = '/rank/overwatch/tank';
 const SUPPORT = '/rank/overwatch/sup';
 
-/** The golden Freeze Frame files (tests/fixtures/snapshots, append-only). */
 const SNAPSHOTS = path.resolve(__dirname, '../fixtures/snapshots');
 
-/** The template buttons of the landing page: card, template title, package and tag. */
 const TEMPLATES = [
   {set: 'THE FINALS', title: 'All Items', packageName: 'image-reachthefinals', tag: 'all'},
   {set: 'THE FINALS', title: 'Light Build', packageName: 'image-reachthefinals', tag: 'light'},
@@ -25,19 +40,15 @@ const TEMPLATES = [
   {set: 'OVERWATCH', title: 'Support', packageName: 'image-overwatch', tag: 'sup'},
 ];
 
-/** What a template button says about its item count: rounded down to 10 with "+", exact below 10. */
 function countOf(count: number): {text: string; words: string} {
   if (count < 10) return {text: String(count), words: `${count} ${count === 1 ? 'item' : 'items'}`};
   const rounded = count - (count % 10);
-  return {text: `${rounded}+`, words: `about ${rounded} items`};
+  return {text: `${rounded}+`, words: `${rounded}+ items`};
 }
 
-/** Opens two lists, Tanks list then Support list. The editor records a list once it has started in the browser. */
 async function openTwoLists(tierList: TierListPage) {
   await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks list'));
-  await tierList.waitUntilInteractive();
   await tierList.goto(SUPPORT, rankingState('image-overwatch', {S: ['Ana']}, 'Support list'));
-  await tierList.waitUntilInteractive();
 }
 
 test.describe('home', () => {
@@ -117,12 +128,10 @@ test.describe('home', () => {
     const after = await site.cardLayers('THE FINALS');
     expect(after.background).toMatchObject({opacity: '1', backgroundImage: before.background?.backgroundImage});
     expect(after.underline).toEqual(before.underline);
-    // The count turns white at 70 % (alpha 0.7 × 255 ≈ 179).
     await expect.poll(async () => {
       const [red, green, blue, alpha] = await site.templateCountColour('THE FINALS', allItems);
       return red === 255 && green === 255 && blue === 255 && Math.abs(alpha - 179) <= 2;
     }, {message: 'the count is white at 70 %'}).toBe(true);
-    // OVERWATCH is not hovered: its background stays hidden.
     expect((await site.cardLayers('OVERWATCH')).background?.opacity).toBe('0');
   });
 
@@ -134,9 +143,7 @@ test.describe('home', () => {
 
   test('renders the opened lists, newest first, and no template page when the landing page opens', {tag: '@mobile'}, async ({tierList, site}) => {
     await openTwoLists(tierList);
-    // A template without a list is not recorded.
     await tierList.goto(TANKS);
-    await tierList.waitUntilInteractive();
 
     await site.gotoHome();
     await expect(site.recentlyViewed).toContainText('Lists you opened in this browser. Bookmark one to open it anywhere.');
@@ -151,21 +158,9 @@ test.describe('home', () => {
 
     await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'true');
     await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
-    await page.reload();
+    await site.reload();
     await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
     await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  test('renders the list in its opened place when the user unpins it', {tag: '@mobile'}, async ({tierList, site}) => {
-    await openTwoLists(tierList);
-    await site.gotoHome();
-    await site.recentPinButton('Tanks list').click();
-    await expect(site.recentLinks).toHaveText(['Tanks list', 'Support list']);
-
-    await site.recentPinButton('Tanks list').click();
-
-    await expect(site.recentPinButton('Tanks list')).toHaveAttribute('aria-pressed', 'false');
-    await expect(site.recentLinks).toHaveText(['Support list', 'Tanks list']);
   });
 
   test('renders the other lists, also after a reload, when the user removes a list', {tag: '@mobile'}, async ({tierList, site, page}) => {
@@ -175,7 +170,7 @@ test.describe('home', () => {
     await site.removeRecentLink('Support list');
 
     await expect(site.recentLinks).toHaveText(['Tanks list']);
-    await page.reload();
+    await site.reload();
     await expect(site.recentLinks).toHaveText(['Tanks list']);
   });
 
@@ -192,8 +187,8 @@ test.describe('home', () => {
   test('renders the list once in Recently viewed, with its opened title, when the user edits it after opening', async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Edited list'));
     await tierList.setTitle('New title');
-    await tierList.renameTier('A', 'Great');
-    await tierList.dragItemToTier('Winston', 'S');
+    await tierList.rows.renameTier('A', 'Great');
+    await tierList.drag.dragItemToTier('Winston', 'S');
 
     await site.gotoHome();
     await expect(site.recentLinks).toHaveText(['Edited list']);
@@ -201,7 +196,6 @@ test.describe('home', () => {
 
   test('renders the page name OVERWATCH - Tank in Recently viewed when the opened link has no title', {tag: '@mobile'}, async ({tierList, site}) => {
     await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
-    await tierList.waitUntilInteractive();
     await site.gotoHome();
     await expect(site.recentLinks).toHaveText(['OVERWATCH - Tank']);
   });
@@ -221,7 +215,7 @@ test.describe('home', () => {
         for (const label of entry.pictures) {
           await expect.poll(() => tierList.itemImageHasLoaded(label), {message: `the picture ${label} loads`}).toBe(true);
         }
-        await page.goBack();
+        await tierList.goBack();
         await expect(site.heading('Create a New Tier List')).toBeVisible();
       });
     }
@@ -246,7 +240,7 @@ test.describe('home', () => {
       await expect(page).toHaveURL(/\/rank\?state=3\./);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red-square']);
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
-      await page.goBack();
+      await tierList.goBack();
       await expect(site.heading('Create a New Tier List')).toBeVisible();
     });
 
@@ -258,5 +252,66 @@ test.describe('home', () => {
 
       await expect(site.openListDialog).toContainText('This page stays one Back step away.');
     });
+  });
+
+  test.describe('model', () => {
+    const WALK_LINKS = {
+      tanks: {path: TANKS, state: rankingState('image-overwatch', {S: ['Mauga']}, WALK_LISTS.tanks)},
+      support: {path: SUPPORT, state: rankingState('image-overwatch', {S: ['Ana']}, WALK_LISTS.support)},
+    } as const;
+    const hrefOf = (list: WalkList) => `${WALK_LINKS[list].path}?state=${WALK_LINKS[list].state}`;
+
+    const seededRecentLinks = () => {
+      const now = Date.now();
+      const day = 86_400_000;
+      const link = (title: string) => ({path: '/rank/overwatch/dps', state: rankingState('image-overwatch', {}, title), title});
+      const pinned = OTHER_PINNED_LISTS.map((title, index) => ({
+        ...link(title), openedAt: now - (index + 1) * day, pinned: true, pinnedAt: now - (index + 1) * day,
+      }));
+      const recent = OTHER_RECENT_LISTS.map((title, index) => ({
+        ...link(title), openedAt: now + 365 * day - index * 60_000, pinned: false,
+      }));
+      return JSON.stringify({version: 1, links: [...pinned, ...recent]});
+    };
+
+    const expectRecentlyViewed = async (site: SitePage, view: RecentlyViewedView) => {
+      await expect(site.recentLinks).toHaveText(recentLinkNames(view));
+      await expect(site.pressedRecentPinButtons).toHaveCount(OTHER_PINNED_LISTS.length + (view.pinned ? 1 : 0));
+      if (view.pinned) await expect(site.recentPinButton(WALK_LISTS[view.pinned])).toHaveAttribute('aria-pressed', 'true');
+      if (view.recent) await expect(site.recentPinButton(WALK_LISTS[view.recent])).toHaveAttribute('aria-pressed', 'false');
+      if (view.pinRefused) await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(1);
+    };
+
+    const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => modelSut<RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
+      reset: async () => {
+        await site.seedRecentLinks(seededRecentLinks());
+      },
+      events: {
+        OPEN_TANKS: () => site.openListAndReturnHome(hrefOf('tanks'), WALK_LISTS.tanks),
+        OPEN_SUPPORT: () => site.openListAndReturnHome(hrefOf('support'), WALK_LISTS.support),
+        REOPEN_TANKS: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.tanks),
+        REOPEN_SUPPORT: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.support),
+        PIN_TANKS: () => site.pinRecentLink(WALK_LISTS.tanks, PIN_LIMIT_TOAST),
+        PIN_SUPPORT: () => site.pinRecentLink(WALK_LISTS.support, PIN_LIMIT_TOAST),
+        UNPIN_TANKS: () => site.unpinRecentLink(WALK_LISTS.tanks),
+        UNPIN_SUPPORT: () => site.unpinRecentLink(WALK_LISTS.support),
+        REMOVE_TANKS: () => site.removeRecentLinkAndWait(WALK_LISTS.tanks),
+        REMOVE_SUPPORT: () => site.removeRecentLinkAndWait(WALK_LISTS.support),
+      },
+      states: {
+        '*': (_page, snapshot) => expectRecentlyViewed(site, recentlyViewedViewOf(snapshot)),
+      },
+      testInfo,
+      step: (name, body) => test.step(name, body),
+    });
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(recentlyViewedModel)) {
+      test(`renders each state of the Recently viewed machine when the user walks every transition (${part.name})`, async ({site, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(recentlyViewedModel, recentlyViewedSut(site, page, testInfo), part);
+        await attachCoverage(testInfo, recentlyViewedModel, coverage, part);
+      });
+    }
   });
 });

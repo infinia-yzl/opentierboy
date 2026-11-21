@@ -15,19 +15,79 @@ export interface ImageSiteOptions {
   status?: number;
 }
 
-/**
- * Plays an image site in the browser: every request to https://<host>/... gets the image.
- * The tests cannot reach the real sites. Returns the list of requested addresses (the
- * network log for that site), which grows as the page requests images.
- */
-export async function serveImageSite(target: Page | BrowserContext, host: string, options: ImageSiteOptions = {}) {
-  const {cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200} = options;
-  const requests: string[] = [];
-  await target.route(`https://${host}/**`, async (route) => {
-    requests.push(route.request().url());
-    await route.fulfill({status, contentType, body, headers: cors ? {'access-control-allow-origin': '*'} : {}});
+export interface HeldImageSite {
+  readonly isHolding: () => boolean;
+  readonly release: (answer?: ImageSiteOptions) => Promise<void>;
+}
+
+export interface ImageSite {
+  readonly requests: string[];
+  readonly hold: (addresses?: readonly string[]) => HeldImageSite;
+}
+
+export const NOT_A_PICTURE: ImageSiteOptions = {contentType: 'text/html', body: Buffer.from('<!doctype html><title>Not found</title>')};
+
+interface Hold {
+  readonly takes: (url: string) => boolean;
+  readonly answerLater: (answer: (released: ImageSiteOptions) => Promise<void>) => Promise<void>;
+  readonly held: HeldImageSite;
+}
+
+function createHold(addresses?: readonly string[]): Hold {
+  let open!: (answer: ImageSiteOptions) => void;
+  const released = new Promise<ImageSiteOptions>((resolve) => {
+    open = resolve;
   });
-  return {requests};
+  let isReleased = false;
+  let waiting = 0;
+  const answered: Promise<void>[] = [];
+  return {
+    takes: (url) => !isReleased && (addresses === undefined || addresses.includes(url)),
+    answerLater: (answer) => {
+      waiting += 1;
+      const done = released.then(async (answerInPlace) => {
+        await answer(answerInPlace);
+        waiting -= 1;
+      });
+      answered.push(done);
+      return done;
+    },
+    held: {
+      isHolding: () => !isReleased && waiting > 0,
+      release: async (answer = {}) => {
+        isReleased = true;
+        open(answer);
+        await Promise.all(answered);
+      },
+    },
+  };
+}
+
+export async function serveImageSite(target: Page | BrowserContext, host: string, options: ImageSiteOptions = {}): Promise<ImageSite> {
+  const fulfilment = ({cors = true, body = RED_SQUARE, contentType = 'image/png', status = 200}: ImageSiteOptions) => {
+    const headers: Record<string, string> = cors ? {'access-control-allow-origin': '*'} : {};
+    return {status, contentType, body, headers};
+  };
+  const requests: string[] = [];
+  let current: Hold | null = null;
+  await target.route(`https://${host}/**`, async (route) => {
+    const url = route.request().url();
+    requests.push(url);
+    const hold = current?.takes(url) ? current : null;
+    if (!hold) {
+      await route.fulfill(fulfilment(options));
+      return;
+    }
+    await hold.answerLater((answer) => route.fulfill(fulfilment({...options, ...answer})).catch(() => undefined));
+  });
+  return {
+    requests,
+    hold: (addresses) => {
+      const hold = createHold(addresses);
+      current = hold;
+      return hold.held;
+    },
+  };
 }
 
 /** A file to upload or paste, made from bytes. */

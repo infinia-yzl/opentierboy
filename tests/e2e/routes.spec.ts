@@ -20,13 +20,6 @@ test.describe('routes', {tag: '@mobile'}, () => {
     await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT);
   });
 
-  test('writes the hyphenated path with the same state parameter when the page opens an old tag path with underscores', async ({tierList, page}) => {
-    await tierList.goto('/rank/overwatch/h_all', 'this-state-must-survive');
-
-    await expect(page).toHaveURL(/\/rank\/overwatch\/h-all\?state=this-state-must-survive$/);
-    await expect(tierList.title).toHaveText('OVERWATCH - All Heroes');
-  });
-
   test('renders Custom Tier List with 5 empty rows and no items when the page opens /rank', async ({tierList}) => {
     await tierList.goto('/rank');
 

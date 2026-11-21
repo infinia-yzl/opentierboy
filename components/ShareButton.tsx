@@ -127,14 +127,7 @@ function LinkImageNotes({link, device}: {link: number; device: number}) {
         <Alert role="note">
           <InfoCircledIcon className="h-4 w-4"/>
           <AlertDescription>
-            {device === 1 ? (
-              <><strong>1 image from your device isn&apos;t in the link.</strong> People who open the link see its name
-                in its place. To share the image itself, download a Freeze Frame from the Image tab.</>
-            ) : (
-              <><strong>{device} images from your device aren&apos;t in the link.</strong> People who open the link see
-                their names in their place. To share the images themselves, download a Freeze Frame from the Image
-                tab.</>
-            )}
+            {device === 1 ? '1 device image shows as a placeholder.' : `${device} device images show as placeholders.`}
           </AlertDescription>
         </Alert>
       )}
@@ -167,8 +160,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const pathname = usePathname();
   // The picture and the list it shows, taken together: Download embeds that list, even when the
   // list on screen has changed since.
-  const [capture, setCapture] = useState<Capture | null>(null);
+  const [capture, setCapture] = useState<(Capture & {previewUrl: string}) | null>(null);
   const imageBlob = capture?.picture ?? null;
+  const previewUrl = capture?.previewUrl ?? null;
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [frame, setFrame] = useState<FrameChoice>('whole');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -255,10 +252,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       }
 
       canvas.toBlob((blob: Blob | null) => {
-        if (blob) setCapture({picture: blob, ...shown});
+        if (blob) {
+          setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
+          toast.success('Image captured successfully');
+        } else {
+          toast.error(`Failed to capture image with ${captureMethod} method`);
+        }
       }, 'image/png');
-
-      toast.success('Image captured successfully');
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
@@ -348,12 +348,12 @@ What do you think? 🤔
                   <span>As URL</span>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger>
-                        <QuestionMarkCircledIcon className="h-4 w-4"/>
+                      <TooltipTrigger aria-label="Tips for sharing the link">
+                        <QuestionMarkCircledIcon aria-hidden="true" className="h-4 w-4"/>
                       </TooltipTrigger>
                       <TooltipContent>
                         Consider using URL shorteners for ease of sharing.
-                        Images added from your device will be replaced with placeholders.
+                        Device images show as placeholders.
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -375,11 +375,11 @@ What do you think? 🤔
                 </div>
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex flex-row space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('facebook')}>
-                      <FaFacebookF className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on Facebook" onClick={() => shareToSocial('facebook')}>
+                      <FaFacebookF aria-hidden="true" className="h-4 w-4"/>
                     </Button>
-                    <Button variant="outline" size="icon" onClick={() => shareToSocial('twitter')}>
-                      <FaXTwitter className="h-4 w-4"/>
+                    <Button variant="outline" size="icon" aria-label="Share on X" onClick={() => shareToSocial('twitter')}>
+                      <FaXTwitter aria-hidden="true" className="h-4 w-4"/>
                     </Button>
                   </div>
                 </div>
@@ -431,10 +431,10 @@ What do you think? 🤔
                 </CollapsibleContent>
               </Collapsible>
 
-              {imageBlob && (
+              {previewUrl && (
                 <div className="relative w-full h-[200px] rounded-md overflow-hidden bg-muted">
                   <Image
-                    src={URL.createObjectURL(imageBlob)}
+                    src={previewUrl}
                     alt="Captured tier list"
                     fill
                     style={{objectFit: "contain"}}

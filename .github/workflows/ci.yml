@@ -55,18 +55,26 @@ jobs:
       matrix:
         # Only "e2e (chromium)" is a required check for now. Make Firefox and WebKit
         # required once they are green here (docs/maintainers/repository-settings.md).
-        project: [chromium, firefox, webkit]
+        # WebKit (with phone Safari) is the slowest: it runs in two shards on two runners,
+        # each well inside the time limit.
         include:
           - project: chromium
+            report: chromium
             browser: chromium
             # API tests need no browser. Phone tests on Chromium use the same browser.
             projects: --project=api --project=chromium --project=mobile-chrome
           - project: firefox
+            report: firefox
             browser: firefox
             projects: --project=firefox
-          - project: webkit
+          - project: webkit 1/2
+            report: webkit-1
             browser: webkit
-            projects: --project=webkit --project=mobile-safari
+            projects: --project=webkit --project=mobile-safari --shard=1/2
+          - project: webkit 2/2
+            report: webkit-2
+            browser: webkit
+            projects: --project=webkit --project=mobile-safari --shard=2/2
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,6 +111,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report-${{ matrix.project }}
+          name: playwright-report-${{ matrix.report }}
           path: playwright-report/
           retention-days: 14

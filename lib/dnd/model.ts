@@ -36,7 +36,6 @@ export interface ItemMove {
   to: ItemPosition;
 }
 
-/** One row move, by row index (0 is the top row). The labels stay in place. */
 export interface RowMove {
   from: number;
   to: number;
