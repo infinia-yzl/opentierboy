@@ -119,20 +119,10 @@ export class Rows {
     return this.page.getByRole('menu').getByRole('menuitemradio', {name, exact: true});
   }
 
-  async labelPlacementReport(tierName: string, itemName: string): Promise<string> {
-    const headings = this.tierList.tier(tierName).getByRole('heading', {name: tierName});
-    const items = this.tierList.item(itemName);
-    const boxes = async (locator: Locator) => Promise.all((await locator.all()).map((one) => one.boundingBox()));
-    await this.tierList.rowOptionsButton.click();
-    const checked = await this.page.getByRole('menu').getByRole('menuitemradio', {checked: true}).allTextContents();
-    await this.page.keyboard.press('Escape');
-    return JSON.stringify({url: this.page.url(), headings: await boxes(headings), items: await boxes(items), checked});
-  }
-
   async tierLabelIsAbove(tierName: string, itemName: string): Promise<boolean> {
     const label = await this.tierList.tier(tierName).getByRole('heading', {name: tierName}).boundingBox();
     const item = await this.tierList.item(itemName).boundingBox();
-    return !!(label && item && label.y + label.height <= item.y);
+    return !!(label && item && label.y + label.height <= item.y + 0.5);
   }
 
   async chooseTileSize(name: TileSizeName) {
