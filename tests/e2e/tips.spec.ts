@@ -98,15 +98,14 @@ test.describe('tips', () => {
       await tierList.goto(TANKS);
       await expect(tips.firstDrag).toBeVisible();
       await tierList.share.capturePreview();
-      const withTip = await tierList.share.capturedImageDetails();
 
       const visitor = await openAsVisitor(TANKS, {beforeOpen: (context) => Tips.turnOffIn(context)});
       await expect(visitor.hints).toBeVisible();
       await visitor.share.capturePreview();
-      const withoutTip = await visitor.share.capturedImageDetails();
+      const withoutTip = await visitor.share.capturedPicture();
 
-      expect({width: withTip.width, height: withTip.height, pixels: withTip.pixelDigest})
-        .toEqual({width: withoutTip.width, height: withoutTip.height, pixels: withoutTip.pixelDigest});
+      const difference = await tierList.share.capturedPictureDifference(withoutTip);
+      expect(difference, 'the two pictures, read in one page').toEqual({sizes: expect.any(String), differentPixels: 0, largestChange: 0, where: null});
       await expect(tips.firstDrag).toBeVisible();
     });
   });

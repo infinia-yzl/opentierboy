@@ -169,8 +169,6 @@ export class SharePanel {
       const fullContext = full.getContext('2d')!;
       fullContext.drawImage(img, 0, 0);
       const [red, green, blue] = Array.from(fullContext.getImageData(2, 2, 1, 1).data);
-      const digest = await crypto.subtle.digest('SHA-256', fullContext.getImageData(0, 0, full.width, full.height).data);
-      const pixelDigest = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
       return {
         width: img.naturalWidth,
         height: img.naturalHeight,
@@ -178,11 +176,20 @@ export class SharePanel {
         pageHeight: document.documentElement.scrollHeight,
         devicePixelRatio: window.devicePixelRatio,
         distinctColors: colors.size,
-        pixelDigest,
         cornerBrightness: Math.round(0.299 * red + 0.587 * green + 0.114 * blue),
       };
     });
     return details;
+  }
+
+  async capturedPicture(): Promise<string> {
+    const {buffer} = await this.downloadCapturedImage();
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  }
+
+  async capturedPictureDifference(otherPicture: string): Promise<PictureDifference> {
+    const picture = await this.capturedPicture();
+    return this.page.evaluate(differenceBetween, {first: picture, second: otherPicture});
   }
 
   get captureHint(): Locator {
@@ -232,6 +239,52 @@ export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
 
 export type FreezeFrame = 'Whole list' | 'Landscape 1200×675' | 'Square 1080×1080' | 'Portrait 1080×1350';
 
+export interface PictureDifference {
+  sizes: string;
+  differentPixels: number;
+  largestChange: number;
+  where: Box | null;
+}
+
+async function differenceBetween({first, second}: {first: string; second: string}): Promise<PictureDifference> {
+  const pixelsOf = async (src: string) => {
+    const image = new Image();
+    image.src = src;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', {willReadFrequently: true})!;
+    context.drawImage(image, 0, 0);
+    return context.getImageData(0, 0, canvas.width, canvas.height);
+  };
+  const [a, b] = await Promise.all([pixelsOf(first), pixelsOf(second)]);
+  const sizes = `${a.width}x${a.height} and ${b.width}x${b.height}`;
+  if (a.width !== b.width || a.height !== b.height) return {sizes, differentPixels: -1, largestChange: -1, where: null};
+  let differentPixels = 0;
+  let largestChange = 0;
+  let left = a.width;
+  let top = a.height;
+  let right = -1;
+  let bottom = -1;
+  for (let index = 0; index < a.data.length; index += 4) {
+    let change = 0;
+    for (let channel = 0; channel < 4; channel++) change = Math.max(change, Math.abs(a.data[index + channel] - b.data[index + channel]));
+    if (change === 0) continue;
+    differentPixels += 1;
+    largestChange = Math.max(largestChange, change);
+    const pixel = index / 4;
+    const x = pixel % a.width;
+    const y = Math.floor(pixel / a.width);
+    left = Math.min(left, x);
+    top = Math.min(top, y);
+    right = Math.max(right, x);
+    bottom = Math.max(bottom, y);
+  }
+  const where = differentPixels === 0 ? null : {x: left, y: top, width: right - left + 1, height: bottom - top + 1};
+  return {sizes, differentPixels, largestChange, where};
+}
+
 export interface CapturedImage {
   width: number;
   height: number;
@@ -239,7 +292,6 @@ export interface CapturedImage {
   pageHeight: number;
   devicePixelRatio: number;
   distinctColors: number;
-  pixelDigest: string;
   cornerBrightness: number;
 }
 
