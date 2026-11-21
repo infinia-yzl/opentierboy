@@ -150,8 +150,38 @@ own page object, reached through a property of `TierListPage`, also on a visitor
 An area object gets the `TierListPage` it belongs to (`this.tierList`) and its `page`, and uses
 the core for rows and items. What several page objects need lives in `helpers.ts` (boxes on
 screen, scroll positions, `changeAndWaitForLink`, `menuClosedOnto`) and `toasts.ts` (`toasts`,
-`expectOnlyNewToast`, `letClosedToastLeave`). The model campaigns call the same methods: a step
+`expectOneNewToast`, `untilToastGone`). The model campaigns call the same methods: a step
 that only a model needs goes in the object of its area too.
+
+## What the tests check
+
+The tests check the code of this repository. The libraries it uses (Sonner, dnd-kit, Radix,
+React, Next.js) and the browser itself are taken as given: a test checks what our code asks of
+them, and it does not check how they do it.
+
+- **One owner for each behaviour.** A unit test owns logic (the link format, the list store,
+  the moves). A model walk owns the states that a visitor moves through in the browser. A
+  hand-written spec owns a check that a walk does not take: a single case, an error, a layout,
+  or a browser limit. A spec that repeats a step of a walk with the same check is deleted.
+- **Time runs as it does for a person.** No test installs Playwright's clock or moves the
+  page's time. A step waits for what the page shows. A toast is checked in the step that shows
+  it, and its Undo or Close is the next event of the walk; a walk does not wait for a toast to
+  close by itself. Before a step that shows a toast, the page object waits until any earlier
+  toast with the same text has gone (`untilToastGone`), so the step sees its own new toast.
+- **The outside world answers through `page.route`.** A test holds an answer and releases it
+  in order (`holdTripHome`, `files.holdRankPages`, the image sites of
+  `tests/support/image-sites.ts`). No route waits for a time.
+- **Roles and names only.** A test finds elements by role and accessible name. It reads no
+  data attribute or class of a library. The drag announcer is the one exception (see "Drag and
+  drop").
+- **Layout only where the layout is the behaviour.** A hand-written spec checks a position or a
+  size on screen when that position is what our code decides: the layouts of `editor-layout`,
+  `zen-layouts` and `tile-shapes`, the label position, or where a tip or the Zen bar sits. A
+  model check reads text, roles and counts.
+- **Model checks only read.** A state check asserts what the page shows. It opens no menu and
+  presses no key.
+- **A flaky test is a bug.** On CI a test that passes only on a retry fails the run
+  (`failOnFlakyTests` in `playwright.config.ts`), and its cause is found and fixed.
 
 ## Writing tests
 
@@ -187,7 +217,7 @@ that only a model needs goes in the object of its area too.
   editor's own code loads later, so the editor is ready once every row grip and every item tile
   takes a drag: each has the role description "draggable", which the server's page does not
   have. `SitePage.ready()` waits for the first, `TierListPage.ready()` for both. `goto`,
-  `gotoLink`, `gotoAddress`, `reload`, `openAfterBlankPage` and `gotoHome` end with them;
+  `gotoLink`, `reload`, `openAfterBlankPage` and `gotoHome` end with them;
   `goBack` and `goForward` wait for the editor where they land on a `/rank` page, and for the
   page to start elsewhere. Specs never navigate with a raw `page.goto`/`goBack`/`reload`
   (`goBackNow` is the one exception, for a test that presses Back right after a change). After
@@ -199,8 +229,8 @@ that only a model needs goes in the object of its area too.
   box), the test follows it with a step that does change something: files and addresses are
   handled in turn, so the outcome of the second one shows that the first added nothing. A page
   that may crash opens with `gotoPageThatMayCrash`.
-- **Toasts are found in Sonner's region** (`toasts(page)`, the region named "Notifications"),
-  and a step that shows a toast waits for its own new toast, never for one already on screen.
+- **Toasts are found in the region named "Notifications"** (`toasts(page)`), and a step that
+  shows a toast waits for its own new toast (`expectOneNewToast`).
 - **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
   page the test opens, visitors included, and fails on any that is not in `BENIGN_PAGE_ERRORS`
   (`tests/support/machines.ts`) or in `test.use({allowedPageErrors})`.
@@ -212,11 +242,8 @@ that only a model needs goes in the object of its area too.
   image store as a slow disk would (`deviceImages.holdDeviceStore`), acts, then calls `release()`. No route
   delays answers by a time. A change to the list asks nothing of the server, so there is no
   answer to hold.
-- **Timers run on the page clock.** A toast ends by itself after a time (4 s, a tip's 10 s). A
-  test that waits for that turns the page clock on with `test.use({pageClock: true})` (or calls
-  `page.clock.install()` before the page opens) and moves the page's time on by the app's own
-  duration (`letToastTimeOut` in `tests/support/page-clock.ts`). The clock gives the page no
-  navigation entry, so it stays off where the shared-list tip must show.
+- **Time is real.** No test installs Playwright's clock (see "What the tests check"). How long
+  a toast shows is Sonner's own work, so the tests do not check it.
 - **Motion is reduced.** Every test runs as a visitor who asks for less motion
   (`reducedMotion: 'reduce'` in `playwright.config.ts`): animations and transitions take no time
   (`app/globals.css`), and dnd-kit drops without its animation. A test about an animation turns
@@ -262,21 +289,20 @@ helpers below are methods of `DragAndDrop` (`tests/pages/drag-and-drop.ts`, `tie
 drag the editor shows the list as it would be after the drop: rows and items move out of the
 way of the dragged one. The list itself changes only on the drop, with one history entry.
 
-- **Mouse.** `DragAndDrop.dragWithMouse` presses, moves a few pixels (a mouse drag starts
-  after 5 px) and waits for the lift announcement. After the drop it waits until the drop has
-  ended (the rows drop `data-dragging`), its animation included where motion is not reduced:
-  until then a press starts no drag and the drag library blocks text selection on the page, so
-  typing into a label would go nowhere. Then it waits for the drop's announcement ("Dropped ..."
-  or "Move cancelled. ..."), and `dragItemToTier` for the item in its row.
-- **Before the drag**, the window scrolls so that the handle and the drop point both show, and
-  the drop point lies outside the top and bottom fifths of the window, where the drag library
-  scrolls the page by itself. With page time paused, that scroll would leave the library's
-  boxes of the rows out of date, and the item would land in the row next to the one aimed at.
-- **Where to aim.** Drops on a row (its free space, or the place of another row) measure the
-  drop point once, before the drag starts: a row measured during the drag has already moved.
-  Drops before or after an item (`dragItemNextTo`, `dragItemOnto`) follow the target item until
-  it stays put: an item goes before or after the item under the pointer, by the half the
-  pointer is over, so following the target settles.
+- **Mouse.** `DragAndDrop.dragWithMouse` presses the tile or handle, moves a few pixels (a
+  mouse drag starts after 5 px) and waits for the lift announcement. It moves to the drop
+  point and waits until the page shows the dragged tile or row where it will land, as a person
+  looks before letting go. Then it releases, waits until no tile or handle is still pressed
+  (`aria-pressed`), and waits for the drop's announcement ("Dropped ..." or "Move cancelled.
+  ...").
+- **The whole page shows.** Desktop projects open a window of 1280 x 1440 pixels
+  (`DESKTOP_WINDOW` in `playwright.config.ts`), so the editor fits and the drag library never
+  scrolls the page during a drag. `dragWithMouse` checks this first and fails plainly when the
+  page is taller than the window.
+- **Where to aim.** A drop into a row aims at the free space after its last tile
+  (`freeSpaceIn`). A drop before or after an item (`dragItemNextTo`, `dragItemOnto`) aims at
+  that half of the target and follows the target while the dragged tile enters its row, until
+  the page shows the tile on the side it aims for.
 - **Every tile takes a drag.** After each drop (mouse, keyboard, touch, also a cancelled drag),
   the drop helpers check that every item tile has the role description "draggable"
   (`expectEveryItemDraggable`). The editor renders it only while the drag library holds the
@@ -286,15 +312,17 @@ way of the dragged one. The list itself changes only on the drop, with one histo
   drop for focus to come back to the item, grip or stack.
 - **Rows.** `dragRowOnto` drags a row by its grip onto the place of another row: the whole row
   moves, name included. `dragRowItemsOnto` drags a row's stack there: the items move and the
-  labels stay. Both aim at the centre of the target row, measured before the drag.
-- **Announcements.** The live region is `dragAnnouncer` (`role="status"`, id starting with
-  `dnd-kit-announcement`). dnd-kit reads moves after 500 ms, so wait for the text.
+  labels stay. Both wait until the page shows the row or its items in the new place before the
+  drop.
+- **Announcements.** The live region is `dragAnnouncer`. dnd-kit gives it the role `status`
+  and no accessible name, so the page object finds it by its id, which starts with
+  `dnd-kit-announcement`. It is the one locator that reads a library's markup. Wait for its text.
 - **Touch.** `touchDragItemToTier`, `longPressItem` and `swipeUpFromItem` send touch events
   through the Chrome DevTools Protocol, so those tests run only on Chromium phones
   (`mobile-chrome`). The hold before a touch drag lives in the event times, so the test does
   not wait for it; the long press waits until the item menu shows.
-- **Rows that wrap** are tested at the default window size: twelve tiles do not fit on one
-  line.
+- **Rows that wrap** are tested in a window of 1280 x 1400 pixels: twelve tiles do not fit on
+  one line.
 
 ### Zen's creator layouts
 
@@ -408,32 +436,13 @@ disagree, and its error lists every step with the machine's state.
   - **As an event of its own.** When its timing or its result changes what the visitor sees
     (a change made while Home is still on its way, a message still showing or gone, an image
     site that answers or fails), the machine has a waiting state and an event named after what
-    the outside world does: `HOME_ANSWERS`, `TOAST_TIMES_OUT`, `IMAGE_SITE_ANSWERS`,
-    `IMAGE_CHECK_TIMES_OUT`. The test makes it happen at that step: it holds the server's
-    answers and releases them (`holdTripHome`), runs the page clock (`letToastTimeOut`), or
-    holds the image site. The waiting state's check asserts what the page shows while it waits,
-    such as "Checking the image…" on the dialog's button.
-- **Page time.** With `pageTime: 'paused'`, page time stands still for the whole test
-  (`pausePageTime` in `tests/support/page-clock.ts`): Date, `performance.now()` and every timer
-  with a delay wait until a time event runs the page clock (`runPageClock`). A slow step on a
-  busy runner can no longer let a message close or an image check give up, and a time event
-  checks the app's exact duration: `letToastTimeOut` checks that a message still shows 1 ms
-  before its time and has closed 1 ms later, and `IMAGE_CHECK_TIMES_OUT` that the page still
-  waits for the site 1 ms before it gives up. What the browser runs "as soon as possible" still
-  runs at once: timers of 0 or 1 ms, animation frames and idle callbacks, which React, Sonner,
-  Radix and Next.js need to show a page, a toast or a dialog (`pausePageTime` says why). React's
-  reveal throttles run on real time too: React shows a loading state at least 300 ms before the
-  content replaces it, and a move inside the site can show two in turn (the route's, then the
-  editor's while its code loads), so React DOM's own timers use the real ones and the next page
-  shows without a time event. The app's timers, Sonner's included, stay on page time. The
-  models with timed messages or checks use it: link images, the "From a link" dialog, snapshot
-  files, tips, add-from-template, device images, recently viewed and remove-and-undo. The
-  shared-list tip machine cannot (the page clock hides the navigation entry that tip reads), so
-  it keeps the pointer resting on its toast; a few hand-written tests still use `pageClock`,
-  whose time runs with real time. A time event is an event of the machine, not an XState `after`
-  transition: the walk chooses where time passes like any other step, a message that the
-  pointer holds would need a timer the machine pauses, and @xstate/test would learn which
-  `after` events fired only from an `advance` that reads the app's timers.
+    the outside world does: `HOME_ANSWERS`, `IMAGE_SITE_ANSWERS`, `IMAGE_SITE_FAILS`. The test
+    makes it happen at that step: it holds the server's answers and releases them
+    (`holdTripHome`), or holds the image site. The waiting state's check asserts what the page
+    shows while it waits, such as "Checking the image…" on the dialog's button.
+  - **A toast** shows in the state after the step that shows it. The next event closes it
+    (`CLOSE_TOAST`) or presses its Undo. An event that the page ignores is sent only where no
+    toast shows (`when`), so its outcome does not depend on how long a toast stays.
 - **What is proven where.** `tests/unit/machines/walks.test.ts` runs each model's walk on the
   machine alone, in `npm run check`, and proves that it is complete twice: @xstate/test's coverage
   of the whole walk takes every state node, transition and reachable state
