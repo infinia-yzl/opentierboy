@@ -268,7 +268,11 @@ test.describe('history', () => {
               await expect.poll(() => tierList.itemNamesIn(row), {message: `the items of row ${row}`}).toEqual(names);
             }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
-            await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
+            try {
+              await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt')).toBe(labelPosition === 'top');
+            } catch (error) {
+              throw new Error(`${(error as Error).message}\nThe page: ${await tierList.rows.labelPlacementReport('S', 'Reinhardt')}`);
+            }
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));
             if (wrote) addresses[version - 1] = page.url();
