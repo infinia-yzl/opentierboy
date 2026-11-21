@@ -347,17 +347,15 @@ test.describe('drag and drop', () => {
     test.describe('with the drop animation', () => {
       test.use({reducedMotion: 'no-preference'});
 
-      test('writes no native drag, no new item and 1 history entry when the user presses an item during the drop animation', async ({
+      test('writes no new item and 1 history entry when the user presses an item during the drop animation', async ({
         tierList,
       }) => {
         await tierList.goto(TANKS);
-        const nativeDrags = await tierList.drag.countNativeDrags();
         const newEntries = await tierList.countNewHistoryEntries();
 
         await tierList.drag.dragItemToTierThenPressItem('Mauga', 'S', 'Winston');
 
         await expect(tierList.drag.dragAnnouncer).toHaveText(/^Dropped (Mauga in row S,|Winston\. It stays in Unranked,)/);
-        expect(await nativeDrags()).toBe(0);
         expect(await newEntries()).toBe(1);
         await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
         await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);

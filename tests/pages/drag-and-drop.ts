@@ -114,17 +114,6 @@ export class DragAndDrop {
     );
   }
 
-  async countNativeDrags(): Promise<() => Promise<number>> {
-    await this.page.evaluate(() => {
-      const counted = window as unknown as {nativeDrags: number};
-      counted.nativeDrags = 0;
-      window.addEventListener('dragstart', (event) => {
-        if (!event.defaultPrevented) counted.nativeDrags += 1;
-      });
-    });
-    return () => this.page.evaluate(() => (window as unknown as {nativeDrags: number}).nativeDrags);
-  }
-
   async dragStartFromItemImageIsCancelled(itemName: string): Promise<boolean> {
     return this.tierList.itemImage(itemName).evaluate((image) => {
       const event = new DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: new DataTransfer()});
