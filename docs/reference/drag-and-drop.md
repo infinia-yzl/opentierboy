@@ -246,7 +246,7 @@ everywhere (IndexedDB, zod, dnd-kit), so a later config block cannot drop the dn
 | `dndKit.ts` | dnd-kit sensors, activation constraint, plugins and page measurements |
 | `react.tsx` | The React components and hooks the editor uses (client module) |
 
-`lib/tierListReducer.ts` (the editor store) applies the moves with `moveItem`, `moveRow`,
+`lib/tierList.ts` (the editor's list changes, `listChanges`) applies the moves with `moveItem`, `moveRow`,
 `reorderRows`, `addTier` and `removeTier` from `moves.ts`, so the editor has one implementation of
 each.
 
@@ -262,7 +262,7 @@ lib/dnd file may declare one.
 Decisions in the adapter:
 
 - **History stays the undo.** The list changes only on drop: one `moveItem`, `moveRow` or
-  `reorderRows`, one new history entry (`history.pushState`, in the commit of the drop). During a drag the editor renders a preview (`preview.ts`): a copy of the
+  `reorderRows`, one new history entry (`history.pushState`, in the drop handler). During a drag the editor renders a preview (`preview.ts`): a copy of the
   list that follows the pointer or the arrow keys. React draws every change; dnd-kit's
   optimistic sorting, which moves elements behind React's back (and breaks when an item moves
   to another row), is not used. On drop, `itemMoveFromPreview` or `rowMoveFromPreview` gives
@@ -342,7 +342,7 @@ Decisions in the adapter:
   that already hold a name such as "Tier 5" keep showing it. `removeTier` moves the row's items to the end
   of Unranked; Unranked cannot be removed, and one ranked row always stays. At most
   `MAX_TIER_ROWS` (20) rows, Unranked included. The limit is an owner decision and must not
-  exceed the row cap of the link decoder (`tests/unit/lib/tierListReducer.test.ts` checks it). The
+  exceed the row cap of the link decoder (`tests/unit/lib/dnd/moves.test.ts` checks it). The
   "Add row" button under the rows adds one, and the Row options menu (the cogwheel beside it)
   offers "Remove a row" (a submenu of the ranked rows). Each is one history entry.
 - **Mixed tile shapes.** Tiles render at their shape with one height (`lib/tileSize.ts`), and

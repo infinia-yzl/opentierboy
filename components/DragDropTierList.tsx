@@ -8,7 +8,7 @@ import {RowGrip, RowStack} from '../components/RowHandle';
 import ItemTile from "@/components/ItemTile";
 import {FirstDragHint} from "@/components/EditorTips";
 import {getTierColour, getTierGradient} from "@/lib/utils";
-import {findItemToDelete} from "@/lib/tierListReducer";
+import {findItemToDelete} from "@/lib/tierList";
 import {itemDisplayLabel, linkImageOf} from "@/lib/images/listImages";
 import {DraggableTierItem, TierDragDrop, useTierDragDescription, useTierDragState, useTierItems, useTierRow} from "@/lib/dnd/react";
 import type {ItemMove, RowMove} from "@/lib/dnd/model";

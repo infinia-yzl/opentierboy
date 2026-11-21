@@ -30,6 +30,18 @@ test.describe('history', () => {
       await expect(tierList.itemsIn('F')).toHaveText(['Mauga']);
     });
 
+    test('renders the list of the entry before when the user goes Back in the same task as a change', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
+      const opened = page.url();
+      const rows = await tierList.tiers.count();
+
+      await tierList.rows.addTierRowAndGoBackInTheSameTask();
+
+      await expect(page).toHaveURL(opened);
+      await expect(tierList.tiers).toHaveCount(rows);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    });
+
     test('writes the change before Home when the user clicks the link to Home right after a change', async ({tierList, page}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
 

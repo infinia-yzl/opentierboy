@@ -3,7 +3,7 @@ import {toast} from 'sonner';
 import Item from '@/models/Item';
 import {useTierContext} from '@/contexts/TierContext';
 import {useCustomImages} from '@/contexts/CustomImagesContext';
-import {itemsToAdd} from '@/lib/tierListReducer';
+import {itemsToAdd} from '@/lib/tierList';
 
 /**
  * Adds items to Unranked with the "Items Added" toast and its Undo, as every way of adding

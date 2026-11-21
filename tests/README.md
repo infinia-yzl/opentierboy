@@ -79,7 +79,7 @@ tests/
   `tests/unit/lib/state/decode.test.ts`. A test that checks several files of one folder
   together is named after what it checks, in that folder (`lib/state/v3-format.test.ts`,
   `lib/snapshot/round-trip.test.ts`). Each top-level `describe` names the function it tests,
-  as in code (`checkLinkImageUrl`, `tierListReducer`). When one function has several groups
+  as in code (`checkLinkImageUrl`, `createListStore`). When one function has several groups
   of inputs, each group's `describe` names the function and the group:
   `extractSnapshotText with bad files`.
 - **End-to-end tests** have one file per UI area or route. Each file has one top-level

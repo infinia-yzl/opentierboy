@@ -1,23 +1,25 @@
 'use client';
 
-import React, {useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore} from 'react';
+import React, {useCallback, useEffect, useMemo, useState, useSyncExternalStore} from 'react';
 import {usePathname, useSearchParams} from "next/navigation";
 import Tier, {LabelPosition} from "@/models/Tier";
 import Item from "@/models/Item";
 import {ItemSet} from "@/models/ItemSet";
 import {createTierCortex, type TierCortex} from "@/lib/TierCortex";
+import type {ListLayout} from "@/lib/listLink";
 import {recordRecentLink} from "@/components/useRecentLinks";
 import {listAddressWritten} from "@/components/useListSteps";
 import {rankPageTitle} from "@/lib/rankRoute";
+import type {ItemPosition} from "@/lib/dnd/model";
 import {
-  addressNeedsLoading,
-  createTierListReducer,
-  initialTierListState,
-  ItemPosition,
-  ListEncoder,
+  createListStore,
+  DEFAULT_LAYOUT,
+  listChanges,
   loadList,
   stateParam,
-} from "@/lib/tierListReducer";
+  type ListChange,
+  type ListWrite,
+} from "@/lib/tierList";
 
 export interface TierContext {
   tierCortex: TierCortex;
@@ -25,7 +27,6 @@ export interface TierContext {
   title: string;
   labelPosition: LabelPosition;
   showLabels: boolean;
-  /** Length of the address when it holds the list on screen, else 0 (for the long-link warning). */
   urlLength: number;
   shareLink: string;
   linkWrites: number;
@@ -35,22 +36,16 @@ export interface TierContext {
   moveTier: (from: number, to: number) => void;
   moveRow: (from: number, to: number) => void;
   addTier: () => void;
-  /** Removes a ranked row (#182); its items go to the end of Unranked. */
   removeTier: (tierId: string) => void;
   renameTier: (index: number, name: string) => void;
   deleteItem: (itemId: string) => void;
   restoreItem: (item: Item, tierId: string, index: number) => void;
-  /** Adds items to Unranked, leaving out items the list already holds. */
   addItems: (items: Item[]) => void;
   removeItems: (itemIds: string[]) => void;
-  /** Puts every item back in Unranked. */
   resetRankings: () => void;
   removeAllItems: () => void;
-  /** Shows these tiers again (toast Undo of Reset and Remove All). */
   restoreTiers: (tiers: Tier[]) => void;
-  /** Switches to another row template (3, 5 or 7 rows). */
   onTemplateChange: (template: readonly Tier[]) => void;
-  /** Layout settings: they replace the current history entry (A3, LAYOUT_LINK_WRITE). */
   setLabelPosition: (position: LabelPosition) => void;
   toggleLabels: () => void;
 }
@@ -66,118 +61,116 @@ export const useTierContext = () => {
 };
 
 interface TierListProviderProps {
-  /** The template of this page (/rank/<set>/<tag>), if any. */
   initialItemSet?: ItemSet;
-  /** The page title: the title of a list whose link has none. */
   pageTitle: string;
   children: React.ReactNode;
 }
 
+const addressInWindow = () => stateParam(new URLSearchParams(window.location.search).get('state'));
+
+const pathInWindow = () => decodeURI(window.location.pathname);
+
+const subscribeToHistory = (onChange: () => void) => {
+  window.addEventListener('popstate', onChange);
+  return () => window.removeEventListener('popstate', onChange);
+};
+
 export function TierListProvider({initialItemSet, pageTitle, children}: TierListProviderProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const routerAddress = stateParam(searchParams.get('state'));
+  const routerAddress = stateParam(useSearchParams().get('state'));
+  const addressNow = useCallback(
+    () => (pathInWindow() === pathname ? addressInWindow() : routerAddress),
+    [pathname, routerAddress],
+  );
+  const address = useSyncExternalStore(subscribeToHistory, addressNow, () => routerAddress);
 
-  const [{tierCortex, encode, reducer}] = useState(() => {
+  const [{tierCortex, lists}] = useState(() => {
     const cortex = createTierCortex();
-    const encodeList: ListEncoder = (title, tiers, layout) => cortex.encodeListForURL(title, tiers, layout);
-    return {tierCortex: cortex, encode: encodeList, reducer: createTierListReducer(encodeList)};
+    return {
+      tierCortex: cortex,
+      lists: createListStore(
+        (at) => loadList(cortex, at, initialItemSet, pageTitle),
+        (title, tiers, at) => cortex.encodeListForURL(title, tiers, at),
+      ),
+    };
   });
-  const [state, dispatch] = useReducer(reducer, null, () =>
-    initialTierListState(loadList(tierCortex, routerAddress, initialItemSet, pageTitle), routerAddress, encode));
+  const list = lists.read(address);
 
-  // Recently viewed: a list opened fresh (this editor started with a link that holds a list) is
-  // recorded once. Edits, Back and Forward are not.
-  const [openedLink] = useState(() =>
-    state.address && state.addressHoldsList ? {path: pathname, state: state.address, title: state.title} : null);
+  const [layout, setLayout] = useState<ListLayout>(() => list.layout ?? DEFAULT_LAYOUT);
+  const [linkWrites, setLinkWrites] = useState(0);
+
+  const [openedLink] = useState(() => (address && list.decoded ? {path: pathname, state: address, title: list.title} : null));
   useEffect(() => {
     if (openedLink) recordRecentLink(openedLink);
   }, [openedLink]);
 
-  if (routerAddress !== state.routerAddress) {
-    const loaded = addressNeedsLoading(state, routerAddress) ? loadList(tierCortex, routerAddress, initialItemSet, pageTitle) : null;
-    dispatch({type: 'routerAddressChanged', address: routerAddress, loaded});
-  }
+  const write = useCallback((written: ListWrite | null) => {
+    if (!written) return;
+    const href = `${pathname}?state=${written.link}`;
+    if (written.mode === 'replace') window.history.replaceState(null, '', href);
+    else window.history.pushState(null, '', href);
+    listAddressWritten(written.mode);
+    setLinkWrites((count) => count + 1);
+  }, [pathname]);
 
-  const lastWritten = useRef(-1);
-  useLayoutEffect(() => {
-    for (const write of state.writes) {
-      if (write.id <= lastWritten.current) continue;
-      lastWritten.current = write.id;
-      const href = `${pathname}?state=${write.link}`;
-      if (write.mode === 'replace') window.history.replaceState(null, '', href);
-      else window.history.pushState(null, '', href);
-      listAddressWritten(write.mode);
-    }
-  }, [state.writes, pathname]);
+  const change = useCallback((apply: ListChange) => {
+    write(lists.edit(addressNow(), apply, layout));
+  }, [lists, write, layout, addressNow]);
 
-  useEffect(() => {
-    const onPopState = () => {
-      if (window.location.pathname !== pathname) return;
-      const address = stateParam(new URLSearchParams(window.location.search).get('state'));
-      dispatch({
-        type: 'browserMoved',
-        address,
-        writtenThrough: lastWritten.current,
-        loaded: loadList(tierCortex, address, initialItemSet, pageTitle),
-      });
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [pathname, tierCortex, initialItemSet, pageTitle]);
+  const changeLayout = useCallback((changes: Partial<ListLayout>) => {
+    const next = {...layout, ...changes};
+    if (next.labelPosition === layout.labelPosition && next.showLabels === layout.showLabels) return;
+    setLayout(next);
+    write(lists.relayout(addressNow(), next));
+  }, [layout, lists, write, addressNow]);
 
   const actions = useMemo(() => ({
-    setTitle: (title: string) => dispatch({type: 'titleChanged', title}),
-    moveItem: (from: ItemPosition, to: ItemPosition) => dispatch({type: 'itemMoved', from, to}),
-    moveTier: (from: number, to: number) => dispatch({type: 'tierMoved', from, to}),
-    moveRow: (from: number, to: number) => dispatch({type: 'rowMoved', from, to}),
-    addTier: () => dispatch({type: 'tierAdded'}),
-    removeTier: (tierId: string) => dispatch({type: 'tierRemoved', tierId}),
-    renameTier: (index: number, name: string) => dispatch({type: 'tierRenamed', index, name}),
-    deleteItem: (itemId: string) => dispatch({type: 'itemDeleted', itemId}),
-    restoreItem: (item: Item, tierId: string, index: number) => dispatch({type: 'itemRestored', item, tierId, index}),
-    addItems: (items: Item[]) => dispatch({type: 'itemsAdded', items}),
-    removeItems: (itemIds: string[]) => dispatch({type: 'itemsRemoved', itemIds}),
-    resetRankings: () => dispatch({type: 'rankingsReset'}),
-    removeAllItems: () => dispatch({type: 'allItemsRemoved'}),
-    restoreTiers: (tiers: Tier[]) => dispatch({type: 'tiersRestored', tiers}),
-    onTemplateChange: (template: readonly Tier[]) => dispatch({type: 'rowTemplateChanged', template}),
-    setLabelPosition: (labelPosition: LabelPosition) => dispatch({type: 'labelPositionChanged', labelPosition}),
-    toggleLabels: () => dispatch({type: 'labelsToggled'}),
-  }), []);
+    setTitle: (title: string) => change(listChanges.setTitle(title)),
+    moveItem: (from: ItemPosition, to: ItemPosition) => change(listChanges.moveItem(from, to)),
+    moveTier: (from: number, to: number) => change(listChanges.moveTier(from, to)),
+    moveRow: (from: number, to: number) => change(listChanges.moveRow(from, to)),
+    addTier: () => change(listChanges.addTier()),
+    removeTier: (tierId: string) => change(listChanges.removeTier(tierId)),
+    renameTier: (index: number, name: string) => change(listChanges.renameTier(index, name)),
+    deleteItem: (itemId: string) => change(listChanges.deleteItem(itemId)),
+    restoreItem: (item: Item, tierId: string, index: number) => change(listChanges.restoreItem(item, tierId, index)),
+    addItems: (items: Item[]) => change(listChanges.addItems(items)),
+    removeItems: (itemIds: string[]) => change(listChanges.removeItems(itemIds)),
+    resetRankings: () => change(listChanges.resetRankings()),
+    removeAllItems: () => change(listChanges.removeAllItems()),
+    restoreTiers: (tiers: Tier[]) => change(listChanges.restoreTiers(tiers)),
+    onTemplateChange: (template: readonly Tier[]) => change(listChanges.changeRowTemplate(template)),
+    setLabelPosition: (labelPosition: LabelPosition) => changeLayout({labelPosition}),
+    toggleLabels: () => changeLayout({showLabels: !layout.showLabels}),
+  }), [change, changeLayout, layout.showLabels]);
 
-  const urlLength = state.address && state.addressHoldsList
-    ? pathname.length + state.address.length + 7 // 7 is the length of "?state="
-    : 0;
+  const urlLength = address && list.decoded ? pathname.length + address.length + 7 : 0;
 
-  const shareLink = useMemo(
-    () => encode(state.title, state.tiers, {labelPosition: state.labelPosition, showLabels: state.showLabels}),
-    [encode, state.title, state.tiers, state.labelPosition, state.showLabels],
-  );
+  const shareLink = useMemo(() => lists.link(list, layout), [lists, list, layout]);
 
   const value = useMemo<TierContext>(() => ({
     tierCortex,
-    tiers: state.tiers,
-    title: state.title,
-    labelPosition: state.labelPosition,
-    showLabels: state.showLabels,
+    tiers: list.tiers,
+    title: list.title,
+    labelPosition: layout.labelPosition,
+    showLabels: layout.showLabels,
     urlLength,
     shareLink,
-    linkWrites: state.nextWriteId,
+    linkWrites,
     ...actions,
-  }), [tierCortex, state.tiers, state.title, state.labelPosition, state.showLabels, urlLength, shareLink, state.nextWriteId, actions]);
+  }), [tierCortex, list.tiers, list.title, layout, urlLength, shareLink, linkWrites, actions]);
 
   return (
     <TierContext.Provider value={value}>
-      <ListTabTitle title={rankPageTitle(pageTitle, state.title)}/>
+      <ListTabTitle title={rankPageTitle(pageTitle, list.title)}/>
       {children}
     </TierContext.Provider>
   );
 }
 
-const noSubscription = () => () => {};
+const subscribeToNothing = () => () => {};
 
 function ListTabTitle({title}: {title: string}) {
-  const inBrowser = useSyncExternalStore(noSubscription, () => true, () => false);
+  const inBrowser = useSyncExternalStore(subscribeToNothing, () => true, () => false);
   return inBrowser ? <title>{title}</title> : null;
 }

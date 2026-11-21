@@ -10,8 +10,8 @@ page link (`?state=`), and sharing the link shares the list.
    or do unless the task says so. If something looks wrong, ask the owner first, or record it
    as a known-bug test (see Tests). Do not fix it on the side.
 2. **Browser history is the undo feature.** Every change to the list pushes a new history
-   entry at once (`history.pushState` with a new `?state=`, in the commit of the render that
-   made the change). Back steps to the previous version. Never use `router.push`,
+   entry at once (`history.pushState` with a new `?state=`, in the handler that made the
+   change). Back steps to the previous version. Never use `router.push`,
    `router.replace` or `history.replaceState` for list edits. Never merge, queue or skip
    entries.
 3. **Every shared link ever made keeps working.** Link formats v0, v1, v2 and v3 decode forever.
@@ -96,14 +96,15 @@ components/           React components; components/ui/ is shadcn/ui; DragDropTie
                       editor's rows (drag and drop through lib/dnd/react.tsx); RowHandle.tsx: each
                       ranked row's grip (whole row) and stack (its items); usePageState.ts:
                       one scroll listener and one zen-mode observer shared by every tile
-contexts/TierContext.tsx   the editor store: TierListProvider runs lib/tierListReducer.ts and
-                      syncs it with the address (one history.pushState per list change, at
-                      once; label settings use history.replaceState, owner decision A3; Back and
-                      Forward load the list from popstate)
+contexts/TierContext.tsx   the editor store: TierListProvider reads the list from the address
+                      (the `state` value in the window; lib/tierList.ts decodes it once and keeps
+                      it), and an edit writes the next list with one history.pushState, at once;
+                      label settings use history.replaceState and stay on screen (A3)
 contexts/CustomImagesContext.tsx   the editor's device images (store, object URLs, legacy
                       uploads) and link images (allowed sites, load checks)
-lib/tierListReducer.ts   editor state and every change to it (pure reducer), the address writes;
-                      moves and added or removed rows come from lib/dnd/moves.ts
+lib/tierList.ts       the list of an address (createListStore: decoded lists by address, the link
+                      of each list, so an own write is never decoded or encoded again) and every
+                      change to a list (listChanges); moves and rows come from lib/dnd/moves.ts
 lib/TierCortex.ts     createTierCortex(): the functions of the next three modules, bound to the
                       app's aliases, image sets and base URL (used by the store, /rank and /api/og)
 lib/packageItems.ts   item lookup (built once per image-set config, shared), aliases, placeholder

@@ -41,7 +41,7 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
-import {stateParam} from '@/lib/tierListReducer';
+import {stateParam} from '@/lib/tierList';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';

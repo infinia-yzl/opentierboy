@@ -43,6 +43,13 @@ export class Rows {
     });
   }
 
+  async addTierRowAndGoBackInTheSameTask() {
+    await this.tierList.addRowButton.evaluate((button: HTMLButtonElement) => {
+      button.click();
+      window.history.back();
+    });
+  }
+
   async removeTierRow(tierName: string) {
     const rows = await this.openRemoveRowMenu();
     await changeAndWaitForLink(this.page, () => rows.and(this.page.getByRole('menuitem', {name: tierName, exact: true})).click());

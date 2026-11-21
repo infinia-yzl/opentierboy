@@ -23,7 +23,7 @@ import {
   snapshotLinkTooLong,
   type SnapshotToOpen,
 } from '@/lib/snapshot/open';
-import {itemsToAdd} from '@/lib/tierListReducer';
+import {itemsToAdd} from '@/lib/tierList';
 
 /** The editor page of a new blank list, and its title (app/rank/[[...slug]]/page.tsx). */
 const BLANK_LIST_PATH = '/rank';

@@ -299,7 +299,7 @@ out of links.
 - A change to them replaces the current history entry (`history.replaceState`), so it adds no
   Back step, as before v3. Row template changes push a new entry, like every change to the list.
   **Owner's decision, 2026-10-25**: option (a), replace. The one place for this choice is
-  `LAYOUT_LINK_WRITE` in `lib/tierListReducer.ts`; its other options are `'push'` (a Back step
+  `LAYOUT_LINK_WRITE` in `lib/tierList.ts`; its other options are `'push'` (a Back step
   per layout change) and `'next-edit'` (the next change to the list writes the layout along).
 - A link's layout settings apply when the link is opened fresh: when the editor starts with it.
   That is the first load of the page, a reload, or arriving at the editor from another page
@@ -316,6 +316,16 @@ out of links.
 **Opening a link writes nothing** (A1): opening any link leaves the
 address and the history as they are, also when the app would write that list differently
 (every v0, v1 and v2 link, and v3 links with defaults written out).
+
+**The address is the list.** The editor keeps one copy of the list: the one in the address
+(`contexts/TierContext.tsx`). Each render reads the `state` value from the window
+(`useSyncExternalStore`, which also renders again on `popstate`), and `createListStore`
+(`lib/tierList.ts`) gives the list of that value. Next.js applies its own copy of the address
+in a transition, a frame or more later, so the editor never waits for it. It decodes a value once and
+keeps the last 64 lists, with the link of each, so Back and Forward within them decode nothing.
+An edit takes the list of the current address, changes it, encodes the result once and writes it
+with `history.pushState`; the store keeps the written list under its link, so the render after the
+write decodes nothing either.
 
 Uploads load in an effect, after the page has started, so the server and the browser render
 the same list and an upload shows its image right after a page load.
