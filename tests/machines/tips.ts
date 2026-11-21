@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const tipsMachine = createMachine({
   id: 'tips',
-  description: 'The first-drag tip and the link-save and device-images toasts of a new browser on a template. One tip shows at a time: a tip that becomes useful while another shows waits for it, also while a toast shows. A tip that ended is seen and does not return. A toast ends by itself after 10 seconds (TOAST_TIMES_OUT). Hide tips turns the tips off, and About’s “Show the tips again” turns them on.',
+  description: 'The first-drag tip and the link-save and device-images toasts of a new browser on a template. One tip shows at a time: a tip that becomes useful while another shows waits for it, also while a toast shows. A tip that ended is seen and does not return. The model closes a toast with its Close button right after it shows: how long a toast stays is up to the toast library, and a tip that waits while a toast shows is checked by the unit tests of lib/tips. Hide tips turns the tips off, and About’s “Show the tips again” turns them on.',
   initial: 'editor',
   states: {
     editor: {
@@ -45,7 +45,7 @@ export const tipsMachine = createMachine({
           },
         },
         linkSaveToast: {
-          description: 'The link-save toast shows. The first-drag and link-save tips are seen. A drop or a new title changes no tip.',
+          description: 'The link-save toast shows. The first-drag and link-save tips are seen.',
           initial: 'nothingWaits',
           on: {
             HIDE_TIPS: {target: 'tipsOff'},
@@ -54,18 +54,11 @@ export const tipsMachine = createMachine({
           states: {
             nothingWaits: {
               description: 'No other tip waits.',
-              on: {
-                ADD_DEVICE_IMAGE: {target: 'deviceImagesWaits'},
-                CLOSE_TOAST: {target: '#tips.editor.noTip.linkSaveSeen'},
-                TOAST_TIMES_OUT: {target: '#tips.editor.noTip.linkSaveSeen'},
-              },
+              on: {CLOSE_TOAST: {target: '#tips.editor.noTip.linkSaveSeen'}},
             },
             deviceImagesWaits: {
-              description: 'An image from the device was added: the device-images toast waits for this one. Another image changes nothing.',
-              on: {
-                CLOSE_TOAST: {target: '#tips.editor.deviceImagesToast'},
-                TOAST_TIMES_OUT: {target: '#tips.editor.deviceImagesToast'},
-              },
+              description: 'An image from the device was added before this toast showed: the device-images toast waits for this one.',
+              on: {CLOSE_TOAST: {target: '#tips.editor.deviceImagesToast'}},
             },
           },
         },
@@ -73,7 +66,6 @@ export const tipsMachine = createMachine({
           description: 'The device-images toast shows. Every tip is seen, so a change shows no other tip.',
           on: {
             CLOSE_TOAST: {target: 'noTip.allSeen'},
-            TOAST_TIMES_OUT: {target: 'noTip.allSeen'},
             HIDE_TIPS: {target: 'tipsOff'},
             OPEN_TEMPLATE: {target: 'noTip.allSeen'},
           },

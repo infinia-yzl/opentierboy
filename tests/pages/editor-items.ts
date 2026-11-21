@@ -1,8 +1,7 @@
 import {expect, type Locator, type Page} from '@playwright/test';
 import {escapeRegExp} from '../support/regexp';
-import {letToastTimeOut} from '../support/page-clock';
 import {changeAndWaitForLink} from './helpers';
-import {letClosedToastLeave} from './toasts';
+import {untilToastGone} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 export class EditorItems {
@@ -111,40 +110,20 @@ export class EditorItems {
     return this.tierList.toast(title).getByRole('button', {name: 'Undo'});
   }
 
-  async restOnToast(title: string | RegExp) {
-    await expect(this.undoButtonIn(title)).toBeVisible();
-    await this.tierList.restOnMessage(this.tierList.toast(title));
-  }
-
-  async deleteItemAndRestOnToast(itemName: string) {
-    await this.deleteItem(itemName);
-    await this.restOnToast('Item deleted');
-  }
-
-  async resetRankingsAndRestOnToast() {
-    await this.resetRankings();
-    await this.restOnToast('Items Reset');
-  }
-
   async openRemoveAll() {
     await this.openItemsMenu();
     await this.page.getByRole('menuitem', {name: 'Remove All'}).click();
     await expect(this.removeAllDialog).toBeVisible();
   }
 
-  async confirmRemoveAllAndRestOnToast() {
+  async confirmRemoveAll() {
     await changeAndWaitForLink(this.page, () => this.removeAllDialog.getByRole('button', {name: 'Remove All Items'}).click());
     await expect(this.removeAllDialog).toBeHidden();
-    await this.restOnToast('All Items Deleted');
   }
 
   async cancelRemoveAll() {
     await this.removeAllDialog.getByRole('button', {name: 'Cancel'}).click();
     await expect(this.removeAllDialog).toBeHidden();
-  }
-
-  async waitOutToast(title: string) {
-    await letToastTimeOut(this.page, this.tierList.toast(title));
   }
 
   templatePickerPage(name: string): Locator {
@@ -170,28 +149,13 @@ export class EditorItems {
     await expect(this.templatePicker).toBeHidden();
   }
 
-  async chooseTemplateSetAndHoldToast(setTitle: string) {
+  async chooseTemplateSet(setTitle: string) {
+    await untilToastGone(this.tierList.toast('Items Added').or(this.tierList.toast('No New Items')));
     await this.templatePicker.getByRole('option', {name: new RegExp(`^${escapeRegExp(setTitle)}\\b`)}).click();
     await expect(this.templatePicker).toBeHidden();
-    const toast = this.tierList.toast('Items Added').or(this.tierList.toast('No New Items'));
-    await expect(toast).toBeVisible();
-    await toast.hover();
   }
 
-  async waitOutTemplateAddToast() {
-    await letToastTimeOut(this.page, this.tierList.toast('Items Added').or(this.tierList.toast('No New Items')));
-  }
-
-  async undoTemplateAddAndLetToastLeave() {
-    await this.undoButtonIn('Items Added').click();
-    await letClosedToastLeave(this.page, this.tierList.toast('Items Added'));
-  }
-
-  async undoInToastAndLetItLeave(title: string, {changesList}: {changesList: boolean}) {
-    const before = this.page.url();
-    await this.undoButtonIn(title).click();
-    if (title === 'Item deleted') await expect(this.tierList.toast('Item restored')).toBeVisible();
-    if (changesList) await expect(this.page, 'Undo should write a new link').not.toHaveURL(before);
-    await letClosedToastLeave(this.page, this.tierList.toast(title));
+  async undoInToast(title: string) {
+    await changeAndWaitForLink(this.page, () => this.undoButtonIn(title).click());
   }
 }

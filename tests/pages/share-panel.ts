@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
 import {boxOf, scrollPosition, type Box} from './helpers';
-import {expectOnlyNewToast} from './toasts';
+import {expectOneNewToast} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 export class SharePanel {
@@ -125,7 +125,7 @@ export class SharePanel {
   }
 
   private async captureAndExpectSuccess() {
-    await expectOnlyNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
+    await expectOneNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
   }
 
   async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {
@@ -211,7 +211,7 @@ export class SharePanel {
   }
 
   async copyMarkdownInOpenPanel() {
-    await expectOnlyNewToast(this.page, () => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
+    await expectOneNewToast(this.page, () => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
   }
 
   async captureInOpenPanel() {

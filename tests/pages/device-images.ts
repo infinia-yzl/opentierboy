@@ -1,7 +1,6 @@
 import {expect, type Locator, type Page} from '@playwright/test';
-import {letToastTimeOut} from '../support/page-clock';
 import {changeAndWaitForLink, UNTIL_STARTED} from './helpers';
-import {letClosedToastLeave} from './toasts';
+import {untilToastGone} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 export class DeviceImages {
@@ -198,20 +197,14 @@ export class DeviceImages {
     return this.tierList.toast('Items Added');
   }
 
-  async addItemsFromDeviceAndHoldToast(files: DeviceFiles) {
+  async addItemsFromDeviceAndWaitForToast(files: DeviceFiles) {
+    await untilToastGone(this.itemsAddedToast);
     await changeAndWaitForLink(this.page, () => this.addItemsFromDevice(files));
-    await this.itemsAddedToast.hover();
+    await expect(this.itemsAddedToast).toBeVisible();
   }
 
-  async waitOutItemsAddedToast() {
-    await letToastTimeOut(this.page, this.itemsAddedToast);
-  }
-
-  async undoAddedItemsAndLetToastLeave() {
-    const before = this.page.url();
-    await this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click();
-    await expect(this.page, 'Undo should write a new link').not.toHaveURL(before);
-    await letClosedToastLeave(this.page, this.itemsAddedToast);
+  async undoAddedItems() {
+    await changeAndWaitForLink(this.page, () => this.itemsAddedToast.getByRole('button', {name: 'Undo'}).click());
   }
 }
 

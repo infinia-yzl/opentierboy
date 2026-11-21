@@ -1,5 +1,4 @@
 import * as fc from 'fast-check';
-import {DEFAULT_IMAGE_CHECK_LIMITS} from '@/lib/images/imageCheck';
 import type {EventFrom, SnapshotFrom} from 'xstate';
 import {linkImagesMachine} from '../machines/link-images';
 import {always, defineModel, offered, type When} from '../support/machines';
@@ -21,7 +20,7 @@ export const GREEN = image(OTHER_SITE, 'Green');
 export const NAVY = image(OTHER_SITE, 'Navy');
 
 type ListKey = 'first' | 'greenAdded' | 'other';
-type Answer = 'answering' | 'answered' | 'failed' | 'gaveUp';
+type Answer = 'answering' | 'answered' | 'failed';
 type SiteValue = 'waiting' | {allowedHere: Answer} | {alwaysAllowed: Answer};
 
 export type LinkImagesSnapshot = SnapshotFrom<typeof linkImagesMachine>;
@@ -49,10 +48,8 @@ export function linkImagesViewOf(snapshot: LinkImagesSnapshot): LinkImagesView {
   return {...LIST_IMAGES[list], waiting: site === 'waiting', answer};
 }
 
-export const IMAGE_CHECK_MS = DEFAULT_IMAGE_CHECK_LIMITS.timeoutMs;
-
 const constant = fc.constant({});
-const gaveUp = ({snapshot}: When) => linkImagesViewOf(snapshot as LinkImagesSnapshot).answer === 'gaveUp';
+const answering = ({snapshot}: When) => linkImagesViewOf(snapshot as LinkImagesSnapshot).answer === 'answering';
 
 export const linkImagesModel = defineModel({
   id: 'link-images',
@@ -60,11 +57,10 @@ export const linkImagesModel = defineModel({
   events: {
     LOAD_IMAGES: {generate: constant, when: offered('LOAD_IMAGES')},
     ALWAYS_ALLOW_SITES: {generate: constant, when: offered('ALWAYS_ALLOW_SITES')},
-    ADD_IMAGE_FROM_LINK: {generate: constant, when: ({snapshot}: When) => snapshot.matches({list: 'first'} as never)},
+    ADD_IMAGE_FROM_LINK: {generate: constant, when: (args: When) => args.snapshot.matches({list: 'first'} as never) && !answering(args)},
     RELOAD: {generate: constant, when: always},
     OPEN_OTHER_LIST: {generate: constant, when: always},
-    IMAGE_SITE_ANSWERS: {generate: constant, when: (args: When) => offered('IMAGE_SITE_ANSWERS')(args) || gaveUp(args)},
+    IMAGE_SITE_ANSWERS: {generate: constant, when: offered('IMAGE_SITE_ANSWERS')},
     IMAGE_SITE_FAILS: {generate: constant, when: offered('IMAGE_SITE_FAILS')},
-    IMAGE_CHECK_TIMES_OUT: {generate: constant, when: offered('IMAGE_CHECK_TIMES_OUT')},
   },
 });

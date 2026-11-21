@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const removeAndUndoMachine = createMachine({
   id: 'removeAndUndo',
-  description: 'Removing items and the toast’s Undo, on a list opened from a link. Delete, Reset and Remove All each change the list as a new history entry and show a toast with Undo. Undo closes the toast and puts the list back as a new change, unless the list on screen already holds it, as after Back: then nothing changes. The toast closes by itself after 4 seconds (TOAST_TIMES_OUT), but not while the pointer rests on it. Back and Forward step between the versions. Each run makes one removal.',
+  description: 'Removing items and the toast’s Undo, on a list opened from a link. Delete, Reset and Remove All each change the list as a new history entry and show a toast with Undo. Undo, clicked right after the removal, puts the list back as a new change. How long the toast stays is up to the toast library, so the model clicks Undo straight away or leaves the toast alone. Back and Forward step between the versions. Each run makes one removal.',
   type: 'parallel',
   states: {
     removal: {
@@ -36,62 +36,47 @@ export const removeAndUndoMachine = createMachine({
       },
     },
     list: {
-      description: 'The version on screen, out of the versions in the tab’s history, and whether the toast offers Undo. Back from the list as opened leaves the editor, so the model does not take it. Forward on the latest version changes nothing.',
+      description: 'The version on screen, out of the versions in the tab’s history. Back from the list as opened leaves the editor, so the model does not take it. Forward on the latest version changes nothing.',
       initial: 'opened',
       states: {
         opened: {
           description: 'Version 1 of 1: the list as opened. No toast.',
           on: {
-            DELETE_ITEM: {target: 'undoOffered.removed'},
-            CHOOSE_RESET: {target: 'undoOffered.removed'},
+            DELETE_ITEM: {target: 'undoOffered'},
+            CHOOSE_RESET: {target: 'undoOffered'},
             OPEN_REMOVE_ALL: {target: 'confirming'},
           },
         },
         confirming: {
           description: 'The dialog “Are you sure?” over the list as opened.',
           on: {
-            CONFIRM_REMOVE_ALL: {target: 'undoOffered.removed'},
+            CONFIRM_REMOVE_ALL: {target: 'undoOffered'},
             CANCEL_REMOVE_ALL: {target: 'opened'},
           },
         },
         undoOffered: {
-          description: 'The toast of the removal shows, with Undo. It stays over Back and Forward.',
-          initial: 'removed',
-          states: {
-            removed: {
-              description: 'Version 2 of 2: the list after the removal.',
-              on: {
-                CLICK_UNDO: {target: '#removeAndUndo.list.undone.restored'},
-                BROWSER_BACK: {target: 'asOpened'},
-                TOAST_TIMES_OUT: {target: '#removeAndUndo.list.toastClosed.removed'},
-              },
-            },
-            asOpened: {
-              description: 'Version 1 of 2: the list as opened.',
-              on: {
-                CLICK_UNDO: {target: '#removeAndUndo.list.toastClosed.asOpened'},
-                BROWSER_FORWARD: {target: 'removed'},
-                TOAST_TIMES_OUT: {target: '#removeAndUndo.list.toastClosed.asOpened'},
-              },
-            },
+          description: 'Version 2 of 2: the list after the removal, right after it, with the toast of the removal and its Undo.',
+          on: {
+            CLICK_UNDO: {target: '#removeAndUndo.list.undone.restored'},
+            BROWSER_BACK: {target: '#removeAndUndo.list.removed.asOpened'},
           },
         },
-        toastClosed: {
-          description: 'The toast closed and the list did not change: it timed out, or Undo was clicked on the list as opened, which already holds what it puts back (no change and no history entry).',
+        removed: {
+          description: 'The removal stays: Back and Forward step between the list as opened and the list after the removal.',
           initial: 'asOpened',
           states: {
             asOpened: {
               description: 'Version 1 of 2: the list as opened.',
-              on: {BROWSER_FORWARD: {target: 'removed'}},
+              on: {BROWSER_FORWARD: {target: 'afterRemoval'}},
             },
-            removed: {
+            afterRemoval: {
               description: 'Version 2 of 2: the list after the removal.',
               on: {BROWSER_BACK: {target: 'asOpened'}},
             },
           },
         },
         undone: {
-          description: 'Undo put the list back as a new change: a third history entry. The toast closed.',
+          description: 'Undo put the list back as a new change: a third history entry.',
           initial: 'restored',
           states: {
             restored: {

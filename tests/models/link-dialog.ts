@@ -34,7 +34,6 @@ const VIEWS: Readonly<Record<string, LinkDialogView>> = {
   'open.checkingLargePicture': {dialog: 'checking', image: LARGE_PICTURE},
   'open.notAPicture': {dialog: 'failed', message: /^The image did not load\..* You can add it anyway/},
   'open.tooLarge': {dialog: 'failed', message: /^The image is too large: .* You can add it anyway/},
-  'open.timedOut': {dialog: 'failed', message: /^The image took too long to load\. You can add it anyway/},
   'added.picture': {dialog: 'closed', added: {image: PICTURE, picture: true}},
   'added.webPageTile': {dialog: 'closed', added: {image: WEB_PAGE, picture: false}},
   'added.largePictureTile': {dialog: 'closed', added: {image: LARGE_PICTURE, picture: false}},
@@ -65,7 +64,6 @@ export const linkDialogModel = defineModel({
     ENTER_WEB_PAGE_ADDRESS: {generate: constant, when: offered('ENTER_WEB_PAGE_ADDRESS')},
     ENTER_LARGE_PICTURE_ADDRESS: {generate: constant, when: offered('ENTER_LARGE_PICTURE_ADDRESS')},
     IMAGE_SITE_ANSWERS: {generate: constant, when: offered('IMAGE_SITE_ANSWERS')},
-    IMAGE_CHECK_TIMES_OUT: {generate: constant, when: offered('IMAGE_CHECK_TIMES_OUT')},
     ADD_ANYWAY: {generate: constant, when: offered('ADD_ANYWAY')},
   },
 });

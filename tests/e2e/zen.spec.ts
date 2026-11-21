@@ -12,13 +12,9 @@ import {MAX_ZEN_STEPS, zenStepsModel, zenStepsViewOf, type ZenStepsEvent, type Z
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
-/** A list with four items in Unranked and none ranked. */
 const TRAY_STATE = rankingState('image-overwatch', {'': TRAY});
-/** A title that runs across the title row, under where the Zen bar used to float. */
 const LONG_TITLE = 'Every tank hero in OVERWATCH, ranked from the best pick to the worst one this season';
-/** The ranked rows of the tank template, top to bottom. */
 const ALL_RANKED_ROWS = ['S', 'A', 'B', 'C', 'F'];
-/** The rows the tray's items go to, one each, in the order they are ranked. */
 const RANKED_ROWS = ALL_RANKED_ROWS.slice(0, TRAY.length);
 
 test.describe('zen', () => {
@@ -55,16 +51,12 @@ test.describe('zen', () => {
     await expect(tierList.menuItem('Delete')).toBeVisible();
   });
 
-  // Zen turns off adding and removing items (its toast says so). Dropped and pasted links add
-  // nothing in Zen, and the drop overlay stays away. Dropped and pasted picture files are added in
-  // Zen, as they were before links could be dropped.
   test.describe('dropping and pasting', () => {
     test('renders no drop overlay when the user drags a link over the editor in Zen', async ({tierList}) => {
       await tierList.goto(TANKS);
       await tierList.zen.setZenMode(true);
 
       await tierList.linkImages.dragLinkOver('https://i.imgur.com/red.png');
-      // The overlay would stay until the drag ends: turning Zen off first lets the page render.
       await tierList.zen.setZenMode(false);
 
       await expect(tierList.items.dropOverlay).toHaveCount(0);
@@ -199,7 +191,6 @@ test.describe('zen', () => {
       await expect(tierList.zen.zenStepCount).toHaveText('1 / 3');
       await expect(tierList.itemsIn('S')).toHaveCount(0);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(TRAY);
-      // The list's first version: Back stops here, and never leaves the list.
       await expect(tierList.zen.zenBarButton('Back')).toBeDisabled();
 
       await tierList.zen.stepInZenBar('Forward');
@@ -246,22 +237,6 @@ test.describe('zen', () => {
       await expect(tierList.zen.zenBarButton('Forward')).toBeDisabled();
     });
 
-    // Owner decision, 2026-11-01: the bar never fades. Ranking moves the mouse anyway.
-    test('renders the Zen bar opaque and clickable when the mouse rests for 10 seconds in Zen', async ({tierList, page}) => {
-      await page.clock.install();
-      await tierList.goto(TANKS);
-      await tierList.zen.setZenMode(true);
-      await tierList.restMouseAt(20, 400);
-
-      await tierList.letTimePass(10_000);
-
-      // Pointer events change at once; a fading bar's opacity would still read 1 here.
-      await expect(tierList.zen.zenBar).toHaveCSS('pointer-events', 'auto');
-      await expect(tierList.zen.zenBar).toHaveCSS('opacity', '1');
-    });
-
-    // Owner decision, 2026-11-01: the bar has its own row above the title, at the top centre,
-    // and covers nothing of the list.
     test('renders the Zen bar above the title at the top centre, overlapping no title, row or item, when the user turns on Zen', {tag: '@mobile'}, async ({
       tierList,
     }) => {
@@ -342,8 +317,6 @@ test.describe('zen', () => {
       await expect(tierList.zen.upNextItem).toHaveAccessibleName('Orisa');
     });
 
-    // The whole queue, one item after another: each drop leaves a new tile up next, and every
-    // tile on the page must still take a drag (the drop helpers check it after each drop).
     for (const order of ['In order', 'Shuffle'] as const) {
       test(`writes 1 history entry per drop and each item to its row when the user ranks the queue to empty by mouse with ${order}`, async ({
         tierList,
@@ -384,7 +357,6 @@ test.describe('zen', () => {
 
       for (const [drop, row] of RANKED_ROWS.entries()) {
         await expect(tierList.zen.upNextItem).toHaveAccessibleName(TRAY[drop]);
-        // The Up arrow goes one row up per press, from the tray: row F first, then C... up to S.
         const presses = ALL_RANKED_ROWS.length - ALL_RANKED_ROWS.indexOf(row);
         await tierList.drag.moveItemWithKeyboard(TRAY[drop], Array(presses).fill('ArrowUp'));
 

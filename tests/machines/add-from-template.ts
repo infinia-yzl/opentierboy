@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const addFromTemplateMachine = createMachine({
   id: 'addFromTemplate',
-  description: 'Adding images from a template to an empty list: the template picker, opened from Add images › From template or from the empty list’s Template, and OVERWATCH’s Tank (13) and Support (11) sets. Choosing a set closes the picker, adds to Unranked the images the list does not hold yet, and shows the toast “Items Added”, whose Undo removes only what that add added. The picker keeps its page when it closes, so after OVERWATCH’s page it opens there again. The model clicks Undo, or waits for the toast to end by itself, before it does anything else.',
+  description: 'Adding images from a template to an empty list: the template picker, opened from Add images › From template or from the empty list’s Template, and OVERWATCH’s Tank (13) and Support (11) sets. Choosing a set closes the picker, adds to Unranked the images the list does not hold yet, and shows the toast “Items Added”, whose Undo removes only what that add added. The picker keeps its page when it closes, so after OVERWATCH’s page it opens there again. How long the toast stays is up to the toast library: the model clicks Undo right after the add, or leaves the toast alone.',
   initial: 'empty',
   states: {
     empty: {
@@ -52,11 +52,11 @@ export const addFromTemplateMachine = createMachine({
         },
         tankAdded: {
           description: 'The toast shows. Its Undo removes the tanks.',
-          on: {UNDO: {target: '#addFromTemplate.empty'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {UNDO: {target: '#addFromTemplate.empty'}, OPEN_FROM_MENU: {target: 'picker'}},
         },
         nothingAdded: {
           description: 'The list held every tank already. The toast says so, without Undo.',
-          on: {TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {OPEN_FROM_MENU: {target: 'picker'}},
         },
       },
     },
@@ -75,11 +75,11 @@ export const addFromTemplateMachine = createMachine({
         },
         supportAdded: {
           description: 'The toast shows. Its Undo removes the supports.',
-          on: {UNDO: {target: '#addFromTemplate.empty'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {UNDO: {target: '#addFromTemplate.empty'}, OPEN_FROM_MENU: {target: 'picker'}},
         },
         nothingAdded: {
           description: 'The list held every support already. The toast says so, without Undo.',
-          on: {TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {OPEN_FROM_MENU: {target: 'picker'}},
         },
       },
     },
@@ -98,15 +98,15 @@ export const addFromTemplateMachine = createMachine({
         },
         tankAdded: {
           description: 'The toast shows. Its Undo removes the tanks and keeps the supports.',
-          on: {UNDO: {target: '#addFromTemplate.support.closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {UNDO: {target: '#addFromTemplate.support.closed'}, OPEN_FROM_MENU: {target: 'picker'}},
         },
         supportAdded: {
           description: 'The toast shows. Its Undo removes the supports and keeps the tanks.',
-          on: {UNDO: {target: '#addFromTemplate.tank.closed'}, TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {UNDO: {target: '#addFromTemplate.tank.closed'}, OPEN_FROM_MENU: {target: 'picker'}},
         },
         nothingAdded: {
           description: 'The list held every image of the set already. The toast says so, without Undo.',
-          on: {TOAST_TIMES_OUT: {target: 'closed'}},
+          on: {OPEN_FROM_MENU: {target: 'picker'}},
         },
       },
     },

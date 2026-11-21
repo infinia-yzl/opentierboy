@@ -21,7 +21,7 @@ export const tipsSharedListMachine = createMachine({
           },
         },
         linkSaveToast: {
-          description: 'The link-save toast shows. The first change ends the first-drag tip without showing it, because the rows already hold items. The toast ends by itself after 10 seconds, but not while the pointer rests on it.',
+          description: 'The link-save toast shows. The first change ends the first-drag tip without showing it, because the rows already hold items. The model closes it with Close or leaves the page right after it shows.',
           initial: 'afterSharedListTip',
           on: {HIDE_TIPS: {target: 'tipsOff'}},
           states: {

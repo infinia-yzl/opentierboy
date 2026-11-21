@@ -53,19 +53,19 @@ const constant = fc.constant({});
 const inEditor = ({snapshot}: When) => snapshot.matches('editor');
 const toastShows = ({snapshot}: When) => snapshot.matches('editor.linkSaveToast') || snapshot.matches('editor.deviceImagesToast');
 const tipShows = (args: When) => args.snapshot.matches('editor.firstDragTip') || toastShows(args);
+const inEditorWithoutToast = (args: When) => inEditor(args) && !toastShows(args);
 
 export const tipsModel = defineModel({
   id: 'tips',
   machine: tipsMachine,
   events: {
     OPEN_TEMPLATE: {generate: constant, weight: 0.5},
-    DROP_IN_ROW: {generate: constant, when: inEditor},
-    CHANGE_TITLE: {generate: constant, when: inEditor},
-    ADD_DEVICE_IMAGE: {generate: constant, when: inEditor, weight: 2},
+    DROP_IN_ROW: {generate: constant, when: inEditorWithoutToast},
+    CHANGE_TITLE: {generate: constant, when: inEditorWithoutToast},
+    ADD_DEVICE_IMAGE: {generate: constant, when: inEditorWithoutToast, weight: 2},
     CLOSE_TIP: {generate: constant, when: ({snapshot}: When) => snapshot.matches('editor.firstDragTip')},
     CLOSE_TOAST: {generate: constant, when: toastShows, weight: 3},
-    TOAST_TIMES_OUT: {generate: constant, when: toastShows, weight: 3},
     HIDE_TIPS: {generate: constant, when: tipShows, weight: 2},
-    SHOW_TIPS_AGAIN: {generate: constant, when: inEditor, weight: 0.5},
+    SHOW_TIPS_AGAIN: {generate: constant, when: inEditorWithoutToast, weight: 0.5},
   },
 });

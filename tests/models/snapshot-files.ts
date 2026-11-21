@@ -40,10 +40,11 @@ export function snapshotFilesViewOf(snapshot: SnapshotFilesSnapshot): SnapshotFi
 }
 
 const constant = fc.constant({});
-const dialogShows = ({snapshot}: When) => snapshot.matches('editor.asking') || snapshot.matches('editor.askingAgain');
+const messageShows = ({snapshot}: When) => SNAPSHOT_FILES_VIEWS[statePath(snapshot.value)]?.message != null;
+const dialogShows = (args: When) => (args.snapshot.matches('editor.asking') || args.snapshot.matches('editor.askingAgain')) && !messageShows(args);
 const offeredOrOverDialog = (type: string) => (args: When) => offered(type)(args) || dialogShows(args);
 
-const listShows = ({snapshot}: When) => snapshot.matches('editor.before') || snapshot.matches('editor.fileList');
+const listShows = (args: When) => (args.snapshot.matches('editor.before') || args.snapshot.matches('editor.fileList')) && !messageShows(args);
 
 export const snapshotFilesModel = defineModel({
   id: 'snapshot-files',
@@ -65,7 +66,6 @@ export const snapshotFilesModel = defineModel({
     OPEN_LIST: {generate: constant, when: offered('OPEN_LIST')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
     LEAVE_WHILE_PICTURES_WAIT: {generate: constant, when: offered('LEAVE_WHILE_PICTURES_WAIT')},
-    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
   },
 });
 

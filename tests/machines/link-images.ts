@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const linkImagesMachine = createMachine({
   id: 'linkImages',
-  description: 'Images from links in the editor, from a new browser. Images from a trusted site (i.imgur.com) load at once. Images from images.example.org, a site OpenTierBoy does not know, wait behind the notice “Images from other sites” until the visitor allows the site: Load allows it for this page, and Always allow these sites keeps it in this browser. Once allowed, the page asks the site for each image once per page load, and the image shows when the site has answered with a picture. The site here answers Green, the image the visitor adds, at once. It holds its answers for Blue and Navy, the images that come with the lists, until it answers with the picture or with something that is not a picture. The page gives up on an image that the site has not answered after 10 seconds (IMAGE_CHECK_TIMES_OUT); time on the page moves only then.',
+  description: 'Images from links in the editor, from a new browser. Images from a trusted site (i.imgur.com) load at once. Images from images.example.org, a site OpenTierBoy does not know, wait behind the notice “Images from other sites” until the visitor allows the site: Load allows it for this page, and Always allow these sites keeps it in this browser. Once allowed, the page asks the site for each image once per page load, and the image shows when the site has answered with a picture. The site here answers Green, the image the visitor adds, at once. It holds its answers for Blue and Navy, the images that come with the lists, until it answers with the picture or with something that is not a picture. The page gives up on an image after 10 seconds, so the model answers in the step right after the page asks, or loads the page again. The unit tests of lib/images/imageCheck cover the 10 seconds.',
   type: 'parallel',
   states: {
     list: {
@@ -43,12 +43,10 @@ export const linkImagesMachine = createMachine({
               on: {
                 IMAGE_SITE_ANSWERS: {target: 'answered'},
                 IMAGE_SITE_FAILS: {target: 'failed'},
-                IMAGE_CHECK_TIMES_OUT: {target: 'gaveUp'},
               },
             },
             answered: {description: 'The site answered with the picture: every image from the site shows its picture.'},
             failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name.'},
-            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name. A late answer changes nothing.'},
           },
         },
         alwaysAllowed: {
@@ -64,12 +62,10 @@ export const linkImagesMachine = createMachine({
               on: {
                 IMAGE_SITE_ANSWERS: {target: 'answered'},
                 IMAGE_SITE_FAILS: {target: 'failed'},
-                IMAGE_CHECK_TIMES_OUT: {target: 'gaveUp'},
               },
             },
             answered: {description: 'The site answered with the picture: every image from the site shows its picture.'},
             failed: {description: 'The site answered with something that is not a picture: Blue (or Navy) stays a label tile with the site’s name.'},
-            gaveUp: {description: 'The site had not answered after 10 seconds, so the page gave up: Blue (or Navy) stays a label tile with the site’s name. A late answer changes nothing.'},
           },
         },
       },

@@ -1,4 +1,3 @@
-/** The one-time tips for first-time visitors (components/EditorTips.tsx, lib/tips/tips.ts). */
 import type {Locator, Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
@@ -10,20 +9,16 @@ import type {SitePage} from '../pages/site-page';
 import {TIP_IDS, tipsModel, tipsViewOf, type TipsEvent, type TipsSnapshot, type TipsView} from '../models/tips';
 import {sharedListViewOf, tipsSharedListModel, type TipsSharedListEvent, type TipsSharedListSnapshot} from '../models/tips-shared-list';
 import {
-  closeTipToastAndLetItLeave,
   FIRST_DRAG_KEYBOARD,
   FIRST_DRAG_MOUSE,
   FIRST_DRAG_TOUCH,
-  hideTipsAndLetToastLeave,
   LINK_SAVE_TITLE,
   Tips,
 } from '../pages/tips';
 
 const TANKS = '/rank/overwatch/tank';
-/** A friend's list: Mauga in S, the other tanks in Unranked. */
 const SHARED = rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}, 'Tanks by a friend');
 
-// Every other spec runs with the tips off (tests/support/test.ts).
 test.use({tips: true});
 
 test.describe('tips', () => {
@@ -196,9 +191,6 @@ test.describe('tips', () => {
       await expect(tips.sharedList).toBeHidden();
     });
 
-    // Only a link opened fresh (a full page load, as from a chat app) is someone else's list: a
-    // list reached by a move inside OpenTierBoy is the visitor's own (their images dropped on the
-    // home page, a Freeze Frame they opened, Recently viewed).
     test('writes no shared-list tip as seen when the user opens a list from Recently viewed and drops an item', async ({tierList, site}) => {
       const tips = new Tips(tierList.page);
       await tierList.storeBeforeLoad('otb-tips', JSON.stringify({seen: [], off: false}));
@@ -211,7 +203,6 @@ test.describe('tips', () => {
       await site.recentLink('Tanks by a friend').click();
       await expect(tierList.title).toHaveText('Tanks by a friend');
       await expect(tips.sharedList).toBeHidden();
-      // A shared-list tip that showed would be seen, and the first change ends it.
       await tierList.drag.dragItemToTier('Winston', 'B');
       await expect(tips.linkSaveToast).toBeVisible();
 
@@ -226,7 +217,6 @@ test.describe('tips', () => {
 
       await tierList.goto(TANKS, SHARED);
       await expect(tierList.title).toHaveText('Tanks by a friend');
-      // A tip that showed would be seen.
       await expect.poll(() => tips.stored()).toEqual({seen: ['first-drag', 'link-save'], off: false});
       await expect(tips.sharedList).toBeHidden();
     });
@@ -266,7 +256,6 @@ test.describe('tips', () => {
       await expect(tips.deviceImagesToast).toContainText('A link shares their names; a downloaded Freeze Frame shares the images too.');
       await expect(tips.all).toHaveCount(1);
       await tips.closeToast(tips.deviceImagesToast);
-      // The upload is in Unranked and nothing is ranked: the first-drag tip comes last.
       await expect(tips.firstDrag).toBeVisible();
     });
   });
@@ -311,7 +300,6 @@ test.describe('tips', () => {
       const tips = new Tips(page);
       let changes = 0;
       return modelSut<TipsSnapshot, TipsEvent>(page, {
-        pageTime: 'paused',
         reset: async () => {
           await tips.forgetThisBrowser();
           await tierList.goto(TANKS);
@@ -322,9 +310,8 @@ test.describe('tips', () => {
           CHANGE_TITLE: () => tierList.setTitle(`My tanks ${++changes}`),
           ADD_DEVICE_IMAGE: () => tierList.deviceImages.addItemsFromDeviceAndWaitForLink([imageFile(`picture-${++changes}.png`)]),
           CLOSE_TIP: () => tips.close(),
-          CLOSE_TOAST: () => closeTipToastAndLetItLeave(tips),
-          TOAST_TIMES_OUT: () => tips.waitOutTipToast(),
-          HIDE_TIPS: () => hideTipsAndLetToastLeave(tips),
+          CLOSE_TOAST: () => tips.closeTipToast(),
+          HIDE_TIPS: () => tips.hideTips(),
           SHOW_TIPS_AGAIN: () => tips.showTipsAgainOnAbout(),
         },
         states: {
@@ -355,7 +342,6 @@ test.describe('tips', () => {
         states: {
           '*': async (_page, snapshot) => {
             const view = sharedListViewOf(snapshot);
-            if (view.shown === 'linkSave') await tierList.restOnMessage(tips.linkSaveToast);
             await expectTips(tips, view);
           },
         },

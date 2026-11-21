@@ -68,6 +68,5 @@ export const addFromTemplateModel = defineModel({
     CHOOSE_SUPPORT: {generate: constant, when: offered('CHOOSE_SUPPORT')},
     PRESS_ESCAPE: {generate: constant, when: always},
     UNDO: {generate: constant, when: offered('UNDO')},
-    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
   },
 });

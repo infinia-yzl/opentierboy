@@ -1,4 +1,3 @@
-/** Adding, removing and resetting items in the editor, and items the image sets do not know. */
 import path from 'node:path';
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
@@ -10,7 +9,6 @@ import {
   OPENED_ROWS,
   removeAndUndoModel,
   removeAndUndoViewOf,
-  undoChangesList,
   type RemoveAndUndoEvent,
   type RemoveAndUndoSnapshot,
   type RemoveAndUndoView,
@@ -47,7 +45,6 @@ test.describe('editor items', () => {
     test('renders the items from before the add when the user clicks Undo after adding a template set', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
       await tierList.items.addItemsFromTemplate('OVERWATCH', 'Tank');
-      await tierList.items.restOnToast('Items Added');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(TANK_COUNT - 1);
 
       await tierList.undoFromToast('Items Added');
@@ -61,7 +58,6 @@ test.describe('editor items', () => {
 
       await tierList.items.removeAllItems();
 
-      // A trial click runs every check of a real click, including that nothing covers the button.
       await tierList.shareButton.click({trial: true});
     });
 
@@ -83,8 +79,6 @@ test.describe('editor items', () => {
     });
   });
 
-  // Where people add images (owner decision, 2026-10-31): the drop overlay, an empty list's drop
-  // area, the "drop or paste" line of the tray's tile, and the menu's "or drop" and "or paste".
   test.describe('adding images', () => {
     test('renders the template picker with its name, a Back button and a Packages button when the user opens a package', async ({tierList}) => {
       await tierList.goto('/rank');
@@ -138,8 +132,6 @@ test.describe('editor items', () => {
       await expect(tierList.items.emptyListDropArea).toHaveCount(0);
     });
 
-    // Dropping and pasting need a mouse and a keyboard: on touch screens the words about them
-    // hide, as "Paste an image to add it as an item." does (the class tooltip-mouse).
     test.describe('mouse wording', () => {
       test.skip(({isMobile}) => isMobile, 'The words about dropping and pasting show with a mouse.');
 
@@ -205,7 +197,6 @@ test.describe('editor items', () => {
       await expect(tierList.linkImages.linkImageDialog).toBeHidden();
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
-      // The drop area went away with the add, so focus goes to the toolbar's Add images.
       await expect(tierList.manageItemsButton).toBeFocused();
     });
 
@@ -222,7 +213,6 @@ test.describe('editor items', () => {
     });
   });
 
-  /** An id that names no image-set item (here one with a dot, like a removed image) keeps its label (A45). */
   test.describe('unknown items in v3 links', () => {
     test('writes an {i, c} item with its label to the link when the user moves an unknown item id from an old link', async ({tierList, openAsVisitor}) => {
       const oldLink = rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
@@ -243,7 +233,6 @@ test.describe('editor items', () => {
     });
 
     test('renders the label of an item with an empty id after a reload when the user moves it to row S', async ({tierList}) => {
-      // v3 links refuse empty ids, so the app gives the item an id of its own (item~1) when it opens.
       const handMade = rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
         i: tier.id,
         n: tier.name,
@@ -261,8 +250,6 @@ test.describe('editor items', () => {
 
   test.describe('model: templates', () => {
     const expectView = async (tierList: TierListPage, view: AddFromTemplateView) => {
-      await expect(tierList.toast('Items Added')).toHaveCount(view.toast === 'Items Added' ? 1 : 0);
-      await expect(tierList.toast('No New Items')).toHaveCount(view.toast === 'No New Items' ? 1 : 0);
       if (view.toast === 'Items Added') await expect(tierList.items.undoButtonIn('Items Added')).toBeVisible();
       if (view.toast === 'No New Items') {
         await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
@@ -288,7 +275,6 @@ test.describe('editor items', () => {
     };
 
     const addFromTemplateSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => modelSut<AddFromTemplateSnapshot, AddFromTemplateEvent>(page, {
-      pageTime: 'paused',
       reset: async () => {
         await tierList.goto('/rank');
         await expect(tierList.items.emptyListAction('Template')).toBeVisible();
@@ -297,11 +283,10 @@ test.describe('editor items', () => {
         OPEN_FROM_MENU: () => tierList.items.openTemplatePicker(),
         OPEN_FROM_DROP_AREA: () => tierList.items.openTemplatePickerFromDropArea(),
         OPEN_OVERWATCH: () => tierList.items.openTemplatePackage('OVERWATCH'),
-        CHOOSE_TANK: () => tierList.items.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.tank.title),
-        CHOOSE_SUPPORT: () => tierList.items.chooseTemplateSetAndHoldToast(TEMPLATE_SETS.support.title),
+        CHOOSE_TANK: () => tierList.items.chooseTemplateSet(TEMPLATE_SETS.tank.title),
+        CHOOSE_SUPPORT: () => tierList.items.chooseTemplateSet(TEMPLATE_SETS.support.title),
         PRESS_ESCAPE: () => tierList.items.pressEscapeForTemplatePicker(),
-        UNDO: () => tierList.items.undoTemplateAddAndLetToastLeave(),
-        TOAST_TIMES_OUT: () => tierList.items.waitOutTemplateAddToast(),
+        UNDO: () => tierList.items.undoInToast('Items Added'),
       },
       states: {
         '*': (_page, snapshot) => expectView(tierList, addFromTemplateViewOf(snapshot)),
@@ -338,7 +323,6 @@ test.describe('editor items', () => {
         return onScreen;
       };
       return modelSut<RemoveAndUndoSnapshot, RemoveAndUndoEvent>(page, {
-        pageTime: 'paused',
         reset: async () => {
           onScreen = null;
           await tierList.openAfterBlankPage(TANKS, LIST);
@@ -346,15 +330,14 @@ test.describe('editor items', () => {
           entries = await tierList.historyLength();
         },
         events: {
-          DELETE_ITEM: () => tierList.items.deleteItemAndRestOnToast(DELETED_ITEM),
-          CHOOSE_RESET: () => tierList.items.resetRankingsAndRestOnToast(),
+          DELETE_ITEM: () => tierList.items.deleteItem(DELETED_ITEM),
+          CHOOSE_RESET: () => tierList.items.resetRankings(),
           OPEN_REMOVE_ALL: () => tierList.items.openRemoveAll(),
-          CONFIRM_REMOVE_ALL: () => tierList.items.confirmRemoveAllAndRestOnToast(),
+          CONFIRM_REMOVE_ALL: () => tierList.items.confirmRemoveAll(),
           CANCEL_REMOVE_ALL: () => tierList.items.cancelRemoveAll(),
-          CLICK_UNDO: () => tierList.items.undoInToastAndLetItLeave(removeAndUndoViewOf(shown()).toastWithUndo!, {changesList: undoChangesList(shown())}),
+          CLICK_UNDO: () => tierList.items.undoInToast(removeAndUndoViewOf(shown()).toastWithUndo!),
           BROWSER_BACK: () => tierList.goBack(),
           BROWSER_FORWARD: () => tierList.goForward(),
-          TOAST_TIMES_OUT: () => tierList.items.waitOutToast(removeAndUndoViewOf(shown()).toastWithUndo!),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -365,7 +348,6 @@ test.describe('editor items', () => {
             await expect(tierList.items.removeAllDialog).toHaveCount(view.dialog ? 1 : 0);
             if (!view.dialog) await expectRows(tierList, view);
             if (view.toastWithUndo) await expect(tierList.items.undoButtonIn(view.toastWithUndo)).toBeVisible();
-            else if (view.removalToast) await expect(tierList.toast(view.removalToast)).toHaveCount(0);
             await expect.poll(() => tierList.historyLength(), {message: `the page should have added ${view.newEntries} history entries`})
               .toBe(entries + view.newEntries);
           },

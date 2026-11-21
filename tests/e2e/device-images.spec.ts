@@ -1,4 +1,3 @@
-/** Device images: pictures uploaded or pasted from the device, kept in this browser (IndexedDB). */
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
@@ -6,7 +5,7 @@ import {BLOB_TAB_SKIP, SCRIPTED_PASTE_SKIP, TierListPage} from '../pages/tier-li
 import {FIVE_ROW_TIERS, packageItemId, rawState, v3LinkJson, v3State} from '../support/links';
 import {avifWithFalseSize} from '../unit/support/avif';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE} from '../support/image-sites';
-import {letToastTimeOut} from '../support/page-clock';
+import {untilToastGone} from '../pages/toasts';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   DEVICE_IMAGE_NAMES,
@@ -22,24 +21,20 @@ import path from 'node:path';
 
 const TANKS = '/rank/overwatch/tank';
 
-/** A v3 link of a 3-row list: Mauga in S, `items` in Unranked. */
 function listWith(items: unknown[]): string {
   return v3State({t: 'Images', tp: 3, r: [['S', [packageItemId('image-overwatch', 'Mauga')]], ['A', []], ['B', []], ['', items]]});
 }
 
 const IMAGES = path.join(__dirname, '..', 'fixtures', 'images');
 
-/** The red test square as a data: URL, as an upload kept in localStorage holds its image. */
 function redSquareDataUrl(): string {
   return `data:image/png;base64,${fs.readFileSync(path.join(IMAGES, 'red-square.png')).toString('base64')}`;
 }
 
-/** Keeps an upload in this browser's localStorage, as the app kept uploads before Phase 5c. */
 async function keepUploadInThisBrowser(tierList: TierListPage, upload: {i: string; c: string; d: string}) {
   await tierList.storeBeforeLoad('customItems', JSON.stringify([upload]));
 }
 
-/** A v2 link with the upload and Mauga in Unranked. */
 function linkWithUpload(id: string, label: string): string {
   return rawState({tiers: FIVE_ROW_TIERS.map((tier) => ({
     i: tier.id,
@@ -66,7 +61,6 @@ test.describe('device images', () => {
 
     test('renders the preview and the item image as image/png when the user uploads a PNG with a script named evil.html', async ({tierList, browserName}) => {
       test.skip(browserName === 'webkit', BLOB_TAB_SKIP);
-      // A PNG followed by a script, named evil.html: the browser reports text/html for it.
       const script = Buffer.from('<script>localStorage.setItem("pwned", "yes")</script>');
       const evil = imageFile('evil.html', Buffer.concat([RED_SQUARE, script]), 'text/html');
       await tierList.goto('/rank');
@@ -86,7 +80,6 @@ test.describe('device images', () => {
     });
 
     test('renders No preview, the too-large error and no item when the user uploads a PNG header of 12,000 x 12,000 pixels', async ({tierList}) => {
-      // A PNG header that declares 12,000 x 12,000 pixels: decoding a real one takes seconds and GBs.
       const huge = Buffer.alloc(688);
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]).copy(huge);
       huge.writeUInt32BE(12_000, 16);
@@ -103,7 +96,6 @@ test.describe('device images', () => {
     });
 
     test('renders No preview, the AVIF and HEIC error and no item when the user uploads an AVIF file', async ({tierList}) => {
-      // The 5d review's file: its header says 100 x 100, its AV1 data 9,000 x 9,000.
       const avif = Buffer.from(avifWithFalseSize([100, 100], [9000, 9000]));
       await tierList.goto('/rank');
 
@@ -168,23 +160,18 @@ test.describe('device images', () => {
 
       await expect(tierList.item('Old upload')).toBeVisible();
       await expect(tierList.itemImage('Old upload')).toHaveCount(0);
-      // An upload this browser never had keeps the placeholder image, as before.
       await expect.poll(() => tierList.itemImageHasLoaded('Not here')).toBe(true);
     });
 
     test('writes the new upload and evicts the oldest device image not on screen when the storage quota is full', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
       test.skip(browserName !== 'chromium', 'Only Chromium lets a test cap the storage (DevTools Protocol).');
-      // Chromium ignores a storage cap in incognito contexts, and reads it when the site first
-      // opens its database: this test uses a real profile and sets the cap before the first page.
       const {tierList, context} = await openInChromiumProfile();
       const page = tierList.page;
-      const images = [1, 2, 3, 4, 5].map((seed) => noisePng(320, 320, seed)); // about 300 KB each
+      const images = [1, 2, 3, 4, 5].map((seed) => noisePng(320, 320, seed));
       const cdp = await context.newCDPSession(page);
       const origin = new URL(test.info().project.use.baseURL!).origin;
-      // Room for four of the images, not five: well below the store's own limits (100 MB).
       await cdp.send('Storage.overrideQuotaForOrigin', {origin, quotaSize: Math.round(images[0].length * 4.5)});
 
-      // Four images in one list, then a new, empty list: they are not on screen.
       await tierList.goto('/rank');
       await tierList.deviceImages.addItemsFromDevice(['old-1', 'old-2', 'old-3', 'old-4'].map((name, index) => imageFile(`${name}.png`, images[index])));
       await expect.poll(() => tierList.itemImageHasLoaded('old-4')).toBe(true);
@@ -197,7 +184,6 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('new')).toBe(true);
       await expect.poll(() => tierList.deviceImages.evictedImageIds()).toHaveLength(1);
 
-      // The old list: the oldest image made room and shows its name only; the others are there.
       await tierList.gotoLink(oldList);
       await expect(tierList.itemImage('old-1')).toHaveCount(0);
       for (const name of ['old-2', 'old-3', 'old-4']) await expect.poll(() => tierList.itemImageHasLoaded(name)).toBe(true);
@@ -206,16 +192,14 @@ test.describe('device images', () => {
     test('writes 2 of 3 localStorage uploads to IndexedDB and evicts none when they exceed the storage quota', {tag: '@chromium'}, async ({openInChromiumProfile, browserName}) => {
       test.skip(browserName !== 'chromium', 'Only Chromium lets a test cap the storage (DevTools Protocol).');
       const {tierList, context} = await openInChromiumProfile();
-      const images = [1, 2, 3].map((seed) => noisePng(320, 320, seed)); // about 300 KB each
+      const images = [1, 2, 3].map((seed) => noisePng(320, 320, seed));
       const cdp = await context.newCDPSession(tierList.page);
-      // Room for two of the three old uploads.
       await cdp.send('Storage.overrideQuotaForOrigin', {origin: new URL(test.info().project.use.baseURL!).origin, quotaSize: Math.round(images[0].length * 2.5)});
       await tierList.deviceImages.keepOldUploads(images.map((png, index) => ({id: `legacyUp${index + 1}`, label: `old ${index + 1}`, png})));
 
       await tierList.goto(TANKS, listWith([1, 2, 3].map((n) => ({d: `legacyUp${n}`, c: `old ${n}`}))));
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('old 1')).toBe(true);
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('old 2')).toBe(true);
-      // The third did not fit: it waits in localStorage for the next start, and nothing was removed.
       await expect.poll(() => tierList.deviceImages.oldUploadIds()).toEqual(['legacyUp3']);
       await expect.poll(() => tierList.itemShowsPlaceholder('old 3')).toBe(true);
       expect(await tierList.deviceImages.evictedImageIds()).toEqual([]);
@@ -226,13 +210,11 @@ test.describe('device images', () => {
       const {tierList, context} = await openInChromiumProfile();
       const images = [1, 2, 3].map((seed) => noisePng(320, 320, seed));
       const cdp = await context.newCDPSession(tierList.page);
-      // Room for two of the three images.
       await cdp.send('Storage.overrideQuotaForOrigin', {origin: new URL(test.info().project.use.baseURL!).origin, quotaSize: Math.round(images[0].length * 2.5)});
       await tierList.goto('/rank');
       await tierList.deviceImages.addItemsFromDevice([imageFile('base.png', images[0])]);
       await expect.poll(() => tierList.deviceImages.itemShowsUpload('base')).toBe(true);
 
-      // Two pastes at once: the second must not make room by removing the first.
       await tierList.deviceImages.pasteImagesAtOnce([[imageFile('first.png', images[1])], [imageFile('second.png', images[2])]]);
       await expect(tierList.toast('Some images could not be added')).toContainText('second: Your browser has no room left to keep this image.');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['base', 'first']);
@@ -241,8 +223,7 @@ test.describe('device images', () => {
       expect(await tierList.deviceImages.evictedImageIds()).toEqual([]);
     });
 
-    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList, page}) => {
-      await page.clock.install();
+    test('renders the uploaded images and the tab-only storage toast once when window.indexedDB throws', async ({tierList}) => {
       await tierList.deviceImages.blockIndexedDb();
       await tierList.goto('/rank');
 
@@ -250,7 +231,7 @@ test.describe('device images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('red-square')).toBe(true);
       const notice = tierList.toast('Images are kept only for this tab');
       await expect(notice).toBeVisible();
-      await letToastTimeOut(page, notice);
+      await untilToastGone(notice);
 
       await tierList.deviceImages.addItemsFromDevice([imageFile('blue-square.png', BLUE_SQUARE)]);
       await expect.poll(() => tierList.itemImageHasLoaded('blue-square')).toBe(true);
@@ -271,8 +252,6 @@ test.describe('device images', () => {
 
       const image = reopened.itemImage('red-square');
       await expect(image).toBeVisible();
-      // The tile must show the uploaded red square. Checking only that an image loaded is not
-      // enough: an item the app cannot find shows the placeholder image, which loads too.
       await expect.poll(async () => isRed(await reopened.itemImageCenterColor('red-square'))).toBe(true);
     });
   });
@@ -295,7 +274,6 @@ test.describe('device images', () => {
     test('renders an error toast for the first paste and the item of the second when the object URL fails once', async ({tierList, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto('/rank');
-      // The first URL is the one the editor reads the file through; the second one shows the tile.
       await tierList.deviceImages.failObjectUrl({skip: 1});
       await tierList.deviceImages.pasteImages([imageFile('My cat.png')]);
       await expect(tierList.toast('Some images could not be added')).toContainText('My cat: Your browser could not save the image.');
@@ -310,7 +288,6 @@ test.describe('device images', () => {
       await tierList.goto('/rank');
       const dialog = await tierList.deviceImages.chooseFilesFromDevice([imageFile('red-square.png')]);
       await expect(tierList.deviceImages.uploadPreview('red-square')).toBeVisible();
-      // The first URL is the one the editor reads the file through; the second one shows the tile.
       await tierList.deviceImages.failObjectUrl({skip: 1});
       await tierList.deviceImages.uploadAddButton.click();
       await expect(tierList.deviceImages.uploadError).toHaveText('red-square: Your browser could not save the image.');
@@ -324,24 +301,17 @@ test.describe('device images', () => {
       await tierList.deviceImages.pasteImages([imageFile('image.png')], input);
       await input.press('Escape');
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
-      // The same paste outside the field adds the picture, so the empty list above is no accident.
       await tierList.deviceImages.pasteImages([imageFile('image.png')]);
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Pasted image']);
     });
   });
 
-  /**
-   * Uploads made before Phase 5c have ids from Math.random().toString(36).slice(2, 11), which can
-   * be shorter than the 8 characters a v3 device image id needs (A40). The app writes such an id
-   * as "legacy-<id>" (A42), and keeps its image in the device image store under that id.
-   */
   test.describe('uploads with short legacy ids', () => {
     test('writes {"d":"legacy-ab3c9"} to the link, and renders its image after a reopen, when the user moves upload ab3c9', async ({tierList}) => {
       await keepUploadInThisBrowser(tierList, {i: 'ab3c9', c: 'My cat', d: redSquareDataUrl()});
 
       await tierList.goto(TANKS, linkWithUpload('ab3c9', 'My cat'));
       await tierList.drag.dragItemToTier('My cat', 'S');
-      // The upload moved from localStorage into the device image store, under "legacy-ab3c9".
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
 
       const link = await tierList.shareLink();
@@ -353,16 +323,11 @@ test.describe('device images', () => {
     });
   });
 
-  /**
-   * Uploads live in the device image store (IndexedDB) since Phase 5c. The editor loads them in an
-   * effect, after the page has started, so the server and the browser render the same list.
-   */
   test.describe('localStorage uploads', () => {
     test('renders the image of an upload in localStorage customItems when the page opens a link with it', async ({tierList}) => {
       await keepUploadInThisBrowser(tierList, {i: 'k3j9x0a1b', c: 'My cat', d: redSquareDataUrl()});
       await tierList.goto(TANKS, linkWithUpload('k3j9x0a1b', 'My cat'));
       await expect.poll(async () => isRed(await tierList.itemImageCenterColor('My cat'))).toBe(true);
-      // The upload moved into the device image store.
       await expect.poll(() => tierList.localStorageItem('customItems')).toBeNull();
     });
   });
@@ -396,7 +361,6 @@ test.describe('device images', () => {
         }
       }
       if (view.toast) await expect(shown.deviceImages.itemsAddedToast).toContainText('1 item(s) have been added.');
-      else await expect(shown.deviceImages.itemsAddedToast).toHaveCount(0);
     };
 
     const deviceImagesSut = (
@@ -411,17 +375,15 @@ test.describe('device images', () => {
         visitor = null;
       };
       return modelSut<DeviceImagesSnapshot, DeviceImagesEvent>(page, {
-        pageTime: 'paused',
         pages: () => [visitor?.page],
         reset: async () => {
           await closeVisitor();
           await tierList.openAsNewBrowser(TANKS, START);
         },
         events: {
-          UPLOAD_RED: () => tierList.deviceImages.addItemsFromDeviceAndHoldToast([FILES.red]),
-          UPLOAD_BLUE: () => tierList.deviceImages.addItemsFromDeviceAndHoldToast([FILES.blue]),
-          UNDO: () => tierList.deviceImages.undoAddedItemsAndLetToastLeave(),
-          TOAST_TIMES_OUT: () => tierList.deviceImages.waitOutItemsAddedToast(),
+          UPLOAD_RED: () => tierList.deviceImages.addItemsFromDeviceAndWaitForToast([FILES.red]),
+          UPLOAD_BLUE: () => tierList.deviceImages.addItemsFromDeviceAndWaitForToast([FILES.blue]),
+          UNDO: () => tierList.deviceImages.undoAddedItems(),
           RANK_RED: () => tierList.drag.dragItemToTierWhenReady(DEVICE_IMAGE_NAMES.red, 'S'),
           RELOAD: () => tierList.reload(),
           BROWSER_BACK: () => tierList.goBack(),

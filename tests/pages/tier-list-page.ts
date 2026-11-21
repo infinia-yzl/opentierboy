@@ -1,7 +1,6 @@
 import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectHydrated} from '../support/hydrated';
 import {escapeRegExp} from '../support/regexp';
-import {runPageClock} from '../support/page-clock';
 import {boxOf, changeAndWaitForLink, rowPhrase, UNTIL_STARTED} from './helpers';
 import {toasts} from './toasts';
 import {Rows} from './rows';
@@ -13,7 +12,6 @@ import {SnapshotFiles} from './snapshot-files';
 import {SharePanel} from './share-panel';
 import {Zen} from './zen';
 
-/** A box on screen, in CSS pixels. */
 export interface Size {
   width: number;
   height: number;
@@ -23,12 +21,7 @@ const NOT_AN_ITEM = /^(?!Move (?:row |Row \d+$|Tier\b|the \d+ items? of )|Add im
 
 const NOT_A_TIP_BUTTON = /^(?!(?:Hide tips|Close tip)$)/;
 
-/**
- * Firefox ignores the `clipboardData` that a script puts in a paste event (it makes an empty
- * one), so a test cannot paste files there. Paste tests skip Firefox with this reason.
- */
 export const SCRIPTED_PASTE_SKIP = 'Firefox drops the files of a paste event made by a test (ClipboardEvent clipboardData).';
-/** WebKit refuses page.goto() of a blob: URL in a new tab, which openImageInNewTab needs. */
 export const BLOB_TAB_SKIP = 'WebKit does not let a test open a blob: URL in a new tab.';
 
 export interface SentRequest {
@@ -41,19 +34,13 @@ export class TierListPage {
   readonly page: Page;
   readonly main: Locator;
   readonly title: Locator;
-  /** The pencil after the title (owner decision, 2026-10-31). */
   readonly editTitleButton: Locator;
-  /** The text box that replaces the title while it is edited. */
   readonly titleInput: Locator;
-  /** The editor's hints, in the Unranked tray. */
   readonly hints: Locator;
-  /** The dashed "Add images" tile that ends the Unranked tray. */
   readonly addImagesTile: Locator;
   readonly tiers: Locator;
-  /** The title row's tools: Add images, Zen and Share. */
   readonly editorTools: Locator;
   readonly rowOptionsButton: Locator;
-  /** "Add row", beside Row options under the rows (#182). */
   readonly addRowButton: Locator;
   readonly manageItemsButton: Locator;
   readonly shareButton: Locator;
@@ -75,8 +62,6 @@ export class TierListPage {
     this.titleInput = this.main.getByRole('textbox', {name: 'Title'});
     this.hints = this.main.getByText('Drag to reorder.');
     this.addImagesTile = this.main.getByRole('button', {name: 'Add images, drop or paste, to Unranked'});
-    // Rows are the groups with a tier heading: the ranked rows and the Unranked tray (which has
-    // no handle). The title row's "Editor tools" group has none.
     this.tiers = this.main.getByRole('group').filter({has: page.getByRole('heading', {level: 2})});
     this.editorTools = page.getByRole('group', {name: 'Editor tools'});
     this.rowOptionsButton = page.getByRole('button', {name: 'Row options'});
@@ -93,7 +78,6 @@ export class TierListPage {
     this.share = new SharePanel(this);
     this.zen = new Zen(this);
   }
-
 
   async goto(path: string, state?: string) {
     await this.page.goto(state ? `${path}?state=${state}` : path, UNTIL_STARTED);
@@ -186,7 +170,6 @@ export class TierListPage {
     await this.page.goBack({waitUntil: 'commit'});
   }
 
-  /** The number of entries in the tab's history (window.history.length). */
   async historyLength(): Promise<number> {
     return this.page.evaluate(() => window.history.length);
   }
@@ -204,7 +187,6 @@ export class TierListPage {
     return () => this.page.evaluate(() => (window as unknown as {newHistoryEntries: number}).newHistoryEntries);
   }
 
-  /** The link a visitor would share. The app keeps it in the address bar. */
   async shareLink(): Promise<string> {
     await expect(this.page).toHaveURL(/[?&]state=/);
     return this.page.url();
@@ -251,7 +233,6 @@ export class TierListPage {
   async closeBrowser() {
     await this.page.context().close();
   }
-
 
   tier(name: string): Locator {
     return this.main.getByRole('group', {name, exact: true});
@@ -389,7 +370,6 @@ export class TierListPage {
     ));
   }
 
-
   async setTitle(newTitle: string) {
     await changeAndWaitForLink(this.page, async () => {
       const input = await this.typeTitle(newTitle);
@@ -398,7 +378,6 @@ export class TierListPage {
     });
   }
 
-  /** Opens the title editor and types a new title, without confirming it. */
   async typeTitle(newTitle: string): Promise<Locator> {
     await this.title.click();
     const input = this.main.getByPlaceholder('Enter title');
@@ -422,7 +401,6 @@ export class TierListPage {
   editorToolButton(name: string): Locator {
     return this.editorTools.getByRole('button', {name, exact: true});
   }
-
 
   menuItem(name: string): Locator {
     return this.page.getByRole('menuitem', {name});
@@ -454,7 +432,6 @@ export class TierListPage {
     await expect(this.openMenus).toHaveCount(0);
   }
 
-
   toast(text: string | RegExp): Locator {
     return toasts(this.page).filter({hasText: text});
   }
@@ -466,13 +443,6 @@ export class TierListPage {
   async undoFromToast(text: string | RegExp) {
     await this.toast(text).getByRole('button', {name: 'Undo'}).click();
   }
-
-  async restOnMessage(message: Locator) {
-    await expect(message).toBeVisible();
-    await message.hover();
-    await expect(message).toHaveAttribute('data-expanded', 'true');
-  }
-
 
   async pressKey(key: string) {
     await this.page.keyboard.press(key);
@@ -490,15 +460,6 @@ export class TierListPage {
     await this.page.keyboard.press('Tab');
     await expect(element).toBeFocused();
   }
-
-  async restMouseAt(x: number, y: number) {
-    await this.page.mouse.move(x, y);
-  }
-
-  async letTimePass(ms: number) {
-    await runPageClock(this.page, ms);
-  }
-
 
   async fontSize(element: Locator): Promise<number> {
     return element.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
@@ -534,11 +495,6 @@ export class TierListPage {
     });
   }
 
-
-  /**
-   * Stores a localStorage value before the next page load, once, as an earlier visit would have.
-   * Later loads in the same tab find what the app made of it.
-   */
   async storeBeforeLoad(key: string, value: string) {
     await this.page.addInitScript(([storageKey, storedValue]) => {
       if (!sessionStorage.getItem('test-stored-' + storageKey)) {
@@ -548,15 +504,10 @@ export class TierListPage {
     }, [key, value]);
   }
 
-  /** A localStorage value of this site, or null. */
   async localStorageItem(key: string): Promise<string | null> {
     return this.page.evaluate((storageKey) => localStorage.getItem(storageKey), key);
   }
 
-  /**
-   * Records every request the page sends from now on, with its body. Returns a function that
-   * gives the requests so far. Product rule 5: a device image never reaches the server.
-   */
   recordRequests(): () => SentRequest[] {
     const sent: SentRequest[] = [];
     this.page.on('request', (request) => {
@@ -565,13 +516,7 @@ export class TierListPage {
     return () => sent.slice();
   }
 
-  /**
-   * Whether markup in user text ran as code. Safety tests put `<img onerror>` and `<script>` text
-   * that sets `window.__otbInjected` into titles, row names and labels.
-   */
   async injectedMarkupRan(): Promise<boolean> {
-    // An <img onerror> runs once its image fails, so wait until every eager image has loaded or
-    // failed. Lazy images (link images) may wait for a scroll; markup put in the page has none.
     await expect.poll(() => this.page.evaluate(() => [...document.images].filter((image) => image.loading !== 'lazy').every((image) => image.complete))).toBe(true);
     return this.page.evaluate(() => (window as unknown as {__otbInjected?: unknown}).__otbInjected !== undefined);
   }

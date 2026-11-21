@@ -35,7 +35,6 @@ export interface RemoveAndUndoView {
   readonly asOpened: boolean;
   readonly dialog: boolean;
   readonly toastWithUndo: string | null;
-  readonly removalToast: string | null;
   readonly newEntries: 0 | 1 | 2;
 }
 
@@ -48,6 +47,8 @@ function listPath(list: ListValue): string {
   return `${group}.${version}`;
 }
 
+const VERSION_ROWS = {asOpened: 'opened', afterRemoval: 'removed', removed: 'removed', restored: 'restored'} as const;
+
 function removalOf(snapshot: RemoveAndUndoSnapshot): Removal | null {
   const {removal} = snapshot.value as Value;
   return removal in TOAST_OF ? removal as Removal : null;
@@ -56,27 +57,21 @@ function removalOf(snapshot: RemoveAndUndoSnapshot): Removal | null {
 export function removeAndUndoViewOf(snapshot: RemoveAndUndoSnapshot): RemoveAndUndoView {
   const path = listPath((snapshot.value as Value).list);
   const removal = removalOf(snapshot);
-  const version = path.split('.').pop();
   const before = {rows: OPENED_ROWS, asOpened: true};
   if (path === 'opened' || path === 'confirming') {
-    return {...before, dialog: path === 'confirming', toastWithUndo: null, removalToast: null, newEntries: 0};
+    return {...before, dialog: path === 'confirming', toastWithUndo: null, newEntries: 0};
   }
   if (!removal) throw new RangeError(`No removal in the state ${path}`);
-  const shown = version === 'asOpened' ? before
+  const version = path === 'undoOffered' ? 'removed' : VERSION_ROWS[path.split('.').pop() as keyof typeof VERSION_ROWS];
+  const shown = version === 'opened' ? before
     : version === 'removed' ? {rows: ROWS_AFTER[removal], asOpened: false}
       : {rows: OPENED_ROWS, asOpened: false};
-  const toast = TOAST_OF[removal];
   return {
     ...shown,
     dialog: false,
-    toastWithUndo: path.startsWith('undoOffered.') ? toast : null,
-    removalToast: toast,
+    toastWithUndo: path === 'undoOffered' ? TOAST_OF[removal] : null,
     newEntries: path.startsWith('undone.') ? 2 : 1,
   };
-}
-
-export function undoChangesList(snapshot: RemoveAndUndoSnapshot): boolean {
-  return snapshot.matches({list: {undoOffered: 'removed'}});
 }
 
 const constant = fc.constant({});
@@ -92,7 +87,6 @@ export const removeAndUndoModel = defineModel({
     CANCEL_REMOVE_ALL: {generate: constant, when: offered('CANCEL_REMOVE_ALL')},
     CLICK_UNDO: {generate: constant, when: offered('CLICK_UNDO')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
-    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
     BROWSER_FORWARD: {generate: constant, when: always},
   },
 });

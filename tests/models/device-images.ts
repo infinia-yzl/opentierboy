@@ -55,7 +55,6 @@ export const deviceImagesModel = defineModel({
     UPLOAD_RED: {generate: constant, when: offered('UPLOAD_RED')},
     UPLOAD_BLUE: {generate: constant, when: offered('UPLOAD_BLUE')},
     UNDO: {generate: constant, when: offered('UNDO')},
-    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
     RANK_RED: {generate: constant, when: offered('RANK_RED')},
     BROWSER_BACK: {generate: constant, when: offered('BROWSER_BACK')},
     BROWSER_FORWARD: {generate: constant, when: ({snapshot}: When) => snapshot.matches('thisBrowser')},

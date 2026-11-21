@@ -61,8 +61,7 @@ export const recentlyViewedMachine = createMachine({
           },
         },
         supportPinRefused: {
-          description: 'Pin Support list was refused: the toast “You can pin up to 20 lists” shows, and the lists are as they were. The model waits for the toast to end by itself.',
-          on: {TOAST_TIMES_OUT: {target: 'supportRecent'}},
+          description: 'Pin Support list was refused: the toast “You can pin up to 20 lists” shows, and the lists are as they were. How long the toast stays is up to the toast library, so the walk ends here.',
         },
       },
     },
@@ -91,8 +90,7 @@ export const recentlyViewedMachine = createMachine({
           },
         },
         tanksPinRefused: {
-          description: 'Pin Tanks list was refused: the toast “You can pin up to 20 lists” shows, and the lists are as they were. The model waits for the toast to end by itself.',
-          on: {TOAST_TIMES_OUT: {target: 'tanksRecent'}},
+          description: 'Pin Tanks list was refused: the toast “You can pin up to 20 lists” shows, and the lists are as they were. How long the toast stays is up to the toast library, so the walk ends here.',
         },
       },
     },

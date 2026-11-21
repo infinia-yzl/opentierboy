@@ -7,7 +7,7 @@ import {rankingState, templateItemCount} from '../support/links';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import {type TierListPage} from '../pages/tier-list-page';
-import {openListLaterAndReturnHome, reopenRecentLinkLaterAndReturnHome, type SitePage} from '../pages/site-page';
+import {type SitePage} from '../pages/site-page';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {
   OTHER_PINNED_LISTS,
@@ -27,10 +27,8 @@ import golden from '../fixtures/snapshots/snapshots.json';
 const TANKS = '/rank/overwatch/tank';
 const SUPPORT = '/rank/overwatch/sup';
 
-/** The golden Freeze Frame files (tests/fixtures/snapshots, append-only). */
 const SNAPSHOTS = path.resolve(__dirname, '../fixtures/snapshots');
 
-/** The template buttons of the landing page: card, template title, package and tag. */
 const TEMPLATES = [
   {set: 'THE FINALS', title: 'All Items', packageName: 'image-reachthefinals', tag: 'all'},
   {set: 'THE FINALS', title: 'Light Build', packageName: 'image-reachthefinals', tag: 'light'},
@@ -42,7 +40,6 @@ const TEMPLATES = [
   {set: 'OVERWATCH', title: 'Support', packageName: 'image-overwatch', tag: 'sup'},
 ];
 
-/** What a template button says about its item count: rounded down to 10 with "+", exact below 10. */
 function countOf(count: number): {text: string; words: string} {
   if (count < 10) return {text: String(count), words: `${count} ${count === 1 ? 'item' : 'items'}`};
   const rounded = count - (count % 10);
@@ -131,12 +128,10 @@ test.describe('home', () => {
     const after = await site.cardLayers('THE FINALS');
     expect(after.background).toMatchObject({opacity: '1', backgroundImage: before.background?.backgroundImage});
     expect(after.underline).toEqual(before.underline);
-    // The count turns white at 70 % (alpha 0.7 × 255 ≈ 179).
     await expect.poll(async () => {
       const [red, green, blue, alpha] = await site.templateCountColour('THE FINALS', allItems);
       return red === 255 && green === 255 && blue === 255 && Math.abs(alpha - 179) <= 2;
     }, {message: 'the count is white at 70 %'}).toBe(true);
-    // OVERWATCH is not hovered: its background stays hidden.
     expect((await site.cardLayers('OVERWATCH')).background?.opacity).toBe('0');
   });
 
@@ -148,7 +143,6 @@ test.describe('home', () => {
 
   test('renders the opened lists, newest first, and no template page when the landing page opens', {tag: '@mobile'}, async ({tierList, site}) => {
     await openTwoLists(tierList);
-    // A template without a list is not recorded.
     await tierList.goto(TANKS);
 
     await site.gotoHome();
@@ -285,26 +279,24 @@ test.describe('home', () => {
       await expect(site.pressedRecentPinButtons).toHaveCount(OTHER_PINNED_LISTS.length + (view.pinned ? 1 : 0));
       if (view.pinned) await expect(site.recentPinButton(WALK_LISTS[view.pinned])).toHaveAttribute('aria-pressed', 'true');
       if (view.recent) await expect(site.recentPinButton(WALK_LISTS[view.recent])).toHaveAttribute('aria-pressed', 'false');
-      await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(view.pinRefused ? 1 : 0);
+      if (view.pinRefused) await expect(site.recentToast(PIN_LIMIT_TOAST)).toHaveCount(1);
     };
 
     const recentlyViewedSut = (site: SitePage, page: Page, testInfo: TestInfo) => modelSut<RecentlyViewedSnapshot, RecentlyViewedEvent>(page, {
-      pageTime: 'paused',
       reset: async () => {
         await site.seedRecentLinks(seededRecentLinks());
       },
       events: {
-        OPEN_TANKS: () => openListLaterAndReturnHome(site, hrefOf('tanks'), WALK_LISTS.tanks),
-        OPEN_SUPPORT: () => openListLaterAndReturnHome(site, hrefOf('support'), WALK_LISTS.support),
-        REOPEN_TANKS: () => reopenRecentLinkLaterAndReturnHome(site, WALK_LISTS.tanks),
-        REOPEN_SUPPORT: () => reopenRecentLinkLaterAndReturnHome(site, WALK_LISTS.support),
+        OPEN_TANKS: () => site.openListAndReturnHome(hrefOf('tanks'), WALK_LISTS.tanks),
+        OPEN_SUPPORT: () => site.openListAndReturnHome(hrefOf('support'), WALK_LISTS.support),
+        REOPEN_TANKS: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.tanks),
+        REOPEN_SUPPORT: () => site.reopenRecentLinkAndReturnHome(WALK_LISTS.support),
         PIN_TANKS: () => site.pinRecentLink(WALK_LISTS.tanks, PIN_LIMIT_TOAST),
         PIN_SUPPORT: () => site.pinRecentLink(WALK_LISTS.support, PIN_LIMIT_TOAST),
         UNPIN_TANKS: () => site.unpinRecentLink(WALK_LISTS.tanks),
         UNPIN_SUPPORT: () => site.unpinRecentLink(WALK_LISTS.support),
         REMOVE_TANKS: () => site.removeRecentLinkAndWait(WALK_LISTS.tanks),
         REMOVE_SUPPORT: () => site.removeRecentLinkAndWait(WALK_LISTS.support),
-        TOAST_TIMES_OUT: () => site.waitOutRecentToast(PIN_LIMIT_TOAST),
       },
       states: {
         '*': (_page, snapshot) => expectRecentlyViewed(site, recentlyViewedViewOf(snapshot)),

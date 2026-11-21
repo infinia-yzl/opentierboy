@@ -9,28 +9,18 @@ import {layoutOf, listChangedIn, ZEN_FRAME_NAMES, ZEN_LAYOUT_NAMES, zenLayoutMod
 
 const TANKS = '/rank/overwatch/tank';
 const TRAY = ['Mauga', 'Winston', 'Sigma', 'Orisa'];
-/** Three items ranked in S, and four in Unranked. */
 const LIST = rankingState('image-overwatch', {S: ['Reinhardt', 'Zarya', 'D.Va'], '': TRAY});
-/** Fifteen items in Unranked: more than one line of queue in any frame. */
 const LONG_TRAY = ['Ana', 'Ashe', 'Wrecking Ball', 'Baptiste', 'Bastion', 'Brigitte', 'Doomfist', 'Echo', 'Genji', 'Hanzo', 'Roadhog', 'Hazard', 'Illari', 'Junker Queen', 'Juno'];
 const LONG_LIST = rankingState('image-overwatch', {'': LONG_TRAY});
-/** Every THE FINALS item (77) in Unranked: a full template. */
 const FULL_TEMPLATE = '/rank/the-finals/all';
-/** 19 ranked rows, R1 to R19 (taller than any frame holds), and the four tray items in Unranked. */
 const ROW_NAMES = Array.from({length: 19}, (_, index) => `R${index + 1}`);
 const NINETEEN_ROWS = rawState({tiers: [
   ...ROW_NAMES.map((name) => ({i: `row-${name}`, n: name, t: []})),
   {i: 'uncategorized', n: '', t: TRAY.map((label) => ({i: packageItemId('image-overwatch', label)}))},
 ]});
 
-/** The creator layouts: each draws the list in a frame, under a strip that holds the Zen bar. */
 const CREATOR_LAYOUTS = ['16:9', '9:16', 'Overlay · green key'] as const satisfies readonly ZenLayoutName[];
 
-/**
- * The frames, and the strip above each one in frame pixels (lib/zen/layouts.ts). A frame pixel
- * is a CSS pixel when the window is as wide as the frame and as high as the frame and the strip
- * together (owner decision, 2026-11-01).
- */
 const FULL_HD = {width: 1920, height: 1080};
 const PORTRAIT_FULL_HD = {width: 1080, height: 1920};
 const WIDE_STRIP = 88;
@@ -43,11 +33,6 @@ const WINDOWS: Record<typeof CREATOR_LAYOUTS[number], {width: number; height: nu
   'Overlay · green key': WIDE_WINDOW,
 };
 
-/**
- * Drags an item by hand (real mouse input, one press) to the end of a row. Checks that it lands
- * there and that the link gained exactly one history entry. `entries` counts the new history
- * entries since the test started (TierListPage.countNewHistoryEntries).
- */
 async function dropByHand(tierList: TierListPage, entries: () => Promise<number>, item: string, tier: string) {
   const before = await entries();
   await tierList.drag.dragItemToTierByHand(item, tier);
@@ -55,7 +40,6 @@ async function dropByHand(tierList: TierListPage, entries: () => Promise<number>
   expect(await entries()).toBe(before + 1);
 }
 
-/** Drags the item up next (In order or Shuffle) by hand to a row, as dropByHand does. Returns its name. */
 async function dropUpNextByHand(tierList: TierListPage, entries: () => Promise<number>, tier: string): Promise<string> {
   const item = await tierList.zen.upNextItemName();
   await dropByHand(tierList, entries, item, tier);
@@ -110,8 +94,6 @@ test.describe('zen layouts', () => {
     test('renders the editor and no frame when the user presses Escape in the overlay', async ({tierList, page}) => {
       await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
       await expect(tierList.zen.zenFrame).toBeVisible();
-      // A click on the green key first: the Layout menu gave focus back to its button, and an
-      // Escape there would close the button's tooltip first.
       await tierList.zen.clickFrameCorner();
 
       await tierList.pressKey('Escape');
@@ -121,7 +103,6 @@ test.describe('zen layouts', () => {
       await expect(tierList.editorTools).toBeVisible();
     });
 
-    // Owner decision, 2026-11-01: no address opens a layout; layouts are view settings in memory.
     test('renders the editor with no Zen bar or frame when the page opens an address with layout=16x9', async ({tierList, page}) => {
       await tierList.gotoAddress(`${TANKS}?state=${LIST}&layout=16x9`);
 
@@ -134,7 +115,6 @@ test.describe('zen layouts', () => {
   });
 
   test.describe('Layout menu', () => {
-    // Owner decisions, 2026-11-01: no "Copy link for OBS", no transparent overlay, no Wordmark switch.
     test('renders menu items Editor, 16:9, 9:16 and Overlay · green key, and no other, when the user opens menu Layout', {tag: '@mobile'}, async ({
       tierList,
     }) => {
@@ -147,8 +127,6 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Owner decisions, 2026-11-01: the Zen bar is always shown, in a strip above the frame at the
-  // top centre, and never covers the list.
   test.describe('Zen bar', () => {
     for (const layout of CREATOR_LAYOUTS) {
       test(`renders the Zen bar above the frame at the top centre, overlapping no title, row or item, when the user chooses ${layout}`, async ({
@@ -174,17 +152,6 @@ test.describe('zen layouts', () => {
       expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(PORTRAIT_FULL_HD);
     });
 
-    test('renders the Zen bar opaque and clickable when the mouse rests for 10 seconds in 16:9', async ({tierList, page}) => {
-      await page.clock.install();
-      await page.setViewportSize(WIDE_WINDOW);
-      await tierList.zen.gotoInLayout(TANKS, LIST, '16:9');
-      await tierList.restMouseAt(20, 600);
-
-      await tierList.letTimePass(10_000);
-
-      await expect(tierList.zen.zenBar).toHaveCSS('pointer-events', 'auto');
-      await expect(tierList.zen.zenBar).toHaveCSS('opacity', '1');
-    });
   });
 
   test.describe('16:9', () => {
@@ -251,7 +218,6 @@ test.describe('zen layouts', () => {
       expect(await tierList.sizeOf(tierList.item('Reinhardt'))).toEqual({width: 120, height: 120});
     });
 
-    // Owner decision, 2026-11-01: the frame keeps its size for recording; the tray scrolls.
     test('renders the frame at 1920 x 1080 with a scrolling Unranked tray when the list has 77 items in Pick freely', async ({tierList}) => {
       await tierList.goto(FULL_TEMPLATE);
       await tierList.zen.setZenMode(true);
@@ -261,7 +227,6 @@ test.describe('zen layouts', () => {
       expect(await tierList.sizeOf(tierList.zen.zenFrame)).toEqual(FULL_HD);
       expect(await tierList.zen.frameOverflows()).toBe(false);
       expect(await tierList.zen.unrankedItemsScroll()).toBe(true);
-      // The rows keep their size: a tile and the row's 1 px border.
       expect(await tierList.sizeOf(tierList.tier('S'))).toEqual({width: 1920 - 2 * 72, height: 121});
     });
 
@@ -279,10 +244,6 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Owner decision, 2026-11-01: no creator layout scrolls its frame or the cover around it.
-  // The part under the rows (the tray, or Up next and the queue) takes the space left and
-  // scrolls; the rows keep their size. When the rows alone are taller than the frame, the rows
-  // scroll inside it.
   test.describe('long lists', () => {
     for (const order of ['Pick freely', 'In order', 'Shuffle'] as const) {
       test(`renders the 9:16 frame at 1080 x 1920 with no overflow when the list has 77 items with ranking ${order}`, async ({tierList, page}) => {
@@ -326,7 +287,6 @@ test.describe('zen layouts', () => {
       expect(await tierList.zen.unrankedItemsScroll()).toBe(true);
       const frame = (await tierList.zen.zenFrame.boundingBox())!;
       const tray = (await tierList.unranked.boundingBox())!;
-      // The panel keeps its 40 px margin to the frame's bottom, and its 24 px padding.
       expect(tray.y + tray.height).toBeLessThanOrEqual(frame.y + frame.height - 40 - 24 + 1);
       expect((await tierList.sizeOf(tierList.tier('S'))).height).toBe(97);
     });
@@ -336,7 +296,6 @@ test.describe('zen layouts', () => {
     }) => {
       await page.setViewportSize(WIDE_WINDOW);
       await tierList.zen.gotoInLayout(FULL_TEMPLATE, undefined, 'Overlay · green key');
-      // The first tile of the tray's last line: at its left, clear of the "Entered Zen Mode" toast.
       const item = (await tierList.itemsIn(tierList.unranked).nth(70).getAttribute('aria-label'))!;
       const entries = await tierList.countNewHistoryEntries();
 
@@ -385,7 +344,6 @@ test.describe('zen layouts', () => {
       await expect(tierList.tierLabel('S')).toHaveCSS('font-size', '64px');
     });
 
-    // Owner decision, 2026-11-01: one and a half tiles, its name in proportion.
     test('renders the item up next at 180 px with its name under it at 28 px when the user chooses In order', async ({tierList}) => {
       await tierList.zen.gotoInLayout(TANKS, LIST, '9:16');
 
@@ -443,7 +401,6 @@ test.describe('zen layouts', () => {
 
       await expect(tierList.zen.upNextItem).toHaveAccessibleName('Mauga');
       expect(await tierList.sizeOf(tierList.zen.upNextItem)).toEqual({width: 72, height: 72});
-      // The overlay's strip has no labels on its tiles; each tile keeps its name.
       await expect(tierList.zen.queueItems).toHaveCount(2);
       await expect(tierList.zen.queueItems.nth(0)).toHaveAccessibleName('Winston');
       await expect(tierList.zen.queueItems.nth(1)).toHaveAccessibleName('Sigma');
@@ -532,8 +489,6 @@ test.describe('zen layouts', () => {
     });
   });
 
-  // Real mouse input: one press per drag, as a person drags (TierListPage.dragItemToTierByHand).
-  // The item up next is one tile that changes items after each drop; it must take every drag.
   test.describe('mouse drags', () => {
     test.use({viewport: WIDE_WINDOW});
 

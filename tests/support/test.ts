@@ -22,40 +22,19 @@ export interface SharedLinkFixture {
   };
 }
 
-/** Real links that people have shared. They must keep opening exactly as captured. */
 export const SHARED_LINKS = sharedLinks as SharedLinkFixture[];
 
 export interface VisitorOptions {
-  /** Runs on the new browser context before the link opens, for example to play an image site. */
   beforeOpen?: (context: BrowserContext) => Promise<unknown>;
 }
 
 type Fixtures = {
-  /**
-   * The one-time tips (components/EditorTips.tsx). Off unless a test turns them on with
-   * `test.use({tips: true})` (tests/e2e/tips.spec.ts): other tests check the page without them.
-   */
   tips: boolean;
-  pageClock: boolean;
   tierList: TierListPage;
   site: SitePage;
-  /** Opens a link in a fresh browser context, as a friend who receives the link would. */
   openAsVisitor: (link: string, options?: VisitorOptions) => Promise<TierListPage>;
-  /**
-   * Opens the editor in a Chromium profile on disk instead of an incognito context, for what
-   * only such a profile does: Chromium ignores a storage quota set through the DevTools
-   * Protocol in incognito contexts. Chromium only. The profile is removed after the test.
-   */
   openInChromiumProfile: () => Promise<{tierList: TierListPage; context: BrowserContext}>;
-  /**
-   * Requests to hosts other than the site under test and local addresses that no test route
-   * answered: from the browser, the `request` fixture, page.request and context.request, or
-   * the test runner's `fetch`. They are blocked, and the test fails if there are any, also a
-   * test marked test.fail(): tests never reach real external sites (play them with
-   * tests/support/image-sites.ts).
-   */
   externalRequests: string[];
-  /** Errors that the page logged to the browser console or threw, collected during the test. */
   consoleErrors: string[];
   allowedPageErrors: RegExp[];
   pageErrors: string[];
@@ -63,43 +42,25 @@ type Fixtures = {
 };
 
 type WorkerFixtures = {
-  /**
-   * Fails the worker when it finishes if a request to an external host was blocked outside a
-   * test (at module scope or in a hook such as beforeAll).
-   */
   blockedOutsideTestsReport: void;
 };
 
-/**
- * Turns the tips off in a context before its pages start, as "Hide tips" would, unless the
- * browser already holds a tips value. The key and value follow lib/tips/tips.ts.
- */
 async function turnTipsOff(context: BrowserContext) {
   await context.addInitScript(() => {
     try {
       if (localStorage.getItem('otb-tips') === null) localStorage.setItem('otb-tips', JSON.stringify({seen: [], off: true}));
     } catch {
-      // Pages without storage (about:blank) show no tips either.
     }
   });
 }
 
-/** Where blocked requests are recorded: the running test's list, while a test runs. */
 let requestSink: string[] | null = null;
-/** Requests blocked outside a test; blockedOutsideTestsReport reports them. */
 const blockedOutsideTests: string[] = [];
-/** The list a request blocked now belongs to. */
 const currentBlockedList = () => requestSink ?? blockedOutsideTests;
 
 const LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]'];
-/**
- * The Vercel Toolbar that Vercel adds to preview deployments (the hosts that
- * lib/security/csp.ts allows with `vercelToolbar`). Allowed only when the tests run against a
- * deployment.
- */
 const VERCEL_TOOLBAR_HOSTNAMES = ['vercel.live', 'vercel.com', 'assets.vercel.com'];
 
-/** True for the site under test, local addresses, and Vercel's toolbar on a deployment. */
 function isSiteOrLocal(url: URL, siteURL: URL | undefined): boolean {
   if (url.host === siteURL?.host || LOCAL_HOSTNAMES.includes(url.hostname)) return true;
   const deployed = siteURL !== undefined && !LOCAL_HOSTNAMES.includes(siteURL.hostname);
@@ -109,13 +70,8 @@ function isSiteOrLocal(url: URL, siteURL: URL | undefined): boolean {
 const isExternal = (url: URL, siteURL: URL | undefined) =>
   (url.protocol === 'http:' || url.protocol === 'https:') && !isSiteOrLocal(url, siteURL);
 
-/** Requests that can go out through the `request` fixture (APIRequestContext). */
 const REQUEST_METHODS = new Set(['fetch', 'get', 'post', 'put', 'patch', 'delete', 'head']);
 
-/**
- * The `request` fixture, with every request to an external host refused and recorded. It
- * resolves a relative address against `baseURL`, as the fixture does.
- */
 function guardRequestContext(request: APIRequestContext, baseURL: string | undefined, blocked: string[]): APIRequestContext {
   const siteURL = baseURL ? new URL(baseURL) : undefined;
   return new Proxy(request, {
@@ -135,13 +91,6 @@ function guardRequestContext(request: APIRequestContext, baseURL: string | undef
   });
 }
 
-/**
- * Guards a browser context against external requests. Its route blocks and records every
- * request to another host that no route of the test answers (routes registered later, a
- * test's own, run first, so this one only sees what nothing else handled). Routes do not cover
- * the context's own API requests (context.request, page.request), so those are wrapped like
- * the `request` fixture, for the pages the context has and every page it opens later.
- */
 const guardedContexts = new WeakSet<BrowserContext>();
 
 async function guardContext(context: BrowserContext, baseURL: string | undefined, blocked: string[]) {
@@ -162,13 +111,6 @@ async function guardContext(context: BrowserContext, baseURL: string | undefined
   context.on('page', guardPage);
 }
 
-/**
- * Makes the worker's browser guard every context it creates: browser.newContext() and
- * browser.newPage() (which opens a context of its own), however the test reaches the browser
- * (the `browser` fixture under any name, page.context().browser()). The methods are replaced on
- * the instance, so every reference to it gets them. A context records into the list of the
- * test that created it (or, outside a test, into blockedOutsideTests).
- */
 function guardBrowser(browser: Browser, baseURL: string | undefined) {
   const newContext = browser.newContext.bind(browser);
   const newPage = browser.newPage.bind(browser);
@@ -184,13 +126,6 @@ function guardBrowser(browser: Browser, baseURL: string | undefined) {
   };
 }
 
-/**
- * The test runner's own fetch(), guarded from the moment this module is first imported (before
- * a spec's own code runs, in the runner process and in the workers), so that module-scope calls
- * and a fetch captured at module scope (`const realFetch = globalThis.fetch`) are guarded too.
- * In a test, a blocked call rejects and counts for the test. Outside a test it throws at once,
- * so a call nobody awaits still breaks the file: loading it fails, in the runner too.
- */
 const SITE_URL_FROM_ENV = process.env.BASE_URL ? new URL(process.env.BASE_URL) : undefined;
 const originalFetch = globalThis.fetch;
 const guardedFetch = Object.assign((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -198,7 +133,7 @@ const guardedFetch = Object.assign((input: string | URL | Request, init?: Reques
   try {
     url = new URL(input instanceof Request ? input.url : String(input));
   } catch {
-    return originalFetch(input, init); // not an absolute address: fetch() refuses it itself
+    return originalFetch(input, init);
   }
   if (!isExternal(url, SITE_URL_FROM_ENV)) return originalFetch(input, init);
   if (modelInspectOn && url.protocol === 'https:' && INSPECTOR_HOSTNAMES.includes(url.hostname)) return originalFetch(input, init);
@@ -275,8 +210,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     } finally {
       requestSink = null;
     }
-    // Runs after the test and its afterEach hooks. A test marked test.fail() would count this
-    // failure as the one it expects and pass: make the failure unexpected, so it is loud.
     if (blocked.length === 0) return;
     testInfo.expectedStatus = 'passed';
     throw new Error(`Requests to external hosts that no test route answered (tests must never reach real sites):\n${blocked.join('\n')}`);
@@ -294,7 +227,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
   request: async ({request, baseURL, externalRequests}, use) => {
     await use(guardRequestContext(request, baseURL, externalRequests));
   },
-  // Against a protected Vercel deployment, send the bypass secret to that site only.
   tips: [false, {option: true}],
   allowedPageErrors: [[], {option: true}],
   pageErrors: async ({allowedPageErrors}, use) => {
@@ -318,9 +250,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       throw report;
     }
   },
-  pageClock: [false, {option: true}],
-  page: async ({page, pageClock}, use, testInfo) => {
-    if (pageClock) await page.clock.install();
+  page: async ({page}, use, testInfo) => {
     await use(page);
     if (testInfo.status !== testInfo.expectedStatus && testInfo.status !== 'skipped') {
       await watches.get(page.context())?.probe();
@@ -408,7 +338,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
 
 export {expect};
 
-/** Asserts that the tier rows have exactly these names, in this order. */
 export async function expectTierNames(tierList: TierListPage, names: string[]) {
   await expect(tierList.tiers).toHaveCount(names.length);
   for (let index = 0; index < names.length; index++) {

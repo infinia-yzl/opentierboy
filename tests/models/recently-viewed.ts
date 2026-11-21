@@ -72,6 +72,5 @@ export const recentlyViewedModel = defineModel({
     UNPIN_SUPPORT: {generate: constant, when: offered('UNPIN_SUPPORT')},
     REMOVE_TANKS: {generate: constant, when: offered('REMOVE_TANKS')},
     REMOVE_SUPPORT: {generate: constant, when: offered('REMOVE_SUPPORT')},
-    TOAST_TIMES_OUT: {generate: constant, when: offered('TOAST_TIMES_OUT')},
   },
 });

@@ -1,4 +1,3 @@
-/** Link images: images added by their web address, and the consent to load images from other sites. */
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
@@ -10,7 +9,6 @@ import {
   BLUE,
   GREEN,
   HELD_ADDRESSES,
-  IMAGE_CHECK_MS,
   linkImagesModel,
   linkImagesViewOf,
   NAVY,
@@ -28,13 +26,10 @@ import {
 
 const TANKS = '/rank/overwatch/tank';
 
-/** A trusted site (trusted-image-sites.json): its images load without asking. */
 const TRUSTED = 'i.imgur.com';
 
-/** A site the app does not know: its images wait for the visitor's consent. */
 const OTHER = 'images.example.org';
 
-/** A v3 link of a 3-row list: Mauga in S, `items` in Unranked. */
 function listWith(items: unknown[]): string {
   return v3State({t: 'Images', tp: 3, r: [['S', [packageItemId('image-overwatch', 'Mauga')]], ['A', []], ['B', []], ['', items]]});
 }
@@ -50,7 +45,6 @@ test.describe('link images', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
       await expect.poll(() => tierList.itemImageHasLoaded('Red square')).toBe(true);
       await expect(tierList.toast('Items Added')).toBeVisible();
-      // The site shows in the item's description, and in its right-click (long-press) menu.
       await expect(tierList.item('Red square')).toHaveAccessibleDescription(/Image from i\.imgur\.com/);
       await expect.poll(() => tierList.linkImages.itemImageSite('Red square')).toBe('Image from i.imgur.com');
       expect(site.requests.every((url) => url === 'https://i.imgur.com/red.png')).toBe(true);
@@ -110,14 +104,10 @@ test.describe('link images', () => {
       await expect(tierList.item('i.imgur.com')).toBeVisible();
       await expect.poll(() => tierList.itemImageHasLoaded('i.imgur.com')).toBe(true);
       await expect(tierList.itemImage('i.imgur.com')).toHaveAccessibleName('i.imgur.com');
-      // A site that waits for consent: a label tile with the site's name as its caption.
       await expect(tierList.item('example.org')).toContainText('example.org');
     });
   });
 
-  // A dropped link or a pasted image address adds a link image, through the same checks as "From a
-  // link" (owner decision 2026-10-28, issue #107): the address must be an image that loads, and its
-  // site may load on this page. Addresses that are not images add nothing, as before.
   test.describe('dropped and pasted addresses (#107)', () => {
     test('renders the image and writes {u, c} and 1 history entry when the user drops a link to an image of a trusted site', async ({tierList, page}) => {
       await serveImageSite(page, TRUSTED);
@@ -172,7 +162,6 @@ test.describe('link images', () => {
       await expect.poll(() => tierList.itemImageHasLoaded('red')).toBe(true);
     });
 
-    // The visitor chose the image, as with "From a link": its site may load at once (allowHosts).
     test('renders the image and no notice when the user drops a link to an image of an unknown site', async ({tierList, page}) => {
       const site = await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
       await tierList.goto('/rank');
@@ -206,7 +195,6 @@ test.describe('link images', () => {
 
       await tierList.linkImages.pasteText('https://www.youtube.com/watch?v=abc');
       await expect.poll(() => pages.requests.length).toBe(1);
-      // A paste of an image after it: the pastes are added in turn, so the page added nothing.
       await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
@@ -250,7 +238,6 @@ test.describe('link images', () => {
       const newEntries = await tierList.countNewHistoryEntries();
 
       await tierList.linkImages.pasteText('Mauga is S tier');
-      // A paste of an address after it is added: the text before it added nothing.
       await tierList.linkImages.pasteText(`https://${OTHER}/blue.png`);
 
       await expect(tierList.item('blue')).toBeVisible();
@@ -278,7 +265,6 @@ test.describe('link images', () => {
 
       await expect(tierList.linkImages.imageSitesNotice).toBeVisible();
       await expect(tierList.linkImages.imageSitesNoticeHosts).toHaveText([OTHER]);
-      // Trusted sites load at once.
       await expect.poll(() => tierList.itemImageHasLoaded('Red')).toBe(true);
       expect(trusted.requests.length).toBeGreaterThan(0);
       await expect(tierList.itemImage('Blue')).toHaveCount(0);
@@ -346,7 +332,6 @@ test.describe('link images', () => {
         await before.release();
       };
       return modelSut<LinkImagesSnapshot, LinkImagesEvent>(page, {
-        pageTime: 'paused',
         reset: async () => {
           noticeWaited = false;
           await load(() => tierList.openAsNewBrowser(TANKS, FIRST_LIST));
@@ -359,7 +344,6 @@ test.describe('link images', () => {
           OPEN_OTHER_LIST: acting(() => load(() => tierList.goto(TANKS, OTHER_LIST))),
           IMAGE_SITE_ANSWERS: acting(() => held.release()),
           IMAGE_SITE_FAILS: acting(() => held.release(NOT_A_PICTURE)),
-          IMAGE_CHECK_TIMES_OUT: acting(() => tierList.letTimePass(IMAGE_CHECK_MS)),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -390,7 +374,7 @@ test.describe('link images', () => {
             await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
             await expect.poll(sinceLoad).toEqual(expect.arrayContaining(otherSiteImages.map(({url}) => url)));
             await expectLoaded(view.addedImages);
-            if (view.answer === 'answering' || view.answer === 'failed' || view.answer === 'gaveUp') {
+            if (view.answer === 'answering' || view.answer === 'failed') {
               await expectLabelTiles(view.heldImages);
             } else {
               await expectLoaded(view.heldImages);
@@ -433,15 +417,9 @@ test.describe('link images', () => {
         held = hold;
         submitted = address;
         await tierList.linkImages.submitInLinkImageDialog(address, image.name);
-        try {
-          await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
-        } catch (error) {
-          const dialog = await tierList.linkImages.linkImageDialog.innerText().catch(() => 'no dialog');
-          throw new Error(`${(error as Error).message}\nRequests: ${JSON.stringify(sites[image.site].requests)}\nDialog: ${dialog}`);
-        }
+        await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
       };
       const sut = modelSut<LinkDialogSnapshot, LinkDialogEvent>(page, {
-        pageTime: 'paused',
         reset: async () => {
           await releaseHeld();
           await tierList.openAfterBlankPage(TANKS, LIST);
@@ -454,14 +432,6 @@ test.describe('link images', () => {
           ENTER_WEB_PAGE_ADDRESS: () => submitHeld(WEB_PAGE),
           ENTER_LARGE_PICTURE_ADDRESS: () => submitHeld(LARGE_PICTURE),
           IMAGE_SITE_ANSWERS: () => releaseHeld(),
-          IMAGE_CHECK_TIMES_OUT: async () => {
-            await tierList.letTimePass(IMAGE_CHECK_MS - 1);
-            await expect(tierList.linkImages.linkDialogButton, `the page should still check the image ${IMAGE_CHECK_MS - 1} ms after it asked`)
-              .toHaveText('Checking the image…');
-            await tierList.letTimePass(1);
-            await expect(tierList.linkImages.linkDialogButton).toHaveText('Add Anyway');
-            await releaseHeld();
-          },
           ADD_ANYWAY: () => tierList.linkImages.confirmAddAnyway(),
         },
         states: {

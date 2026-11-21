@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const linkDialogMachine = createMachine({
   id: 'linkDialog',
-  description: 'The dialog “Add an Image from a Link” (Add images › From a link). An address that fails the address check is refused at once. Any other address is checked by loading its image once: the button says “Checking the image…” until the image site answers, which it does when the test says so. A picture is added, and the dialog closes. An answer that is not a picture, a picture that is too large, or no answer within 10 seconds shows why, and “Add Anyway” adds the image as a tile with its name. Escape closes the dialog and adds nothing, also while the image is checked: a late answer then changes nothing. Each site is a trusted site, with one address: i.imgur.com has a picture, upload.wikimedia.org has a web page, and static.wikia.nocookie.net has a picture 8,193 pixels wide.',
+  description: 'The dialog “Add an Image from a Link” (Add images › From a link). An address that fails the address check is refused at once. Any other address is checked by loading its image once: the button says “Checking the image…” until the image site answers, which it does when the test says so. A picture is added, and the dialog closes. An answer that is not a picture or a picture that is too large shows why, and “Add Anyway” adds the image as a tile with its name. Escape closes the dialog and adds nothing, also while the image is checked: a late answer then changes nothing. Each site is a trusted site, with one address: i.imgur.com has a picture, upload.wikimedia.org has a web page, and static.wikia.nocookie.net has a picture 8,193 pixels wide.',
   initial: 'closed',
   states: {
     closed: {
@@ -31,7 +31,6 @@ export const linkDialogMachine = createMachine({
           description: 'The page asked i.imgur.com for the picture, and the site has not answered: the button says “Checking the image…” and is off.',
           on: {
             IMAGE_SITE_ANSWERS: {target: '#linkDialog.added.picture'},
-            IMAGE_CHECK_TIMES_OUT: {target: 'timedOut'},
             CANCEL: {target: '#linkDialog.cancelledWhileChecking'},
           },
         },
@@ -56,10 +55,6 @@ export const linkDialogMachine = createMachine({
         tooLarge: {
           description: 'The site answered with a picture wider than 8,192 pixels: the message says the image is too large. The button says “Add Anyway”.',
           on: {ADD_ANYWAY: {target: '#linkDialog.added.largePictureTile'}},
-        },
-        timedOut: {
-          description: 'The site had not answered after 10 seconds, so the page gave up: the message says the image took too long. A late answer changes nothing. The button says “Add Anyway”.',
-          on: {ADD_ANYWAY: {target: '#linkDialog.added.picture'}},
         },
       },
     },

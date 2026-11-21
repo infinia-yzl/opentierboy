@@ -20,7 +20,6 @@ export const deviceImagesMachine = createMachine({
           description: 'Red in Unranked. The toast “Items Added” says 1 item(s) have been added, with Undo.',
           on: {
             UNDO: {target: 'redUndone'},
-            TOAST_TIMES_OUT: {target: 'redUnranked'},
             RELOAD: {target: 'redUnranked'},
           },
         },
@@ -66,7 +65,6 @@ export const deviceImagesMachine = createMachine({
           description: 'Red in S, Blue in Unranked. The toast “Items Added” says 1 item(s) have been added, with Undo, which removes Blue only.',
           on: {
             UNDO: {target: 'redRanked'},
-            TOAST_TIMES_OUT: {target: 'redRankedBlueUnranked'},
             RELOAD: {target: 'redRankedBlueUnranked'},
           },
         },

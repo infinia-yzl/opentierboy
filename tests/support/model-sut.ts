@@ -4,7 +4,6 @@ import type {AnyMachineSnapshot, EventObject} from 'xstate';
 import type {ConsoleMessage, Page, Response} from '@playwright/test';
 import {expectHydrated} from './hydrated';
 import {bypassSecret} from './vercel-bypass';
-import {pausePageTime} from './page-clock';
 
 async function pageStarted(page: Page) {
   await page.waitForLoadState('domcontentloaded');
@@ -14,7 +13,6 @@ async function pageStarted(page: Page) {
 export interface ModelSutConfig<TSnapshot extends AnyMachineSnapshot, TEvent extends EventObject>
   extends PlaywrightSutConfig<Page, TSnapshot, TEvent> {
   readonly pages?: () => readonly (Page | null | undefined)[];
-  readonly pageTime?: 'paused';
 }
 
 const REJECTION_PREFIX = '[xstate-test] unhandledrejection: ';
@@ -142,17 +140,13 @@ function withOtherPages<TSnapshot extends AnyMachineSnapshot, TEvent extends Eve
 
 export function modelSut<TSnapshot extends AnyMachineSnapshot, TEvent extends EventObject>(
   page: Page,
-  {pages, pageTime, ...config}: ModelSutConfig<TSnapshot, TEvent>,
+  {pages, ...config}: ModelSutConfig<TSnapshot, TEvent>,
 ): TestSut<TSnapshot, TEvent> {
   const trace = config.trace ?? (bypassSecret() ? 'off' : 'retain-on-failure');
   const sut = createPlaywrightSut<Page, TSnapshot, TEvent>(page, {
     settle: pageStarted,
     ...config,
     trace,
-    reset: async (target) => {
-      if (pageTime === 'paused') await pausePageTime(target);
-      await config.reset?.(target);
-    },
   });
   return pages ? withOtherPages(sut, pages, pageStarted, {testInfo: config.testInfo, trace}) : sut;
 }
