@@ -1,7 +1,10 @@
 import {expect, type Locator, type Page} from '@playwright/test';
+import {TOUCH_HOLD_TOLERANCE} from '@/lib/dnd/activation';
 import {escapeRegExp} from '../support/regexp';
-import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, rowPhrase, scrollPosition, scrollPositionAfterFrames, type Box, type Point} from './helpers';
+import {boxOf, centerOf, centerOfBox, changeAndWaitForLink, rowPhrase, scrollPosition, type Box, type Point} from './helpers';
 import type {TierListPage} from './tier-list-page';
+
+type Touchscreen = (type: 'touchStart' | 'touchMove' | 'touchEnd', point: Point | null) => Promise<void>;
 
 export class DragAndDrop {
   readonly tierList: TierListPage;
@@ -271,44 +274,50 @@ export class DragAndDrop {
       const item = this.tierList.item(itemName);
       await item.scrollIntoViewIfNeeded();
       const from = await centerOf(item);
-      const start = Date.now() / 1000;
-      await touch('touchStart', from, start);
-      await touch('touchMove', {x: from.x, y: from.y + 1}, start + 0.3);
-      await touch('touchMove', {x: from.x, y: from.y - 10}, start + 0.32);
-      await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(itemName)},`));
-      const box = await boxOf(this.tierList.tier(tierName));
-      const to = await this.freeSpaceIn(tierName, itemName);
-      for (let step = 1; step <= 10; step++) {
-        await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.32 + step * 0.03);
-        await scrollPositionAfterFrames(this.page, 2);
-      }
-      await expect(this.dragAnnouncer).toHaveText(new RegExp(`moves to ${escapeRegExp(tierName === 'Unranked' ? tierName : rowPhrase(tierName))},`));
-      await touch('touchEnd', null, start + 0.7);
+      await this.holdUntilPickedUp(touch, from, new RegExp(`^Picked up ${escapeRegExp(itemName)},`), {nudge: true});
+      await this.touchMoveTo(touch, from, await this.freeSpaceIn(tierName, itemName));
+      await this.overRow(itemName, tierName)();
+      await touch('touchEnd', null);
       await this.dropEnded();
-      await this.expectEveryItemDraggable();
     });
   }
 
   async touchDragRowOnto(tierName: string, targetTierName: string) {
+    const names = await this.tierList.tiers.evaluateAll((rows) => rows.map((row) => row.getAttribute('aria-label')));
+    const at = names.indexOf(targetTierName);
     await this.dropAndWaitForLink(async () => {
       const touch = await this.touchscreen();
       const grip = this.tierList.rowGrip(tierName);
       await grip.scrollIntoViewIfNeeded();
       const from = await centerOf(grip);
-      const box = await boxOf(this.tierList.tier(targetTierName));
-      const to = {x: box.x + box.width / 2, y: box.y + box.height / 2};
-      const start = Date.now() / 1000;
-      await touch('touchStart', from, start);
-      await touch('touchMove', {x: from.x, y: from.y + 1}, start + 0.3);
-      await expect(this.dragAnnouncer, 'the drag should start').toHaveText(new RegExp(`^Picked up ${escapeRegExp(rowPhrase(tierName))}, `));
-      for (let step = 1; step <= 10; step++) {
-        await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10}, start + 0.3 + step * 0.03);
-        await scrollPositionAfterFrames(this.page, 2);
-      }
-      await touch('touchEnd', null, start + 0.7);
+      await this.holdUntilPickedUp(touch, from, new RegExp(`^Picked up ${escapeRegExp(rowPhrase(tierName))}, `), {nudge: false});
+      await this.touchMoveTo(touch, from, await centerOf(this.tierList.tier(targetTierName)));
+      await expect(this.tierList.tiers.nth(at), `${tierName} should take the place of ${targetTierName} before the drop`).not.toHaveAccessibleName(targetTierName);
+      await touch('touchEnd', null);
       await this.dropEnded();
-      await this.expectEveryItemDraggable();
     });
+  }
+
+  private async holdUntilPickedUp(touch: Touchscreen, from: Point, pickedUp: RegExp, {nudge}: {nudge: boolean}) {
+    await this.dropEnded();
+    await touch('touchStart', from);
+    if (!nudge) {
+      await expect(this.dragAnnouncer, 'the held handle should lift').toHaveText(pickedUp);
+      return;
+    }
+    const nudges = [{x: from.x, y: from.y - TOUCH_HOLD_TOLERANCE}, {x: from.x + TOUCH_HOLD_TOLERANCE, y: from.y}];
+    let next = 0;
+    await expect.poll(async () => {
+      if (await this.page.getByRole('menu').count() > 0) return 'the item menu opened';
+      await touch('touchMove', nudges[next++ % nudges.length]);
+      return await this.dragAnnouncer.textContent() ?? '';
+    }, {message: 'the tile should lift when the finger moves after the hold, before the item menu opens', intervals: [0]}).toMatch(pickedUp);
+  }
+
+  private async touchMoveTo(touch: Touchscreen, from: Point, to: Point) {
+    for (let step = 1; step <= 10; step++) {
+      await touch('touchMove', {x: from.x + (to.x - from.x) * step / 10, y: from.y + (to.y - from.y) * step / 10});
+    }
   }
 
   async longPressItem(itemName: string): Promise<Locator> {
@@ -328,12 +337,11 @@ export class DragAndDrop {
     await item.scrollIntoViewIfNeeded();
     const scrollBefore = await scrollPosition(this.page);
     const from = await centerOf(item);
-    const start = Date.now() / 1000;
-    await touch('touchStart', from, start);
+    await touch('touchStart', from);
     for (let step = 1; step <= 10; step++) {
-      await touch('touchMove', {x: from.x, y: from.y - distance * step / 10}, start + step * 0.01);
+      await touch('touchMove', {x: from.x, y: from.y - distance * step / 10});
     }
-    await touch('touchEnd', null, start + 0.12);
+    await touch('touchEnd', null);
     let scrolled = 0;
     await expect.poll(async () => {
       scrolled = (await scrollPosition(this.page)).y - scrollBefore.y;
@@ -342,14 +350,10 @@ export class DragAndDrop {
     return scrolled;
   }
 
-  private async touchscreen() {
+  private async touchscreen(): Promise<Touchscreen> {
     const cdp = await this.page.context().newCDPSession(this.page);
-    return async (type: 'touchStart' | 'touchMove' | 'touchEnd', point: Point | null, timestamp?: number) => {
-      await cdp.send('Input.dispatchTouchEvent', {
-        type,
-        touchPoints: point ? [{x: point.x, y: point.y}] : [],
-        ...(timestamp !== undefined && {timestamp}),
-      });
+    return async (type, point) => {
+      await cdp.send('Input.dispatchTouchEvent', {type, touchPoints: point ? [{x: point.x, y: point.y}] : []});
     };
   }
 

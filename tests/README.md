@@ -317,10 +317,13 @@ way of the dragged one. The list itself changes only on the drop, with one histo
 - **Announcements.** The live region is `dragAnnouncer`. dnd-kit gives it the role `status`
   and no accessible name, so the page object finds it by its id, which starts with
   `dnd-kit-announcement`. It is the one locator that reads a library's markup. Wait for its text.
-- **Touch.** `touchDragItemToTier`, `longPressItem` and `swipeUpFromItem` send touch events
-  through the Chrome DevTools Protocol, so those tests run only on Chromium phones
-  (`mobile-chrome`). The hold before a touch drag lives in the event times, so the test does
-  not wait for it; the long press waits until the item menu shows.
+- **Touch.** `touchDragItemToTier`, `touchDragRowOnto`, `longPressItem` and `swipeUpFromItem`
+  send touch events through the Chrome DevTools Protocol, so those tests run only on Chromium
+  phones (`mobile-chrome`). The events run in real time. A row grip lifts after the hold, so
+  the step waits for "Picked up". An item tile lifts when the finger moves after the hold, so
+  the step nudges the finger by `TOUCH_HOLD_TOLERANCE` pixels again and again until the
+  announcer says "Picked up", and fails if the item menu opens first. The long press waits
+  until the item menu shows.
 - **Rows that wrap** are tested in a window of 1280 x 1400 pixels: twelve tiles do not fit on
   one line.
 

@@ -24,15 +24,6 @@ export async function scrollPosition(page: Page): Promise<Point> {
   return page.evaluate(() => ({x: window.scrollX, y: window.scrollY}));
 }
 
-export async function scrollPositionAfterFrames(page: Page, frames = 5): Promise<Point> {
-  return page.evaluate(async (count) => {
-    for (let frame = 0; frame < count; frame++) {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-    return {x: window.scrollX, y: window.scrollY};
-  }, frames);
-}
-
 export async function boxOf(locator: Locator): Promise<Box> {
   const box = await locator.boundingBox();
   if (!box) throw new Error(`Element is not visible: ${locator}`);
