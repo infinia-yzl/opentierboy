@@ -447,6 +447,23 @@ test.describe('snapshot files', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(39);
     });
 
+    test('renders the toast "Files not added" when the user pastes an image right after dropping a list file', async ({tierList, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await tierList.goto('/rank');
+      const snapshot = listFile('list.png', {title: 'A list', images: [{id: 'listImage001', label: 'In the file', png: RED_SQUARE}]});
+
+      await tierList.files.sendFileEventsAtOnce([
+        {event: 'paste', file: imageFile('first.png', BLUE_SQUARE)},
+        {event: 'drop', file: snapshot},
+        {event: 'paste', file: imageFile('second.png', RED_SQUARE)},
+      ]);
+
+      await expect(tierList.files.openListDialog).toBeVisible();
+      await expect(tierList.toast('Files not added')).toContainText('A list file was being opened, so they were not added: second.png.');
+      await tierList.files.cancelOpenList();
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['first']);
+    });
+
     test('renders the toast "Files not added" and writes no new forward entry when the user goes Back while pastes wait', async ({tierList, page, browserName}) => {
       test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));

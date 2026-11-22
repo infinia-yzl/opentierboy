@@ -77,6 +77,21 @@ test.describe('drag and drop', () => {
 
       await expect(tierList.itemsIn('S')).toHaveText(['Sigma', 'Mauga', 'Winston']);
     });
+
+    test('writes no history entry and no new URL when the user moves an item right and back with the keyboard and drops it', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston', 'Sigma']}));
+      const address = tierList.page.url();
+      const entries = await tierList.historyLength();
+
+      await tierList.drag.moveItemWithKeyboard('Winston', ['ArrowRight', 'ArrowLeft'], {waitForLink: false});
+
+      await expect(tierList.drag.dragAnnouncer).toHaveText('Dropped Winston. It stays in row S, position 2 of 3.');
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga', 'Winston', 'Sigma']);
+      await expect(tierList.page).toHaveURL(address);
+      await tierList.drag.moveItemWithKeyboard('Winston', ['ArrowLeft']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Winston', 'Mauga', 'Sigma']);
+      expect(await tierList.historyLength(), 'only the move that follows should add a history entry').toBe(entries + 1);
+    });
   });
 
   test.describe('rows that wrap', () => {

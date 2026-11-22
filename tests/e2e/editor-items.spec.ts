@@ -53,6 +53,15 @@ test.describe('editor items', () => {
       await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
     });
 
+    test('renders the toast "Item restored" when the user clicks Undo in the toast "Item deleted"', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga', 'Winston']}));
+      await tierList.items.deleteItem('Mauga');
+
+      await tierList.undoFromToast('Item deleted');
+
+      await expect(tierList.toast('Item restored')).toBeVisible();
+    });
+
     test('renders button "Share" uncovered and clickable when the user confirms Remove All', async ({tierList}) => {
       await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga']}));
 
