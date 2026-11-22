@@ -456,6 +456,10 @@ disagree, and its error lists every step with the machine's state.
   `walkItems` (`pathItems`). It also checks that the parts hold every sequence of the walk, each
   part within `MAX_PART_STEPS`. The Playwright test of a part proves that the page does what the
   machine says at each step of that part.
+- **Proof that a check reads each value.** `tests/proof-log.md` holds one deliberate break for
+  each expected value of each model, with the walk that failed against it. For a new value,
+  change it in the model file, run the walk, see it fail, put the old value back and add a row.
+  A walk that still passes has a gap: fix the check, or list the gap in the log.
 - **Seeing a machine.** Copy the whole file, open the [Stately editor](https://editor.stately.ai)
   and paste it into Import Code. The editor draws the machine as it is in the file. A history
   state shows as **H**; its default target is in the file, and the editor does not draw it.
