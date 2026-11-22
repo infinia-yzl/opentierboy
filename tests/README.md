@@ -177,7 +177,10 @@ them, and it does not check how they do it.
 - **Layout only where the layout is the behaviour.** A hand-written spec checks a position or a
   size on screen when that position is what our code decides: the layouts of `editor-layout`,
   `zen-layouts` and `tile-shapes`, the label position, or where a tip or the Zen bar sits. A
-  model check reads text, roles and counts.
+  model check reads text, roles and counts. It reads a position, a size or a colour only where
+  its machine has a state for it: the label position in the history walk, the frame's shape and
+  cover colour in the Zen layout walk, and the colours, the font and the tile size in the
+  appearance walk.
 - **Model checks only read.** A state check asserts what the page shows. It opens no menu and
   presses no key.
 - **A flaky test is a bug.** On CI a test that passes only on a retry fails the run

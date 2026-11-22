@@ -236,7 +236,7 @@ test.describe('history', () => {
         },
         states: {
           '*': async (_page, snapshot) => {
-            const {version, versions, itemLabels} = historyViewOf(snapshot);
+            const {version, versions, labelPosition, itemLabels} = historyViewOf(snapshot);
             const rows: Readonly<Record<string, readonly string[]>> = {
               S: ['Reinhardt'], A: TRAY.slice(0, version - 1), B: [], C: [], F: [], Unranked: TRAY.slice(version - 1),
             };
@@ -245,6 +245,8 @@ test.describe('history', () => {
               await expect.poll(() => tierList.itemNamesIn(row), {message: `the items of row ${row}`}).toEqual(names);
             }
             await expect(tierList.itemsIn('S')).toHaveText([itemLabels ? 'Reinhardt' : '']);
+            await expect.poll(() => tierList.rows.tierLabelIsAbove('S', 'Reinhardt'), {message: `the label of row S should sit ${labelPosition === 'top' ? 'above' : 'beside'} its items`})
+              .toBe(labelPosition === 'top');
             await expect.poll(() => rowAIn(page.url()), {message: `the address should hold version ${version}`})
               .toEqual(TRAY.slice(0, version - 1).map((name) => packageItemId('image-overwatch', name)));
             if (wrote) addresses[version - 1] = page.url();
