@@ -114,7 +114,6 @@ const ItemCreator: React.FC<ItemCreatorProps> = ({onItemsCreate}) => {
 
   return (
     <Form {...form}>
-      {/* handleSubmit runs in the submit event: onSubmit clears the file input through its ref. */}
       <form onSubmit={(event) => form.handleSubmit(onSubmit)(event)} className="flex flex-col overflow-y-hidden">
         <FormField
           control={form.control}

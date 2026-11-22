@@ -31,13 +31,12 @@ import {EditorTips} from "@/components/EditorTips";
 
 interface TierListManagerProps {
   initialItemSet?: ItemSet;
-  initialState?: string;
   title?: string;
 }
 
 /** The tier list editor. The list lives in the store (contexts/TierContext.tsx). */
-const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, initialState, title}) => (
-  <TierListProvider initialItemSet={initialItemSet} initialState={initialState} pageTitle={title ?? ''}>
+const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, title}) => (
+  <TierListProvider initialItemSet={initialItemSet} pageTitle={title ?? ''}>
     <CustomImagesProvider>
       <TierListEditor/>
       <EditorTips/>

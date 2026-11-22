@@ -4,26 +4,30 @@ import type {ItemLike, TierLike} from './model';
  * Names of rows and items as people see them. Announcements use these, never internal ids.
  */
 
-/**
- * The accessible name of a tier row, the same rule as the editor's row groups
- * (components/DragDropTierList.tsx): its label, or "Unranked" for the unnamed last row, or
- * "Tier <n>" for another row whose label was cleared.
- */
 export function tierLabel(tiers: readonly TierLike[], index: number): string {
-  const name = trimmed(tiers[index]?.name);
-  if (name) return name;
-  return index === tiers.length - 1 ? 'Unranked' : `Tier ${index + 1}`;
+  return index === tiers.length - 1 && !trimmed(tiers[index]?.name) ? 'Unranked' : rowLabel(tiers[index]?.name, index);
 }
 
-/**
- * A row as it reads inside a sentence: "tier S", "Unranked", "Tier 3". A label that already
- * starts with the word "tier" stays as it is: "Tier 10" reads "Tier 10".
- */
 export function tierPhrase(tiers: readonly TierLike[], index: number): string {
-  const label = tierLabel(tiers, index);
-  const name = trimmed(tiers[index]?.name);
-  if (!name || /^tier\b/i.test(name)) return label;
-  return `tier ${label}`;
+  return index === tiers.length - 1 && !trimmed(tiers[index]?.name) ? 'Unranked' : rowPhrase(tiers[index]?.name, index);
+}
+
+export function rowLabel(name: unknown, index: number): string {
+  return trimmed(name) || `Row ${index + 1}`;
+}
+
+export function rowPhrase(name: unknown, index: number): string {
+  const label = rowLabel(name, index);
+  return !trimmed(name) || /^(row|tier)\b/i.test(label) ? label : `row ${label}`;
+}
+
+export function rowGripName(name: unknown, index: number): string {
+  return `Move ${rowPhrase(name, index)}`;
+}
+
+export function rowStackName(name: unknown, index: number, count: number): string {
+  const phrase = rowPhrase(name, index);
+  return `Move the ${count} item${count === 1 ? '' : 's'} of ${phrase}`;
 }
 
 /** An item's name: its label, or "Unnamed item" when the label is empty. */

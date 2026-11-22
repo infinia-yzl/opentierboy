@@ -1,17 +1,9 @@
 import type ImageSetConfig from "@/models/ImageSet";
 import type {ImageSetPackage} from "@/models/ImageSet";
+import type {ItemSet} from "@/models/ItemSet";
 import {createSEOFriendlyTagSlug, slugify} from "@/lib/utils";
+import {MAX_TITLE_LENGTH, shorten} from "@/lib/text";
 
-/**
- * Which image set and tag a /rank path names, and what HTTP answer the path gets. Pure
- * functions over the image-set config: the editor page (app/rank/[[...slug]]/page.tsx) and the
- * proxy (proxy.ts) share them.
- *
- * The proxy decides the status before the page renders. The page streams (app/loading.tsx is a
- * Suspense boundary), and a streamed page always answers 200: a redirect or a "not found" from
- * the page itself reaches the browser only as a 200 page with a client-side redirect or a
- * `noindex` tag.
- */
 
 export interface RankSet {
   packageName: string;
@@ -68,4 +60,45 @@ export function rankRoute(config: ImageSetConfig, segments: readonly string[], h
   if (hasState) return {kind: 'page', legacy};
   if (!set || tagSlug === undefined || findRankTag(set.packageData, tagSlug) === null) return {kind: 'notFound'};
   return {kind: 'page', legacy};
+}
+
+export const SHARED_LIST_SEGMENT = '~list';
+
+export function rankSegments(pathname: string): string[] | null {
+  try {
+    return pathname.split('/').slice(2).filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null;
+  }
+}
+
+export function rankItemSet(config: ImageSetConfig, segments: readonly string[]): ItemSet | null {
+  const [nameOrPackage, tagSlug] = segments;
+  if (nameOrPackage === undefined || tagSlug === undefined) return null;
+  const set = findRankSet(config, nameOrPackage);
+  if (!set) return null;
+  const {packageName, packageData} = set;
+
+  const originalTag = findRankTag(packageData, tagSlug);
+  if (!originalTag) return null;
+
+  const images = originalTag === 'all'
+    ? packageData.images.map((img) => img.filename)
+    : packageData.images.filter(image => image.tags.includes(originalTag)).map(img => img.filename);
+
+  return {
+    packageName,
+    packageDisplayName: packageData.displayName,
+    tagName: originalTag,
+    tagTitle: originalTag === 'all' ? 'All Items' : packageData.tags[originalTag].title,
+    images,
+  };
+}
+
+export function rankItemSetTitle(itemSet: ItemSet | null): string {
+  return itemSet ? `${itemSet.packageDisplayName} - ${itemSet.tagTitle}` : 'Custom Tier List';
+}
+
+export function rankPageTitle(pageTitle: string, listTitle: string | undefined): string {
+  return shorten(listTitle || pageTitle, MAX_TITLE_LENGTH);
 }

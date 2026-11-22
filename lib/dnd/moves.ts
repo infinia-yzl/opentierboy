@@ -1,18 +1,6 @@
 import type Tier from '@/models/Tier';
 import type {ItemLike, ItemPosition, TierLike} from './model';
 
-/**
- * List changes made by dragging: moving items between and inside rows, reordering rows, and
- * adding or removing rows (#182). Pure functions. They never change their input. They return
- * the input array itself when nothing changes (a drop where the drag started, or input that
- * does not fit the list), so the caller can skip the history entry:
- *
- *   const next = moveItem(tiers, from, to);
- *   if (next !== tiers) onTiersUpdate(next); // router.push: one Back step per real change
- *
- * Rows and items that do not change keep their object identity, so memoised rows do not
- * re-render.
- */
 
 /** The most rows a list may have, Unranked included. Owner decision; must not exceed the row cap of the link decoder. */
 export const MAX_TIER_ROWS = 20;
@@ -66,19 +54,31 @@ export function moveItem<I extends ItemLike, T extends TierLike<I>>(tiers: T[], 
   });
 }
 
-/**
- * Moves a whole row from one position to another. Tier labels describe positions (product
- * rule 6): the contents move (items, id and every other field), and each position keeps its
- * label. Unranked, the last row, stays where it is: it is a fixed tray under the rows (owner
- * decision, 2026-10-31), so no row moves into its place and it moves into no other.
- */
 export function reorderRows<T extends TierLike>(tiers: T[], from: number, to: number): T[] {
   if (!isIndex(from, tiers.length) || !isIndex(to, tiers.length) || from === to) return tiers;
   if (isUnranked(tiers, from) || isUnranked(tiers, to)) return tiers;
   const moved = tiers.slice();
   const [row] = moved.splice(from, 1);
   moved.splice(to, 0, row);
-  return moved.map((tier, index) => (tier.name === tiers[index].name ? tier : {...tier, name: tiers[index].name}));
+  const result = moved.map((tier, index) => (tier.name === tiers[index].name ? tier : {...tier, name: tiers[index].name}));
+  return result.every((tier, index) => looksTheSame(tier, tiers[index])) ? tiers : result;
+}
+
+export function moveRow<T extends TierLike>(tiers: T[], from: number, to: number): T[] {
+  if (!isIndex(from, tiers.length) || !isIndex(to, tiers.length) || from === to) return tiers;
+  if (isUnranked(tiers, from) || isUnranked(tiers, to)) return tiers;
+  const moved = tiers.slice();
+  const [row] = moved.splice(from, 1);
+  moved.splice(to, 0, row);
+  return moved.every((tier, index) => looksTheSame(tier, tiers[index])) ? tiers : moved;
+}
+
+function looksTheSame(a: TierLike, b: TierLike): boolean {
+  const fields = new Set([...Object.keys(a), ...Object.keys(b)]);
+  fields.delete('id');
+  return [...fields].every(field => (
+    JSON.stringify((a as unknown as Record<string, unknown>)[field]) === JSON.stringify((b as unknown as Record<string, unknown>)[field])
+  ));
 }
 
 /** The last row is Unranked (lib/dnd/model.ts). */
@@ -95,7 +95,6 @@ export function newTierId(tiers: readonly TierLike[]): string {
 }
 
 export interface AddTierOptions {
-  /** Label of the new row. Default: empty, so the row reads "Tier <n>". */
   name?: string;
   /** Position of the new row. Default: just above Unranked. Unranked always stays last. */
   index?: number;

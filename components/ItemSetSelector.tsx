@@ -102,10 +102,12 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
                       : organizedItemSets.find(([name]) => name === pageName)?.[1].displayName}
                   </BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink onClick={() => setPages(pages.slice(0, index + 1))}>
-                    {pageName === 'root'
-                      ? 'Packages'
-                      : organizedItemSets.find(([name]) => name === pageName)?.[1].displayName}
+                  <BreadcrumbLink asChild>
+                    <button type="button" onClick={() => setPages(pages.slice(0, index + 1))}>
+                      {pageName === 'root'
+                        ? 'Packages'
+                        : organizedItemSets.find(([name]) => name === pageName)?.[1].displayName}
+                    </button>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
@@ -117,11 +119,11 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog open={open} onOpenChange={onOpenChange} title="Add images from a template">
       <div className="flex flex-col">
         {pages.length > 1 && (
           <div className="flex items-center px-1 pt-1">
-            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2 shrink-0">
+            <Button variant="ghost" size="icon" onClick={goBack} className="mr-2 shrink-0" aria-label="Back">
               <ChevronLeftIcon className="h-6 w-6"/>
             </Button>
             {renderBreadcrumbs()}
