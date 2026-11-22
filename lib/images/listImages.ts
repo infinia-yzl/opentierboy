@@ -5,6 +5,7 @@
 import type Item from '@/models/Item';
 import type Tier from '@/models/Tier';
 import {deviceImageIdForUpload, isDeviceImageId} from '@/lib/state/deviceId';
+import {labelFallback} from './imageCheck';
 import {checkLinkImageUrl} from './linkImage';
 import {isTrustedHost, TRUSTED_IMAGE_SITES, type TrustedImageSite} from './trustedSites';
 
@@ -95,16 +96,35 @@ export function hostsAwaitingConsent(tiers: readonly Tier[], allowedHosts: Reado
   return Array.from(hosts);
 }
 
-/**
- * A label for a pasted image that no item of the list uses yet: the file name without its
- * extension, unless browsers made it up ("image.png"), else "Pasted image", "Pasted image 2"...
- */
+function freeLabel(base: string, takenLabels: ReadonlySet<string>): string {
+  if (!takenLabels.has(base)) return base;
+  for (let number = 2; ; number++) {
+    const label = `${base} ${number}`;
+    if (!takenLabels.has(label)) return label;
+  }
+}
+
 export function pastedImageLabel(fileName: string, takenLabels: ReadonlySet<string>): string {
   const base = fileName.replace(/\.[a-z0-9]{1,5}$/i, '').trim();
   if (base !== '' && !/^image$/i.test(base) && !takenLabels.has(base)) return base;
-  if (!takenLabels.has('Pasted image')) return 'Pasted image';
-  for (let number = 2; ; number++) {
-    const label = `Pasted image ${number}`;
-    if (!takenLabels.has(label)) return label;
-  }
+  return freeLabel('Pasted image', takenLabels);
+}
+
+export interface LinkImageToLabel {
+  url: string;
+  displayDomain: string;
+  label?: string;
+}
+
+export function linkImageLabels(tiers: readonly Tier[], images: readonly LinkImageToLabel[]): string[] {
+  const items = tiers.flatMap((tier) => tier.items);
+  const listed = new Set(items.map((item) => item.id));
+  const taken = new Set(items.map((item) => item.content));
+  return images.map(({url, displayDomain, label}) => {
+    const typed = label?.trim() ?? '';
+    const name = typed || labelFallback(url).text || displayDomain;
+    const free = typed !== '' || listed.has(url) ? name : freeLabel(name, taken);
+    taken.add(free);
+    return free;
+  });
 }
