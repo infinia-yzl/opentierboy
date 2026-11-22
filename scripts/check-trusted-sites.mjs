@@ -52,6 +52,7 @@ const resolved = (value) => (value === undefined ? undefined : path.resolve(valu
 
 const root = path.resolve(optionValue('--root') ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..'));
 const sitesPath = path.join(root, 'trusted-image-sites.json');
+const templateHostsPath = path.join(root, 'trusted-template-hosts.json');
 const pinPath = resolved(optionValue('--pin')) ?? path.join(root, 'scripts/tracker-list.pin.json');
 const cacheDir = resolved(optionValue('--cache')) ?? path.join(root, '.cache/tracker-list');
 const listOverride = resolved(optionValue('--list'));
@@ -183,8 +184,21 @@ function trustedSites(file) {
   });
 }
 
+function templateHosts(file) {
+  if (!isPlainObject(file) || !Array.isArray(file.hosts)) fail(['trusted-template-hosts.json must be an object with a "hosts" array.']);
+  return file.hosts.map((entry, index) => {
+    if (!isPlainObject(entry) || typeof entry.host !== 'string' || normalise(entry.host) === '') {
+      fail([`trusted-template-hosts.json entry ${index + 1} needs a "host" string.`]);
+    }
+    return normalise(entry.host);
+  });
+}
+
 const sites = trustedSites(readJson(sitesPath));
-const hosts = sites.map((site) => site.host);
+const imageHosts = sites.map((site) => site.host);
+const connectHosts = fs.existsSync(templateHostsPath) ? templateHosts(readJson(templateHostsPath)) : [];
+const listedIn = new Map([...connectHosts.map((host) => [host, 'trusted-template-hosts.json']), ...imageHosts.map((host) => [host, 'trusted-image-sites.json'])]);
+const hosts = [...listedIn.keys()];
 
 // A public suffix with "subdomains": true would trust everyone's sites under it. This needs
 // no tracker list, so it runs before the download.
@@ -237,10 +251,11 @@ for (const host of hosts) {
     if (domain === registrable || domain.endsWith(`.${registrable}`)) matches.add(domain);
   }
   for (const domain of matches) {
-    errors.push(`${host} (registrable domain ${registrable}) matches the tracker list entry ${describe(domain)}. Remove the site from trusted-image-sites.json.`);
+    errors.push(`${host} (registrable domain ${registrable}) matches the tracker list entry ${describe(domain)}. Remove the site from ${listedIn.get(host)}.`);
   }
 }
 
 if (errors.length > 0) fail(errors);
 
-console.log(`Trusted image sites OK: ${hosts.length} site(s) checked against ${domains.size} tracker domains (${listLabel}).`);
+console.log(`Trusted image sites OK: ${imageHosts.length} site(s) checked against ${domains.size} tracker domains (${listLabel}).`);
+if (connectHosts.length > 0) console.log(`Template hosts OK: ${connectHosts.length} host(s) checked against the same list.`);

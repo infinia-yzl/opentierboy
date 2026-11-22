@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "name": "OpenTierBoy community templates",
+  "maintainer": "example-maintainer",
+  "contact": "Open an issue at github.com/example/otb-templates",
+  "updated": "2026-11-22",
+  "templates": [
+    {
+      "id": "overwatch-heroes",
+      "title": "Overwatch heroes",
+      "game": "Overwatch",
+      "author": "example-maker",
+      "file": "https://raw.githubusercontent.com/example/otb-templates/main/overwatch-heroes.png",
+      "bytes": 1482113,
+      "sha256": "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08",
+      "images": 45,
+      "updated": "2026-11-22"
+    },
+    {
+      "id": "the-finals-weapons",
+      "title": "THE FINALS weapons",
+      "file": "https://gist.githubusercontent.com/example/0123456789abcdef0123456789abcdef/raw/the-finals-weapons.png",
+      "bytes": 20480,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "futureField": {"ignored": true}
+    }
+  ],
+  "futureField": "ignored"
+}

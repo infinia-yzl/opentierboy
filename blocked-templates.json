@@ -1,0 +1,5 @@
+{
+  "$comment": "Templates and index sources that OpenTierBoy refuses (docs/reference/template-indices.md). \"files\" lists SHA-256 checksums of template files, as 64 lowercase hex characters. \"sources\" lists sources in lowercase, as the app shows them: github.com/owner/repository, gist.github.com/id, or a host. A source blocks every index and every template file at that source. An entry takes effect for everybody with the next deployment.",
+  "files": [],
+  "sources": []
+}
