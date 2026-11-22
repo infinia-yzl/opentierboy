@@ -428,7 +428,6 @@ describe('listChanges', () => {
     expect(page.contents()[0]).toEqual(['Winston']);
     page.edit(listChanges.restoreItem(deleted.item, deleted.tierId, deleted.index));
     expect(page.contents()[0]).toEqual(['Mauga', 'Winston']);
-    expect(findItemToDelete(page.list.tiers, 'missing')).toBeNull();
   });
 
   it('returns the item at the end of its tier when restoreItem runs and the tier has fewer items than its old place', () => {
@@ -535,6 +534,13 @@ const REPEATED_ID_LINKS: [string, string][] = [
   ['a v3 link with both', `3.${lz({r: [['x', 'S', [MAU, MAU]], ['x', 'A', [WIN]], ['uncategorized', '', [WIN]]]})}`],
   ['a v3 link where an item id equals a tier id', `3.${lz({r: [['a', 'S', [{i: 'a', c: 'A'}]], ['uncategorized', '', []]]})}`],
 ];
+
+describe('findItemToDelete', () => {
+  it('returns null when the list lacks the id', () => {
+    const page = setup(fiveRowLink({S: [MAU, WIN]}));
+    expect(findItemToDelete(page.list.tiers, 'missing')).toBeNull();
+  });
+});
 
 describe('loadList and listChanges with repeated ids (A32, A38)', () => {
   for (const [name, link] of REPEATED_ID_LINKS) {
