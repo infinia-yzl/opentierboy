@@ -25,6 +25,7 @@ import {toast} from "sonner";
 import ItemCreator from "@/components/ItemCreator";
 import LinkImageCreator from "@/components/LinkImageCreator";
 import ItemSetSelector from "@/components/ItemSetSelector";
+import CommunityTemplates from "@/components/CommunityTemplates";
 import {ImageIcon, PlusIcon} from "@radix-ui/react-icons";
 import {COMPACT_TILE_CLASSES, TILE_SIZES} from "@/lib/tileSize";
 import {cn} from "@/lib/utils";
@@ -80,6 +81,7 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isLinkCreatorOpen, setIsLinkCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
+  const [isCommunityOpen, setIsCommunityOpen] = useState(false);
   // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
   const returnFocusTo = useRef<HTMLElement | null>(null);
@@ -230,8 +232,19 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
       <ItemSetSelector
         itemSets={itemSets}
         onSelectItemSet={handleItemSetSelect}
+        onOpenCommunity={() => {
+          setIsItemSetSelectorOpen(false);
+          setIsCommunityOpen(true);
+        }}
         open={isItemSetSelectorOpen}
         onOpenChange={setIsItemSetSelectorOpen}
+      />
+
+      <CommunityTemplates
+        open={isCommunityOpen}
+        onOpenChange={setIsCommunityOpen}
+        onOpenFiles={onOpenFiles}
+        onCloseAutoFocus={returnFocus}
       />
     </AddImagesContext.Provider>
   );
