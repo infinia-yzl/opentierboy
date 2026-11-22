@@ -9,6 +9,7 @@ import {
   itemDisplayLabel,
   linkImageCounts,
   linkImageOf,
+  linkImageLabels,
   pastedImageLabel,
 } from '@/lib/images/listImages';
 import {itemLabel} from '@/lib/dnd/labels';
@@ -107,5 +108,43 @@ describe('pastedImageLabel', () => {
     expect(pastedImageLabel('', new Set(['Pasted image']))).toBe('Pasted image 2');
     expect(pastedImageLabel('Image.PNG', new Set(['Pasted image', 'Pasted image 2']))).toBe('Pasted image 3');
     expect(pastedImageLabel('My cat.png', new Set(['My cat']))).toBe('Pasted image');
+  });
+});
+
+describe('linkImageLabels', () => {
+  const DOMINA = 'https://static.wikia.nocookie.net/overwatch_gamepedia/images/7/76/Icon-Domina.png/revision/latest/scale-to-width-down/250?cb=20260210210928';
+  const MIZUKI = 'https://static.wikia.nocookie.net/overwatch_gamepedia/images/3/36/Icon-Mizuki.png/revision/latest/scale-to-width-down/250?cb=20260210211030';
+  const image = (url: string, label?: string) => ({url, displayDomain: new URL(url).hostname, label});
+
+  it('returns the name from each address when the list has no item of that name', () => {
+    expect(linkImageLabels([tier('u', [])], [image(DOMINA), image(MIZUKI)])).toEqual(['Icon Domina', 'Icon Mizuki']);
+  });
+
+  it('returns the site name when the address has no file name', () => {
+    expect(linkImageLabels([tier('u', [])], [image('https://i.imgur.com/')])).toEqual(['i.imgur.com']);
+  });
+
+  it('returns the name with the next free number when another item of the list has the name', () => {
+    const tiers = [tier('s', [{id: 'image-overwatch-ana.webp', content: 'Ana'}]), tier('u', [link('https://i.imgur.com/x/250', '250'), link('https://i.imgur.com/y/250', '250 2')])];
+    expect(linkImageLabels(tiers, [image('https://i.imgur.com/z/250')])).toEqual(['250 3']);
+    expect(linkImageLabels(tiers, [image('https://i.imgur.com/Ana.png')])).toEqual(['Ana 2']);
+  });
+
+  it('returns numbered names when two addresses of one call have the same name', () => {
+    expect(linkImageLabels([tier('u', [])], [image('https://i.imgur.com/a/250'), image('https://i.imgur.com/b/250'), image('https://i.imgur.com/c/250')])).toEqual(['250', '250 2', '250 3']);
+  });
+
+  it('returns the name without a number when the list has the address already', () => {
+    const tiers = [tier('u', [link('https://i.imgur.com/a/250', '250')])];
+    expect(linkImageLabels(tiers, [image('https://i.imgur.com/a/250')])).toEqual(['250']);
+  });
+
+  it('returns the given label unchanged when the visitor typed one', () => {
+    const tiers = [tier('u', [link('https://i.imgur.com/a.png', 'Domina')])];
+    expect(linkImageLabels(tiers, [image(DOMINA, 'Domina'), image(MIZUKI, 'Mizuki')])).toEqual(['Domina', 'Mizuki']);
+  });
+
+  it('returns a numbered name when a label typed earlier in the call has the name', () => {
+    expect(linkImageLabels([tier('u', [])], [image('https://i.imgur.com/a.png', 'Icon Domina'), image(DOMINA)])).toEqual(['Icon Domina', 'Icon Domina 2']);
   });
 });

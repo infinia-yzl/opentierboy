@@ -81,6 +81,33 @@ test.describe('link images', () => {
       await expect.poll(newEntries).toBe(2);
     });
 
+    test('renders the item "250 2" when the user adds an address without a name whose name another item has', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      const link = await tierList.shareLink();
+      expect(JSON.stringify(v3LinkJson(link))).toContain('{"u":"https://i.imgur.com/b/250","c":"250 2"}');
+    });
+
+    test('renders 1 item and the toast "No New Items" when the user adds the same address twice', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+
+      await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      expect(await newEntries()).toBe(0);
+    });
+
     test('renders the matching error and no item when the user submits an address that fails checkLinkImageUrl', async ({tierList}) => {
       await tierList.goto('/rank');
       const cases: [string, RegExp][] = [
@@ -191,6 +218,31 @@ test.describe('link images', () => {
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Icon Domina', 'Icon Mizuki']);
       await expect.poll(newEntries).toBe(2);
+    });
+
+    test('writes 2 history entries and renders "250" and "250 2" when the user pastes two addresses of one name in quick turn', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('https://i.imgur.com/a/250');
+      await tierList.linkImages.pasteText('https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      await expect.poll(newEntries).toBe(2);
+    });
+
+    test('writes 1 history entry and renders "250" and "250 2" when the user pastes two addresses of one name at once', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('https://i.imgur.com/a/250 https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      await expect.poll(newEntries).toBe(1);
     });
 
     test('renders the image and no notice when the user drops a link to an image of an unknown site', async ({tierList, page}) => {

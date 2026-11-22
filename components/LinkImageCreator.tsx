@@ -7,7 +7,9 @@ import {Label} from "@/components/ui/label";
 import Item from "@/models/Item";
 import {useLinkImageItems} from "@/components/useAddItems";
 import {checkLinkImageUrl} from "@/lib/images/linkImage";
-import {checkImage, labelFallback} from "@/lib/images/imageCheck";
+import {checkImage} from "@/lib/images/imageCheck";
+import {linkImageLabels} from "@/lib/images/listImages";
+import {useTierContext} from "@/contexts/TierContext";
 import {IMAGE_CHECK_FAILURE_MESSAGES, LINK_IMAGE_REFUSAL_MESSAGES} from "@/lib/images/messages";
 
 interface LinkImageCreatorProps {
@@ -22,6 +24,7 @@ interface LinkImageCreatorProps {
  */
 const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
   const linkImageItems = useLinkImageItems();
+  const {tiers} = useTierContext();
   const [address, setAddress] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -44,7 +47,7 @@ const LinkImageCreator: React.FC<LinkImageCreatorProps> = ({onItemsCreate}) => {
       setFailedUrl(null);
       return;
     }
-    const label = name.trim() || labelFallback(check.url).text || check.displayDomain;
+    const [label] = linkImageLabels(tiers, [{url: check.url, displayDomain: check.displayDomain, label: name}]);
     if (failedUrl === check.url) {
       add(check.url, check.host, label);
       return;

@@ -21,7 +21,7 @@ import {zenModeIsOn} from '@/components/usePageState';
 import {recordRecentLink} from '@/components/useRecentLinks';
 import {listAddressWritten} from '@/components/useListSteps';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
-import {pastedImageLabel} from '@/lib/images/listImages';
+import {linkImageLabels, pastedImageLabel} from '@/lib/images/listImages';
 import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/imageCheck';
 import {
   type FoundLinkImages,
@@ -321,27 +321,26 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       }
       const checks = await Promise.all(found.accepted.map((link, index) => checkImage(link.url, {label: names[index]})));
       if (gone()) return;
-      const images = found.accepted
-        .map((link, index) => ({url: link.url, host: link.host, label: names[index]}))
-        .filter((_, index) => checks[index].ok);
+      const loaded = found.accepted.filter((_, index) => checks[index].ok);
       if (historyMoves.current !== moves) {
-        if (images.length > 0) notAdded(images.map((image) => image.label), 'history');
+        if (loaded.length > 0) notAdded(names.filter((_, index) => checks[index].ok), 'history');
         return;
       }
-      // Only an image that loaded and was refused for its size is surely an image.
       const failed = checks.flatMap((check, index) =>
         !check.ok && IMAGE_SIZE_FAILURES.has(check.reason) ? [`${names[index]}: ${IMAGE_CHECK_FAILURE_MESSAGES[check.reason]}`] : []);
       if (failed.length > 0) {
-        toast.error(images.length > 0 ? 'Some images could not be added' : failed.length === 1 ? 'Could not add the image' : 'Could not add the images', {
+        toast.error(loaded.length > 0 ? 'Some images could not be added' : failed.length === 1 ? 'Could not add the image' : 'Could not add the images', {
           description: failed.join(' '),
         });
       }
-      if (images.length === 0) return;
+      if (loaded.length === 0) return;
       if (found.leftOut > 0) {
         toast('Too many image addresses', {
           description: `Up to ${MAX_LINKS_PER_ADD} are added at a time. ${found.leftOut} ${found.leftOut === 1 ? 'was' : 'were'} left out.`,
         });
       }
+      const labels = linkImageLabels(latest.current.tiers, loaded);
+      const images = loaded.map((link, index) => ({url: link.url, host: link.host, label: labels[index]}));
       flushSync(() => latest.current.addItemsWithUndo(latest.current.linkImageItems(images)));
       await untilRendered();
     }

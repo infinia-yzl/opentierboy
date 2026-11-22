@@ -12,7 +12,11 @@ visitor's device (uploads and pasted images), the images that come from no image
   after its file (for example `74px-Abrams_vertical.png` gives "Abrams vertical"), or after
   its site when the address has no file name. The file is the last part of the address that
   ends like a picture file, so `.../Icon-Domina.png/revision/latest/scale-to-width-down/250`
-  gives "Icon Domina"; an address without such a part is named after its last part. A link
+  gives "Icon Domina"; an address without such a part is named after its last part. When
+  another item of the list has that name, the new image gets the next free number ("Icon
+  Domina 2"), so two different images never clash over a name the editor made
+  (`linkImageLabels` in `lib/images/listImages.ts`). A name that the visitor typed is kept as
+  typed, and an address that the list already holds adds no item ("No New Items"). A link
   image in a link without any label is named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
 - **Dropping a link or pasting an image address** (#107) adds a link image, through the same
