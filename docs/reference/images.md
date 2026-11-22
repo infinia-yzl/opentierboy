@@ -10,8 +10,10 @@ visitor's device (uploads and pasted images), the images that come from no image
   load gets a plain message. An image that does not load can still be added: it shows as a
   label tile (its name in place of the picture). A link image added without a name is named
   after its file (for example `74px-Abrams_vertical.png` gives "Abrams vertical"), or after
-  its site when the address has no file name. A link image in a link without any label is
-  named after its site.
+  its site when the address has no file name. The file is the last part of the address that
+  ends like a picture file, so `.../Icon-Domina.png/revision/latest/scale-to-width-down/250`
+  gives "Icon Domina"; an address without such a part is named after its last part. A link
+  image in a link without any label is named after its site.
 - **Pasting** an image anywhere in the editor adds it like "From your device".
 - **Dropping a link or pasting an image address** (#107) adds a link image, through the same
   checks as "From a link": the address must pass `checkLinkImageUrl`, and its image is loaded

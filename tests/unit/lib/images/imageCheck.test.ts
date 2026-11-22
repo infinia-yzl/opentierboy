@@ -248,6 +248,26 @@ describe('labelFallback', () => {
     for (const [url, text] of cases) expect(labelFallback(url).text, url).toBe(text);
   });
 
+  it('returns the name of the picture file when the address has parts after the file name', () => {
+    const cases: [string, string][] = [
+      ['https://static.wikia.nocookie.net/overwatch_gamepedia/images/7/76/Icon-Domina.png/revision/latest/scale-to-width-down/250?cb=20260210210928', 'Icon Domina'],
+      ['https://static.wikia.nocookie.net/overwatch_gamepedia/images/3/36/Icon-Mizuki.png/revision/latest/scale-to-width-down/250?cb=20260210211030', 'Icon Mizuki'],
+      ['https://static.wikia.nocookie.net/overwatch_gamepedia/images/a/ab/Ana.JPG/revision/latest', 'Ana'],
+      ['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Example.jpg/250px-Example.jpg', 'Example'],
+      ['https://i.imgur.com/first.png/second.webp/100', 'second'],
+    ];
+    for (const [url, text] of cases) expect(labelFallback(url).text, url).toBe(text);
+  });
+
+  it('returns a name made from the last part of the path when no part is a picture file', () => {
+    const cases: [string, string][] = [
+      ['https://i.imgur.com/a/250', '250'],
+      ['https://i.imgur.com/v1.2/latest', 'latest'],
+      ['https://i.imgur.com/notes.txt/cover', 'cover'],
+    ];
+    for (const [url, text] of cases) expect(labelFallback(url).text, url).toBe(text);
+  });
+
   it('returns the domain as text when there is no label or file name, and \'\' for a blob: URL', () => {
     expect(labelFallback('https://www.thefinals.wiki/')).toEqual({text: 'thefinals.wiki', domain: 'thefinals.wiki'});
     expect(labelFallback('https://i.imgur.com/.png')).toEqual({text: 'i.imgur.com', domain: 'i.imgur.com'});

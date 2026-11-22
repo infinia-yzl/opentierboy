@@ -104,18 +104,22 @@ function shorten(text: string): string {
   return characters.length > MAX_FALLBACK_TEXT_LENGTH ? characters.slice(0, MAX_FALLBACK_TEXT_LENGTH).join('').trimEnd() : collapsed;
 }
 
-/** A readable name from the last part of an image address: `.../74px-Abrams_vertical.png` → `Abrams vertical`. */
-function nameFromPath(pathname: string): string {
-  const segment = pathname.split('/').filter(Boolean).pop() ?? '';
-  let name = segment;
+const PICTURE_FILE = /\.(?:apng|avif|bmp|gif|ico|jfif|jpe?g|png|svg|webp)$/i;
+
+function decoded(segment: string): string {
   try {
-    name = decodeURIComponent(segment);
+    return decodeURIComponent(segment);
   } catch {
-    // Keep the raw text when it is not valid percent-encoding.
+    return segment;
   }
-  return name
-    .replace(/\.[a-z0-9]{1,5}$/i, '') // extension
-    .replace(/^\d{1,5}px-/i, '') // MediaWiki thumbnail prefix
+}
+
+function nameFromPath(pathname: string): string {
+  const segments = pathname.split('/').filter(Boolean);
+  const segment = segments.filter((part) => PICTURE_FILE.test(part)).pop() ?? segments.pop() ?? '';
+  return decoded(segment)
+    .replace(/\.[a-z0-9]{1,5}$/i, '')
+    .replace(/^\d{1,5}px-/i, '')
     .replace(/[-_+]+/g, ' ');
 }
 
