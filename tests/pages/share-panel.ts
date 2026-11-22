@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import {expect, type Locator, type Page} from '@playwright/test';
 import {boxOf, scrollPosition, type Box} from './helpers';
 import {LIST_CARD} from '@/lib/listCard/model';
-import {expectOneNewToast} from './toasts';
+import {expectOneNewToast, toasts} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 export class SharePanel {
@@ -126,7 +126,14 @@ export class SharePanel {
   }
 
   private async captureAndExpectSuccess() {
-    await expectOneNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), 'Image captured successfully');
+    const outcome = /Image captured successfully|Failed to capture image/;
+    try {
+      await expectOneNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), outcome);
+    } catch (error) {
+      const running = await this.sharePanel.getByRole('button', {name: 'Capturing...'}).count() > 0;
+      throw new Error(`${(error as Error).message}\nThe capture ${running ? 'was still running' : 'had ended without a toast on screen'}.`);
+    }
+    await expect(toasts(this.page).filter({hasText: outcome}), 'the capture should succeed').toHaveText(/Image captured successfully/);
   }
 
   async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {

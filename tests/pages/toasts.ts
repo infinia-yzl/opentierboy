@@ -10,7 +10,7 @@ export async function untilToastGone(toast: Locator) {
   await expect(toast, 'an earlier toast with this text should have closed before the step').toHaveCount(0, {timeout: TOAST_GONE_MS});
 }
 
-export async function expectOneNewToast(page: Page, action: () => Promise<void>, text: string) {
+export async function expectOneNewToast(page: Page, action: () => Promise<void>, text: string | RegExp) {
   const toast = toasts(page).filter({hasText: text});
   await untilToastGone(toast);
   await action();
