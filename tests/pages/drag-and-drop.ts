@@ -58,11 +58,12 @@ export class DragAndDrop {
   }
 
   private besideTarget(itemName: string, targetItemName: string, side: 'before' | 'after') {
-    return () => expect.poll(async () => {
+    return async () => {
       const row = this.tierList.tiers.filter({has: this.page.getByRole('button', {name: targetItemName, exact: true})});
       const names = await this.tierList.itemsIn(row).evaluateAll((items) => items.map((item) => item.getAttribute('aria-label')));
-      return names.indexOf(itemName) - names.indexOf(targetItemName);
-    }, {message: `${itemName} should show ${side} ${targetItemName} before the drop`, timeout: 1_000}).toBe(side === 'before' ? -1 : 1);
+      expect(names.indexOf(itemName) - names.indexOf(targetItemName), `${itemName} should show ${side} ${targetItemName} before the drop`)
+        .toBe(side === 'before' ? -1 : 1);
+    };
   }
 
   async dragItemToTier(itemName: string, tierName: string) {
@@ -134,7 +135,7 @@ export class DragAndDrop {
 
   async dragItemNextTo(itemName: string, targetItemName: string, side: 'before' | 'after') {
     await this.dropAndWaitForLink(() =>
-      this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {over: this.besideTarget(itemName, targetItemName, side), follow: true}),
+      this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {follow: this.besideTarget(itemName, targetItemName, side)}),
     );
   }
 
@@ -162,7 +163,7 @@ export class DragAndDrop {
     );
   }
 
-  private async dragWithMouse(handle: Locator, dropPoint: () => Promise<Point>, {over, follow = false, cancel = false, afterRelease}: {over?: () => Promise<void>; follow?: boolean; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
+  private async dragWithMouse(handle: Locator, dropPoint: () => Promise<Point>, {over, follow, cancel = false, afterRelease}: {over?: () => Promise<void>; follow?: () => Promise<void>; cancel?: boolean; afterRelease?: () => Promise<void>} = {}) {
     await this.dropEnded();
     await expect(handle, 'the handle should take a drag').toHaveAttribute('aria-roledescription', 'draggable');
     expect(await this.page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight),
@@ -176,11 +177,11 @@ export class DragAndDrop {
     const to = await dropPoint();
     await mouse.move(to.x, to.y, {steps: 10});
     await mouse.move(to.x, to.y);
-    if (follow && over) {
+    if (follow) {
       await expect(async () => {
         const now = await dropPoint();
         await mouse.move(now.x, now.y, {steps: 2});
-        await over();
+        await follow();
       }, 'the pointer should follow its target tile, which moves when the dragged tile enters its row').toPass();
     } else {
       await over?.();
@@ -396,7 +397,7 @@ export class DragAndDrop {
   }
 
   async dragItemBeside(itemName: string, targetItemName: string, side: 'before' | 'after') {
-    await this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {over: this.besideTarget(itemName, targetItemName, side), follow: true});
+    await this.dragWithMouse(this.tierList.item(itemName), () => this.halfOf(targetItemName, side), {follow: this.besideTarget(itemName, targetItemName, side)});
     await expect(this.dragAnnouncer).toHaveText(new RegExp(`^Dropped ${escapeRegExp(itemName)}\\b`));
   }
 
