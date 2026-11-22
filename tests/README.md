@@ -208,7 +208,10 @@ them, and it does not check how they do it.
 - **Never sleep, and name no time.** No `waitForTimeout`, no fixed delays and no `{timeout: N}`
   on a wait. (`playwright.config.ts` limits each navigation to 30 s and each action to 15 s,
   as `expect` limits each assertion to 10 s: a stuck step fails with its own name. These are
-  limits, not waits.) Navigations wait for the document, not for its load event (`UNTIL_STARTED`
+  limits, not waits.) Two kinds of test code name a time, each as a constant with a name:
+  `TOAST_GONE_MS` in `tests/pages/toasts.ts`, the limit for an earlier toast to close by itself,
+  and the budget of a speed test (the `*_BUDGET_MS` constants), which is the result that the
+  test asserts. Navigations wait for the document, not for its load event (`UNTIL_STARTED`
   in `tests/pages/helpers.ts`), and then until the page is ready (see below). Wait for what the
   user would see: web-first assertions such as `toHaveText`, the drag announcer for drag and
   drop, and the address bar for saved changes. Page object methods that change the list return
