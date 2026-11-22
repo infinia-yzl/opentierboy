@@ -466,6 +466,7 @@ test.describe('drag and drop', () => {
             }
             await expect.poll(() => tierList.historyLength(), {message: 'only a drop that moves the tile adds a history entry'}).toBe(entries);
             await expect(tierList.item(KEYBOARD_DRAG_ITEM)).toBeFocused();
+            await expect(tierList.drag.heldHandles, 'only a picked-up tile should be held').toHaveCount(carried ? 1 : 0);
             if (!carried) {
               await tierList.drag.expectEveryItemDraggable();
             }

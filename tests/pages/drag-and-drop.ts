@@ -197,8 +197,12 @@ export class DragAndDrop {
     await this.expectEveryItemDraggable();
   }
 
+  get heldHandles(): Locator {
+    return this.tierList.tiers.getByRole('button', {pressed: true});
+  }
+
   private async dropEnded() {
-    await expect(this.tierList.tiers.getByRole('button', {pressed: true}), 'no tile or handle should still be held').toHaveCount(0);
+    await expect(this.heldHandles, 'no tile or handle should still be held').toHaveCount(0);
   }
 
   async moveItemWithKeyboard(itemName: string, keys: string[], {waitForLink = true} = {}): Promise<string[]> {
