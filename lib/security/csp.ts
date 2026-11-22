@@ -29,7 +29,8 @@
  * - Fonts: next/font/google downloads the fonts at build time and serves them from
  *   /_next/static/media, so default-src 'self' covers them. The OG route loads its font on
  *   the server, where no CSP applies.
- * - Connections: the app only talks to its own origin (page data, prefetching). html2canvas
+ * - Connections: the app talks to its own origin (page data, prefetching), and next.config.ts
+ *   extends connect-src with the template hosts (docs/reference/template-indices.md). html2canvas
  *   and html2canvas-pro load images through image elements and need no connections without
  *   their `proxy` option, which the app does not use. The `next dev` WebSocket is
  *   same-origin, which 'self' covers. If link images are ever loaded with fetch() (for

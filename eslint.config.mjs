@@ -53,6 +53,11 @@ const ZOD_IMPORT = {
   message: 'Import z from @/lib/zod: it turns off the eval check that the Content Security Policy reports.',
 };
 
+const TEMPLATE_MODULES = {
+  group: ['@/lib/templates', '@/lib/templates/*', '**/lib/templates', '**/lib/templates/*'],
+  message: 'Routes, pages and server code must not import lib/templates: only client components request a template index or a template file, in the visitor\'s browser (docs/reference/template-indices.md).',
+};
+
 /** Files that may use IndexedDB: the device image store and its tests. */
 const INDEXED_DB_FILES = ['lib/images/deviceStore.ts', 'tests/unit/lib/images/deviceStore*.test.ts'];
 /** Files that may import zod itself: lib/zod.ts and the test that shows why it exists. */
@@ -154,6 +159,10 @@ const restrictSyntax = (selectors = [], {allow = []} = {}) => ({
   'no-restricted-syntax': ['error', ...(allow.includes('zod') ? [] : ZOD_SYNTAX), ...selectors],
 });
 
+const REMOTE_REQUEST_MESSAGE = 'Only lib/templates/fetchBytes.ts may request another site, with its fixed request profile (docs/reference/template-indices.md). The OG preview route may load its own files.';
+const FETCH_GLOBAL = {name: 'fetch', message: REMOTE_REQUEST_MESSAGE};
+const REMOTE_REQUEST_GLOBALS = [FETCH_GLOBAL, ...['XMLHttpRequest', 'EventSource', 'WebSocket'].map((name) => ({name, message: REMOTE_REQUEST_MESSAGE}))];
+
 const INDEXED_DB_GLOBAL = {
   name: 'indexedDB',
   message: 'Only lib/images/deviceStore.ts (and its tests) may use IndexedDB. Use that module instead.',
@@ -165,13 +174,19 @@ const INDEXED_DB_GLOBAL = {
  */
 const restrictGlobals = (globals = [], {allow = []} = {}) => {
   const indexedDb = !allow.includes('indexedDB');
+  const remote = globals.filter((global) => REMOTE_REQUEST_GLOBALS.includes(global));
+  const viaWindow = [...(indexedDb ? [INDEXED_DB_GLOBAL] : []), ...remote];
   return {
     'no-restricted-globals': ['error', ...(indexedDb ? [INDEXED_DB_GLOBAL] : []), ...globals],
-    'no-restricted-properties': ['error', ...(indexedDb
-      ? ['window', 'self', 'globalThis'].map((object) => ({object, property: 'indexedDB', message: INDEXED_DB_GLOBAL.message}))
-      : [])],
+    'no-restricted-properties': ['error',
+      ...viaWindow.flatMap(({name, message}) => ['window', 'self', 'globalThis'].map((object) => ({object, property: name, message}))),
+      ...(remote.length > 0 ? [{property: 'sendBeacon', message: REMOTE_REQUEST_MESSAGE}] : []),
+    ],
   };
 };
+
+const APP_CODE_FILES = ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'contexts/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}', 'models/**/*.{ts,tsx}', 'proxy.ts'];
+const FETCH_FILES = ['lib/templates/fetchBytes.ts', 'app/api/og/**'];
 
 /** Code that the edge OG route runs: lib/TierCortex.ts, the modules it binds, and the image helpers it uses. */
 const EDGE_FILES = [
@@ -266,6 +281,8 @@ export default defineConfig([
   },
   {files: ZOD_FILES, rules: {...restrictImports([], {allow: ['zod']}), ...restrictGlobals(), ...restrictSyntax([], {allow: ['zod']})}},
   {files: DND_KIT_FILES, rules: {...restrictImports([], {allow: ['dndKit']}), ...restrictGlobals(), ...restrictSyntax()}},
+  {files: APP_CODE_FILES, ignores: [...FETCH_FILES, ...INDEXED_DB_FILES], rules: restrictGlobals(REMOTE_REQUEST_GLOBALS)},
+  {files: ['lib/images/deviceStore.ts'], rules: restrictGlobals(REMOTE_REQUEST_GLOBALS, {allow: ['indexedDB']})},
   // Tests: no way around the guard against external requests, except in tests/support.
   {
     files: ['tests/**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}'],
@@ -279,7 +296,7 @@ export default defineConfig([
   // lib/state: pure code for the browser, the server and the edge runtime.
   {
     files: ['lib/state/**/*.{ts,tsx}'],
-    rules: restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'process']),
+    rules: restrictGlobals(['window', 'document', 'localStorage', 'sessionStorage', 'navigator', 'process', ...REMOTE_REQUEST_GLOBALS]),
   },
   {files: ['lib/state/*.{ts,tsx}'], rules: stateImportRules(0)},
   {files: ['lib/state/*/*.{ts,tsx}'], rules: stateImportRules(1)},
@@ -288,7 +305,12 @@ export default defineConfig([
   // The edge OG route, and TierCortex and its modules, which it imports.
   {
     files: EDGE_FILES,
-    rules: restrictImports([NODE_BUILT_INS]),
+    rules: restrictImports([NODE_BUILT_INS, TEMPLATE_MODULES]),
+  },
+  {
+    files: ['app/**/*.{ts,tsx}', 'proxy.ts'],
+    ignores: EDGE_FILES,
+    rules: restrictImports([TEMPLATE_MODULES]),
   },
   {
     files: ['app/api/og/**/*.{ts,tsx}'],
