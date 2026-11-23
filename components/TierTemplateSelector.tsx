@@ -54,6 +54,7 @@ const TierTemplateSelector: React.FC = () => {
           <DropdownMenuRadioItem value="3rows">3 Rows</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="5rows">5 Rows</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="7rows">7 Rows</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="9rows">9 Rows</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator/>
         <DropdownMenuLabel>Label Position</DropdownMenuLabel>

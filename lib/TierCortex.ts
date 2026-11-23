@@ -46,6 +46,8 @@ const OG_TIER_GRADIENTS = [
   'linear-gradient(to right, #7ad21f, #1aea1d)',
   'linear-gradient(to right, #72b231, #0cd30e)',
   'linear-gradient(to right, #4d7e15, #01b004)',
+  'linear-gradient(to right, #578d21, #2dbf08)',
+  'linear-gradient(to right, #6f9f45, #42c834)',
 ];
 
 export class TierCortex {

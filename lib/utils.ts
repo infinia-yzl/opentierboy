@@ -25,6 +25,8 @@ export const getTierGradient = (index: number, tiersLength: number): string => {
       return `var(--tier-gradient-${[0, 2, 4][index % 3]})`;
     case 6:
       return `var(--tier-gradient-${[0, 1, 3, 4, 6][index % 5]})`;
+    case 10:
+      return `var(--tier-gradient-${[0, 1, 2, 2, 3, 4, 5, 5, 6][index % 9]})`;
     default:
       return `var(--tier-gradient-${tierGradientIndexMap[index % 7]})`;
   }
