@@ -3,6 +3,12 @@ export interface Point {
   readonly y: number;
 }
 
+export const INK_GRID = 32;
+
+export function onGrid(point: Point): Point {
+  return {x: (Math.round(point.x * INK_GRID) + 0) / INK_GRID, y: (Math.round(point.y * INK_GRID) + 0) / INK_GRID};
+}
+
 export const POINT_STEP = 0.3;
 export const POINT_MIN_MOVE = 0.08;
 export const POINT_TURN_DEGREES = 18;

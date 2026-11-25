@@ -1,6 +1,6 @@
 import {anchorAt, boxCentre, boxGap, boxOf, fromAnchor, originOf, toAnchor, type Anchor, type Box, type Origin, type Surface} from '@/lib/scribble/anchors';
 import type {InkColour} from '@/lib/scribble/colours';
-import type {Point} from '@/lib/scribble/points';
+import {onGrid, type Point} from '@/lib/scribble/points';
 
 export interface Stroke {
   readonly colour: InkColour;
@@ -39,7 +39,7 @@ export function addStroke(notes: readonly Note[], surface: Surface, colour: InkC
   const anchor = joined >= 0 ? notes[joined].anchor : anchorAt(surface, boxCentre(box));
   const origin = originOf(surface, anchor);
   if (!origin) return notes;
-  const stroke: Stroke = {colour, points: points.map((point) => toAnchor(origin, point))};
+  const stroke: Stroke = {colour, points: points.map((point) => onGrid(toAnchor(origin, point)))};
   if (joined < 0) return [...notes, {anchor, strokes: [stroke]}];
   return notes.map((note, index) => index === joined ? {anchor: note.anchor, strokes: [...note.strokes, stroke]} : note);
 }

@@ -1,10 +1,21 @@
 import {describe, expect, it} from 'vitest';
-import {liftPen, movePen, penIsDry, POINT_MIN_MOVE, POINT_STEP, POINT_TURN_DEGREES, startPen, strokePath, type Pen, type Point} from '@/lib/scribble/points';
+import {INK_GRID, liftPen, movePen, onGrid, penIsDry, POINT_MIN_MOVE, POINT_STEP, POINT_TURN_DEGREES, startPen, strokePath, type Pen, type Point} from '@/lib/scribble/points';
 
 const draw = (budget: number, [first, ...rest]: Point[]): Pen => rest.reduce(movePen, startPen(first, budget));
 
 const lineTo = (length: number, samples: number): Point[] =>
   Array.from({length: samples + 1}, (_, index) => ({x: (length * index) / samples, y: 0}));
+
+describe('onGrid', () => {
+  it('returns the nearest place on the grid of 1/INK_GRID tile when the point is between grid lines', () => {
+    expect(INK_GRID).toBe(32);
+    expect(onGrid({x: 0.26, y: -1.49})).toEqual({x: 0.25, y: -1.5});
+  });
+
+  it('returns 0 and never -0 when a small negative number rounds to nothing', () => {
+    expect(Object.is(onGrid({x: -0.001, y: 0}).x, 0)).toBe(true);
+  });
+});
 
 describe('startPen', () => {
   it('returns the first point as its one point when the budget is 1 or more', () => {

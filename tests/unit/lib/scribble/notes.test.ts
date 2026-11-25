@@ -46,6 +46,10 @@ describe('addStroke', () => {
     ]);
   });
 
+  it('returns points on the grid of 1/32 tile when the pointer was between two grid lines', () => {
+    expect(addStroke([], SURFACE, 'red', [{x: 121, y: 19}, {x: 159.4, y: 62.6}])[0].strokes[0].points).toEqual([{x: 0.25, y: 0.25}, {x: 0.75, y: 0.78125}]);
+  });
+
   it('returns one note of two strokes when the second stroke is within half a tile of the first', () => {
     const notes = addStroke(first(), SURFACE, 'blue', [{x: 199, y: 20}, {x: 230, y: 30}]);
     expect(notes).toHaveLength(1);

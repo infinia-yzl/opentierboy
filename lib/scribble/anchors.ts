@@ -33,6 +33,10 @@ export interface Surface {
 }
 
 export const FALLBACK_UNIT = 64;
+export const MAX_ANCHOR_ID_LENGTH = 256;
+export const MAX_ANCHOR_ROWS = 100;
+
+const canAnchorItem = (id: string) => id.length >= 1 && id.length <= MAX_ANCHOR_ID_LENGTH;
 
 export const EMPTY_SURFACE: Surface = Object.freeze({unit: FALLBACK_UNIT, items: [], rows: [], tray: null});
 
@@ -59,10 +63,10 @@ export function boxGap(a: Box, b: Box): number {
 }
 
 export function anchorAt(surface: Surface, point: Point): Anchor {
-  const item = surface.items.find((place) => place.shown && boxHolds(place.box, point));
+  const item = surface.items.find((place) => place.shown && canAnchorItem(place.id) && boxHolds(place.box, point));
   if (item) return {kind: 'item', id: item.id};
   const index = surface.rows.findIndex((place) => place.shown && boxHolds(place.box, point));
-  if (index >= 0) return {kind: 'row', index};
+  if (index >= 0 && index < MAX_ANCHOR_ROWS) return {kind: 'row', index};
   if (surface.tray && surface.tray.shown && boxHolds(surface.tray.box, point)) return {kind: 'tray'};
   return {kind: 'frame'};
 }

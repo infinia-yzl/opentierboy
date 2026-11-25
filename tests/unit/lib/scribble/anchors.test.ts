@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {anchorAt, boxCentre, boxGap, boxHolds, boxOf, fromAnchor, originOf, toAnchor, type Place, type Surface} from '@/lib/scribble/anchors';
+import {anchorAt, boxCentre, boxGap, boxHolds, boxOf, fromAnchor, MAX_ANCHOR_ID_LENGTH, MAX_ANCHOR_ROWS, originOf, toAnchor, type Place, type Surface} from '@/lib/scribble/anchors';
 
 const place = (x: number, y: number, width: number, height: number, unit: number, shown = true): Place => ({
   box: {x, y, width, height},
@@ -73,6 +73,21 @@ describe('anchorAt', () => {
 
   it('returns the tray when the point is on a tile that a scrolling box hides', () => {
     expect(anchorAt(SURFACE, {x: 60, y: 320})).toEqual({kind: 'tray'});
+  });
+
+  it('returns the item when its id has MAX_ANCHOR_ID_LENGTH characters, and the row when it has one more', () => {
+    const withId = (id: string): Surface => ({...SURFACE, items: [{id, ...place(100, 0, 80, 80, 80)}]});
+    const longest = 'k'.repeat(MAX_ANCHOR_ID_LENGTH);
+    expect(anchorAt(withId(longest), {x: 120, y: 40})).toEqual({kind: 'item', id: longest});
+    expect(anchorAt(withId(`${longest}k`), {x: 120, y: 40})).toEqual({kind: 'row', index: 0});
+    expect(anchorAt(withId(''), {x: 120, y: 40})).toEqual({kind: 'row', index: 0});
+  });
+
+  it('returns the frame when the point is on a row after the first MAX_ANCHOR_ROWS rows', () => {
+    const rows = Array.from({length: MAX_ANCHOR_ROWS + 1}, (_, index) => place(0, index * 10, 600, 10, 10));
+    const tall: Surface = {unit: 10, items: [], rows, tray: null};
+    expect(anchorAt(tall, {x: 5, y: (MAX_ANCHOR_ROWS - 1) * 10 + 5})).toEqual({kind: 'row', index: MAX_ANCHOR_ROWS - 1});
+    expect(anchorAt(tall, {x: 5, y: MAX_ANCHOR_ROWS * 10 + 5})).toEqual({kind: 'frame'});
   });
 
   it('returns the frame when the point is on no tile, row or tray', () => {
