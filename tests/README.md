@@ -237,11 +237,19 @@ them, and it does not check how they do it.
   that may crash opens with `gotoPageThatMayCrash`.
 - **Toasts are found in the region named "Notifications"** (`toasts(page)`), and a step that
   shows a toast waits for its own new toast (`expectOneNewToast`).
-- **A capture step waits for its picture.** The button reads "Capturing..." from the click until
-  the picture is in the Image tab or the capture has failed. `share.capturePreview` clicks
-  Capture Preview, waits for a new picture, then checks that the button reads "Capture Preview"
-  again. The step reads no toast. A test of the state in between holds the picture encoder
-  (`share.holdPictureEncoder`), starts a capture, then calls `share.releasePictureEncoder`.
+- **A capture step follows the capture.** A capture prepares the list card (its fonts and images
+  load or fail), draws it, asks the browser to encode the picture (`canvas.toBlob`), then puts the
+  picture in the Image tab (`docs/reference/snapshot-files.md`, "How Freeze Frame takes the
+  picture"). The button reads "Capturing..." from the click to the end. `share.capturePreview`
+  clicks Capture Preview and waits for two changes in turn, each within the limit of one
+  assertion: the page has asked the browser for the picture, so the drawing is done; then a new
+  picture is in the Image tab. Last it checks that the button reads "Capture Preview" again. The
+  step reads no toast. Each wait reads the button, the picture and the number of pictures asked
+  for in one evaluation of the page, and a failure reports the last answer the page gave before
+  the wait ended. A test of a state in between holds what the capture waits for, starts a capture
+  (`share.startCapture`), then releases it: the fonts or the wordmark of the list card
+  (`share.holdListCardFonts`, `share.holdListCardWordmark`), or the picture encoder
+  (`share.holdPictureEncoder`, `share.releasePictureEncoder`).
 - **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
   page the test opens, visitors included, and fails on any that is not in `BENIGN_PAGE_ERRORS`
   (`tests/support/machines.ts`) or in `test.use({allowedPageErrors})`.
