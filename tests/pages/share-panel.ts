@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import {expect, type Locator, type Page} from '@playwright/test';
+import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {boxOf, scrollPosition, type Box} from './helpers';
 import {LIST_CARD} from '@/lib/listCard/model';
-import {expectOneNewToast, toasts} from './toasts';
+import {expectOneNewToast} from './toasts';
 import type {TierListPage} from './tier-list-page';
 
 export class SharePanel {
@@ -125,15 +125,133 @@ export class SharePanel {
     await this.captureAndExpectSuccess();
   }
 
-  private async captureAndExpectSuccess() {
-    const outcome = /Image captured successfully|Failed to capture image/;
+  get captureButton(): Locator {
+    return this.sharePanel.getByRole('button', {name: /^(Capture Preview|Capturing\.\.\.)$/});
+  }
+
+  get captureSteps(): Locator {
+    return this.sharePanel.getByRole('list', {name: 'Capture steps'});
+  }
+
+  get captureStepRows(): Locator {
+    return this.captureSteps.getByRole('listitem');
+  }
+
+  captureStep(name: CaptureStepName): Locator {
+    return this.captureStepRows.filter({hasText: name});
+  }
+
+  private captureState(): Promise<CaptureState> {
+    return this.captureButton.or(this.capturedImage).or(this.captureStepRows).evaluateAll((elements) => ({
+      button: elements.find((element) => element instanceof HTMLButtonElement)?.textContent ?? null,
+      picture: elements.find((element) => element instanceof HTMLImageElement)?.getAttribute('src') ?? null,
+      steps: elements.filter((element) => element instanceof HTMLLIElement).map((row) => (row.textContent ?? '').replace(/\s+/g, ' ').trim()),
+    }));
+  }
+
+  private async untilCaptureState(message: string, reached: (state: CaptureState) => boolean) {
+    let last: CaptureState | null = null;
     try {
-      await expectOneNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), outcome);
+      await expect.poll(async () => {
+        last = await this.captureState();
+        return reached(last);
+      }, {message}).toBe(true);
     } catch (error) {
-      const running = await this.sharePanel.getByRole('button', {name: 'Capturing...'}).count() > 0;
-      throw new Error(`${(error as Error).message}\nThe capture ${running ? 'was still running' : 'had ended without a toast on screen'}.`);
+      const state = last as CaptureState | null;
+      const seen = state === null
+        ? 'The page answered no read before the wait ended.'
+        : `The last read of the page before the wait ended: capture button "${state.button ?? 'absent'}", capture steps: ${state.steps.join(', ') || 'none'}, ${state.picture === null ? 'no picture' : 'a picture'} in the Image tab.`;
+      throw new Error(`${(error as Error).message}\n${seen}`);
     }
-    await expect(toasts(this.page).filter({hasText: outcome}), 'the capture should succeed').toHaveText(/Image captured successfully/);
+  }
+
+  private async captureAndExpectSuccess() {
+    const before = await this.captureState();
+    await this.startCapture();
+    await this.untilCaptureState('the capture should finish "Loading images", or end', (state) => stepsDone(state) >= 1);
+    await this.untilCaptureState('the capture should finish "Drawing the image", or end', (state) => stepsDone(state) >= 2);
+    await this.untilCaptureState('the capture should end with a new picture', (state) => state.picture !== null && state.picture !== before.picture);
+    await expect(this.captureButton, 'the capture should be over once its picture is on screen').toHaveText('Capture Preview');
+    await expect(this.captureButton).toBeEnabled();
+    await expect(this.captureSteps).toHaveCount(0);
+  }
+
+  private async holdRequests(urls: RegExp): Promise<HeldRequests> {
+    let open!: () => void;
+    const released = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    let held = 0;
+    const handled: Promise<void>[] = [];
+    const handler = (route: Route) => {
+      held += 1;
+      const done = released.then(() => route.fallback()).catch(() => undefined);
+      handled.push(done);
+      return done;
+    };
+    await this.page.route(urls, handler);
+    return {
+      held: () => held,
+      release: async () => {
+        open();
+        await Promise.all(handled);
+        if (!this.page.isClosed()) await this.page.unroute(urls, handler);
+      },
+    };
+  }
+
+  holdListCardFonts(): Promise<HeldRequests> {
+    return this.holdRequests(LIST_CARD_FONTS);
+  }
+
+  holdListCardWordmark(): Promise<HeldRequests> {
+    return this.holdRequests(LIST_CARD_WORDMARK);
+  }
+
+  async failListCardFonts() {
+    await this.page.route(LIST_CARD_FONTS, (route) => route.abort());
+  }
+
+  async failListCardWordmark() {
+    await this.page.route(LIST_CARD_WORDMARK, (route) => route.abort());
+  }
+
+  async startCapture() {
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+  }
+
+  async holdPictureEncoder() {
+    await this.page.addInitScript(() => {
+      const gate = window as unknown as {__otbHeldPictures?: Array<() => void>; __otbHoldNextPicture?: boolean};
+      gate.__otbHeldPictures = [];
+      const encode = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<typeof encode>) {
+        if (!gate.__otbHoldNextPicture) return encode.apply(this, args);
+        gate.__otbHoldNextPicture = false;
+        gate.__otbHeldPictures?.push(() => encode.apply(this, args));
+      };
+    });
+  }
+
+  async startCaptureUntilEncoderAsked() {
+    await this.page.evaluate(() => {
+      (window as unknown as {__otbHoldNextPicture?: boolean}).__otbHoldNextPicture = true;
+    });
+    await this.startCapture();
+    await expect.poll(() => this.page.evaluate(() => (window as unknown as {__otbHeldPictures?: unknown[]}).__otbHeldPictures?.length ?? 0),
+      {message: 'the capture should ask the encoder for its picture'}).toBe(1);
+  }
+
+  async releasePictureEncoder() {
+    await this.page.evaluate(() => {
+      const gate = window as unknown as {__otbHeldPictures?: Array<() => void>};
+      gate.__otbHeldPictures?.splice(0).forEach((encode) => encode());
+    });
+  }
+
+  async releasePictureEncoderUntilCaptureEnds() {
+    await this.releasePictureEncoder();
+    await expect(this.tierList.shareButton, 'the capture should end once the browser has encoded its picture').toBeEnabled();
   }
 
   async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {
@@ -241,6 +359,29 @@ export class SharePanel {
     await expect(this.sharePanel).toBeHidden();
   }
 }
+
+const LIST_CARD_FONTS = /\/_next\/static\/media\/[^/]+\.woff2$/;
+const LIST_CARD_WORDMARK = /\/brand\/otb-logo-wide\.png$/;
+
+export interface HeldRequests {
+  held: () => number;
+  release: () => Promise<void>;
+}
+
+interface CaptureState {
+  button: string | null;
+  picture: string | null;
+  steps: string[];
+}
+
+function stepsDone(state: CaptureState): number {
+  if (state.steps.length > 0) return state.steps.filter((step) => step.endsWith(' Done')).length;
+  return state.button === 'Capture Preview' ? CAPTURE_STEP_NAMES.length : 0;
+}
+
+export const CAPTURE_STEP_NAMES = ['Loading images', 'Drawing the image', 'Saving the image'] as const;
+
+export type CaptureStepName = typeof CAPTURE_STEP_NAMES[number];
 
 export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';
 

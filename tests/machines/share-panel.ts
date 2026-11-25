@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const sharePanelMachine = createMachine({
   id: 'sharePanel',
-  description: 'The Share panel of the editor, the clipboard that Copy Markdown fills, the Freeze Frame picture that Capture Preview takes, and the device image that the panel’s note counts. The panel opens on the URL tab each time. The copied link and the picture hold the list as it was when they were made: a device image added later is in neither. A picture stays until the page reloads, so the Image tab shows it again after the panel closes and opens.',
+  description: 'The Share panel of the editor, the clipboard that Copy Markdown fills, the Freeze Frame picture that Capture Preview takes, and the device image that the panel’s note counts. The panel opens on the URL tab each time. A capture runs in three steps, and the Image tab lists them while it runs: the browser holds its answer for the encoded picture until the test lets it answer (ENCODER_ANSWERS). The copied link and the picture hold the list as it was when they were made: a device image added later is in neither. A picture stays until the page reloads, so the Image tab shows it again after the panel closes and opens.',
   type: 'parallel',
   states: {
     panel: {
@@ -27,33 +27,64 @@ export const sharePanelMachine = createMachine({
               on: {CHOOSE_IMAGE_TAB: {target: 'imageTab'}},
             },
             imageTab: {
-              description: 'The Image tab (Freeze Frame): Frame, Capture Preview and Options. With a picture, it shows the picture with Copy Image and Download; without one, “Capture an image to get started.”',
-              on: {CHOOSE_URL_TAB: {target: 'urlTab'}},
+              description: 'The Image tab (Freeze Frame): Frame, Capture Preview and Options. With a picture, it shows the picture with Copy Image and Download; without one, “Capture an image to get started.” No capture runs, so the tab lists no capture steps.',
+              on: {
+                CHOOSE_URL_TAB: {target: 'urlTab'},
+                CAPTURE_PREVIEW: {target: '#sharePanel.panel.capturing.imageTab'},
+              },
+            },
+          },
+        },
+        capturing: {
+          description: 'A capture runs: it has loaded its images and drawn the image, and waits for the browser to encode the picture. The Share button is disabled until the capture ends, so it neither closes nor opens the panel. The picture of an earlier capture stays until the new one is ready.',
+          initial: 'imageTab',
+          states: {
+            imageTab: {
+              description: 'The Image tab lists the three capture steps under “Freeze frame!”: “Loading images” and “Drawing the image” read Done, and “Saving the image” is the current step, “Step 3 of 3”. Capture Preview reads “Capturing...” and is disabled.',
+              on: {
+                ENCODER_ANSWERS: {target: '#sharePanel.panel.open.imageTab'},
+                CHOOSE_URL_TAB: {target: 'urlTab'},
+                PRESS_ESCAPE: {target: 'closed'},
+                CLICK_OUTSIDE: {target: 'closed'},
+              },
+            },
+            urlTab: {
+              description: 'The URL tab, as without a capture. The capture goes on.',
+              on: {
+                ENCODER_ANSWERS: {target: '#sharePanel.panel.open.urlTab'},
+                CHOOSE_IMAGE_TAB: {target: 'imageTab'},
+                PRESS_ESCAPE: {target: 'closed'},
+                CLICK_OUTSIDE: {target: 'closed'},
+              },
+            },
+            closed: {
+              description: 'The panel is closed and the capture goes on: the Share button shows, disabled.',
+              on: {ENCODER_ANSWERS: {target: '#sharePanel.panel.closed'}},
             },
           },
         },
       },
     },
     picture: {
-      description: 'The picture that Capture Preview took, in the Image tab, and the list it shows. Download saves the picture with that list inside.',
+      description: 'The picture of the last capture that ended, in the Image tab, and the list it shows. Download saves the picture with that list inside.',
       initial: 'none',
       states: {
         none: {
           description: 'No picture yet.',
-          on: {CAPTURE_PREVIEW: {target: 'thisList'}},
+          on: {ENCODER_ANSWERS: {target: 'thisList'}},
         },
         thisList: {
           description: 'The picture shows the list on screen. Download saves that list.',
           on: {
-            CAPTURE_PREVIEW: {target: 'thisList'},
+            ENCODER_ANSWERS: {target: 'thisList'},
             DOWNLOAD: {target: 'thisList'},
             ADD_DEVICE_IMAGE: {target: 'listBefore'},
           },
         },
         listBefore: {
-          description: 'The picture was taken before the device image was added. Download saves the list as it was then, without the device image. Capture Preview takes a new picture of the list on screen.',
+          description: 'The picture was taken before the device image was added. Download saves the list as it was then, without the device image. A capture that ends puts a new picture of the list on screen in its place.',
           on: {
-            CAPTURE_PREVIEW: {target: 'thisList'},
+            ENCODER_ANSWERS: {target: 'thisList'},
             DOWNLOAD: {target: 'listBefore'},
           },
         },

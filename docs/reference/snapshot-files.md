@@ -18,6 +18,9 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
   A line under Download says what the file carries (owner decision, 2026-10-31): "The file
   keeps your list and your own pictures. Anyone you send it to can open it here and edit the
   list."
+- **Capture Preview** shows its three steps while it runs: "Loading images", "Drawing the image"
+  and "Saving the image". A finished step reads "Done" and the running one "Step 2 of 3" (with its
+  own number). The button reads "Capturing..." until the picture is in the tab.
 - **Frame** (Share, Image tab, before Capture Preview) chooses the picture: "Whole list" (the
   default, 1200 pixels wide and as tall as the list) or a picture frame of a fixed size for posts:
   Landscape 1200×675, Square 1080×1080 or Portrait 1080×1350 (`PICTURE_FRAMES` in
@@ -93,6 +96,43 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
   holds a list, and when a snapshot file's list arrives in the address. Edits, and Back and
   Forward inside the editor, record nothing. A list without its own title shows its page name,
   for example "OVERWATCH - Tank".
+
+## How Freeze Frame takes the picture
+
+Capture Preview (`captureImage` in `components/ShareButton.tsx`) goes through these states, and
+the button reads "Capturing..." in all of them. Each state ends on an event, never after a time.
+
+While a capture runs, the Image tab lists its three steps under "Freeze frame!"
+(`components/CaptureSteps.tsx`, an ordered list named "Capture steps"): "Loading images",
+"Drawing the image" and "Saving the image". A finished step reads "Done", the running step is
+highlighted and reads "Step 2 of 3" with its own number (`aria-current="step"`), and a step that
+has not started is muted. The list is gone when the capture ends, with a picture or with a
+failure.
+
+The list shows the state the capture is in. Each state is first written to the page, then the
+capture waits until the browser has rendered a frame with it (`lib/framePainted.ts`: two animation
+frames, or at once when the page is hidden and renders nothing), and only then starts the work of
+that state. So a step is on screen before a long task of its state can keep the page from
+painting.
+
+1. **Preparing** ("Loading images"). The list card renders hidden (`components/ListCard.tsx`). The capture waits
+   until every font face of the card (Geologica 400, 600 and 900) has loaded or failed, and every
+   image of the card has loaded or failed (`lib/listCard/resources.ts`). A font face is asked by
+   itself (`FontFace.load()`), so a missing fallback font cannot end the wait early. An image
+   tells by `complete`, or by its `load` or `error` event. A link image is the one exception: its
+   site may never answer, so it is checked under a network limit of 5 s (`checkImage` with CORS),
+   and it becomes a label tile when the check fails.
+2. **Drawing** ("Drawing the image"). html2canvas copies the page into a frame of its own and draws the card from the
+   copy. The copy holds only the list card (`ignoreElements`), so the picture depends on nothing
+   else on the page. The copy is a document of its own: it loads the style sheets and the fonts
+   again. Before html2canvas reads the copy, the capture waits until each style sheet and each
+   font face of the card has loaded or failed there too (`cloneSettled`). A style sheet link
+   without its sheet is put in again first, so its `load` or `error` event cannot be missed.
+3. **Encoding** ("Saving the image"). The browser encodes the canvas as a PNG (`canvas.toBlob`).
+4. **Done or failed.** The step list goes. The picture shows in the Image tab with its toast, or
+   the failure toast shows.
+
+A font or an image that failed is drawn as it stands: the fallback font, or no picture.
 
 ## Snapshot file
 

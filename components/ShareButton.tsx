@@ -9,7 +9,6 @@ import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
-import {Skeleton} from "@/components/ui/skeleton";
 import {FaFacebookF, FaMarkdown, FaXTwitter} from "react-icons/fa6";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
@@ -29,6 +28,9 @@ import {type ListCardData, PICTURE_FRAMES, type PictureFrameName} from "@/lib/li
 import {markdownText} from "@/lib/markdownText";
 import {onOpenSharePanel, useTips} from "@/components/useTips";
 import {cn} from "@/lib/utils";
+import {fontFacesSettled, imageSettled, styleSheetSettled} from "@/lib/listCard/resources";
+import {framePainted} from "@/lib/framePainted";
+import {type CapturePhase, CaptureSteps} from "@/components/CaptureSteps";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -67,30 +69,24 @@ function captureScale(width: number, height: number): number {
   return width * height * wanted * wanted <= MAX_CANVAS_PIXELS ? wanted : 1;
 }
 
-/**
- * How long Freeze Frame waits for one card image. A server that never answers would otherwise
- * keep the capture waiting; after this time the image draws as it stands (html2canvas has its own
- * image timeout, and link images without CORS become label tiles).
- */
-const IMAGE_WAIT_MS = 5_000;
-
-/** Resolves when the promise settles or after `ms`, whichever comes first. */
-function settledWithin(promise: Promise<unknown>, ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    promise.then(
-      () => { clearTimeout(timer); resolve(); },
-      () => { clearTimeout(timer); resolve(); },
-    );
-  });
+async function cardSettled(card: HTMLElement): Promise<void> {
+  const images = Array.from(card.querySelectorAll('img')).filter((image) => image.dataset.linkImage === undefined);
+  await Promise.all([fontFacesSettled(document.fonts, listCardFont.style.fontFamily), ...images.map(imageSettled)]);
 }
 
-/** Waits until the card's fonts and images are ready to draw, or until each wait times out. */
-async function cardReady(element: HTMLElement): Promise<void> {
-  const family = listCardFont.style.fontFamily;
-  await Promise.all(['400', '600', '900'].map((weight) => settledWithin(document.fonts.load(`${weight} 24px ${family}`), IMAGE_WAIT_MS)));
-  await Promise.all(Array.from(element.querySelectorAll('img')).map((image) =>
-    image.complete ? Promise.resolve() : settledWithin(image.decode(), IMAGE_WAIT_MS)));
+async function cloneSettled(clonedDocument: Document): Promise<void> {
+  const links = Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]:not([disabled])'));
+  await Promise.all(links.map(styleSheetSettled));
+  await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
+}
+
+async function phasePainted(setPhase: (phase: CapturePhase) => void, phase: CapturePhase): Promise<void> {
+  flushSync(() => setPhase(phase));
+  await framePainted(document, window);
+}
+
+function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
 type SocialPlatform = 'facebook' | 'twitter';
@@ -168,7 +164,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   }, [previewUrl]);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [frame, setFrame] = useState<FrameChoice>('whole');
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [phase, setPhase] = useState<CapturePhase>('idle');
+  const isCapturing = phase !== 'idle';
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
   // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
@@ -193,26 +190,24 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   const captureImage = useCallback(async () => {
-    setIsCapturing(true);
-    // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
     const data = listCard(frame === 'whole' ? undefined : frame);
 
     try {
-      // The card renders hidden at the top of the page (components/ListCard.tsx); the copy of
-      // the page that html2canvas draws shows it.
+      await phasePainted(setPhase, 'preparing');
       flushSync(() => setCard(data));
       const element = cardRef.current;
       if (!element) throw new Error('The list card did not render');
-      await cardReady(element);
-      const prepareLinkImages = await prepareLinkImagesForCapture();
-      const onclone = (clonedDocument: Document) => {
+      const [prepareLinkImages] = await Promise.all([prepareLinkImagesForCapture(), cardSettled(element)]);
+
+      await phasePainted(setPhase, 'drawing');
+      const onclone = async (clonedDocument: Document) => {
         prepareLinkImages(clonedDocument);
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
         if (clonedCard) clonedCard.style.visibility = 'visible';
+        await cloneSettled(clonedDocument);
       };
-      // A picture frame is drawn at exactly its size (1200×675, 1080×1080 or 1080×1350), the
-      // size the sites it is made for expect; the whole list keeps its sharper scale.
+      const ignoreElements = (node: Element) => node.parentElement === document.body && node !== element;
       const scale = data.frame ? 1 : captureScale(data.width, data.height);
       const area = {
         x: 0, y: 0, width: data.width, height: data.height, scrollX: -window.scrollX, scrollY: -window.scrollY,
@@ -246,25 +241,25 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
           return originalDrawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
         };
 
-        await html2canvas(element, {canvas, scale, useCORS: true, onclone, ...area});
+        await html2canvas(element, {canvas, scale, useCORS: true, onclone, ignoreElements, ...area});
       } else {
-        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
+        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ignoreElements, ...area});
       }
 
-      canvas.toBlob((blob: Blob | null) => {
-        if (blob) {
-          setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
-          toast.success('Image captured successfully');
-        } else {
-          toast.error(`Failed to capture image with ${captureMethod} method`);
-        }
-      }, 'image/png');
+      await phasePainted(setPhase, 'encoding');
+      const blob = await pngOf(canvas);
+      if (blob) {
+        setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
+        toast.success('Image captured successfully');
+      } else {
+        toast.error(`Failed to capture image with ${captureMethod} method`);
+      }
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
     } finally {
       setCard(null);
-      setIsCapturing(false);
+      setPhase('idle');
     }
   }, [captureMethod, frame, shareLink, pathname, title, listCard]);
 
@@ -445,9 +440,7 @@ What do you think? 🤔
               {isCapturing && (
                 <div className="space-y-2 w-full">
                   <p className="text-center italic">Freeze frame!</p>
-                  <Skeleton className="h-6 w-full"/>
-                  <Skeleton className="h-6 w-full"/>
-                  <Skeleton className="h-6 w-full"/>
+                  <CaptureSteps phase={phase}/>
                 </div>
               )}
 
