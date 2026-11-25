@@ -1,0 +1,346 @@
+# @dnd-kit/helpers
+
+## 0.5.1
+
+### Patch Changes
+
+- Updated dependencies [[`69987d5`](https://github.com/clauderic/dnd-kit/commit/69987d50452b18eeb47881c626c2ebdc5871c5a7)]:
+  - @dnd-kit/abstract@0.5.1
+
+## 0.5.0
+
+### Patch Changes
+
+- [#2074](https://github.com/clauderic/dnd-kit/pull/2074) [`90ddfcd`](https://github.com/clauderic/dnd-kit/commit/90ddfcd32b052c9ad956e19cf3c9a3450f22d257) Thanks [@timagixe](https://github.com/timagixe)! - Fix grouped record sorting with numeric group IDs
+
+- [#2027](https://github.com/clauderic/dnd-kit/pull/2027) [`a7ee830`](https://github.com/clauderic/dnd-kit/commit/a7ee830c2505c8d5ca7522d20a6ad55bfbe7ed4d) Thanks [@sourabh945](https://github.com/sourabh945)! - fix a check for the 'id' in items that causing TypeError in SortableContext add the gaurdrail for chekcing the item is not null.
+
+- Updated dependencies [[`e4d1a7e`](https://github.com/clauderic/dnd-kit/commit/e4d1a7e2d93ed48a2b71232b47e9f9bdba43bb68)]:
+  - @dnd-kit/abstract@0.5.0
+
+## 0.4.0
+
+### Minor Changes
+
+- [#1915](https://github.com/clauderic/dnd-kit/pull/1915) [`9b24dff`](https://github.com/clauderic/dnd-kit/commit/9b24dffde9a4b58140e5dd8c10e2766dabe42c00) Thanks [@clauderic](https://github.com/clauderic)! - Redesign event type system to follow the DOM EventMap pattern. Introduces `DragDropEventMap` for event object types and `DragDropEventHandlers` for event handler signatures, replacing the ambiguously named `DragDropEvents`. Event type aliases (`CollisionEvent`, `DragStartEvent`, etc.) now derive directly from `DragDropEventMap` rather than using `Parameters<>` extraction.
+
+  ### Migration guide
+
+  - **`DragDropEvents`** has been split into two types:
+    - `DragDropEventMap` — maps event names to event object types (like `WindowEventMap`)
+    - `DragDropEventHandlers` — maps event names to `(event, manager) => void` handler signatures
+  - If you were importing `DragDropEvents` to type **event objects**, use `DragDropEventMap` instead:
+    ```ts
+    // Before
+    type MyEvent = Parameters<DragDropEvents<D, P, M>['dragend']>[0];
+    // After
+    type MyEvent = DragDropEventMap<D, P, M>['dragend'];
+    ```
+  - If you were importing `DragDropEvents` to type **event handlers**, use `DragDropEventHandlers` instead:
+    ```ts
+    // Before
+    const handler: DragDropEvents<D, P, M>['dragend'] = (event, manager) => {};
+    // After
+    const handler: DragDropEventHandlers<D, P, M>['dragend'] = (
+      event,
+      manager
+    ) => {};
+    ```
+  - The `DragDropEvents` re-export from `@dnd-kit/react` and `@dnd-kit/solid` has been removed. Import `DragDropEventMap` or `DragDropEventHandlers` from `@dnd-kit/abstract` directly if needed.
+  - Convenience aliases (`CollisionEvent`, `DragStartEvent`, `DragEndEvent`, etc.) are unchanged and continue to work as before.
+
+### Patch Changes
+
+- [#1954](https://github.com/clauderic/dnd-kit/pull/1954) [`e5b153e`](https://github.com/clauderic/dnd-kit/commit/e5b153e80068e6b768cee8cf61d6b9e299805719) Thanks [@thexeromin](https://github.com/thexeromin)! - fix: correct JSDoc comment for arraySwap
+
+- [#1971](https://github.com/clauderic/dnd-kit/pull/1971) [`8fc1962`](https://github.com/clauderic/dnd-kit/commit/8fc19626031c6e2b6592b99ff217323a9489defa) Thanks [@clauderic](https://github.com/clauderic)! - Added LICENSE file to all published packages.
+
+- Updated dependencies [[`cde61e4`](https://github.com/clauderic/dnd-kit/commit/cde61e4b4551f9094f44d9281f65028f85df9813), [`a5935e0`](https://github.com/clauderic/dnd-kit/commit/a5935e0ede16e05bddb2102c8850aa9c8754d1cc), [`462e435`](https://github.com/clauderic/dnd-kit/commit/462e43511966506367142146e23feb124d9c03eb), [`9b24dff`](https://github.com/clauderic/dnd-kit/commit/9b24dffde9a4b58140e5dd8c10e2766dabe42c00), [`8fc1962`](https://github.com/clauderic/dnd-kit/commit/8fc19626031c6e2b6592b99ff217323a9489defa), [`8115a57`](https://github.com/clauderic/dnd-kit/commit/8115a57f1191af78dd641933af34c9c37f8dcb3c), [`e69387d`](https://github.com/clauderic/dnd-kit/commit/e69387d2906872310e56ecea4d75f7fa18db4f56), [`4e35963`](https://github.com/clauderic/dnd-kit/commit/4e35963d427d835285a1f10df96899502d327d68)]:
+  - @dnd-kit/abstract@0.4.0
+
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.3.2
+
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`4341114`](https://github.com/clauderic/dnd-kit/commit/43411143063349caeded4f778923473624ce25cf)]:
+  - @dnd-kit/abstract@0.3.1
+
+## 0.3.0
+
+### Patch Changes
+
+- [`e8ae539`](https://github.com/clauderic/dnd-kit/commit/e8ae539abe05a1df41d45078b108167022ac9ef7) Thanks [@clauderic](https://github.com/clauderic)! - Fix the `move` and `swap` helpers to support computed sortable IDs and optimistic sorting reconciliation for grouped records.
+
+  When the ID-based lookup fails (e.g. when using computed IDs like `id={\`sortable-${item.id}\`}` that don't match data items), the helpers now fall back to sortable index properties (`initialIndex`, `index`, `group`, `initialGroup`) to determine the correct positions. Additionally, grouped records now support optimistic sorting reconciliation—when `source.id === target.id` after optimistic sorting, the helpers use the sortable indices to determine the intended move.
+
+  Added `initialIndex`, `group`, and `initialGroup` getters to `SortableDraggable`, and `index` and `group` getters to `SortableDroppable`, so these properties are accessible from the operation's `source` and `target` in drag events.
+
+- Updated dependencies [[`6a59647`](https://github.com/clauderic/dnd-kit/commit/6a59647ebba2114b2e423f282ab25bf2ea40318d)]:
+  - @dnd-kit/abstract@0.3.0
+
+## 0.2.4
+
+### Patch Changes
+
+- Updated dependencies [[`de27fbc`](https://github.com/clauderic/dnd-kit/commit/de27fbca9df12eece3cd53ccbbac34e0eaf113e1), [`be7cfe3`](https://github.com/clauderic/dnd-kit/commit/be7cfe3b6cf6a989aefd3e39fd145fe271942b3a)]:
+  - @dnd-kit/abstract@0.2.4
+
+## 0.2.3
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.2.3
+
+## 0.2.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.2.2
+
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.2.1
+
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [[`e95a9c8`](https://github.com/clauderic/dnd-kit/commit/e95a9c8f448d6b339e0b6fd37546ac7cfdf18edb)]:
+  - @dnd-kit/abstract@0.2.0
+
+## 0.1.21
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.21
+
+## 0.1.20
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.20
+
+## 0.1.19
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.19
+
+## 0.1.18
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.18
+
+## 0.1.17
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.17
+
+## 0.1.16
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.16
+
+## 0.1.15
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.15
+
+## 0.1.14
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.14
+
+## 0.1.13
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.13
+
+## 0.1.12
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.12
+
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.11
+
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.10
+
+## 0.1.9
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.9
+
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.8
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.7
+
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [[`7ceb799`](https://github.com/clauderic/dnd-kit/commit/7ceb799c7d214bc8223ec845357a0040c28ae40e)]:
+  - @dnd-kit/abstract@0.1.6
+
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.5
+
+## 0.1.4
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.1.4
+
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`6c9a9ea`](https://github.com/clauderic/dnd-kit/commit/6c9a9ea060095884c90c72cd5d6b73820467ec29), [`1bef872`](https://github.com/clauderic/dnd-kit/commit/1bef8722d515079f998dc0608084e1d853e74d3a)]:
+  - @dnd-kit/abstract@0.1.3
+
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`4682570`](https://github.com/clauderic/dnd-kit/commit/4682570a6b80868af0e51b1bbbf902430117df43), [`f8d69b0`](https://github.com/clauderic/dnd-kit/commit/f8d69b01f4cf53fc368ef1fca9188c313192928d), [`d04e9a2`](https://github.com/clauderic/dnd-kit/commit/d04e9a2879fb00f092c3f8280c8081a48eebf193), [`ee55f58`](https://github.com/clauderic/dnd-kit/commit/ee55f582f92dc42cc6eea9ad7492fc782ca6455a)]:
+  - @dnd-kit/abstract@0.1.2
+
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`f13cbc9`](https://github.com/clauderic/dnd-kit/commit/f13cbc978229844770d3c8aa03135e4352ee2532)]:
+  - @dnd-kit/abstract@0.1.1
+
+## 0.1.0
+
+### Patch Changes
+
+- Updated dependencies [[`00a33c9`](https://github.com/clauderic/dnd-kit/commit/00a33c99e777ab205a45309a4efc8b3560bafdaf)]:
+  - @dnd-kit/abstract@0.1.0
+
+## 0.0.10
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.0.10
+
+## 0.0.9
+
+### Patch Changes
+
+- Updated dependencies [[`e36d954`](https://github.com/clauderic/dnd-kit/commit/e36d95420148659ba78bdbefd3a0a24ec5d02b8f), [`b7f1cf8`](https://github.com/clauderic/dnd-kit/commit/b7f1cf8f9e15a285c45f896e092f61001335cdff), [`3e629cc`](https://github.com/clauderic/dnd-kit/commit/3e629cc81dbaf9d112c4f1d2c10c75eb6779cf4e), [`ce31da7`](https://github.com/clauderic/dnd-kit/commit/ce31da736ec5d4f48bab45430be7b57223d60ee7)]:
+  - @dnd-kit/abstract@0.0.9
+
+## 0.0.8
+
+### Patch Changes
+
+- Updated dependencies [[`c9716cf`](https://github.com/clauderic/dnd-kit/commit/c9716cf7b8b846faab451bd2f60c53c77d2d24ba), [`3ea0d31`](https://github.com/clauderic/dnd-kit/commit/3ea0d314649b186bfe0524d50145625da13a8787), [`3cf4db1`](https://github.com/clauderic/dnd-kit/commit/3cf4db126813ebe6ddfc025df5e42e9bfcfa9c38)]:
+  - @dnd-kit/abstract@0.0.8
+
+## 0.0.7
+
+### Patch Changes
+
+- [#1592](https://github.com/clauderic/dnd-kit/pull/1592) [`808f184`](https://github.com/clauderic/dnd-kit/commit/808f184439125cf7e66054b3e85ac087aa04f13b) Thanks [@github-actions](https://github.com/apps/github-actions)! - Fix reconciliation of optimistic updates in `move` helper.
+
+- Updated dependencies [[`c1dadef`](https://github.com/clauderic/dnd-kit/commit/c1dadef118f8f5f096d36dac314bfe317ea950ce), [`cef9b46`](https://github.com/clauderic/dnd-kit/commit/cef9b46c5ed017e6a601b1d0ee9d0f05b7bbd19f)]:
+  - @dnd-kit/abstract@0.0.7
+
+## 0.0.6
+
+### Patch Changes
+
+- [#1567](https://github.com/clauderic/dnd-kit/pull/1567) [`081b7f2`](https://github.com/clauderic/dnd-kit/commit/081b7f2a11da2aad8ce3da7f0579974415d1fdf0) Thanks [@chrisvxd](https://github.com/chrisvxd)! - Add source maps to output.
+
+- [#1454](https://github.com/clauderic/dnd-kit/pull/1454) [`d272e76`](https://github.com/clauderic/dnd-kit/commit/d272e76fef094d0e05c215bf6f5d37d56a29c251) Thanks [@github-actions](https://github.com/apps/github-actions)! - Fix a bug where the source would accidentally be moved below the target index due to rounding errors.
+
+- [#1454](https://github.com/clauderic/dnd-kit/pull/1454) [`1998c20`](https://github.com/clauderic/dnd-kit/commit/1998c20ecc26f0e2cb24f06077bc01e3dabcaf7c) Thanks [@github-actions](https://github.com/apps/github-actions)! - Updated the `move` helper to accept an `event` instead of `source` and `target`.
+
+- Updated dependencies [[`984b5ab`](https://github.com/clauderic/dnd-kit/commit/984b5ab7bec3145dedb9c9b3b560ffbf7e54b919), [`081b7f2`](https://github.com/clauderic/dnd-kit/commit/081b7f2a11da2aad8ce3da7f0579974415d1fdf0), [`a04d3f8`](https://github.com/clauderic/dnd-kit/commit/a04d3f88d380853b97585ab3b608561f7b02ce69), [`a8542de`](https://github.com/clauderic/dnd-kit/commit/a8542de56d39c3cd3b6ef981172a0782454295b2), [`f7458d9`](https://github.com/clauderic/dnd-kit/commit/f7458d9dc32824dbea3a6d5dfb29236f19a2c073), [`e70b29a`](https://github.com/clauderic/dnd-kit/commit/e70b29ae64837e424f7279c95112fb6e420c4dcc), [`4d1a030`](https://github.com/clauderic/dnd-kit/commit/4d1a0306c920ae064eb5b30c4c02961f50460c84), [`a5933d8`](https://github.com/clauderic/dnd-kit/commit/a5933d8607e63ed08818ffab43e858863cb35d47), [`a5a556a`](https://github.com/clauderic/dnd-kit/commit/a5a556abfeec1d78effb3e047f529555e444c020), [`96f28ef`](https://github.com/clauderic/dnd-kit/commit/96f28ef86adf95e77540732d39033c7f3fb0fd04)]:
+  - @dnd-kit/abstract@0.0.6
+
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [[`e9be505`](https://github.com/clauderic/dnd-kit/commit/e9be5051b5c99e522fb6efd028d425220b171890)]:
+  - @dnd-kit/abstract@0.0.5
+
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [[`2ccc27c`](https://github.com/clauderic/dnd-kit/commit/2ccc27c566b13d6de46719d0ad5978d655261177), [`e0d80f5`](https://github.com/clauderic/dnd-kit/commit/e0d80f59c733b3adcf1fc89d29aa80257e7edd98), [`794cf2f`](https://github.com/clauderic/dnd-kit/commit/794cf2f4bdeeb57a197effb1df654c7c44cf34a3)]:
+  - @dnd-kit/abstract@0.0.4
+
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [[`5ccd5e6`](https://github.com/clauderic/dnd-kit/commit/5ccd5e668fb8d736ec3c195116559cb5c5684e80), [`886de33`](https://github.com/clauderic/dnd-kit/commit/886de33d0df851ebdcb3fcf2915f9623069b06d1)]:
+  - @dnd-kit/abstract@0.0.3
+
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @dnd-kit/abstract@0.0.2

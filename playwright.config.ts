@@ -1,84 +1,57 @@
 import {defineConfig, devices} from '@playwright/test';
+import {BYPASS_HEADER, bypassSecret} from './tests/support/vercel-bypass';
 
-// type VercelSetBypassCookie = 'true' | 'samesitenone';
+const isCI = !!process.env.CI;
+const port = Number(process.env.PORT || 3000);
+const baseURL = process.env.BASE_URL || `http://127.0.0.1:${port}`;
+const useLocalServer = !process.env.BASE_URL;
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+const sharedHeaders = {'x-vercel-skip-toolbar': '1'};
+const secret = bypassSecret();
+const apiHeaders = secret ? {...sharedHeaders, [BYPASS_HEADER]: secret} : sharedHeaders;
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+const DESKTOP_WINDOW = {width: 1280, height: 1440};
+
 export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files in parallel */
+  testDir: './tests/e2e',
   fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 4 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL || 'http://127.0.0.1:3000',
-    extraHTTPHeaders: {
-      'x-vercel-skip-toolbar': '1',
-      //   'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET!,
-      //   'x-vercel-set-bypass-cookie': 'true' as VercelSetBypassCookie
-    },
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
+  failOnFlakyTests: isCI,
+  workers: isCI ? 4 : undefined,
+  reporter: isCI
+    ? [['github'], ['html', {open: 'never'}]]
+    : [['list'], ['html', {open: 'never'}]],
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+  expect: {
+    timeout: 10_000,
   },
 
-  /* Configure projects for major browsers */
+  use: {
+    baseURL,
+    trace: secret ? 'off' : 'on-first-retry',
+    screenshot: 'only-on-failure',
+    extraHTTPHeaders: sharedHeaders,
+    reducedMotion: 'reduce',
+    navigationTimeout: 30_000,
+    actionTimeout: 15_000,
+  },
+
   projects: [
-    {
-      name: 'chromium',
-      use: {...devices['Desktop Chrome']},
-    },
-
-    {
-      name: 'firefox',
-      use: {...devices['Desktop Firefox']},
-    },
-
-    {
-      name: 'webkit',
-      use: {...devices['Desktop Safari']},
-    },
-
-    /* Test against mobile viewports. */
-    {
-      name: 'Mobile Chrome',
-      use: {...devices['Pixel 5']},
-    },
-    {
-      name: 'Mobile Safari',
-      use: {...devices['iPhone 12']},
-    },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    {name: 'api', testMatch: /\.api\.spec\.ts$/, use: {extraHTTPHeaders: apiHeaders}},
+    {name: 'chromium', use: {...devices['Desktop Chrome'], viewport: DESKTOP_WINDOW}, testIgnore: /\.api\.spec\.ts$/},
+    {name: 'firefox', use: {...devices['Desktop Firefox'], viewport: DESKTOP_WINDOW}, testIgnore: /\.api\.spec\.ts$/},
+    {name: 'webkit', use: {...devices['Desktop Safari'], viewport: DESKTOP_WINDOW}, testIgnore: /\.api\.spec\.ts$/},
+    {name: 'mobile-chrome', use: {...devices['Pixel 7']}, grep: /@mobile/, testIgnore: /\.api\.spec\.ts$/},
+    {name: 'mobile-safari', use: {...devices['iPhone 15']}, grep: /@mobile/, testIgnore: /\.api\.spec\.ts$/},
   ],
 
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://127.0.0.1:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
+  webServer: useLocalServer
+    ? {
+      command: `npm run start -- -p ${port}`,
+      url: baseURL,
+      reuseExistingServer: !isCI,
+      timeout: 120_000,
+    }
+    : undefined,
 });

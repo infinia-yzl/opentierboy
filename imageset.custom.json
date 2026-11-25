@@ -1,7 +1,7 @@
 {
   "packages": {
     "image-set": {
-      "displayName": "Example Items Template"
+      "legacy": true
     },
     "image-reachthefinals": {
       "displayName": "THE FINALS",
@@ -9,9 +9,7 @@
       "backgroundImage": "/splash/thefinals-red-bg.webp"
     },
     "image-wutheringwaves": {
-      "displayName": "WUTHERING WAVES",
-      "googleFont": "Cinzel",
-      "backgroundImage": "/splash/wuwa-bg-1.webp"
+      "legacy": true
     },
     "image-overwatch": {
       "displayName": "OVERWATCH",
@@ -19,17 +17,13 @@
       "backgroundImage": "/splash/overwatch-bg.webp"
     },
     "image-webdev": {
-      "displayName": "Web Development Technologies",
-      "backgroundImage": "/splash/webdev-bg.webp"
+      "legacy": true
     },
     "image-supervive": {
-      "displayName": "SUPERVIVE",
-      "backgroundImage": "/splash/supervive-keyart.webp"
+      "legacy": true
     },
     "image-helldivers2": {
-      "displayName": "HELLDIVERS 2",
-      "googleFont": "Chakra Petch",
-      "backgroundImage": "/splash/hd2-splash.webp"
+      "legacy": true
     }
   }
 }

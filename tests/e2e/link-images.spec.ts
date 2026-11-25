@@ -1,0 +1,596 @@
+import type {Page, TestInfo} from '@playwright/test';
+import {modelSut} from '../support/model-sut';
+import {expect, test} from '../support/test';
+import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
+import {packageItemId, v3LinkJson, v3State} from '../support/links';
+import {BLUE_SQUARE, noisePng, NOT_A_PICTURE, serveImageSite, type HeldImageSite, type ImageSite} from '../support/image-sites';
+import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
+import {
+  BLUE,
+  GREEN,
+  HELD_ADDRESSES,
+  linkImagesModel,
+  linkImagesViewOf,
+  NAVY,
+  OTHER_SITE,
+  RED,
+  TRUSTED_SITE,
+  type LinkImage,
+  type LinkImagesEvent,
+  type LinkImagesSnapshot,
+} from '../models/link-images';
+import {
+  LARGE_PICTURE, linkDialogModel, linkDialogViewOf, PICTURE, REFUSED_ADDRESS, WEB_PAGE,
+  type DialogImage, type LinkDialogEvent, type LinkDialogSnapshot,
+} from '../models/link-dialog';
+
+const TANKS = '/rank/overwatch/tank';
+
+const TRUSTED = 'i.imgur.com';
+const FANDOM = 'static.wikia.nocookie.net';
+const DOMINA = `https://${FANDOM}/overwatch_gamepedia/images/7/76/Icon-Domina.png/revision/latest/scale-to-width-down/250?cb=20260210210928`;
+const MIZUKI = `https://${FANDOM}/overwatch_gamepedia/images/3/36/Icon-Mizuki.png/revision/latest/scale-to-width-down/250?cb=20260210211030`;
+
+const OTHER = 'images.example.org';
+
+function listWith(items: unknown[]): string {
+  return v3State({t: 'Images', tp: 3, r: [['S', [packageItemId('image-overwatch', 'Mauga')]], ['A', []], ['B', []], ['', items]]});
+}
+
+test.describe('link images', () => {
+  test.describe('adding link images (#107)', () => {
+    test('renders the image and its site, and writes {u, c} to the link, when the user adds an image from a trusted site', async ({tierList, page, openAsVisitor}) => {
+      const site = await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/red.png', 'Red square');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Red square']);
+      await expect.poll(() => tierList.itemImageHasLoaded('Red square')).toBe(true);
+      await expect(tierList.toast('Items Added')).toBeVisible();
+      await expect(tierList.item('Red square')).toHaveAccessibleDescription(/Image from i\.imgur\.com/);
+      await expect.poll(() => tierList.linkImages.itemImageSite('Red square')).toBe('Image from i.imgur.com');
+      expect(site.requests.every((url) => url === 'https://i.imgur.com/red.png')).toBe(true);
+
+      const link = await tierList.shareLink();
+      expect(JSON.stringify(v3LinkJson(link))).toContain('{"u":"https://i.imgur.com/red.png","c":"Red square"}');
+      const friend = await openAsVisitor(link, {beforeOpen: (context) => serveImageSite(context, TRUSTED)});
+      await expect(friend.itemsIn(friend.unranked)).toHaveText(['Red square']);
+      await expect.poll(() => friend.itemImageHasLoaded('Red square')).toBe(true);
+      await expect(friend.linkImages.imageSitesNotice).toHaveCount(0);
+    });
+
+    test('renders focus on button "Add images" when the dialog "Add an Image from a Link" closes after an add', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/red.png', 'Red square');
+      await expect(tierList.manageItemsButton).toBeFocused();
+    });
+
+    test('writes 2 history entries and renders "Icon Domina" and "Icon Mizuki" when the user adds two Fandom addresses unnamed', async ({tierList, page}) => {
+      await serveImageSite(page, FANDOM);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.addItemFromLink(DOMINA);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Icon Domina']);
+      await tierList.linkImages.addItemFromLink(MIZUKI);
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Icon Domina', 'Icon Mizuki']);
+      await expect.poll(() => tierList.itemImageHasLoaded('Icon Mizuki')).toBe(true);
+      await expect.poll(newEntries).toBe(2);
+    });
+
+    test('renders the item "250 2" when the user adds an address without a name whose name another item has', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      const link = await tierList.shareLink();
+      expect(JSON.stringify(v3LinkJson(link))).toContain('{"u":"https://i.imgur.com/b/250","c":"250 2"}');
+    });
+
+    test('renders 1 item and the toast "No New Items" when the user adds the same address twice', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.addItemFromLink('https://i.imgur.com/a/250');
+
+      await expect(tierList.toast('No New Items')).toContainText('Every item is already in the list.');
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250']);
+      expect(await newEntries()).toBe(0);
+    });
+
+    test('renders the matching error and no item when the user submits an address that fails checkLinkImageUrl', async ({tierList}) => {
+      await tierList.goto('/rank');
+      const cases: [string, RegExp][] = [
+        ['http://i.imgur.com/a.png', /starts with https:\/\//],
+        ['https://localhost/a.png', /localhost/],
+        ['https://192.168.1.1/a.png', /IP addresses/],
+        ['https://router.local/a.png', /private or local network/],
+        ['https://user:secret@i.imgur.com/a.png', /user name or password/],
+        ['javascript:alert(1)', /starts with https:\/\//],
+        ['i.imgur.com/a.png', /complete web address/],
+      ];
+      await tierList.linkImages.openLinkImageDialog();
+      for (const [address, message] of cases) {
+        await tierList.linkImages.submitInLinkImageDialog(address);
+        await expect(tierList.linkImages.linkImageMessage, address).toHaveText(message);
+      }
+      await tierList.linkImages.closeLinkImageDialog();
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(0);
+    });
+
+    test('renders a label tile with the site name when the user adds an image that does not load with Add Anyway', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED, {status: 404, contentType: 'text/html', body: Buffer.from('not found')});
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.submitLinkImage('https://i.imgur.com/missing.png', 'Missing');
+      await expect(tierList.linkImages.linkImageMessage).toContainText('The image did not load');
+      await tierList.linkImages.confirmAddAnyway();
+
+      await expect(tierList.item('Missing')).toBeVisible();
+      await expect(tierList.itemImage('Missing')).toHaveCount(0);
+      await expect(tierList.item('Missing')).toContainText('i.imgur.com');
+    });
+
+    test('renders the site name as the label when the page opens a link with a {u} item without c', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto(TANKS, listWith([{u: 'https://i.imgur.com/red.png'}, {u: 'https://www.example.org/cat.png'}]));
+
+      await expect(tierList.item('i.imgur.com')).toBeVisible();
+      await expect.poll(() => tierList.itemImageHasLoaded('i.imgur.com')).toBe(true);
+      await expect(tierList.itemImage('i.imgur.com')).toHaveAccessibleName('i.imgur.com');
+      await expect(tierList.item('example.org')).toContainText('example.org');
+    });
+  });
+
+  test.describe('dropped and pasted addresses (#107)', () => {
+    test('renders the image and writes {u, c} and 1 history entry when the user drops a link to an image of a trusted site', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(() => tierList.itemImageHasLoaded('red')).toBe(true);
+      await expect(tierList.toast('Items Added')).toBeVisible();
+      await expect.poll(newEntries).toBe(1);
+      expect(JSON.stringify(v3LinkJson(page.url()))).toContain('{"u":"https://i.imgur.com/red.png","c":"red"}');
+    });
+
+    test('renders the image and writes 1 history entry when the user drops a link after a cancelled dragstart on an item', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto(TANKS);
+      const count = await tierList.itemsIn(tierList.unranked).count();
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.fireCancelledDragStartOn('Mauga');
+      await tierList.linkImages.dropText({uriList: 'https://i.imgur.com/red.png', plain: 'https://i.imgur.com/red.png'});
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(count + 1);
+      await expect(tierList.item('red')).toBeVisible();
+      await expect.poll(newEntries).toBe(1);
+    });
+
+    test('writes 1 history entry and renders both images when the user drops an image from a page with two images', async ({tierList, page}) => {
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.dropText({
+        html: '<p><a href="https://imgur.com/gallery/x"><img src="https://i.imgur.com/one.png" alt="One"></a> <img src="https://i.imgur.com/two.png"></p>',
+        uriList: 'https://imgur.com/gallery/x',
+      });
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['one', 'two']);
+      await expect.poll(newEntries).toBe(1);
+    });
+
+    test('renders the image when the user pastes an image address of a trusted site', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(() => tierList.itemImageHasLoaded('red')).toBe(true);
+    });
+
+    test('writes 2 history entries and renders "Icon Domina" and "Icon Mizuki" when the user pastes two Fandom addresses in turn', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, FANDOM);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText(DOMINA);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Icon Domina']);
+      await tierList.linkImages.pasteText(MIZUKI);
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Icon Domina', 'Icon Mizuki']);
+      await expect.poll(newEntries).toBe(2);
+    });
+
+    test('writes 2 history entries and renders "250" and "250 2" when the user pastes two addresses of one name in quick turn', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('https://i.imgur.com/a/250');
+      await tierList.linkImages.pasteText('https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      await expect.poll(newEntries).toBe(2);
+    });
+
+    test('writes 1 history entry and renders "250" and "250 2" when the user pastes two addresses of one name at once', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('https://i.imgur.com/a/250 https://i.imgur.com/b/250');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['250', '250 2']);
+      await expect.poll(newEntries).toBe(1);
+    });
+
+    test('renders the image and no notice when the user drops a link to an image of an unknown site', async ({tierList, page}) => {
+      const site = await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.dropText({uriList: `https://${OTHER}/blue.png`});
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
+      await expect.poll(() => tierList.itemImageHasLoaded('blue')).toBe(true);
+      await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
+      expect(site.requests.length).toBeGreaterThan(0);
+    });
+
+    test('renders the image and no notice when the user pastes an address of an image of an unknown site', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.pasteText(`https://${OTHER}/blue.png`);
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
+      await expect.poll(() => tierList.itemImageHasLoaded('blue')).toBe(true);
+      await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
+    });
+
+    test('writes no history entry and renders no item or toast when the user pastes a link to a page that is not an image', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      const pages = await serveImageSite(page, 'www.youtube.com', {contentType: 'text/html', body: Buffer.from('<!doctype html><title>Video</title>')});
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('https://www.youtube.com/watch?v=abc');
+      await expect.poll(() => pages.requests.length).toBe(1);
+      await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(newEntries).toBe(1);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
+    });
+
+    test('writes no history entry and renders no item or toast when the user drops a link to a page that is not an image', async ({tierList, page}) => {
+      const pages = await serveImageSite(page, TRUSTED, {status: 404, contentType: 'text/html', body: Buffer.from('not found')});
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.dropText({uriList: 'https://i.imgur.com/gallery/page'});
+      await expect.poll(() => pages.requests.length).toBe(1);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.linkImages.dropText({uriList: `https://${OTHER}/blue.png`});
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['blue']);
+      await expect.poll(newEntries).toBe(1);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
+    });
+
+    test('writes no history entry and renders no toast when the user pastes an address that fails checkLinkImageUrl', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, TRUSTED);
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('http://i.imgur.com/a.png');
+      await tierList.linkImages.pasteText('https://i.imgur.com/red.png');
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['red']);
+      await expect.poll(newEntries).toBe(1);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
+    });
+
+    test('writes no history entry and renders no toast when the user pastes text without an address', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.goto('/rank');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await tierList.linkImages.pasteText('Mauga is S tier');
+      await tierList.linkImages.pasteText(`https://${OTHER}/blue.png`);
+
+      await expect(tierList.item('blue')).toBeVisible();
+      await expect.poll(newEntries).toBe(1);
+      await expect(tierList.toast(/could not/i), 'no toast says an image could not be added').toHaveCount(0);
+    });
+
+    test('renders 20 items and the toast "Too many image addresses" when the user pastes 25 addresses', async ({tierList, page, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.goto('/rank');
+
+      await tierList.linkImages.pasteText(Array.from({length: 25}, (_, index) => `https://${OTHER}/${index}.png`).join('\n'));
+
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(20);
+      await expect(tierList.toast('Too many image addresses')).toContainText('Up to 20 are added at a time. 5 were left out.');
+    });
+  });
+
+  test.describe('other sites', () => {
+    test('writes no request to an unknown site when the page opens its link image, until the user clicks Load for this page', async ({tierList, page}) => {
+      const other = await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      const trusted = await serveImageSite(page, TRUSTED);
+      await tierList.goto(TANKS, listWith([{u: `https://${OTHER}/blue.png`, c: 'Blue'}, {u: 'https://i.imgur.com/red.png', c: 'Red'}]));
+
+      await expect(tierList.linkImages.imageSitesNotice).toBeVisible();
+      await expect(tierList.linkImages.imageSitesNoticeHosts).toHaveText([OTHER]);
+      await expect.poll(() => tierList.itemImageHasLoaded('Red')).toBe(true);
+      expect(trusted.requests.length).toBeGreaterThan(0);
+      await expect(tierList.itemImage('Blue')).toHaveCount(0);
+      await expect(tierList.item('Blue')).toContainText(OTHER);
+      expect(other.requests, 'no request reaches the unknown site before Load').toEqual([]);
+
+      await tierList.linkImages.loadImagesFromOtherSites();
+      await expect.poll(() => tierList.itemImageHasLoaded('Blue')).toBe(true);
+      expect(other.requests).toContain(`https://${OTHER}/blue.png`);
+
+      const requestsBefore = other.requests.length;
+      await tierList.reload();
+      await expect(tierList.linkImages.imageSitesNotice).toBeVisible();
+      await expect.poll(() => tierList.itemImageHasLoaded('Red')).toBe(true);
+      await expect(tierList.itemImage('Blue')).toHaveCount(0);
+      expect(other.requests.length).toBe(requestsBefore);
+    });
+
+    test('renders the image, also after a reload, when the user allows the unknown site for this browser', async ({tierList, page}) => {
+      await serveImageSite(page, OTHER, {body: BLUE_SQUARE});
+      await tierList.goto(TANKS, listWith([{u: `https://${OTHER}/blue.png`, c: 'Blue'}]));
+
+      await tierList.linkImages.alwaysAllowImageSites();
+      await expect.poll(() => tierList.itemImageHasLoaded('Blue')).toBe(true);
+
+      await tierList.reload();
+      await expect.poll(() => tierList.itemImageHasLoaded('Blue')).toBe(true);
+      await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
+    });
+
+    test('writes no request and renders no Load notice when the page opens a link image of http://127.0.0.1:9', async ({tierList}) => {
+      const sent = tierList.recordRequests();
+      await tierList.goto(TANKS, listWith([{u: 'http://127.0.0.1:9/secret.png', c: 'Local'}]));
+
+      await expect(tierList.item('Local')).toBeVisible();
+      await expect(tierList.itemImage('Local')).toHaveCount(0);
+      await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
+      expect(sent().filter((request) => request.url.startsWith('http://127.0.0.1:9/'))).toEqual([]);
+    });
+  });
+
+  test.describe('model', () => {
+    const item = ({label, url}: LinkImage) => ({u: url, c: label});
+    const FIRST_LIST = listWith([item(BLUE), item(RED)]);
+    const OTHER_LIST = listWith([item(NAVY)]);
+
+    const linkImagesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, otherSite: ImageSite) => {
+      let loadedAt = 0;
+      let held: HeldImageSite = otherSite.hold(HELD_ADDRESSES);
+      const sinceLoad = () => otherSite.requests.slice(loadedAt);
+      let noticeWaited = false;
+      const afterWaiting = () => {
+        if (noticeWaited) expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
+        noticeWaited = false;
+      };
+      const acting = (action: () => Promise<void>) => async () => {
+        afterWaiting();
+        await action();
+      };
+      const load = async (open: () => Promise<void>) => {
+        const before = held;
+        loadedAt = otherSite.requests.length;
+        held = otherSite.hold(HELD_ADDRESSES);
+        await open();
+        await before.release();
+      };
+      return modelSut<LinkImagesSnapshot, LinkImagesEvent>(page, {
+        reset: async () => {
+          noticeWaited = false;
+          await load(() => tierList.openAsNewBrowser(TANKS, FIRST_LIST));
+        },
+        events: {
+          LOAD_IMAGES: acting(() => tierList.linkImages.loadImagesFromOtherSites()),
+          ALWAYS_ALLOW_SITES: acting(() => tierList.linkImages.alwaysAllowImageSites()),
+          ADD_IMAGE_FROM_LINK: acting(() => tierList.linkImages.addItemFromLinkAndWaitForLink(GREEN.url, GREEN.label)),
+          RELOAD: acting(() => load(() => tierList.reload())),
+          OPEN_OTHER_LIST: acting(() => load(() => tierList.goto(TANKS, OTHER_LIST))),
+          IMAGE_SITE_ANSWERS: acting(() => held.release()),
+          IMAGE_SITE_FAILS: acting(() => held.release(NOT_A_PICTURE)),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = linkImagesViewOf(snapshot);
+            const expectLoaded = async (images: readonly LinkImage[]) => {
+              for (const image of images) {
+                await expect.poll(() => tierList.itemImageHasLoaded(image.label), {message: `${image.label} should load`}).toBe(true);
+              }
+            };
+            const expectLabelTiles = async (images: readonly LinkImage[]) => {
+              for (const image of images) {
+                await expect(tierList.item(image.label)).toContainText(OTHER_SITE);
+                await expect(tierList.itemImage(image.label)).toHaveCount(0);
+              }
+            };
+            if (view.answer === 'answering') {
+              await expect.poll(() => held.isHolding(), {message: `${OTHER_SITE} should hold its answer`}).toBe(true);
+            }
+            await expectLoaded(view.trustedImages);
+            const otherSiteImages = [...view.heldImages, ...view.addedImages];
+            if (view.waiting) {
+              await expect(tierList.linkImages.imageSitesNoticeHosts).toHaveText([OTHER_SITE]);
+              await expectLabelTiles(otherSiteImages);
+              expect(sinceLoad(), `no request should reach ${OTHER_SITE} while its images wait`).toEqual([]);
+              noticeWaited = true;
+              return;
+            }
+            await expect(tierList.linkImages.imageSitesNotice).toHaveCount(0);
+            await expect.poll(sinceLoad).toEqual(expect.arrayContaining(otherSiteImages.map(({url}) => url)));
+            await expectLoaded(view.addedImages);
+            if (view.answer === 'answering' || view.answer === 'failed') {
+              await expectLabelTiles(view.heldImages);
+            } else {
+              await expectLoaded(view.heldImages);
+            }
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(linkImagesModel)) {
+      test(`renders each state of the link images machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        await serveImageSite(page, TRUSTED_SITE);
+        const otherSite = await serveImageSite(page, OTHER_SITE, {body: BLUE_SQUARE});
+        const coverage = await walkModel(linkImagesModel, linkImagesSut(tierList, page, testInfo, otherSite), part);
+        await attachCoverage(testInfo, linkImagesModel, coverage, part);
+      });
+    }
+  });
+
+  test.describe('model: link dialog', () => {
+    const LIST = listWith([]);
+
+    const linkDialogSut = (tierList: TierListPage, page: Page, testInfo: TestInfo, sites: Readonly<Record<string, ImageSite>>) => {
+      let held: HeldImageSite | null = null;
+      const releaseHeld = async () => {
+        const hold = held;
+        held = null;
+        await hold?.release();
+      };
+      let submitted: string | null = null;
+      let submits = 0;
+      const submitHeld = async (image: DialogImage) => {
+        await releaseHeld();
+        const address = `${image.url}?submit=${++submits}`;
+        const hold = sites[image.site].hold([address]);
+        held = hold;
+        submitted = address;
+        await tierList.linkImages.submitInLinkImageDialog(address, image.name);
+        await expect.poll(() => hold.isHolding(), {message: `${image.site} should hold its answer`}).toBe(true);
+      };
+      const sut = modelSut<LinkDialogSnapshot, LinkDialogEvent>(page, {
+        reset: async () => {
+          await releaseHeld();
+          await tierList.openAfterBlankPage(TANKS, LIST);
+        },
+        events: {
+          OPEN_DIALOG: () => tierList.linkImages.openLinkImageDialog(),
+          CANCEL: () => tierList.linkImages.closeLinkImageDialog(),
+          ENTER_REFUSED_ADDRESS: () => tierList.linkImages.submitInLinkImageDialog(REFUSED_ADDRESS),
+          ENTER_PICTURE_ADDRESS: () => submitHeld(PICTURE),
+          ENTER_WEB_PAGE_ADDRESS: () => submitHeld(WEB_PAGE),
+          ENTER_LARGE_PICTURE_ADDRESS: () => submitHeld(LARGE_PICTURE),
+          IMAGE_SITE_ANSWERS: () => releaseHeld(),
+          ADD_ANYWAY: () => tierList.linkImages.confirmAddAnyway(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = linkDialogViewOf(snapshot);
+            if (view.dialog === 'closed') {
+              await expect(tierList.linkImages.linkImageDialog).toHaveCount(0);
+              await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+              const {added} = view;
+              await expect(tierList.itemsIn(tierList.unranked)).toHaveCount(added ? 1 : 0);
+              if (!added) return;
+              await expect(tierList.itemIn(tierList.unranked, added.image.name)).toBeVisible();
+              if (added.picture) {
+                await expect.poll(() => tierList.itemImageHasLoaded(added.image.name), {message: `${added.image.name} should show its picture`}).toBe(true);
+              } else {
+                await expect(tierList.item(added.image.name)).toContainText(added.image.site);
+                await expect(tierList.itemImage(added.image.name)).toHaveCount(0);
+              }
+              return;
+            }
+            await expect(tierList.linkImages.linkImageDialog).toBeVisible();
+            const address = tierList.linkImages.linkDialogAddressField;
+            const button = tierList.linkImages.linkDialogButton;
+            switch (view.dialog) {
+              case 'empty':
+                await expect(address).toHaveValue('');
+                await expect(tierList.linkImages.linkImageMessage).toHaveCount(0);
+                await expect(button).toHaveText('Add Item');
+                await expect(button).toBeDisabled();
+                return;
+              case 'refused':
+                await expect(tierList.linkImages.linkImageMessage).toHaveText(/starts with https:\/\//);
+                await expect(address).toHaveAttribute('aria-invalid', 'true');
+                await expect(button).toHaveText('Add Item');
+                await expect(button).toBeEnabled();
+                return;
+              case 'checking':
+                expect(submitted?.startsWith(`${view.image.url}?submit=`), `the address typed should be ${view.image.url}`).toBe(true);
+                await expect(address).toHaveValue(submitted!);
+                await expect(tierList.linkImages.linkImageMessage).toHaveCount(0);
+                await expect(button).toHaveText('Checking the image…');
+                await expect(button).toBeDisabled();
+                expect(held?.isHolding(), 'the site should still hold its answer').toBe(true);
+                return;
+              case 'failed':
+                await expect(tierList.linkImages.linkImageMessage).toHaveText(view.message);
+                await expect(address).not.toHaveAttribute('aria-invalid', 'true');
+                await expect(button).toHaveText('Add Anyway');
+                await expect(button).toBeEnabled();
+                return;
+            }
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+      return {sut, releaseHeld};
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(linkDialogModel)) {
+      test(`renders each step of "From a link" when the user adds, cancels and adds anyway while the image site answers (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const sites = {
+          [PICTURE.site]: await serveImageSite(page, PICTURE.site),
+          [WEB_PAGE.site]: await serveImageSite(page, WEB_PAGE.site, NOT_A_PICTURE),
+          [LARGE_PICTURE.site]: await serveImageSite(page, LARGE_PICTURE.site, {body: noisePng(8193, 1, 1)}),
+        };
+        const {sut, releaseHeld} = linkDialogSut(tierList, page, testInfo, sites);
+        try {
+          const coverage = await walkModel(linkDialogModel, sut, part);
+          await attachCoverage(testInfo, linkDialogModel, coverage, part);
+        } finally {
+          await releaseHeld();
+        }
+      });
+    }
+  });
+});

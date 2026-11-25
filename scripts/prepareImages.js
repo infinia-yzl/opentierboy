@@ -1,23 +1,51 @@
+/**
+ * Prepares the image sets before `next dev` and `next build` (npm scripts `dev` and `prebuild`)
+ * and writes imageset.config.json.
+ *
+ * Every image set comes from an npm package. For each one, it copies (or, in development,
+ * symlinks) the package's images into public/images/<package>/ and makes a PNG copy of every
+ * WebP image for link previews. Nothing in public/images/ is committed.
+ *
+ * Active sets (imageset.custom.json entries without "legacy") get their config entry from
+ * their package and their display data from imageset.custom.json.
+ *
+ * Legacy sets ({"legacy": true} in imageset.custom.json) are frozen. Their packages are pinned
+ * to an exact version in package.json, and their config entries are the frozen entries of
+ * imageset.legacy.json. The script builds each legacy entry from its package too, with the
+ * frozen display data, and stops when it differs from the frozen entry in any way
+ * (frozenEntryDifferences in scripts/lib/image-sets.mjs).
+ *
+ * The PNG copies are made at link preview size (PREVIEW_COPY_SIZE in scripts/lib/image-sets.mjs:
+ * the shorter side 128 px, never enlarged), and so is a copy of the placeholder tile
+ * (public/placeholder-image.preview.png), so that drawing a preview stays fast (A43).
+ *
+ * imageset.config.json lists the sets in the order of imageset.custom.json.
+ *
+ * It stops with exit code 1, and leaves imageset.config.json as it was, when a package is
+ * missing, has no images, an image or its PNG copy is not in public/images/, or a legacy set's
+ * package builds a config entry other than its frozen one. It never deletes a folder that
+ * holds committed files.
+ */
 const fs = require('fs').promises;
 const path = require('path');
 const readline = require('readline');
+const {execFileSync} = require('child_process');
 const sharp = require('sharp');
 
-const CONFIG_PATH = path.join(__dirname, '..', 'imageset.config.json');
-const CUSTOM_CONFIG_PATH = path.join(__dirname, '..', 'imageset.custom.json');
+const ROOT = path.join(__dirname, '..');
+const CONFIG_PATH = path.join(ROOT, 'imageset.config.json');
+const CUSTOM_CONFIG_PATH = path.join(ROOT, 'imageset.custom.json');
+const LEGACY_CONFIG_PATH = path.join(ROOT, 'imageset.legacy.json');
+
+/** Pure helpers shared with the tests and the image-set-update workflow (an ES module). */
+const imageSets = import('./lib/image-sets.mjs');
 
 async function callPackageFunction(packageName, functionName, ...args) {
-  try {
-    const packageModule = await import(packageName);
-    if (typeof packageModule[functionName] === 'function') {
-      return packageModule[functionName](...args);
-    } else {
-      throw new Error(`Function ${functionName} not found in package ${packageName}`);
-    }
-  } catch (error) {
-    console.error(`Error calling ${functionName} from ${packageName}:`, error);
-    return null;
+  const packageModule = await import(packageName);
+  if (typeof packageModule[functionName] !== 'function') {
+    throw new Error(`Function ${functionName} not found in package ${packageName}`);
   }
+  return packageModule[functionName](...args);
 }
 
 async function getCustomConfig() {
@@ -60,6 +88,15 @@ async function createCustomConfig() {
   return customConfig;
 }
 
+async function getLegacyConfig() {
+  try {
+    return JSON.parse(await fs.readFile(LEGACY_CONFIG_PATH, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return {};
+    throw new Error(`Cannot read imageset.legacy.json: ${error.message}`);
+  }
+}
+
 async function logImageSetContents(dir, level = 0) {
   const items = await fs.readdir(dir, {withFileTypes: true});
   for (const item of items) {
@@ -92,9 +129,12 @@ async function findImageDirectory(packageName) {
   throw new Error(`Could not find image directory for package: ${packageName}`);
 }
 
+/** Makes the PNG copy of an image for link previews, at preview size (see PREVIEW_COPY_SIZE). */
 async function convertWebpToPng(sourcePath, targetPath) {
   try {
+    const {PREVIEW_COPY_SIZE} = await imageSets;
     await sharp(sourcePath)
+      .resize({width: PREVIEW_COPY_SIZE, height: PREVIEW_COPY_SIZE, fit: 'outside', withoutEnlargement: true})
       .png()
       .toFile(targetPath);
     console.log(`Converted: ${sourcePath} -> ${targetPath}`);
@@ -178,7 +218,55 @@ async function copyImagesRecursively(sourceDir, targetDir) {
   }
 }
 
-async function processPackage(packageName, customConfig, shouldCopy) {
+const relative = (file) => path.relative(ROOT, file).split(path.sep).join('/');
+
+/** The files an image set needs in public/images/<package>/: each image and the PNG copy of each WebP image. */
+function expectedFiles(images) {
+  return images.flatMap((image) => /\.webp$/i.test(image) ? [image, image.replace(/\.webp$/i, '.png')] : [image]);
+}
+
+/** Throws when one of `files` is not in `dir`. copyFile and convertWebpToPng only log their errors. */
+async function verifyFiles(dir, files, what) {
+  const missing = [];
+  for (const file of files) {
+    try {
+      await fs.access(path.join(dir, file));
+    } catch {
+      missing.push(file);
+    }
+  }
+  if (missing.length > 0) {
+    const shown = missing.slice(0, 10).join(', ') + (missing.length > 10 ? ', ...' : '');
+    throw new Error(`${what}: ${missing.length} file(s) missing in ${relative(dir)}: ${shown}`);
+  }
+}
+
+/**
+ * Refuses to replace a folder that holds files committed to git: committed images are never
+ * deleted. Without git (some build machines have no .git folder) this check is skipped.
+ */
+function assertNotCommitted(targetDir) {
+  let tracked;
+  try {
+    tracked = execFileSync('git', ['ls-files', '-z', '--', relative(targetDir)], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return;
+  }
+  if (tracked !== '') {
+    throw new Error(`${relative(targetDir)} holds files committed to git. prepareImages never deletes a committed folder.`);
+  }
+}
+
+/**
+ * Copies (or symlinks) the images of one package into public/images/<package>/ with their PNG
+ * copies. `source` holds its display data: its imageset.custom.json entry for an active set,
+ * its frozen imageset.legacy.json entry for a legacy set.
+ */
+async function processPackage(packageName, source, legacy, shouldCopy) {
   try {
     const sourceDir = await findImageDirectory(packageName);
     const targetDir = path.join(__dirname, '..', 'public', 'images', packageName);
@@ -186,6 +274,8 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     console.log(`Processing package: ${packageName}`);
     console.log(`Source directory: ${sourceDir}`);
     console.log(`Target directory: ${targetDir}`);
+
+    assertNotCommitted(targetDir);
 
     // Remove existing symlink or directory
     try {
@@ -215,89 +305,104 @@ async function processPackage(packageName, customConfig, shouldCopy) {
     }
 
     const images = await callPackageFunction(packageName, 'getImageList', sourceDir);
+    if (!Array.isArray(images) || images.length === 0) {
+      throw new Error(`${packageName} has no images. Check that the installed version is complete.`);
+    }
     console.log(`Found ${images.length} images in ${packageName}`);
+    await verifyFiles(targetDir, expectedFiles(images), packageName);
 
-    // Get display name from custom config or fallback to package name
-    const displayName = customConfig.packages[packageName]?.displayName || packageName;
+    const {displayFields} = await imageSets;
+    const {displayName} = displayFields(packageName, source);
 
-    return {packageName, displayName, images};
+    return {packageName, displayName, images, source, legacy};
   } catch (error) {
     console.error(`Error processing ${packageName}:`, error);
     console.log(`Logging contents of ${packageName} package due to error:`);
-    await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName));
-    return {packageName, displayName: packageName, images: []};
+    await logImageSetContents(path.join(__dirname, '..', 'node_modules', packageName))
+      .catch((logError) => console.error(`Cannot list node_modules/${packageName}:`, logError.message));
+    throw error;
   }
 }
 
-async function updateConfigs(packagesData, customConfig) {
-  const config = {
-    packages: {}
-  };
+/** The version of a package in node_modules, or "unknown". */
+async function installedVersion(packageName) {
+  try {
+    const packageJson = JSON.parse(await fs.readFile(path.join(ROOT, 'node_modules', packageName, 'package.json'), 'utf8'));
+    return typeof packageJson.version === 'string' ? packageJson.version : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
-  // Process package data
-  for (const {packageName, displayName, images} of packagesData) {
-    const packageTags = {};
-    // Use the dynamic function call for getImageMetadata
+async function updateConfigs(packagesData, order, legacyConfig) {
+  const {buildPackageEntry, frozenEntryDifferences, mergeConfig} = await imageSets;
+  const activeEntries = {};
+  const changedLegacySets = [];
+  for (const {packageName, displayName, images, source, legacy} of packagesData) {
     const metadata = await callPackageFunction(packageName, 'getImageMetadata');
-    const packageImages = images.map(image => {
-      const imageMetadata = metadata.find(m => m.filename === image);
-      const imageTags = imageMetadata?.tags || [];
-      imageTags.forEach(tag => {
-        if (!packageTags[tag.name]) {
-          packageTags[tag.name] = {
-            title: tag.title || `${tag.name} for ${displayName}`,
-            description: tag.description || `Description of ${tag.name} in ${displayName}`,
-            category: tag.category || 'general'
-          };
-        }
-      });
-      return {
-        filename: image,
-        label: imageMetadata?.label || image,
-        tags: imageTags.map(tag => tag.name)
-      };
-    });
-
-    config.packages[packageName] = {
-      displayName,
-      images: packageImages,
-      tags: packageTags,
-      // Only include googleFont and backgroundImage if they exist in customConfig
-      ...(customConfig.packages[packageName]?.googleFont && {googleFont: customConfig.packages[packageName].googleFont}),
-      ...(customConfig.packages[packageName]?.backgroundImage && {backgroundImage: customConfig.packages[packageName].backgroundImage})
-    };
+    const entry = buildPackageEntry({packageName, displayName, images, metadata, custom: source});
+    if (!legacy) {
+      activeEntries[packageName] = entry;
+      continue;
+    }
+    // A legacy set's entry is its frozen one. The pinned package must still build exactly that.
+    const differences = frozenEntryDifferences(packageName, entry, legacyConfig[packageName]);
+    if (differences.length > 0) {
+      const shown = differences.slice(0, 10).map((line) => `  ${line}`).join('\n') + (differences.length > 10 ? `\n  ... ${differences.length - 10} more` : '');
+      changedLegacySets.push(`${packageName}@${await installedVersion(packageName)} builds a config entry that differs from its frozen entry in imageset.legacy.json:\n${shown}`);
+    } else {
+      console.log(`Legacy set ${packageName}: the package builds its frozen config entry`);
+    }
+  }
+  if (changedLegacySets.length > 0) {
+    throw new Error(`${changedLegacySets.join('\n')}\nLegacy sets never change: install the exact version they shipped with (npm ci).`);
   }
 
+  const config = mergeConfig(order, activeEntries, legacyConfig);
   await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2));
   console.log('Config updated at', CONFIG_PATH);
+}
 
-  // Update custom config (if needed)
-  let customConfigUpdated = false;
-  Object.keys(config.packages).forEach(packageName => {
-    if (!customConfig.packages[packageName]) {
-      customConfig.packages[packageName] = {
-        displayName: config.packages[packageName].displayName,
-        googleFont: config.packages[packageName].googleFont,
-        backgroundImage: config.packages[packageName].backgroundImage
-      };
-      customConfigUpdated = true;
-    }
-  });
+/**
+ * The placeholder tile of an unknown item, at preview size for link previews (getOgSafeImageUrl
+ * in lib/linkPreview.ts maps /placeholder-image.png to this copy). The app itself shows public/placeholder-image.png.
+ */
+const PLACEHOLDER = path.join(ROOT, 'public', 'placeholder-image.png');
+const PLACEHOLDER_PREVIEW = path.join(ROOT, 'public', 'placeholder-image.preview.png');
 
-  if (customConfigUpdated) {
-    await fs.writeFile(CUSTOM_CONFIG_PATH, JSON.stringify(customConfig, null, 2));
-    console.log('Custom config updated at', CUSTOM_CONFIG_PATH);
-  }
+async function preparePlaceholderPreview() {
+  await fs.rm(PLACEHOLDER_PREVIEW, {force: true});
+  await convertWebpToPng(PLACEHOLDER, PLACEHOLDER_PREVIEW);
+  await verifyFiles(path.dirname(PLACEHOLDER_PREVIEW), [path.basename(PLACEHOLDER_PREVIEW)], 'The placeholder tile for link previews');
 }
 
 async function main() {
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+  // `--copy` copies the images into public/images. The `prebuild` npm script passes it:
+  // npm runs prebuild with NODE_ENV unset, and Vercel and CI builds must copy. Without the
+  // flag, production and Vercel copy, and development symlinks into node_modules.
+  const isProduction = process.argv.includes('--copy') || process.env.NODE_ENV === 'production' || process.env.VERCEL;
   console.log(`Running in ${isProduction ? 'production' : 'development'} mode`);
 
+  const {splitPackages} = await imageSets;
   const customConfig = await getCustomConfig();
-  const packages = Object.keys(customConfig.packages);
-  const packagesData = await Promise.all(packages.map(pkg => processPackage(pkg, customConfig, isProduction)));
-  await updateConfigs(packagesData, customConfig);
+  const legacyConfig = await getLegacyConfig();
+  const {order, legacy} = splitPackages(customConfig, legacyConfig);
+  const isLegacy = (pkg) => legacy.includes(pkg);
+  const sourceOf = (pkg) => (isLegacy(pkg) ? legacyConfig[pkg] : customConfig.packages[pkg]);
+
+  await preparePlaceholderPreview();
+
+  // One path for every set: active and legacy sets are copied from node_modules alike.
+  const results = await Promise.allSettled(order.map(pkg => processPackage(pkg, sourceOf(pkg), isLegacy(pkg), isProduction)));
+  const failed = order.filter((pkg, index) => results[index].status === 'rejected');
+  if (failed.length > 0) {
+    throw new Error(`Could not prepare ${failed.join(', ')} (see the errors above).`);
+  }
+  await updateConfigs(results.map(result => result.value), order, legacyConfig);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  console.error('prepareImages failed: imageset.config.json was not updated.');
+  process.exitCode = 1;
+});
