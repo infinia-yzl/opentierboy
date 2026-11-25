@@ -10,5 +10,6 @@ repository are in `CLAUDE.md`, and the guide to the end-to-end tests is `tests/R
 | [reference/link-format.md](reference/link-format.md) | contributors and agents | link format v3: the JSON, tier ids, decoder checks, limits, and how the app writes and reads links |
 | [reference/images.md](reference/images.md) | contributors and agents | images from links and devices, trusted image sites, the device image store and the Content Security Policy |
 | [reference/snapshot-files.md](reference/snapshot-files.md) | contributors and agents | snapshot files (a Freeze Frame PNG with the list inside) and Recently viewed |
+| [reference/template-indices.md](reference/template-indices.md) | contributors and agents | community templates: the index format, the allowed hosts, the security rules and the block list |
 | [reference/drag-and-drop.md](reference/drag-and-drop.md) | contributors and agents | the dnd-kit fork in `packages/dnd-kit`, the adapter in `lib/dnd`, and drag performance |
 | `media/` | the README | the feature GIFs of the README (`npm run record:gifs` records them) |

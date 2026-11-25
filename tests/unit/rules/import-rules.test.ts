@@ -155,6 +155,39 @@ describe('ESLint import rules', {timeout: 90_000}, () => {
     expect(await blockedLines('lib/images/deviceStore.ts', ['zod', 'idb'])).toEqual([1]);
   });
 
+  it('returns an error for each fetch call when the file is app code outside fetchBytes.ts and the OG route', async () => {
+    const code = [
+      "await fetch('https://example.org/a.json');",
+      "await window.fetch('https://example.org/a.json');",
+      "await globalThis.fetch('https://example.org/a.json');",
+      "await self.fetch('https://example.org/a.json');",
+      'const load = fetch;',
+      'new XMLHttpRequest();',
+      "new EventSource('https://example.org/events');",
+      "new WebSocket('wss://example.org');",
+      "navigator.sendBeacon('https://example.org/a');",
+      "new window.XMLHttpRequest();",
+      'await route.fetch();',
+    ].join('\n') + '\n';
+    const rules = ['no-restricted-globals', 'no-restricted-properties'];
+    for (const file of ['components/Probe.tsx', 'lib/Probe.ts', 'lib/templates/loadIndex.ts', 'lib/state/probe.ts', 'lib/images/deviceStore.ts', 'contexts/Probe.tsx', 'app/rank/probe.tsx', 'proxy.ts']) {
+      expect(await reportedLines(file, code, rules), file).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    }
+    for (const file of ['lib/templates/fetchBytes.ts', 'scripts/probe.mjs', 'tests/unit/lib/templates/fetchBytes.test.ts']) {
+      expect(await reportedLines(file, code, rules), file).toEqual([]);
+    }
+    expect(await reportedLines('app/api/og/local-images.ts', code, rules)).toEqual([2, 10]);
+  });
+
+  it('returns an error for each lib/templates import when the file is a route, a page or server code', async () => {
+    const imports = ['@/lib/templates/loadIndex', '@/lib/templates/fetchBytes', '../../lib/templates/hosts', '@/lib/utils'];
+    for (const file of ['app/api/og/route.tsx', 'app/api/other/route.ts', 'app/rank/layout.tsx', 'app/page.tsx', 'app/sitemap.ts', 'proxy.ts', 'lib/TierCortex.ts', 'lib/linkPreview.ts']) {
+      expect(await blockedLines(file, imports), file).toEqual([1, 2, 3]);
+    }
+    expect(await blockedLines('components/Probe.tsx', imports)).toEqual([]);
+    expect(await blockedLines('next.config.ts', ['./lib/templates/hosts'])).toEqual([]);
+  });
+
   it('returns an error for each Node built-in and IndexedDB import when the file is in app/api/og or a module it imports', async () => {
     const imports = ['os', 'crypto', 'fs', 'fs/promises', 'path', 'node:buffer', 'child_process', 'localforage', './crypto', './path-helpers', 'lz-string'];
     const blocked = [1, 2, 3, 4, 5, 6, 7, 8];

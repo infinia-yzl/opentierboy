@@ -90,6 +90,29 @@ describe('scripts/check-trusted-sites.mjs', () => {
       expect(result.status).toBe(0);
     });
 
+    it('returns exit code 0 and writes a line for the template hosts when trusted-template-hosts.json lists clean hosts', () => {
+      fs.writeFileSync(path.join(root, 'trusted-template-hosts.json'), JSON.stringify({hosts: [{host: 'raw.githubusercontent.com', reason: 'test'}]}));
+      const result = check();
+      expect(result.output).toContain('Trusted image sites OK: 3 site(s) checked against 7 tracker domains');
+      expect(result.output).toContain('Template hosts OK: 1 host(s) checked against the same list.');
+      expect(result.status).toBe(0);
+    });
+
+    it('returns exit code 1 and names trusted-template-hosts.json when a template host is on the list', () => {
+      fs.writeFileSync(path.join(root, 'trusted-template-hosts.json'), JSON.stringify({hosts: [{host: 'files.tracker.example.org', reason: 'test'}]}));
+      const result = check();
+      expect(result.status).toBe(1);
+      expect(result.output).toContain('files.tracker.example.org');
+      expect(result.output).toContain('Remove the site from trusted-template-hosts.json.');
+    });
+
+    it('returns exit code 1 when trusted-template-hosts.json is malformed', () => {
+      fs.writeFileSync(path.join(root, 'trusted-template-hosts.json'), JSON.stringify({sites: []}));
+      expect(check()).toMatchObject({status: 1, output: expect.stringContaining('trusted-template-hosts.json must be an object with a "hosts" array.')});
+      fs.writeFileSync(path.join(root, 'trusted-template-hosts.json'), JSON.stringify({hosts: [{host: 42}]}));
+      expect(check()).toMatchObject({status: 1, output: expect.stringContaining('trusted-template-hosts.json entry 1 needs a "host" string.')});
+    });
+
     it('returns exit code 1 and writes the matching entry when a trusted host is on the list', () => {
       writeList(trackerList({Analytics: {Imgur: ['i.imgur.com']}}));
       const result = check();

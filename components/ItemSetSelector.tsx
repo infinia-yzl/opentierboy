@@ -24,6 +24,7 @@ import {useCommandState} from 'cmdk';
 interface ItemSetSelectorProps {
   itemSets: ItemSet[];
   onSelectItemSet: (packageName: string, images: string[]) => void;
+  onOpenCommunity?: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -54,7 +55,7 @@ const SubItem: React.FC<SubItemProps> = ({packageDisplayName, ...props}) => {
   );
 };
 
-const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItemSet, open, onOpenChange}) => {
+const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItemSet, onOpenCommunity, open, onOpenChange}) => {
   const organizedItemSets = useMemo<OrganizedItemSet[]>(() => {
     const grouped = itemSets.reduce((acc, itemSet) => {
       if (!acc[itemSet.packageName]) {
@@ -186,6 +187,12 @@ const ItemSetSelector: React.FC<ItemSetSelectorProps> = ({itemSets, onSelectItem
             )}
           </ScrollArea>
         </CommandList>
+        {onOpenCommunity && (
+          <div className="flex items-center justify-between gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
+            <span>Lists that other people made:</span>
+            <Button type="button" variant="outline" size="sm" onClick={onOpenCommunity}>Community templates</Button>
+          </div>
+        )}
       </div>
     </CommandDialog>
   );

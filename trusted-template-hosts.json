@@ -1,0 +1,13 @@
+{
+  "$comment": "Hosts that the browser may contact for template indices and template files (docs/reference/template-indices.md). The Content Security Policy allows connections to exactly these hosts, and a host matches exactly. npm run check:trusted-sites fails when a host is on the tracker list.",
+  "hosts": [
+    {
+      "host": "raw.githubusercontent.com",
+      "reason": "Raw files of public GitHub repositories."
+    },
+    {
+      "host": "gist.githubusercontent.com",
+      "reason": "Raw files of public GitHub gists."
+    }
+  ]
+}

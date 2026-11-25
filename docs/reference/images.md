@@ -217,7 +217,8 @@ frame-ancestors 'none'; form-action 'self'
   (`APPEARANCE_SCRIPT` in `lib/appearance.ts`) is an inline script too.
 - Fonts: next/font downloads the Google fonts at build time and serves them from the site
   itself. No font host is needed.
-- Connections: the app only talks to its own site. No other host is needed. If link images
+- Connections: the app talks to its own site and to the template hosts in
+  `trusted-template-hosts.json` (`connect-src`, see `docs/reference/template-indices.md`). If link images
   are ever read with `fetch()`, `connect-src` must add `https:`. Reading a `data:` or `blob:`
   URL with `fetch()` (for example to re-encode snapshot images) needs `data:` and `blob:` in
   `connect-src` too.

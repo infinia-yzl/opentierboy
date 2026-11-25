@@ -7,6 +7,7 @@ import {Rows} from './rows';
 import {EditorItems} from './editor-items';
 import {DragAndDrop} from './drag-and-drop';
 import {LinkImages} from './link-images';
+import {CommunityTemplates} from './community-templates';
 import {DeviceImages} from './device-images';
 import {SnapshotFiles} from './snapshot-files';
 import {SharePanel} from './share-panel';
@@ -47,6 +48,7 @@ export class TierListPage {
   readonly items: EditorItems;
   readonly drag: DragAndDrop;
   readonly linkImages: LinkImages;
+  readonly templates: CommunityTemplates;
   readonly deviceImages: DeviceImages;
   readonly files: SnapshotFiles;
   readonly share: SharePanel;
@@ -71,6 +73,7 @@ export class TierListPage {
     this.items = new EditorItems(this);
     this.drag = new DragAndDrop(this);
     this.linkImages = new LinkImages(this);
+    this.templates = new CommunityTemplates(this);
     this.deviceImages = new DeviceImages(this);
     this.files = new SnapshotFiles(this);
     this.share = new SharePanel(this);

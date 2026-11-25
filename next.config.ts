@@ -1,6 +1,7 @@
 import type {NextConfig} from 'next';
 import {contentSecurityPolicyHeader} from './lib/security/csp';
 import {SECURITY_HEADERS} from './lib/security/headers';
+import {templateConnectSources} from './lib/templates/hosts';
 
 // Image sets are prepared before the build by the `prebuild` npm script
 // (scripts/prepareImages.js), not here: Next.js 16 builds with Turbopack, which does not
@@ -30,6 +31,7 @@ const nextConfig: NextConfig = {
         contentSecurityPolicyHeader({
           dev: process.env.NODE_ENV !== 'production',
           vercelToolbar: process.env.VERCEL_ENV === 'preview',
+          extend: {'connect-src': templateConnectSources()},
         }),
         ...SECURITY_HEADERS,
       ],

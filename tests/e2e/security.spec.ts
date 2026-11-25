@@ -5,7 +5,8 @@
 import {expect, SHARED_LINKS, test} from '../support/test';
 import {packageItemId, rankingState, v3State} from '../support/links';
 import {BLUE_SQUARE, imageFile, noisePng, RED_SQUARE, serveImageSite} from '../support/image-sites';
-import {pngFile} from '../support/snapshot-files';
+import {pngFile, pngWithSnapshotText} from '../support/snapshot-files';
+import {INDEX_ADDRESS, serveTemplateSite, templateEntry, templateFileAddress, templateIndex} from '../support/template-sites';
 import {escapeRegExp} from '../support/regexp';
 import {SCRIPTED_PASTE_SKIP, type SentRequest} from '../pages/tier-list-page';
 import {type CaptureMethod} from '../pages/share-panel';
@@ -63,6 +64,35 @@ test.describe('security', () => {
       await expect(site.pageHeading).toBeVisible();
       await tierList.gotoLink(`${SHARED_LINKS[0].path}?state=${SHARED_LINKS[0].state}`);
       expect(await cspViolations()).toEqual([]);
+    });
+
+    test('writes no CSP violation report when the user adds a template index and opens a template from it', async ({tierList, page, cspViolations}) => {
+      const state = v3State({t: 'CSP template', tp: 3, r: [['S', [{d: 'csp-template-red', c: 'Red'}]], ['A', []], ['B', []], ['', []]]});
+      const payload = {version: 1, state, path: '/rank', images: [{id: 'csp-template-red', label: 'Red', dataUrl: `data:image/png;base64,${RED_SQUARE.toString('base64')}`}]};
+      const file = pngWithSnapshotText(RED_SQUARE, JSON.stringify(payload));
+      await serveTemplateSite(page, {[INDEX_ADDRESS]: templateIndex([templateEntry('csp', 'CSP template', file)]), [templateFileAddress('csp')]: file});
+      await tierList.goto('/rank');
+      await tierList.templates.open();
+      await tierList.templates.addIndex(INDEX_ADDRESS);
+      await tierList.templates.template('CSP template').click();
+      await tierList.files.confirmOpenList();
+      await expect(tierList.itemsIn('S')).toHaveText(['Red']);
+      expect(await cspViolations()).toEqual([]);
+    });
+
+    test('writes a connect-src violation report and returns a refused request when the page asks a host outside the template hosts', async ({tierList, page, cspViolations}) => {
+      await serveTemplateSite(page, {[INDEX_ADDRESS]: templateIndex([])});
+      await tierList.goto('/rank');
+      expect(await tierList.templates.connectTo(INDEX_ADDRESS)).toBe('answered');
+      expect(await cspViolations()).toEqual([]);
+
+      expect(await tierList.templates.connectTo('https://example.org/example/otb-templates/main/index.json')).toBe('refused');
+      expect(await tierList.templates.connectTo('https://evil.raw.githubusercontent.com/a/b/c/index.json')).toBe('refused');
+      expect(await tierList.templates.connectTo('https://objects.githubusercontent.com/a/b/c/index.json')).toBe('refused');
+
+      const violations = await cspViolations();
+      expect(violations).toHaveLength(3);
+      for (const violation of violations) expect(violation).toMatch(/^connect-src blocked https:\/\/(example\.org|evil\.raw\.githubusercontent\.com|objects\.githubusercontent\.com)/);
     });
 
     test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
