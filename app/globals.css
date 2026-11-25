@@ -45,6 +45,12 @@
     'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+@theme inline {
+  --color-scribble-red: var(--scribble-red);
+  --color-scribble-blue: var(--scribble-blue);
+  --color-scribble-contrast: var(--scribble-contrast);
+}
+
 @theme {
   /* Tailwind 3's colour for ring utilities without a colour (blue-500 at 50%), such as the
      ring around a dragged item or row. Tailwind 4 would use the text colour. */
@@ -76,10 +82,6 @@
 
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
-
-  --color-scribble-red: var(--scribble-red);
-  --color-scribble-blue: var(--scribble-blue);
-  --color-scribble-contrast: var(--scribble-contrast);
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
