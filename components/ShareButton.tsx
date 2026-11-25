@@ -70,58 +70,13 @@ function captureScale(width: number, height: number): number {
 
 async function cardSettled(card: HTMLElement): Promise<void> {
   const images = Array.from(card.querySelectorAll('img')).filter((image) => image.dataset.linkImage === undefined);
-  const [fonts, ...settled] = await Promise.all([fontFacesSettled(document.fonts, listCardFont.style.fontFamily), ...images.map(imageSettled)]);
-  trace('card-settled', {fonts, images: settled.length, failed: settled.filter((state) => state === 'failed').length, textWidths: textWidthsOf(card)});
+  await Promise.all([fontFacesSettled(document.fonts, listCardFont.style.fontFamily), ...images.map(imageSettled)]);
 }
 
 async function cloneSettled(clonedDocument: Document): Promise<void> {
-  const before = {fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily), textWidths: textWidthsOf(clonedDocument.querySelector('[data-list-card]'))};
-  const sheets = await Promise.all(Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]:not([disabled])')).map(styleSheetSettled));
-  const fonts = await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
-  trace('clone-settled', {before, sheets, fonts, textWidths: textWidthsOf(clonedDocument.querySelector('[data-list-card]')), nodes: clonedDocument.querySelectorAll('*').length});
-}
-
-type CaptureTraceEntry = {at: number; phase: string; info?: unknown};
-type CaptureTraceWindow = {__otbCaptureTrace?: CaptureTraceEntry[]; __otbCapturePhase?: string};
-
-function trace(phase: string, info?: unknown) {
-  const store = window as unknown as CaptureTraceWindow;
-  if (!store.__otbCaptureTrace) store.__otbCaptureTrace = [];
-  store.__otbCaptureTrace.push({at: Date.now(), phase, info});
-  if (phase !== 'gap') store.__otbCapturePhase = phase;
-}
-
-function startHeartbeat(): () => void {
-  let last = Date.now();
-  const timer = setInterval(() => {
-    const now = Date.now();
-    if (now - last > 300) trace('gap', {ms: now - last, during: (window as unknown as CaptureTraceWindow).__otbCapturePhase});
-    last = now;
-  }, 50);
-  return () => clearInterval(timer);
-}
-
-function fontStateOf(target: Document, family: string) {
-  const faces = Array.from(target.fonts).filter((face) => family.includes(face.family.replace(/["']/g, '')));
-  return {
-    status: target.fonts.status,
-    faces: faces.map((face) => `${face.weight}:${face.status}`),
-    check: ['400', '600', '900'].map((weight) => target.fonts.check(`${weight} 24px ${family}`)),
-    sheets: Array.from(target.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map((link) => link.sheet !== null),
-    styles: target.querySelectorAll('style').length,
-  };
-}
-
-function textWidthsOf(card: Element | null): number[] {
-  if (!card) return [];
-  const walker = card.ownerDocument.createTreeWalker(card, NodeFilter.SHOW_TEXT);
-  const widths: number[] = [];
-  for (let node = walker.nextNode(); node && widths.length < 8; node = walker.nextNode()) {
-    const range = card.ownerDocument.createRange();
-    range.selectNodeContents(node);
-    widths.push(Math.round(range.getBoundingClientRect().width * 100) / 100);
-  }
-  return widths;
+  const links = Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]:not([disabled])'));
+  await Promise.all(links.map(styleSheetSettled));
+  await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
 }
 
 function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -231,9 +186,6 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const captureImage = useCallback(async () => {
     setPhase('preparing');
-    (window as unknown as CaptureTraceWindow).__otbCaptureTrace = [];
-    trace('preparing', {nodes: document.querySelectorAll('*').length});
-    const stopHeartbeat = startHeartbeat();
     const shown = {state: shareLink, path: pathname, title};
     const data = listCard(frame === 'whole' ? undefined : frame);
 
@@ -241,20 +193,16 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       flushSync(() => setCard(data));
       const element = cardRef.current;
       if (!element) throw new Error('The list card did not render');
-      trace('card-rendered', {nodes: element.querySelectorAll('*').length, text: element.textContent?.length});
       const [prepareLinkImages] = await Promise.all([prepareLinkImagesForCapture(), cardSettled(element)]);
 
       setPhase('drawing');
-      trace('drawing');
-      const wholePage = (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant === 'whole-page';
       const onclone = async (clonedDocument: Document) => {
         prepareLinkImages(clonedDocument);
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
         if (clonedCard) clonedCard.style.visibility = 'visible';
         await cloneSettled(clonedDocument);
       };
-      const ignoreElements = (node: Element) => !wholePage && node.parentElement === document.body && node !== element;
-      const onProgress = (step: string, progress: number) => trace(`library:${step}:${progress}`);
+      const ignoreElements = (node: Element) => node.parentElement === document.body && node !== element;
       const scale = data.frame ? 1 : captureScale(data.width, data.height);
       const area = {
         x: 0, y: 0, width: data.width, height: data.height, scrollX: -window.scrollX, scrollY: -window.scrollY,
@@ -290,13 +238,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
         await html2canvas(element, {canvas, scale, useCORS: true, onclone, ignoreElements, ...area});
       } else {
-        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ignoreElements, onProgress, ...area} as Parameters<typeof html2canvasPro>[1]);
+        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ignoreElements, ...area});
       }
 
       setPhase('encoding');
-      trace('encoding', {width: canvas.width, height: canvas.height});
       const blob = await pngOf(canvas);
-      trace('encoded', {bytes: blob?.size});
       if (blob) {
         setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
         toast.success('Image captured successfully');
@@ -304,12 +250,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         toast.error(`Failed to capture image with ${captureMethod} method`);
       }
     } catch (error) {
-      trace('failed', {error: String(error)});
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
     } finally {
-      stopHeartbeat();
-      trace('end');
       setCard(null);
       setPhase('idle');
     }

@@ -129,111 +129,31 @@ export class SharePanel {
     return this.sharePanel.getByRole('button', {name: /^(Capture Preview|Capturing\.\.\.)$/});
   }
 
-  private async countPictureRequests() {
-    await this.page.evaluate(() => {
-      const counted = window as unknown as {__otbPictureRequests?: number};
-      if (counted.__otbPictureRequests !== undefined) return;
-      counted.__otbPictureRequests = 0;
-      const encode = HTMLCanvasElement.prototype.toBlob;
-      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<typeof encode>) {
-        counted.__otbPictureRequests = (counted.__otbPictureRequests ?? 0) + 1;
-        return encode.apply(this, args);
-      };
-    });
-  }
-
   private captureState(): Promise<CaptureState> {
     return this.captureButton.or(this.capturedImage).evaluateAll((elements) => ({
       button: elements.find((element) => element instanceof HTMLButtonElement)?.textContent ?? null,
       picture: elements.find((element) => element instanceof HTMLImageElement)?.getAttribute('src') ?? null,
-      pictureRequests: (window as unknown as {__otbPictureRequests?: number}).__otbPictureRequests ?? 0,
     }));
   }
 
-  private async untilCaptureState(message: string, reached: (state: CaptureState) => boolean) {
+  private async captureAndExpectSuccess() {
+    const before = await this.captureState();
+    await this.startCapture();
     let last: CaptureState | null = null;
     try {
       await expect.poll(async () => {
         last = await this.captureState();
-        return reached(last);
-      }, {message}).toBe(true);
+        return last.picture;
+      }, {message: 'the capture should end with a new picture'}).not.toBe(before.picture);
     } catch (error) {
       const state = last as CaptureState | null;
       const seen = state === null
-        ? 'The page answered no read of the capture before the wait ended.'
-        : `The last read of the page before the wait ended: capture button "${state.button ?? 'absent'}", ${state.picture === null ? 'no picture' : 'a picture'} in the Image tab, ${state.pictureRequests} picture(s) asked of the browser.`;
-      await this.printCaptureTrace('failed step');
+        ? 'The page answered no read before the wait ended.'
+        : `The last read of the page before the wait ended: capture button "${state.button ?? 'absent'}", ${state.picture === null ? 'no picture' : 'the earlier picture'} in the Image tab.`;
       throw new Error(`${(error as Error).message}\n${seen}`);
     }
-  }
-
-  private async captureAndExpectSuccess() {
-    await this.countPictureRequests();
-    const before = await this.captureState();
-    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
-    await this.untilCaptureState('the capture should draw the list and ask the browser for its picture', (state) => state.pictureRequests > before.pictureRequests);
-    await this.untilCaptureState('the capture should end with a new picture', (state) => state.picture !== null && state.picture !== before.picture);
     await expect(this.captureButton, 'the capture should be over once its picture is on screen').toHaveText('Capture Preview');
     await expect(this.captureButton).toBeEnabled();
-  }
-
-  private async printCaptureTrace(label: string, clicked?: number) {
-    const trace = await this.page.evaluate(() => (window as unknown as {__otbCaptureTrace?: {at: number; phase: string; info?: unknown}[]}).__otbCaptureTrace ?? []);
-    const from = clicked ?? trace[0]?.at ?? 0;
-    console.log(trace.map((entry) => `[capture-trace] ${label}:   app +${entry.at - from} ${entry.phase} ${entry.info === undefined ? '' : JSON.stringify(entry.info)}`).join('\n'));
-  }
-
-  async captureWithTrace(label: string): Promise<string | null> {
-    await this.openImageTab();
-    await this.countPictureRequests();
-    const before = await this.captureState();
-    const clicked = Date.now();
-    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
-    const afterClick = Date.now() - clicked;
-    const reads: string[] = [];
-    const until = async (reached: (state: CaptureState) => boolean) => {
-      try {
-        await expect.poll(async () => {
-          const asked = Date.now() - clicked;
-          const state = await this.captureState();
-          reads.push(`asked +${asked} answered +${Date.now() - clicked} ${state.button} requests ${state.pictureRequests} ${state.picture === before.picture ? 'no new picture' : 'new picture'}`);
-          return reached(state);
-        }).toBe(true);
-        return Date.now() - clicked;
-      } catch {
-        return null;
-      }
-    };
-    const asked = await until((state) => state.pictureRequests > before.pictureRequests);
-    const shown = await until((state) => state.picture !== null && state.picture !== before.picture);
-    const over = await expect(this.captureButton).toHaveText('Capture Preview', {timeout: 30_000}).then(() => true, () => false);
-    console.log([
-      `[capture-trace] ${label}: click returned +${afterClick}; encoder asked ${asked === null ? 'AWAIT GAVE UP' : `seen +${asked}`}; picture ${shown === null ? 'AWAIT GAVE UP' : `seen +${shown}`}; ${over ? 'over' : 'STILL CAPTURING'}`,
-      ...reads.map((read) => `[capture-trace] ${label}:   read ${read}`),
-    ].join('\n'));
-    await this.printCaptureTrace(label, clicked);
-    if (!over || shown === null) return null;
-    const signature = await this.capturedImage.evaluate(async (img: HTMLImageElement) => {
-      const picture = new Image();
-      picture.src = img.currentSrc || img.src;
-      await picture.decode();
-      const canvas = document.createElement('canvas');
-      canvas.width = picture.naturalWidth;
-      canvas.height = picture.naturalHeight;
-      const context = canvas.getContext('2d')!;
-      context.drawImage(picture, 0, 0);
-      const band = 64;
-      const hashes: string[] = [];
-      for (let top = 0; top < canvas.height; top += band) {
-        const pixels = context.getImageData(0, top, canvas.width, Math.min(band, canvas.height - top)).data;
-        let hash = 2166136261;
-        for (let index = 0; index < pixels.length; index++) hash = Math.imul(hash ^ pixels[index], 16777619);
-        hashes.push((hash >>> 0).toString(36));
-      }
-      return `${canvas.width}x${canvas.height} ${hashes.join('.')}`;
-    });
-    console.log(`[capture-trace] ${label}: signature ${signature}`);
-    return signature;
   }
 
   private async holdRequests(urls: RegExp): Promise<HeldRequests> {
@@ -421,7 +341,6 @@ export interface HeldRequests {
 interface CaptureState {
   button: string | null;
   picture: string | null;
-  pictureRequests: number;
 }
 
 export type CaptureMethod = 'html2canvas-pro' | 'Original html2canvas';

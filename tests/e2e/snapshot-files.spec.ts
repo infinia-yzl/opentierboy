@@ -367,25 +367,6 @@ test.describe('snapshot files', () => {
     });
   });
 
-  test.describe('capture trace', () => {
-    test.slow();
-
-    for (const sample of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
-      test(`writes a capture trace when the user captures a list near the cap (sample ${sample})`, async ({tierList}) => {
-        await tierList.goto('/rank');
-        const files = Array.from({length: 30}, (_, index) => imageFile(`pic${String(index).padStart(2, '0')}.png`, noisePng(12, 12, index + 1)));
-        await tierList.deviceImages.addItemsFromDevice(files);
-        await expect.poll(() => deviceItemsOf(tierList.page.url())).toBe(30);
-        const json = v3LinkJson(tierList.page.url()) as V3Json;
-        const variant = sample <= 7 ? 'card' : 'whole-page';
-        await tierList.page.addInitScript((name) => { (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant = name; }, variant);
-        await tierList.goto('/rank', stateNearCap(json, 12_300));
-        await expect.poll(() => tierList.deviceImages.itemShowsUpload('pic00')).toBe(true);
-        await tierList.share.captureWithTrace(`near-cap ${variant} ${sample}`);
-      });
-    }
-  });
-
   test.describe('slow server', () => {
     test.slow();
 
