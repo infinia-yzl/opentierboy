@@ -9,7 +9,6 @@ import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
-import {Skeleton} from "@/components/ui/skeleton";
 import {FaFacebookF, FaMarkdown, FaXTwitter} from "react-icons/fa6";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs"
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from "@/components/ui/collapsible";
@@ -30,6 +29,8 @@ import {markdownText} from "@/lib/markdownText";
 import {onOpenSharePanel, useTips} from "@/components/useTips";
 import {cn} from "@/lib/utils";
 import {fontFacesSettled, imageSettled, styleSheetSettled} from "@/lib/listCard/resources";
+import {framePainted} from "@/lib/framePainted";
+import {type CapturePhase, CaptureSteps} from "@/components/CaptureSteps";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -79,11 +80,15 @@ async function cloneSettled(clonedDocument: Document): Promise<void> {
   await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
 }
 
+async function phasePainted(setPhase: (phase: CapturePhase) => void, phase: CapturePhase): Promise<void> {
+  flushSync(() => setPhase(phase));
+  await framePainted(document, window);
+}
+
 function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
-type CapturePhase = 'idle' | 'preparing' | 'drawing' | 'encoding';
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
 
@@ -185,17 +190,17 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   const captureImage = useCallback(async () => {
-    setPhase('preparing');
     const shown = {state: shareLink, path: pathname, title};
     const data = listCard(frame === 'whole' ? undefined : frame);
 
     try {
+      await phasePainted(setPhase, 'preparing');
       flushSync(() => setCard(data));
       const element = cardRef.current;
       if (!element) throw new Error('The list card did not render');
       const [prepareLinkImages] = await Promise.all([prepareLinkImagesForCapture(), cardSettled(element)]);
 
-      setPhase('drawing');
+      await phasePainted(setPhase, 'drawing');
       const onclone = async (clonedDocument: Document) => {
         prepareLinkImages(clonedDocument);
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
@@ -241,7 +246,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ignoreElements, ...area});
       }
 
-      setPhase('encoding');
+      await phasePainted(setPhase, 'encoding');
       const blob = await pngOf(canvas);
       if (blob) {
         setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
@@ -435,9 +440,7 @@ What do you think? 🤔
               {isCapturing && (
                 <div className="space-y-2 w-full">
                   <p className="text-center italic">Freeze frame!</p>
-                  <Skeleton className="h-6 w-full"/>
-                  <Skeleton className="h-6 w-full"/>
-                  <Skeleton className="h-6 w-full"/>
+                  <CaptureSteps phase={phase}/>
                 </div>
               )}
 
