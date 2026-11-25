@@ -237,6 +237,11 @@ them, and it does not check how they do it.
   that may crash opens with `gotoPageThatMayCrash`.
 - **Toasts are found in the region named "Notifications"** (`toasts(page)`), and a step that
   shows a toast waits for its own new toast (`expectOneNewToast`).
+- **A capture step waits for its picture.** The button reads "Capturing..." from the click until
+  the picture is in the Image tab or the capture has failed. `share.capturePreview` clicks
+  Capture Preview, waits for a new picture, then checks that the button reads "Capture Preview"
+  again. The step reads no toast. A test of the state in between holds the picture encoder
+  (`share.holdPictureEncoder`), starts a capture, then calls `share.releasePictureEncoder`.
 - **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
   page the test opens, visitors included, and fails on any that is not in `BENIGN_PAGE_ERRORS`
   (`tests/support/machines.ts`) or in `test.use({allowedPageErrors})`.

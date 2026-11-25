@@ -129,15 +129,26 @@ export class SharePanel {
     return this.sharePanel.getByRole('button', {name: /^(Capture Preview|Capturing\.\.\.)$/});
   }
 
+  private pictureAddress(): Promise<string | null> {
+    return this.capturedImage.evaluateAll((images) => images[0]?.getAttribute('src') ?? null);
+  }
+
   private async captureAndExpectSuccess() {
-    const outcome = /Image captured successfully|Failed to capture image/;
+    const earlier = await this.pictureAddress();
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await this.expectNewPicture(earlier);
+  }
+
+  private async expectNewPicture(earlier: string | null) {
     try {
-      await expectOneNewToast(this.page, () => this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click(), outcome);
+      await expect.poll(() => this.pictureAddress(), {message: 'the capture should end with a new picture'}).not.toBe(earlier);
     } catch (error) {
-      const running = await this.sharePanel.getByRole('button', {name: 'Capturing...'}).count() > 0;
-      throw new Error(`${(error as Error).message}\nThe capture ${running ? 'was still running' : 'had ended without a toast on screen'}.`);
+      const button = (await this.captureButton.allTextContents()).join(', ') || 'absent';
+      const messages = (await toasts(this.page).allTextContents()).join(' | ') || 'none';
+      throw new Error(`${(error as Error).message}\nCapture button: ${button}. Toasts on screen: ${messages}.`);
     }
-    await expect(toasts(this.page).filter({hasText: outcome}), 'the capture should succeed').toHaveText(/Image captured successfully/);
+    await expect(this.captureButton, 'the capture should be over once its picture is on screen').toHaveText('Capture Preview');
+    await expect(this.captureButton).toBeEnabled();
   }
 
   async holdPictureEncoder() {
