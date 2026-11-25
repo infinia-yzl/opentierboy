@@ -2,7 +2,7 @@ export type ResourceState = 'loaded' | 'failed';
 
 type Listener = () => void;
 
-interface LoadEvents {
+export interface LoadEvents {
   addEventListener(type: 'load' | 'error', listener: Listener): void;
   removeEventListener(type: 'load' | 'error', listener: Listener): void;
 }
@@ -14,6 +14,8 @@ export interface ImageResource extends LoadEvents {
 
 export interface StyleSheetResource extends LoadEvents {
   readonly sheet: unknown;
+  cloneNode(deep: boolean): unknown;
+  replaceWith(...nodes: never[]): void;
 }
 
 export interface FontFaceResource {
@@ -21,7 +23,7 @@ export interface FontFaceResource {
   load(): Promise<unknown>;
 }
 
-function settledByEvent(target: LoadEvents): Promise<ResourceState> {
+export function loadSettled(target: LoadEvents): Promise<ResourceState> {
   return new Promise((resolve) => {
     const settle = (state: ResourceState) => {
       target.removeEventListener('load', onLoad);
@@ -37,12 +39,15 @@ function settledByEvent(target: LoadEvents): Promise<ResourceState> {
 
 export function imageSettled(image: ImageResource): Promise<ResourceState> {
   if (image.complete) return Promise.resolve(image.naturalWidth > 0 ? 'loaded' : 'failed');
-  return settledByEvent(image);
+  return loadSettled(image);
 }
 
 export function styleSheetSettled(link: StyleSheetResource): Promise<ResourceState> {
   if (link.sheet) return Promise.resolve('loaded');
-  return settledByEvent(link);
+  const fresh = link.cloneNode(false) as StyleSheetResource;
+  const settled = loadSettled(fresh);
+  link.replaceWith(fresh as never);
+  return settled;
 }
 
 const unquoted = (name: string) => name.trim().replace(/^(["'])(.*)\1$/, '$2');

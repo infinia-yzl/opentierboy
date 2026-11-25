@@ -68,54 +68,17 @@ function captureScale(width: number, height: number): number {
   return width * height * wanted * wanted <= MAX_CANVAS_PIXELS ? wanted : 1;
 }
 
-/**
- * How long Freeze Frame waits for one card image. A server that never answers would otherwise
- * keep the capture waiting; after this time the image draws as it stands (html2canvas has its own
- * image timeout, and link images without CORS become label tiles).
- */
-const IMAGE_WAIT_MS = 5_000;
-
-/** Resolves when the promise settles or after `ms`, whichever comes first. */
-function settledWithin(promise: Promise<unknown>, ms: number): Promise<string> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve('clock'), ms);
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(Array.isArray(value) ? `resolved:${value.length}` : 'resolved'); },
-      (error) => { clearTimeout(timer); resolve(`rejected:${String(error)}`); },
-    );
-  });
-}
-
-async function cardSettled(element: HTMLElement): Promise<void> {
-  const family = listCardFont.style.fontFamily;
-  trace('fonts', {before: fontStateOf(document, family)});
-  const fonts = await fontFacesSettled(document.fonts, family);
-  trace('images', {fonts, fontState: fontStateOf(document, family), images: imageStateOf(element)});
-  const images = await Promise.all(Array.from(element.querySelectorAll('img'))
-    .filter((image) => image.dataset.linkImage === undefined)
-    .map(imageSettled));
-  const outcomes: Record<string, number> = {};
-  images.forEach((outcome) => { outcomes[outcome] = (outcomes[outcome] ?? 0) + 1; });
-  trace('card-ready', {events: outcomes, images: imageStateOf(element), textWidths: textWidthsOf(element)});
+async function cardSettled(card: HTMLElement): Promise<void> {
+  const images = Array.from(card.querySelectorAll('img')).filter((image) => image.dataset.linkImage === undefined);
+  const [fonts, ...settled] = await Promise.all([fontFacesSettled(document.fonts, listCardFont.style.fontFamily), ...images.map(imageSettled)]);
+  trace('card-settled', {fonts, images: settled.length, failed: settled.filter((state) => state === 'failed').length, textWidths: textWidthsOf(card)});
 }
 
 async function cloneSettled(clonedDocument: Document): Promise<void> {
-  const sheets = await Promise.all(Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map(styleSheetSettled));
+  const before = {fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily), textWidths: textWidthsOf(clonedDocument.querySelector('[data-list-card]'))};
+  const sheets = await Promise.all(Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]:not([disabled])')).map(styleSheetSettled));
   const fonts = await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
-  trace('clone-settled', {sheets, fonts});
-}
-
-/** Waits until the card's fonts and images are ready to draw, or until each wait times out. */
-async function cardReady(element: HTMLElement): Promise<void> {
-  const family = listCardFont.style.fontFamily;
-  trace('fonts', {before: fontStateOf(document, family)});
-  const fonts = await Promise.all(['400', '600', '900'].map((weight) => settledWithin(document.fonts.load(`${weight} 24px ${family}`), IMAGE_WAIT_MS)));
-  trace('images', {fonts, fontState: fontStateOf(document, family), images: imageStateOf(element)});
-  const images = await Promise.all(Array.from(element.querySelectorAll('img')).map((image) =>
-    image.complete ? Promise.resolve('complete') : settledWithin(image.decode(), IMAGE_WAIT_MS)));
-  const outcomes: Record<string, number> = {};
-  images.forEach((outcome) => { outcomes[outcome] = (outcomes[outcome] ?? 0) + 1; });
-  trace('card-ready', {decode: outcomes, images: imageStateOf(element), textWidths: textWidthsOf(element)});
+  trace('clone-settled', {before, sheets, fonts, textWidths: textWidthsOf(clonedDocument.querySelector('[data-list-card]')), nodes: clonedDocument.querySelectorAll('*').length});
 }
 
 type CaptureTraceEntry = {at: number; phase: string; info?: unknown};
@@ -161,20 +124,11 @@ function textWidthsOf(card: Element | null): number[] {
   return widths;
 }
 
-function imageStateOf(target: ParentNode) {
-  const images = Array.from(target.querySelectorAll('img'));
-  return {
-    total: images.length,
-    complete: images.filter((image) => image.complete).length,
-    drawable: images.filter((image) => image.complete && image.naturalWidth > 0).length,
-    blob: images.filter((image) => image.src.startsWith('blob:')).length,
-  };
-}
-
 function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
 }
 
+type CapturePhase = 'idle' | 'preparing' | 'drawing' | 'encoding';
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
 
@@ -250,7 +204,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   }, [previewUrl]);
   const [captureMethod, setCaptureMethod] = useState<CaptureMethod>('pro');
   const [frame, setFrame] = useState<FrameChoice>('whole');
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [phase, setPhase] = useState<CapturePhase>('idle');
+  const isCapturing = phase !== 'idle';
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
   // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
@@ -275,51 +230,31 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   };
 
   const captureImage = useCallback(async () => {
-    setIsCapturing(true);
+    setPhase('preparing');
     (window as unknown as CaptureTraceWindow).__otbCaptureTrace = [];
-    trace('start', {page: imageStateOf(document), nodes: document.querySelectorAll('*').length});
+    trace('preparing', {nodes: document.querySelectorAll('*').length});
     const stopHeartbeat = startHeartbeat();
-    // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
     const data = listCard(frame === 'whole' ? undefined : frame);
 
     try {
-      // The card renders hidden at the top of the page (components/ListCard.tsx); the copy of
-      // the page that html2canvas draws shows it.
       flushSync(() => setCard(data));
       const element = cardRef.current;
       if (!element) throw new Error('The list card did not render');
-      trace('card-rendered', {nodes: element.querySelectorAll('*').length, text: element.textContent?.length, images: imageStateOf(element)});
-      const variant = (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant ?? 'base';
-      const settles = variant.includes('state');
-      if (settles) await cardSettled(element);
-      else await cardReady(element);
-      trace('link-images');
-      const prepareLinkImages = await prepareLinkImagesForCapture();
-      const ignoreElements = variant.includes('card-only')
-        ? (node: Element) => node.parentElement === document.body && node !== element
-        : undefined;
+      trace('card-rendered', {nodes: element.querySelectorAll('*').length, text: element.textContent?.length});
+      const [prepareLinkImages] = await Promise.all([prepareLinkImagesForCapture(), cardSettled(element)]);
+
+      setPhase('drawing');
+      trace('drawing');
+      const wholePage = (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant === 'whole-page';
       const onclone = async (clonedDocument: Document) => {
         prepareLinkImages(clonedDocument);
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
         if (clonedCard) clonedCard.style.visibility = 'visible';
-        if (settles) {
-          trace('onclone-before-fonts', {fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily), textWidths: textWidthsOf(clonedCard)});
-          await cloneSettled(clonedDocument);
-        }
-        trace('onclone', {
-          fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily),
-          textWidths: textWidthsOf(clonedCard),
-          images: imageStateOf(clonedDocument),
-          cardImages: clonedCard ? imageStateOf(clonedCard) : null,
-          nodes: clonedDocument.querySelectorAll('*').length,
-          ownFonts: fontStateOf(document, listCardFont.style.fontFamily).check,
-        });
+        await cloneSettled(clonedDocument);
       };
-      const onProgress = (phase: string, progress: number) => trace(`library:${phase}:${progress}`);
-      trace('html2canvas');
-      // A picture frame is drawn at exactly its size (1200×675, 1080×1080 or 1080×1350), the
-      // size the sites it is made for expect; the whole list keeps its sharper scale.
+      const ignoreElements = (node: Element) => !wholePage && node.parentElement === document.body && node !== element;
+      const onProgress = (step: string, progress: number) => trace(`library:${step}:${progress}`);
       const scale = data.frame ? 1 : captureScale(data.width, data.height);
       const area = {
         x: 0, y: 0, width: data.width, height: data.height, scrollX: -window.scrollX, scrollY: -window.scrollY,
@@ -355,9 +290,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
         await html2canvas(element, {canvas, scale, useCORS: true, onclone, ignoreElements, ...area});
       } else {
-        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, onProgress, ignoreElements, ...area} as Parameters<typeof html2canvasPro>[1]);
+        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ignoreElements, onProgress, ...area} as Parameters<typeof html2canvasPro>[1]);
       }
 
+      setPhase('encoding');
       trace('encoding', {width: canvas.width, height: canvas.height});
       const blob = await pngOf(canvas);
       trace('encoded', {bytes: blob?.size});
@@ -375,7 +311,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       stopHeartbeat();
       trace('end');
       setCard(null);
-      setIsCapturing(false);
+      setPhase('idle');
     }
   }, [captureMethod, frame, shareLink, pathname, title, listCard]);
 

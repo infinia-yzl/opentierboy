@@ -94,6 +94,30 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
   Forward inside the editor, record nothing. A list without its own title shows its page name,
   for example "OVERWATCH - Tank".
 
+## How Freeze Frame takes the picture
+
+Capture Preview (`captureImage` in `components/ShareButton.tsx`) goes through these states, and
+the button reads "Capturing..." in all of them. Each state ends on an event, never after a time:
+
+1. **Preparing.** The list card renders hidden (`components/ListCard.tsx`). The capture waits
+   until every font face of the card (Geologica 400, 600 and 900) has loaded or failed, and every
+   image of the card has loaded or failed (`lib/listCard/resources.ts`). A font face is asked by
+   itself (`FontFace.load()`), so a missing fallback font cannot end the wait early. An image
+   tells by `complete`, or by its `load` or `error` event. A link image is the one exception: its
+   site may never answer, so it is checked under a network limit of 5 s (`checkImage` with CORS),
+   and it becomes a label tile when the check fails.
+2. **Drawing.** html2canvas copies the page into a frame of its own and draws the card from the
+   copy. The copy holds only the list card (`ignoreElements`), so the picture depends on nothing
+   else on the page. The copy is a document of its own: it loads the style sheets and the fonts
+   again. Before html2canvas reads the copy, the capture waits until each style sheet and each
+   font face of the card has loaded or failed there too (`cloneSettled`). A style sheet link
+   without its sheet is put in again first, so its `load` or `error` event cannot be missed.
+3. **Encoding.** The browser encodes the canvas as a PNG (`canvas.toBlob`).
+4. **Done or failed.** The picture shows in the Image tab with its toast, or the failure toast
+   shows.
+
+A font or an image that failed is drawn as it stands: the fallback font, or no picture.
+
 ## Snapshot file
 
 A snapshot file is an ordinary PNG picture of the tier list. It also holds the list itself,
