@@ -11,4 +11,5 @@ repository are in `CLAUDE.md`, and the guide to the end-to-end tests is `tests/R
 | [reference/images.md](reference/images.md) | contributors and agents | images from links and devices, trusted image sites, the device image store and the Content Security Policy |
 | [reference/snapshot-files.md](reference/snapshot-files.md) | contributors and agents | snapshot files (a Freeze Frame PNG with the list inside) and Recently viewed |
 | [reference/drag-and-drop.md](reference/drag-and-drop.md) | contributors and agents | the dnd-kit fork in `packages/dnd-kit`, the adapter in `lib/dnd`, and drag performance |
+| [reference/scribble.md](reference/scribble.md) | contributors and agents | Scribble, the pen of Zen: the pen controls, ink as a limited supply, notes and their anchors, and the limits of step 1 |
 | `media/` | the README | the feature GIFs of the README (`npm run record:gifs` records them) |
