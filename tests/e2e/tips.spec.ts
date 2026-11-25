@@ -110,6 +110,29 @@ test.describe('tips', () => {
     });
   });
 
+  test.describe('capture trace', () => {
+    for (const sample of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]) {
+      test(`writes a capture trace when the user captures the same list in two browsers (sample ${sample})`, async ({tierList, openAsVisitor}) => {
+        const variant = sample > 10 ? 'state' : 'base';
+        const setVariant = (name: string) => { (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant = name; };
+        await tierList.page.addInitScript(setVariant, variant);
+        await tierList.goto(TANKS);
+        if (!await tierList.share.captureWithTrace(`pair ${variant} ${sample} first`)) return;
+
+        const visitor = await openAsVisitor(TANKS, {beforeOpen: async (context) => {
+          await Tips.turnOffIn(context);
+          await context.addInitScript(setVariant, variant);
+        }});
+        const captured = await visitor.share.captureWithTrace(`pair ${variant} ${sample} second`);
+        if (!captured) return;
+        const second = await visitor.share.capturedPicture();
+
+        const difference = await tierList.share.capturedPictureDifference(second);
+        console.log(`[capture-trace] pair ${variant} ${sample}: difference ${JSON.stringify(difference)}`);
+      });
+    }
+  });
+
   test.describe('link is the save', () => {
     test('renders the toast and a ring on the button "Share" when the user drops the first item in row S', async ({tierList}) => {
       const tips = new Tips(tierList.page);

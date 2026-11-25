@@ -29,6 +29,7 @@ import {type ListCardData, PICTURE_FRAMES, type PictureFrameName} from "@/lib/li
 import {markdownText} from "@/lib/markdownText";
 import {onOpenSharePanel, useTips} from "@/components/useTips";
 import {cn} from "@/lib/utils";
+import {fontFacesSettled, imageSettled, styleSheetSettled} from "@/lib/listCard/resources";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -75,22 +76,99 @@ function captureScale(width: number, height: number): number {
 const IMAGE_WAIT_MS = 5_000;
 
 /** Resolves when the promise settles or after `ms`, whichever comes first. */
-function settledWithin(promise: Promise<unknown>, ms: number): Promise<void> {
+function settledWithin(promise: Promise<unknown>, ms: number): Promise<string> {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
+    const timer = setTimeout(() => resolve('clock'), ms);
     promise.then(
-      () => { clearTimeout(timer); resolve(); },
-      () => { clearTimeout(timer); resolve(); },
+      (value) => { clearTimeout(timer); resolve(Array.isArray(value) ? `resolved:${value.length}` : 'resolved'); },
+      (error) => { clearTimeout(timer); resolve(`rejected:${String(error)}`); },
     );
   });
+}
+
+async function cardSettled(element: HTMLElement): Promise<void> {
+  const family = listCardFont.style.fontFamily;
+  trace('fonts', {before: fontStateOf(document, family)});
+  const fonts = await fontFacesSettled(document.fonts, family);
+  trace('images', {fonts, fontState: fontStateOf(document, family), images: imageStateOf(element)});
+  const images = await Promise.all(Array.from(element.querySelectorAll('img'))
+    .filter((image) => image.dataset.linkImage === undefined)
+    .map(imageSettled));
+  const outcomes: Record<string, number> = {};
+  images.forEach((outcome) => { outcomes[outcome] = (outcomes[outcome] ?? 0) + 1; });
+  trace('card-ready', {events: outcomes, images: imageStateOf(element), textWidths: textWidthsOf(element)});
+}
+
+async function cloneSettled(clonedDocument: Document): Promise<void> {
+  const sheets = await Promise.all(Array.from(clonedDocument.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map(styleSheetSettled));
+  const fonts = await fontFacesSettled(clonedDocument.fonts, listCardFont.style.fontFamily);
+  trace('clone-settled', {sheets, fonts});
 }
 
 /** Waits until the card's fonts and images are ready to draw, or until each wait times out. */
 async function cardReady(element: HTMLElement): Promise<void> {
   const family = listCardFont.style.fontFamily;
-  await Promise.all(['400', '600', '900'].map((weight) => settledWithin(document.fonts.load(`${weight} 24px ${family}`), IMAGE_WAIT_MS)));
-  await Promise.all(Array.from(element.querySelectorAll('img')).map((image) =>
-    image.complete ? Promise.resolve() : settledWithin(image.decode(), IMAGE_WAIT_MS)));
+  trace('fonts', {before: fontStateOf(document, family)});
+  const fonts = await Promise.all(['400', '600', '900'].map((weight) => settledWithin(document.fonts.load(`${weight} 24px ${family}`), IMAGE_WAIT_MS)));
+  trace('images', {fonts, fontState: fontStateOf(document, family), images: imageStateOf(element)});
+  const images = await Promise.all(Array.from(element.querySelectorAll('img')).map((image) =>
+    image.complete ? Promise.resolve('complete') : settledWithin(image.decode(), IMAGE_WAIT_MS)));
+  const outcomes: Record<string, number> = {};
+  images.forEach((outcome) => { outcomes[outcome] = (outcomes[outcome] ?? 0) + 1; });
+  trace('card-ready', {decode: outcomes, images: imageStateOf(element), textWidths: textWidthsOf(element)});
+}
+
+type CaptureTraceEntry = {at: number; phase: string; info?: unknown};
+type CaptureTraceWindow = {__otbCaptureTrace?: CaptureTraceEntry[]; __otbCapturePhase?: string};
+
+function trace(phase: string, info?: unknown) {
+  const store = window as unknown as CaptureTraceWindow;
+  if (!store.__otbCaptureTrace) store.__otbCaptureTrace = [];
+  store.__otbCaptureTrace.push({at: Date.now(), phase, info});
+  if (phase !== 'gap') store.__otbCapturePhase = phase;
+}
+
+function startHeartbeat(): () => void {
+  let last = Date.now();
+  const timer = setInterval(() => {
+    const now = Date.now();
+    if (now - last > 300) trace('gap', {ms: now - last, during: (window as unknown as CaptureTraceWindow).__otbCapturePhase});
+    last = now;
+  }, 50);
+  return () => clearInterval(timer);
+}
+
+function fontStateOf(target: Document, family: string) {
+  const faces = Array.from(target.fonts).filter((face) => family.includes(face.family.replace(/["']/g, '')));
+  return {
+    status: target.fonts.status,
+    faces: faces.map((face) => `${face.weight}:${face.status}`),
+    check: ['400', '600', '900'].map((weight) => target.fonts.check(`${weight} 24px ${family}`)),
+    sheets: Array.from(target.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).map((link) => link.sheet !== null),
+    styles: target.querySelectorAll('style').length,
+  };
+}
+
+function textWidthsOf(card: Element | null): number[] {
+  if (!card) return [];
+  const walker = card.ownerDocument.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+  const widths: number[] = [];
+  for (let node = walker.nextNode(); node && widths.length < 8; node = walker.nextNode()) {
+    const range = card.ownerDocument.createRange();
+    range.selectNodeContents(node);
+    widths.push(Math.round(range.getBoundingClientRect().width * 100) / 100);
+  }
+  return widths;
+}
+
+function imageStateOf(target: ParentNode) {
+  const images = Array.from(target.querySelectorAll('img'));
+  return {
+    total: images.length,
+    complete: images.filter((image) => image.complete).length,
+    drawable: images.filter((image) => image.complete && image.naturalWidth > 0).length,
+    blob: images.filter((image) => image.src.startsWith('blob:')).length,
+  };
 }
 
 function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
@@ -198,6 +276,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
 
   const captureImage = useCallback(async () => {
     setIsCapturing(true);
+    (window as unknown as CaptureTraceWindow).__otbCaptureTrace = [];
+    trace('start', {page: imageStateOf(document), nodes: document.querySelectorAll('*').length});
+    const stopHeartbeat = startHeartbeat();
     // The list the picture shows: the card is built from the list on screen right now.
     const shown = {state: shareLink, path: pathname, title};
     const data = listCard(frame === 'whole' ? undefined : frame);
@@ -208,13 +289,35 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       flushSync(() => setCard(data));
       const element = cardRef.current;
       if (!element) throw new Error('The list card did not render');
-      await cardReady(element);
+      trace('card-rendered', {nodes: element.querySelectorAll('*').length, text: element.textContent?.length, images: imageStateOf(element)});
+      const variant = (window as unknown as {__otbCaptureVariant?: string}).__otbCaptureVariant ?? 'base';
+      const settles = variant.includes('state');
+      if (settles) await cardSettled(element);
+      else await cardReady(element);
+      trace('link-images');
       const prepareLinkImages = await prepareLinkImagesForCapture();
-      const onclone = (clonedDocument: Document) => {
+      const ignoreElements = variant.includes('card-only')
+        ? (node: Element) => node.parentElement === document.body && node !== element
+        : undefined;
+      const onclone = async (clonedDocument: Document) => {
         prepareLinkImages(clonedDocument);
         const clonedCard = clonedDocument.querySelector<HTMLElement>('[data-list-card]');
         if (clonedCard) clonedCard.style.visibility = 'visible';
+        if (settles) {
+          trace('onclone-before-fonts', {fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily), textWidths: textWidthsOf(clonedCard)});
+          await cloneSettled(clonedDocument);
+        }
+        trace('onclone', {
+          fonts: fontStateOf(clonedDocument, listCardFont.style.fontFamily),
+          textWidths: textWidthsOf(clonedCard),
+          images: imageStateOf(clonedDocument),
+          cardImages: clonedCard ? imageStateOf(clonedCard) : null,
+          nodes: clonedDocument.querySelectorAll('*').length,
+          ownFonts: fontStateOf(document, listCardFont.style.fontFamily).check,
+        });
       };
+      const onProgress = (phase: string, progress: number) => trace(`library:${phase}:${progress}`);
+      trace('html2canvas');
       // A picture frame is drawn at exactly its size (1200×675, 1080×1080 or 1080×1350), the
       // size the sites it is made for expect; the whole list keeps its sharper scale.
       const scale = data.frame ? 1 : captureScale(data.width, data.height);
@@ -250,12 +353,14 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
           return originalDrawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
         };
 
-        await html2canvas(element, {canvas, scale, useCORS: true, onclone, ...area});
+        await html2canvas(element, {canvas, scale, useCORS: true, onclone, ignoreElements, ...area});
       } else {
-        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
+        canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, onProgress, ignoreElements, ...area} as Parameters<typeof html2canvasPro>[1]);
       }
 
+      trace('encoding', {width: canvas.width, height: canvas.height});
       const blob = await pngOf(canvas);
+      trace('encoded', {bytes: blob?.size});
       if (blob) {
         setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
         toast.success('Image captured successfully');
@@ -263,9 +368,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         toast.error(`Failed to capture image with ${captureMethod} method`);
       }
     } catch (error) {
+      trace('failed', {error: String(error)});
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);
     } finally {
+      stopHeartbeat();
+      trace('end');
       setCard(null);
       setIsCapturing(false);
     }

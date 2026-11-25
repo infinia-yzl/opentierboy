@@ -140,15 +140,64 @@ export class SharePanel {
   }
 
   private async expectNewPicture(earlier: string | null) {
+    const started = Date.now();
     try {
       await expect.poll(() => this.pictureAddress(), {message: 'the capture should end with a new picture'}).not.toBe(earlier);
     } catch (error) {
+      const gaveUp = Date.now();
       const button = (await this.captureButton.allTextContents()).join(', ') || 'absent';
       const messages = (await toasts(this.page).allTextContents()).join(' | ') || 'none';
+      const trace = await this.page.evaluate(() => (window as unknown as {__otbCaptureTrace?: {at: number; phase: string; info?: unknown}[]}).__otbCaptureTrace ?? []);
+      const lines = trace.map((entry) => `[capture-trace] failed step: app +${entry.at - started} ${entry.phase} ${entry.info === undefined ? '' : JSON.stringify(entry.info)}`);
+      console.log([`[capture-trace] failed step: await gave up at +${gaveUp - started}, trace read at +${Date.now() - started}`, ...lines].join('\n'));
       throw new Error(`${(error as Error).message}\nCapture button: ${button}. Toasts on screen: ${messages}.`);
     }
     await expect(this.captureButton, 'the capture should be over once its picture is on screen').toHaveText('Capture Preview');
     await expect(this.captureButton).toBeEnabled();
+  }
+
+  async captureWithTrace(label: string): Promise<boolean> {
+    const page = this.page;
+    const library: string[] = [];
+    let clicked = Date.now();
+    page.on('console', (message) => {
+      const text = message.text();
+      if (/^#\d+ \d+ms/.test(text)) library.push(`+${Date.now() - clicked} ${text.slice(0, 160)}`);
+    });
+    await this.openImageTab();
+    const earlier = await this.pictureAddress();
+    const reads: string[] = [];
+    clicked = Date.now();
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    const afterClick = Date.now() - clicked;
+    let ok = true;
+    try {
+      await expect.poll(async () => {
+        const asked = Date.now() - clicked;
+        const read = await this.captureButton.evaluateAll((buttons) => ({
+          button: buttons[0]?.textContent ?? null,
+          picture: document.querySelector('img[alt="Captured tier list"]')?.getAttribute('src') ?? null,
+          phase: (window as unknown as {__otbCapturePhase?: string}).__otbCapturePhase ?? null,
+        }));
+        reads.push(`asked +${asked} answered +${Date.now() - clicked} ${read.button} ${read.phase} ${read.picture ? 'picture' : 'no picture'}`);
+        return read.picture;
+      }, {message: 'the capture should end with a new picture'}).not.toBe(earlier);
+    } catch {
+      ok = false;
+    }
+    const ended = Date.now() - clicked;
+    const readTrace = () => page.evaluate(() => (window as unknown as {__otbCaptureTrace?: {at: number; phase: string; info?: unknown}[]}).__otbCaptureTrace ?? []);
+    const print = (name: string, trace: {at: number; phase: string; info?: unknown}[]) => console.log([
+      `[capture-trace] ${name}: ${ok ? 'picture seen' : 'AWAIT GAVE UP'} at +${ended} (click returned at +${afterClick}, trace read at +${Date.now() - clicked})`,
+      ...trace.map((entry) => `[capture-trace] ${name}:   app +${entry.at - clicked} ${entry.phase} ${entry.info === undefined ? '' : JSON.stringify(entry.info)}`),
+      ...reads.map((read) => `[capture-trace] ${name}:   read ${read}`),
+      ...library.map((line) => `[capture-trace] ${name}:   lib ${line}`),
+    ].join('\n'));
+    const trace = await readTrace();
+    print(label, trace);
+    const over = await expect(this.captureButton).toHaveText('Capture Preview', {timeout: 30_000}).then(() => true, () => false);
+    if (!trace.some((entry) => entry.phase === 'end')) print(`${label} (${over ? 'read again after the capture' : 'STILL CAPTURING'})`, await readTrace());
+    return ok && over;
   }
 
   async holdPictureEncoder() {
