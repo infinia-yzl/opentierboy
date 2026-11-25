@@ -363,6 +363,7 @@ test.describe('scribble', () => {
     test('renders Red, Blue and Contrast in the ink colour menu, and a stroke in each colour, when the user chooses each one', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
+      expect(await scribble.inkTokens()).toEqual({dark: false, red: '#dc2626', blue: '#2563eb'});
       await expect(tierList.menuItems(await scribble.openInkColourMenu())).toHaveText(['Red', 'Blue', 'Contrast']);
       await tierList.closeMenus();
       await scribble.drawCircleOn(tierList.item('Mauga'));
@@ -381,11 +382,11 @@ test.describe('scribble', () => {
     });
 
     test.describe('dark mode', () => {
-      test.use({colorScheme: 'dark'});
-
       test('renders the lighter red and blue, and Contrast in white, when the mode is dark', async ({tierList}) => {
         const {scribble} = tierList;
+        await tierList.storeBeforeLoad('theme', 'dark');
         await scribble.gotoWithScribble(TANKS, LIST);
+        expect(await scribble.inkTokens()).toEqual({dark: true, red: '#f87171', blue: '#60a5fa'});
         await scribble.drawCircleOn(tierList.item('Mauga'));
         await scribble.chooseInkColour('Blue');
         await scribble.drawCircleOn(tierList.item('Winston'));

@@ -182,6 +182,14 @@ export class Scribble {
     return note.evaluate((element) => Array.from(element.children, (stroke) => getComputedStyle(stroke).stroke));
   }
 
+  async inkTokens(): Promise<{dark: boolean; red: string; blue: string}> {
+    return this.page.evaluate(() => {
+      const root = document.documentElement;
+      const token = (name: string) => getComputedStyle(root).getPropertyValue(name).trim();
+      return {dark: root.classList.contains('dark'), red: token('--scribble-red'), blue: token('--scribble-blue')};
+    });
+  }
+
   async strokeCountOf(note: Locator): Promise<number> {
     return note.evaluate((element) => element.childElementCount);
   }
