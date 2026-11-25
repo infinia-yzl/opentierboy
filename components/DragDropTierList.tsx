@@ -30,7 +30,6 @@ const TierItem = memo<{
   showLabels: boolean;
   onDeleteItem: (itemId: string) => void;
 }>(({item, tierId, index, sourceId, showLabels, onDeleteItem}) => (
-  // DraggableTierItem keys the tile by its item id: a tile never changes items (lib/dnd/react.tsx).
   <DraggableTierItem itemId={item.id} tierId={tierId} index={index}>
     {({ref, isDragging, describedBy, roleDescription}) => (
       <div
@@ -40,7 +39,7 @@ const TierItem = memo<{
         aria-roledescription={roleDescription}
         aria-describedby={[describedBy, sourceId].filter(Boolean).join(' ') || undefined}
         aria-label={itemDisplayLabel(item)}
-        // A long press (touch) opens the item menu or starts a drag: no text selection, no callout.
+        data-scribble-item={item.id}
         className={`select-none [-webkit-touch-callout:none] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${isDragging ? 'shadow-md ring-2 ring-ring' : ''}`}
       >
         <ItemTile {...item} onDelete={onDeleteItem} showLabel={showLabels}/>
@@ -64,8 +63,6 @@ const TierItems = memo<{
 }>(({tier, showLabels, onDeleteItem, washKey, trailing, className = ''}) => {
   const descriptionIds = useId();
   const {ref, isDropTarget} = useTierItems({tierId: tier.id});
-  // A link image names its site in the item's description, next to the drag instructions. The
-  // descriptions sit in a hidden list after the row, so they stay out of the items' text.
   const sources = tier.items.map((item, itemIndex) => {
     const domain = linkImageOf(item)?.domain;
     return domain ? {id: `${descriptionIds}-${itemIndex}`, domain} : null;
@@ -74,6 +71,7 @@ const TierItems = memo<{
     <>
       <div
         ref={ref}
+        data-scribble-area=""
         className={`relative flex-1 min-w-0 min-h-16 md:min-h-20 compact:min-h-12 stage:min-h-(--stage-tile) flex flex-wrap content-start ${className} ${isDropTarget ? 'ring-2 ring-inset ring-ring/60' : ''}`}
       >
         {tier.items.map((item, itemIndex) => (
@@ -217,11 +215,7 @@ const UnrankedTray = memo<{
     );
   }
   return (
-    // In a frame layout the tray has no box, and its tiles take the frame's tray size; in 9:16 it
-    // fills the space under the rows, in the middle (the board "9:16 · Pick freely"). It takes
-    // the space under the rows and its items scroll, so the frame keeps its size (owner
-    // decisions, 2026-11-01): it gives way before the rows (STAGE_TRAY_FLEX).
-    <section role="group" aria-label={tierLabel} className={`mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:justify-center-safe ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-tile))] stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]`}>
+    <section role="group" aria-label={tierLabel} data-scribble-tray="" className={`mt-4 w-full rounded-xl bg-muted p-3 flex flex-col gap-2 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 stage-tall:justify-center-safe ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-tile))] stage:gap-[calc(var(--u)*10)] stage:[--stage-tile:var(--stage-tray-tile)]`}>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <EditableLabel
           text={tier.name}
@@ -233,7 +227,6 @@ const UnrankedTray = memo<{
         {isZenMode && (
           <span className="text-sm text-muted-foreground stage:text-(length:--stage-tray-count)">· {itemsLeftText(tier.items.length)}</span>
         )}
-        {/* A wrapping row: the mouse and touch classes set display: block (app/globals.css). */}
         {!emptyListArea && <p className="hide-in-zen flex flex-wrap gap-x-1 text-sm text-muted-foreground" data-html2canvas-ignore>
           <span>Drag to reorder.</span>
           <FirstDragHint/>
@@ -250,7 +243,6 @@ const UnrankedTray = memo<{
           showLabels={showLabels}
           onDeleteItem={onDeleteItem}
           trailing={addImagesTile && <div className="hide-in-zen" data-html2canvas-ignore>{addImagesTile}</div>}
-          // In a frame the items scroll. In 9:16 they keep their own height, centred in the tray.
           className="stage:overflow-y-auto stage:overflow-x-hidden stage-tall:flex-[0_1_auto]"
         />
       )}
@@ -277,9 +269,6 @@ const UpNextTray = memo<{
 }>(({tier, tierLabel, order, shuffled, hideQueue, showLabels, onDeleteItem}) => {
   const queueLabelId = useId();
   const {ref, isDropTarget} = useTierItems({tierId: tier.id});
-  // The frame layouts show the same parts in their own places (owner decision, 2026-10-31):
-  // 16:9 as the editor; 9:16 with the item up next large in the middle and its name under it;
-  // the overlay as one strip of small tiles without labels. The frames show one line of queue.
   const stage = useActiveStage();
   const tall = stage === 'tall';
   const strip = stage === 'overlay';
@@ -290,9 +279,7 @@ const UpNextTray = memo<{
   const left = itemsLeftText(tier.items.length);
   const queueLabel = hideQueue ? 'Queue (hidden)' : 'Queue';
   return (
-    // In a frame layout it takes the space under the rows and scrolls when it must (owner
-    // decisions, 2026-11-01), as the Unranked tray does.
-    <section role="group" aria-label={tierLabel} className={`mt-4 w-full rounded-xl bg-muted p-3 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-hero))] stage:overflow-y-auto stage:overflow-x-hidden stage-tall:flex stage-tall:flex-col stage-tall:justify-center-safe`}>
+    <section role="group" aria-label={tierLabel} data-scribble-tray="" className={`mt-4 w-full rounded-xl bg-muted p-3 stage:mt-(--stage-gap) stage:rounded-none stage:bg-transparent stage:p-0 ${STAGE_TRAY_FLEX} stage:min-h-[calc(var(--stage-tray-heading)*1.5+var(--u)*10+var(--stage-hero))] stage:overflow-y-auto stage:overflow-x-hidden stage-tall:flex stage-tall:flex-col stage-tall:justify-center-safe`}>
       <div
         ref={ref}
         className={cn(
@@ -326,10 +313,7 @@ const UpNextTray = memo<{
           </div>
           {next && (
             <>
-              {/* The item up next: the tile to drag, with a ring. In 9:16 it is large, with its name under it. */}
               <div className={cn('relative self-start stage:[--stage-tile:var(--stage-hero)]', tall && 'self-center')}>
-                {/* The same tile as in the rows: DraggableTierItem keys it by its item, so when
-                    the item up next changes, a new tile takes its place. */}
                 <TierItem
                   item={next.item}
                   tierId={tier.id}
@@ -349,7 +333,6 @@ const UpNextTray = memo<{
         </div>
         {rest.length > 0 && (
           <div className={cn('flex min-w-0 flex-col', stage ? 'gap-[calc(var(--u)*10)]' : 'gap-2', tall && 'items-center')}>
-            {/* 9:16 and the overlay show no queue heading (the boards); the list keeps its name. */}
             <span id={queueLabelId} className={cn('text-sm text-muted-foreground stage:text-(length:--stage-tray-count)', (tall || strip) && 'sr-only')}>
               {queueLabel}
             </span>
@@ -359,7 +342,7 @@ const UpNextTray = memo<{
                   ?
                 </li>
               ) : (
-                <li key={item.id} aria-label={itemDisplayLabel(item)}>
+                <li key={item.id} aria-label={itemDisplayLabel(item)} data-scribble-item={item.id}>
                   <ItemTile {...item} showLabel={showLabels && !strip}/>
                 </li>
               ))}

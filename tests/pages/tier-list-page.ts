@@ -11,6 +11,7 @@ import {DeviceImages} from './device-images';
 import {SnapshotFiles} from './snapshot-files';
 import {SharePanel} from './share-panel';
 import {Zen} from './zen';
+import {Scribble} from './scribble';
 
 export interface Size {
   width: number;
@@ -51,6 +52,7 @@ export class TierListPage {
   readonly files: SnapshotFiles;
   readonly share: SharePanel;
   readonly zen: Zen;
+  readonly scribble: Scribble;
 
   constructor(page: Page) {
     this.page = page;
@@ -75,6 +77,7 @@ export class TierListPage {
     this.files = new SnapshotFiles(this);
     this.share = new SharePanel(this);
     this.zen = new Zen(this);
+    this.scribble = new Scribble(this);
   }
 
   async goto(path: string, state?: string) {

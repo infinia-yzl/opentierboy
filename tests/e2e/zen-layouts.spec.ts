@@ -65,7 +65,7 @@ test.describe('zen layouts', () => {
       await expect(tierList.editorTools).toBeHidden();
       await expect(tierList.title).toBeVisible();
       await expect(tierList.zen.zenWordmark).toBeVisible();
-      await expect(tierList.zen.zenBarButtons).toHaveCount(5);
+      await expect(tierList.zen.zenBarButtons).toHaveCount(6);
     });
 
     test('renders the editor and no frame when the user chooses Editor after 16:9', async ({tierList}) => {

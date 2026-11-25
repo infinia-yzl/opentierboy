@@ -17,6 +17,8 @@ import {setZenMode} from "@/components/zenMode";
 import {useStepLog} from "@/components/useListSteps";
 import {useActiveStage, useStageAttributes} from "@/components/useZenLayout";
 import {ZenStage} from "@/components/ZenStage";
+import {ScribbleLayer} from "@/components/ScribbleLayer";
+import {resetScribble} from "@/components/useScribble";
 import {cn} from "@/lib/utils";
 import {ListTitle} from "@/components/ListTitle";
 import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
@@ -46,42 +48,28 @@ const TierListManager: React.FC<TierListManagerProps> = ({initialItemSet, title}
 
 const TierListEditor: React.FC = () => {
   const {title, setTitle, urlLength} = useTierContext();
-  // Files that someone opens, drops or pastes: a snapshot file's list, or pictures as items.
-  // Image addresses that someone drops or pastes: link images (#107).
   const {openFiles, openLinks, dialog: openListDialog, openFileButtonRef} = useSnapshotFiles();
   usePasteImages(openFiles, openLinks);
   const dragging = useEditorDrop(openFiles, openLinks);
-  // No drop overlay in Zen, which turns off adding items.
   const isZenMode = useZenMode();
-  // The Zen bar's step count, in browsers without the Navigation API (components/useListSteps.ts).
   useStepLog();
-  // Zen belongs to the editor: leaving the editor ends it, so other pages keep their header.
-  useEffect(() => () => setZenMode(false, {announce: false}), []);
-  // Zen's frame layout on <html>, for the page's styles (components/useZenLayout.ts).
+  useEffect(() => () => {
+    setZenMode(false, {announce: false});
+    resetScribble();
+  }, []);
   useStageAttributes();
   const stage = useActiveStage();
 
   return (
-    // Zen's bar (Back, the step count, Forward, the ranking order, the layout and Exit Zen) in its
-    // own row above the title, or in the strip above the frame of 16:9, 9:16 and the stream
-    // overlay, which draw the same editor (ZenStage; owner decisions, 2026-11-01). First on the
-    // page, so the keyboard reaches it first.
     <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
     <ZenStage bar={<ZenBar/>}>
     <div className={cn(
       'w-full flex flex-col items-center',
-      // 16:9 and 9:16: the frame's padding, and the space between the title, rows and tray.
+      !stage && 'relative',
       (stage === 'wide' || stage === 'tall') && 'grow px-(--stage-pad-x) py-(--stage-pad-y) gap-(--stage-gap)',
-      // The frame keeps its height: the Unranked tray takes the space left (ZenStage).
       (stage === 'wide' || stage === 'tall') && 'min-h-0',
-      // The overlay: the list in a panel at the frame's top right (the board "Overlay · green key"),
-      // at most as tall as the frame less its margins.
       stage === 'overlay' && 'absolute top-(--stage-pad-y) right-(--stage-pad-x) stage:w-(--stage-panel-width) max-h-[calc(var(--stage-frame-height)-2*var(--stage-pad-y))] p-(--stage-panel-pad) rounded-(--stage-panel-radius) gap-(--stage-gap) bg-background text-foreground',
     )}>
-      {/* The title on the left and the editor's three tools on the right (owner decisions,
-          2026-10-28): Add images, Zen, Share. In Zen the tools hide, and the OpenTierBoy
-          wordmark takes their place. The title sits right above the rows; on phones the tools
-          sit above the title (2026-10-31). */}
       <div className={stage
         ? cn('w-full flex flex-row justify-between gap-(--stage-gap)', stage === 'tall' ? 'items-start' : 'items-end')
         : 'w-full flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between'}>
@@ -102,8 +90,6 @@ const TierListEditor: React.FC = () => {
         />
       </div>
       <LinkImageNotice/>
-      {/* The rows, then Add row and Row options, then the Unranked tray with the hints and an
-          "Add images" tile (owner decisions, 2026-10-28 and 2026-10-31). */}
       <div className={stage ? cn('w-full min-h-0 flex flex-col', stage !== 'overlay' && 'grow') : 'w-full mt-3'}>
         <DragDropTierList
           belowRows={<RowControls/>}
@@ -116,7 +102,9 @@ const TierListEditor: React.FC = () => {
       </div>
       {openListDialog}
       <DropOverlay visible={dragging && !isZenMode}/>
+      {!stage && <ScribbleLayer/>}
     </div>
+    {stage && <ScribbleLayer/>}
     </ZenStage>
     </AddImagesProvider>
   );

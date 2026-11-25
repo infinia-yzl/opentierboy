@@ -1,0 +1,211 @@
+import {expect, type Locator, type Page} from '@playwright/test';
+import {boxOf, centerOfBox, menuClosedOnto, type Box, type Point} from './helpers';
+import type {TierListPage} from './tier-list-page';
+
+export type InkColourName = 'Red' | 'Blue' | 'Contrast';
+
+export const INK_SUPPLY = 500;
+const ZIGZAG_SPAN = 60;
+
+export function notesName(count: number): string {
+  return `Scribbles: ${count === 0 ? 'no notes' : count === 1 ? '1 note' : `${count} notes`}`;
+}
+
+export class Scribble {
+  readonly tierList: TierListPage;
+  readonly page: Page;
+
+  constructor(tierList: TierListPage) {
+    this.tierList = tierList;
+    this.page = tierList.page;
+  }
+
+  get toggle(): Locator {
+    return this.tierList.zen.zenBar.getByRole('button', {name: 'Scribble', exact: true});
+  }
+
+  get controls(): Locator {
+    return this.page.getByRole('toolbar', {name: 'Scribble', exact: true});
+  }
+
+  get inkColourButton(): Locator {
+    return this.controls.getByRole('button', {name: /^Ink colour: /});
+  }
+
+  get removeLastNoteButton(): Locator {
+    return this.controls.getByRole('button', {name: 'Remove last note', exact: true});
+  }
+
+  get clearButton(): Locator {
+    return this.controls.getByRole('button', {name: 'Clear scribbles', exact: true});
+  }
+
+  get inkStatus(): Locator {
+    return this.controls.getByRole('status');
+  }
+
+  get layer(): Locator {
+    return this.page.getByRole('group', {name: /^Scribbles: /});
+  }
+
+  get notes(): Locator {
+    return this.layer.getByRole('img');
+  }
+
+  note(name: string): Locator {
+    return this.layer.getByRole('img', {name, exact: true});
+  }
+
+  async expectNotes(count: number) {
+    await expect(this.layer).toHaveAccessibleName(notesName(count));
+  }
+
+  async expectScribble(on: boolean) {
+    await expect(this.toggle).toHaveAttribute('aria-pressed', String(on));
+    await expect(this.controls).toHaveCount(on ? 1 : 0);
+  }
+
+  async setScribble(on: boolean) {
+    await expect(this.toggle).toHaveAttribute('aria-pressed', String(!on));
+    await this.toggle.click();
+    await this.expectScribble(on);
+  }
+
+  async gotoWithScribble(path: string, state?: string) {
+    await this.tierList.goto(path, state);
+    await this.tierList.zen.setZenMode(true);
+    await this.setScribble(true);
+  }
+
+  async pressScribbleKey() {
+    await this.page.keyboard.press('d');
+  }
+
+  async tooltipOf(button: Locator): Promise<Locator> {
+    await button.hover();
+    const tooltip = this.page.getByRole('tooltip');
+    await expect(tooltip).toBeVisible();
+    return tooltip;
+  }
+
+  async press(points: readonly Point[]) {
+    const [first, ...rest] = points;
+    const mouse = this.page.mouse;
+    await mouse.move(first.x, first.y);
+    await mouse.down();
+    for (const point of rest) await mouse.move(point.x, point.y);
+  }
+
+  async lift() {
+    await this.page.mouse.up();
+  }
+
+  async draw(points: readonly Point[]) {
+    await this.press(points);
+    await this.lift();
+  }
+
+  async circleOf(target: Locator): Promise<Point[]> {
+    const box = await boxOf(target);
+    const centre = centerOfBox(box);
+    const radius = Math.min(box.width, box.height) * 0.4;
+    return Array.from({length: 13}, (_, index) => {
+      const angle = (index / 12) * 2 * Math.PI;
+      return {x: centre.x + radius * Math.cos(angle), y: centre.y + radius * Math.sin(angle)};
+    });
+  }
+
+  async drawCircleOn(target: Locator) {
+    await this.draw(await this.circleOf(target));
+  }
+
+  async drawTickAt(from: Point) {
+    await this.draw([from, {x: from.x + 12, y: from.y + 12}, {x: from.x + 30, y: from.y - 10}]);
+  }
+
+  async pointIn(target: Locator, x: number, y: number): Promise<Point> {
+    const box = await boxOf(target);
+    return {x: box.x + box.width * x, y: box.y + box.height * y};
+  }
+
+  async dotAt(point: Point) {
+    await this.draw([point]);
+  }
+
+  async pressToggle() {
+    const pressed = await this.toggle.getAttribute('aria-pressed');
+    await this.toggle.click();
+    await this.expectScribble(pressed !== 'true');
+  }
+
+  async pressScribbleKeyOnList() {
+    const pressed = await this.toggle.getAttribute('aria-pressed');
+    await this.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await this.pressScribbleKey();
+    await this.expectScribble(pressed !== 'true');
+  }
+
+  async pressOnItemAndMoveTo(itemName: string, tierName: string) {
+    const [from, to] = await Promise.all([boxOf(this.tierList.item(itemName)), boxOf(this.tierList.tier(tierName))]);
+    const start = centerOfBox(from);
+    const end = centerOfBox(to);
+    await this.press([start, {x: start.x + 10, y: start.y + 10}, {x: (start.x + end.x) / 2, y: (start.y + end.y) / 2}, end]);
+  }
+
+  zigzagFrom(start: Point, points: number): Point[] {
+    return Array.from({length: points}, (_, index) => ({x: start.x + (index % 2) * ZIGZAG_SPAN, y: start.y + (index % 4 < 2 ? 0 : 6)}));
+  }
+
+  async chooseInkColour(name: InkColourName) {
+    await this.inkColourButton.click();
+    await this.page.getByRole('menuitemradio', {name, exact: true}).click();
+    await expect(this.inkColourButton).toHaveAccessibleName(`Ink colour: ${name}`);
+    await menuClosedOnto(this.page, this.inkColourButton);
+  }
+
+  async openInkColourMenu(): Promise<Locator> {
+    await this.inkColourButton.click();
+    const menu = this.page.getByRole('menu');
+    await expect(menu).toBeVisible();
+    return menu;
+  }
+
+  async removeLastNote() {
+    await this.removeLastNoteButton.click();
+  }
+
+  async clear() {
+    await this.clearButton.click();
+  }
+
+  async inkColoursOf(note: Locator): Promise<string[]> {
+    return note.evaluate((element) => Array.from(element.children, (stroke) => getComputedStyle(stroke).stroke));
+  }
+
+  async strokeCountOf(note: Locator): Promise<number> {
+    return note.evaluate((element) => element.childElementCount);
+  }
+
+  async noteNames(): Promise<string[]> {
+    return this.notes.evaluateAll((notes) => notes.map((note) => note.getAttribute('aria-label') ?? ''));
+  }
+
+  async controlNames(): Promise<string[]> {
+    return this.controls.getByRole('button').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('aria-label') ?? ''));
+  }
+
+  async backgroundOf(button: Locator): Promise<string> {
+    return button.evaluate((element) => getComputedStyle(element).backgroundColor);
+  }
+
+  async overlapOf(note: Locator, target: Locator): Promise<number> {
+    const [ink, box] = await Promise.all([boxOf(note), boxOf(target)]);
+    const width = Math.min(ink.x + ink.width, box.x + box.width) - Math.max(ink.x, box.x);
+    const height = Math.min(ink.y + ink.height, box.y + box.height) - Math.max(ink.y, box.y);
+    return width <= 0 || height <= 0 ? 0 : (width * height) / (ink.width * ink.height);
+  }
+
+  async boxes(...locators: Locator[]): Promise<Box[]> {
+    return Promise.all(locators.map((locator) => boxOf(locator)));
+  }
+}
