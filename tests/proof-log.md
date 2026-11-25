@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 113 |
+| RED: the walk failed on the changed value | 115 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -202,6 +202,10 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | pictureDeviceImages | :30 `deviceImagesIn(picture, now)` -> 0 | RED | 21 steps: "the list in the downloaded file" (only read after DOWNLOAD) |
 | clipboardDeviceImages | :31 `deviceImagesIn(clipboard, now)` -> 0 | RED | 14 steps: "the list in the copied link" |
 | deviceImages | :32 `deviceImages: now` -> 0 | RED | 4 steps: Unranked count expected 13, got 14 |
+| capturing | share-panel.ts:32 `capturing` -> `capturing: false` | RED | 3 steps: list "Capture steps" expected count 0, got 1 |
+| tab while capturing | :27 `panel.capturing` -> `'imageTab'` | RED | 4 steps: tab "Image" not found (the panel is closed after Escape) |
+
+The two rows on capturing were recorded on 2026-11-25, when the machine got its capturing state. Their line numbers belong to the commit that added it.
 
 ## shared-link
 

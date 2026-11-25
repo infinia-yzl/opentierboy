@@ -237,18 +237,24 @@ them, and it does not check how they do it.
   that may crash opens with `gotoPageThatMayCrash`.
 - **Toasts are found in the region named "Notifications"** (`toasts(page)`), and a step that
   shows a toast waits for its own new toast (`expectOneNewToast`).
-- **A capture step waits for its picture.** A capture prepares the list card (its fonts and images
-  load or fail), draws it, has the browser encode the picture, then puts the picture in the Image
-  tab (`docs/reference/snapshot-files.md`, "How Freeze Frame takes the picture"). The button reads
-  "Capturing..." from the click to the end. `share.capturePreview` clicks Capture Preview, waits
-  for a new picture, then checks that the button reads "Capture Preview" again. The step reads no
-  toast. Each read takes the button and the picture together, and a failure reports the last read
-  the page answered before the wait ended: "Capturing..." means the capture still ran, and
-  "Capture Preview" without a new picture means it ended without one. A test of a state in between
-  holds what the capture waits for, starts a capture (`share.startCapture`), then releases it: the
-  fonts or the wordmark of the list card (`share.holdListCardFonts`,
-  `share.holdListCardWordmark`), or the picture encoder (`share.holdPictureEncoder`,
-  `share.releasePictureEncoder`).
+- **A capture step follows the capture's steps.** A capture prepares the list card (its fonts and
+  images load or fail), draws it, has the browser encode the picture, then puts the picture in the
+  Image tab (`docs/reference/snapshot-files.md`, "How Freeze Frame takes the picture"). The button
+  reads "Capturing..." from the click to the end, and the tab lists the three steps in a list named
+  "Capture steps": a finished step reads "Done", and the running one is the current step
+  (`aria-current="step"`). `share.capturePreview` clicks Capture Preview and waits for three
+  changes in turn, each within the limit of one assertion: "Loading images" reads "Done",
+  "Drawing the image" reads "Done", then a new picture is in the tab. Last it checks that the
+  button reads "Capture Preview" again and that the step list is gone. A capture can end between
+  two reads, so each of the first two waits also ends when the list is gone and the button reads
+  "Capture Preview": the wait for the new picture is the one that decides. The step reads no
+  toast. Each read takes the button, the picture and the steps together, and a failure reports
+  the last read the page answered before the wait ended. A test of a state in between holds what
+  the capture waits for, starts a capture, then releases it: the fonts or the wordmark of the list
+  card (`share.holdListCardFonts`, `share.holdListCardWordmark`, with `share.startCapture`), or the
+  picture encoder (`share.holdPictureEncoder` before the page opens, then
+  `share.startCaptureUntilEncoderAsked` and `share.releasePictureEncoder`). The encoder gate holds
+  only the picture of that capture: Download encodes its pictures as ever.
 - **Page errors fail the test.** The `pageErrors` fixture collects uncaught errors from every
   page the test opens, visitors included, and fails on any that is not in `BENIGN_PAGE_ERRORS`
   (`tests/support/machines.ts`) or in `test.use({allowedPageErrors})`.
@@ -459,7 +465,8 @@ disagree, and its error lists every step with the machine's state.
     site that answers or fails), the machine has a waiting state and an event named after what
     the outside world does: `HOME_ANSWERS`, `IMAGE_SITE_ANSWERS`, `IMAGE_SITE_FAILS`. The test
     makes it happen at that step: it holds the server's answers and releases them
-    (`holdTripHome`), or holds the image site. The waiting state's check asserts what the page
+    (`holdTripHome`), or holds the image site, or the browser's picture encoder
+    (`ENCODER_ANSWERS` in the Share panel's machine). The waiting state's check asserts what the page
     shows while it waits, such as "Checking the image…" on the dialog's button.
   - **A toast** shows in the state after the step that shows it. The next event closes it
     (`CLOSE_TOAST`) or presses its Undo. An event that the page ignores is sent only where no

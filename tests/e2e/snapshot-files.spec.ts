@@ -728,13 +728,45 @@ test.describe('snapshot files', () => {
       await expect(tierList.share.downloadButton).toBeEnabled();
     });
 
+    test('renders capture steps 1 and 2 as "Done" and step 3 as the current step when the picture is still being encoded', async ({tierList}) => {
+      await tierList.share.holdPictureEncoder();
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      await tierList.share.openImageTab();
+
+      await tierList.share.startCaptureUntilEncoderAsked();
+
+      await expect(tierList.share.captureStepRows).toHaveText(['Loading images Done', 'Drawing the image Done', 'Saving the image Step 3 of 3']);
+      await expect(tierList.share.captureStep('Saving the image')).toHaveAttribute('aria-current', 'step');
+      await expect(tierList.share.captureStep('Loading images')).not.toHaveAttribute('aria-current');
+      await expect(tierList.share.captureStep('Drawing the image')).not.toHaveAttribute('aria-current');
+      await expect(tierList.share.captureButton).toHaveText('Capturing...');
+
+      await tierList.share.releasePictureEncoder();
+
+      await expect(tierList.share.capturedImage).toBeVisible();
+      await expect(tierList.share.captureSteps).toHaveCount(0);
+    });
+
+    test('renders no capture steps when the user opens the Image tab, and none after a capture', async ({tierList}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      await tierList.share.openImageTab();
+
+      await expect(tierList.share.captureButton).toHaveText('Capture Preview');
+      await expect(tierList.share.captureSteps).toHaveCount(0);
+
+      await tierList.share.captureInOpenPanel();
+
+      await expect(tierList.share.capturedImage).toBeVisible();
+      await expect(tierList.share.captureSteps).toHaveCount(0);
+    });
+
     const CARD_PARTS = [
       {part: 'fonts', loading: 'the fonts of the list card are still loading', failing: 'the fonts of the list card fail to load'},
       {part: 'wordmark', loading: 'the wordmark of the list card is still loading', failing: 'the wordmark of the list card fails to load'},
     ] as const;
 
     for (const {part, loading, failing} of CARD_PARTS) {
-      test(`renders "Capturing..." and no picture when ${loading}`, async ({tierList}) => {
+      test(`renders "Loading images" as the current capture step and no picture when ${loading}`, async ({tierList}) => {
         await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
         await tierList.share.openImageTab();
         const requests = part === 'fonts' ? await tierList.share.holdListCardFonts() : await tierList.share.holdListCardWordmark();
@@ -742,6 +774,10 @@ test.describe('snapshot files', () => {
         await tierList.share.startCapture();
         await expect.poll(() => requests.held(), {message: `the capture should ask for the ${part} of the list card`}).toBeGreaterThan(0);
 
+        await expect(tierList.share.captureStepRows).toHaveText(['Loading images Step 1 of 3', 'Drawing the image', 'Saving the image']);
+        await expect(tierList.share.captureStep('Loading images')).toHaveAttribute('aria-current', 'step');
+        await expect(tierList.share.captureStep('Drawing the image')).not.toHaveAttribute('aria-current');
+        await expect(tierList.share.captureStep('Saving the image')).not.toHaveAttribute('aria-current');
         await expect(tierList.share.captureButton).toHaveText('Capturing...');
         await expect(tierList.share.capturedImage).toHaveCount(0);
 
@@ -749,6 +785,7 @@ test.describe('snapshot files', () => {
 
         await expect(tierList.share.capturedImage).toBeVisible();
         await expect(tierList.share.captureButton).toHaveText('Capture Preview');
+        await expect(tierList.share.captureSteps).toHaveCount(0);
       });
 
       test(`renders the picture when ${failing}`, async ({tierList}) => {
