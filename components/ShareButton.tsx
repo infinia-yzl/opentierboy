@@ -93,6 +93,10 @@ async function cardReady(element: HTMLElement): Promise<void> {
     image.complete ? Promise.resolve() : settledWithin(image.decode(), IMAGE_WAIT_MS)));
 }
 
+function pngOf(canvas: HTMLCanvasElement): Promise<Blob | null> {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
 type SocialPlatform = 'facebook' | 'twitter';
 type CaptureMethod = 'original' | 'pro';
 
@@ -251,14 +255,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
         canvas = await html2canvasPro(element, {scale, useCORS: true, onclone, ...area});
       }
 
-      canvas.toBlob((blob: Blob | null) => {
-        if (blob) {
-          setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
-          toast.success('Image captured successfully');
-        } else {
-          toast.error(`Failed to capture image with ${captureMethod} method`);
-        }
-      }, 'image/png');
+      const blob = await pngOf(canvas);
+      if (blob) {
+        setCapture({picture: blob, previewUrl: URL.createObjectURL(blob), ...shown});
+        toast.success('Image captured successfully');
+      } else {
+        toast.error(`Failed to capture image with ${captureMethod} method`);
+      }
     } catch (error) {
       console.error(`Error capturing image with ${captureMethod} method:`, error);
       toast.error(`Failed to capture image with ${captureMethod} method`);

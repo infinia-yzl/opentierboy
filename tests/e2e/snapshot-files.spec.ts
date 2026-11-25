@@ -707,6 +707,28 @@ test.describe('snapshot files', () => {
     });
   });
 
+  test.describe('capture in progress', () => {
+    test('renders "Capturing..." on the capture button when the picture of a capture is still being encoded', async ({tierList}) => {
+      await tierList.share.holdPictureEncoder();
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      await tierList.share.openImageTab();
+
+      await tierList.share.startCaptureUntilEncoderAsked();
+
+      await expect(tierList.share.captureButton).toHaveText('Capturing...');
+      await expect(tierList.share.captureButton).toBeDisabled();
+      await expect(tierList.share.capturedImage).toHaveCount(0);
+      await expect(tierList.share.downloadButton).toHaveCount(0);
+
+      await tierList.share.releasePictureEncoder();
+
+      await expect(tierList.share.capturedImage).toBeVisible();
+      await expect(tierList.share.captureButton).toHaveText('Capture Preview');
+      await expect(tierList.share.captureButton).toBeEnabled();
+      await expect(tierList.share.downloadButton).toBeEnabled();
+    });
+  });
+
   for (const colorScheme of ['light', 'dark'] as const) {
     test.describe(`Freeze Frame in ${colorScheme} mode`, () => {
       test.use({colorScheme});

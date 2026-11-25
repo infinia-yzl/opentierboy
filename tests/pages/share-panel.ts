@@ -125,6 +125,10 @@ export class SharePanel {
     await this.captureAndExpectSuccess();
   }
 
+  get captureButton(): Locator {
+    return this.sharePanel.getByRole('button', {name: /^(Capture Preview|Capturing\.\.\.)$/});
+  }
+
   private async captureAndExpectSuccess() {
     const outcome = /Image captured successfully|Failed to capture image/;
     try {
@@ -134,6 +138,30 @@ export class SharePanel {
       throw new Error(`${(error as Error).message}\nThe capture ${running ? 'was still running' : 'had ended without a toast on screen'}.`);
     }
     await expect(toasts(this.page).filter({hasText: outcome}), 'the capture should succeed').toHaveText(/Image captured successfully/);
+  }
+
+  async holdPictureEncoder() {
+    await this.page.addInitScript(() => {
+      const gate = window as unknown as {__otbHeldPictures?: Array<() => void>};
+      gate.__otbHeldPictures = [];
+      const encode = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (this: HTMLCanvasElement, ...args: Parameters<typeof encode>) {
+        gate.__otbHeldPictures?.push(() => encode.apply(this, args));
+      };
+    });
+  }
+
+  async startCaptureUntilEncoderAsked() {
+    await this.sharePanel.getByRole('button', {name: 'Capture Preview'}).click();
+    await expect.poll(() => this.page.evaluate(() => (window as unknown as {__otbHeldPictures?: unknown[]}).__otbHeldPictures?.length ?? 0),
+      {message: 'the capture should ask the encoder for its picture'}).toBe(1);
+  }
+
+  async releasePictureEncoder() {
+    await this.page.evaluate(() => {
+      const gate = window as unknown as {__otbHeldPictures?: Array<() => void>};
+      gate.__otbHeldPictures?.splice(0).forEach((encode) => encode());
+    });
   }
 
   async tileColorsOnScreen(itemName: string): Promise<{box: Box; colors: number}> {
