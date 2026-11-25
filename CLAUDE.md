@@ -111,8 +111,11 @@ lib/packageItems.ts   item lookup (built once per image-set config, shared), ali
                       items, item and category shapes, custom items
 lib/listLink.ts       the link encode and decode used by the store: link to tiers of items, and back
 lib/linkPreview.ts    preview helpers for the OG route: row gradients, preview image URLs, base URL
-lib/listCard/         the list card that link previews and Freeze Frame both draw: fit rules (fit.ts)
-                      and its data (model.ts); components/ListCard.tsx renders it (LIST_CARD_COLORS)
+lib/listCard/         the list card that link previews and Freeze Frame both draw: fit rules (fit.ts),
+                      its data (model.ts) and the load state of the card's fonts, style sheets and
+                      images (resources.ts); components/ListCard.tsx renders it (LIST_CARD_COLORS)
+lib/framePainted.ts   waits until the browser has rendered a frame, for the steps of a Freeze Frame
+                      capture (components/CaptureSteps.tsx)
 lib/appearance.ts     modes, retired themes, fonts, game colours and the head script (see "Appearance")
 lib/fonts.ts          the game fonts of the image-set cards
 lib/legacyLinkLimits.ts   limits and type checks for v0-v2 links (JSON size, rows, items, types)

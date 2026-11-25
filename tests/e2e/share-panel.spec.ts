@@ -188,6 +188,7 @@ test.describe('share panel', () => {
 
   test.describe('model', () => {
     const ONE_DEVICE_IMAGE_NOTE = '1 device image shows as a placeholder.';
+    const STEPS_WHILE_ENCODING = ['Loading images Done', 'Drawing the image Done', 'Saving the image Step 3 of 3'];
 
     const listOfState = (state: string) => {
       const {r: rows} = v3LinkJson(`https://opentierboy.com${TANKS}?state=${state}`) as {r: unknown[][]};
@@ -206,10 +207,22 @@ test.describe('share panel', () => {
       const expectSharePanel = async (view: SharePanelView) => {
         if (view.tab === null) {
           await expect(tierList.share.sharePanel).toBeHidden();
-          await expect(tierList.shareButton).toBeEnabled();
+          if (view.capturing) await expect(tierList.shareButton).toBeDisabled();
+          else await expect(tierList.shareButton).toBeEnabled();
         } else {
           await expect(tierList.share.shareTab(view.tab)).toHaveAttribute('aria-selected', 'true');
           if (view.tab === 'URL') await expect(tierList.share.copyMarkdownButton).toBeVisible();
+          if (view.tab === 'Image' && view.capturing) {
+            await expect(tierList.share.captureStepRows).toHaveText(STEPS_WHILE_ENCODING);
+            await expect(tierList.share.captureStep('Saving the image')).toHaveAttribute('aria-current', 'step');
+            await expect(tierList.share.captureButton).toHaveText('Capturing...');
+            await expect(tierList.share.captureButton).toBeDisabled();
+          }
+          if (view.tab === 'Image' && !view.capturing) {
+            await expect(tierList.share.captureSteps).toHaveCount(0);
+            await expect(tierList.share.captureButton).toHaveText('Capture Preview');
+            await expect(tierList.share.captureButton).toBeEnabled();
+          }
           if (view.captured === true) {
             await expect(tierList.share.capturedImage).toBeVisible();
             await expect(tierList.share.downloadButton).toBeEnabled();
@@ -247,7 +260,8 @@ test.describe('share panel', () => {
           CLICK_OUTSIDE: () => tierList.share.clickOutsideSharePanel(),
           CHOOSE_IMAGE_TAB: () => tierList.share.chooseShareTab('Image'),
           CHOOSE_URL_TAB: () => tierList.share.chooseShareTab('URL'),
-          CAPTURE_PREVIEW: () => tierList.share.captureInOpenPanel(),
+          CAPTURE_PREVIEW: () => tierList.share.startCaptureUntilEncoderAsked(),
+          ENCODER_ANSWERS: () => tierList.share.releasePictureEncoderUntilCaptureEnds(),
           COPY_MARKDOWN: () => tierList.share.copyMarkdownInOpenPanel(),
           ADD_DEVICE_IMAGE: async () => {
             const name = `picture-${++added}`;
@@ -283,6 +297,7 @@ test.describe('share panel', () => {
       test(`renders each state of the share panel machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         await tierList.share.readCopiedText();
+        await tierList.share.holdPictureEncoder();
         const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, sharePanelModel, coverage, part);
       });
