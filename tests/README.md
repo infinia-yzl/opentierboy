@@ -102,6 +102,7 @@ tests/
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
   | `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlay (green key) |
+| `scribble` | Scribble, the pen of Zen: the toggle, the pen controls, notes and their anchors, the ink supply |
   | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
@@ -146,6 +147,7 @@ own page object, reached through a property of `TierListPage`, also on a visitor
 | `tierList.files` | `snapshot-files.ts` | opening snapshot files, the dialog "Open the list in this file?" |
 | `tierList.share` | `share-panel.ts` | the share panel and Freeze Frame |
 | `tierList.zen` | `zen.ts` | the Zen bar, the ranking order, the item up next and the queue, the creator layouts |
+| `tierList.scribble` | `scribble.ts` | the button "Scribble", the pen controls, drawing with the mouse, the ink layer and its notes |
 
 An area object gets the `TierListPage` it belongs to (`this.tierList`) and its `page`, and uses
 the core for rows and items. What several page objects need lives in `helpers.ts` (boxes on

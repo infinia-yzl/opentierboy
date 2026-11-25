@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 113 |
+| RED: the walk failed on the changed value | 118 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -258,3 +258,15 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 |---|---|---|---|
 | items | :26 `'winstonInS.maugaFirst'` rows([M,W]..) -> rows([W,M]..) (also `winstonInA.maugaInS` W moved to Unranked: RED at 22 steps, items in tier "A") | RED | 10 steps: items in tier "S" |
 | order | :36 `aFirst` ['A','S','Unranked'] -> ['A','Unranked','S'] | RED | 14 steps: "tier 2 name" expected Unranked, got S |
+
+## scribble
+
+Recorded on 2026-11-26, against the commit that adds the model.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| NOTE_COUNTS.blank | scribble.ts:10 `blank: 0` -> `1` | RED | 1 step: ink layer expected "Scribbles: 1 note", not found |
+| NOTE_COUNTS.oneNote | :10 `oneNote: 1` -> `2` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
+| NOTE_COUNTS.twoNotes | :10 `twoNotes: 2` -> `1` | RED | 8 steps: ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
+| penOf | :20 'penOn' reported as 'penOff' | RED | 2 steps: button "Scribble" pressed expected "false", got "true" |
+| penOf (Zen off) | :20 'zenOff' reported as 'penOff' | RED | 0 steps: button "Scribble" not found |
