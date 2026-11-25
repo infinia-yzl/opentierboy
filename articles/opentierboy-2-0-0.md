@@ -1,7 +1,7 @@
 ---
 title: "OpenTierBoy 2.0.0: What Is New, and Why"
 description: OpenTierBoy 2.0.0 is here, built from your feedback.
-date: 2026-11-01
+date: 2026-11-08
 tags: [ opentierboy, release, version-2, tier-list, tier-maker, editor, zen, freeze-frame, copy-jutsu, byoi, the-finals, overwatch, open-source, privacy, security ]
 ogImage: "/blog/2-0-0/og-2-0-0.webp"
 ---
