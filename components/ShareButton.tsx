@@ -1,11 +1,11 @@
-import React, {useState, useRef, useCallback, useEffect} from 'react';
+import React, {useState, useRef, useCallback, useEffect, useId} from 'react';
 import {createPortal, flushSync} from 'react-dom';
 import html2canvas from 'html2canvas';
 import html2canvasPro from 'html2canvas-pro';
 import Image from 'next/image';
 import {Button} from "@/components/ui/button"
 import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
-import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon, InfoCircledIcon} from '@radix-ui/react-icons';
+import {Share1Icon, QuestionMarkCircledIcon, ImageIcon, CameraIcon, DownloadIcon, InfoCircledIcon, Link2Icon} from '@radix-ui/react-icons';
 import {toast} from 'sonner';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select"
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from "@/components/ui/tooltip";
@@ -31,6 +31,9 @@ import {cn} from "@/lib/utils";
 import {fontFacesSettled, imageSettled, styleSheetSettled} from "@/lib/listCard/resources";
 import {framePainted} from "@/lib/framePainted";
 import {type CapturePhase, CaptureSteps} from "@/components/CaptureSteps";
+import {Switch} from "@/components/ui/switch";
+import {ScribbleIcon} from "@/components/ScribbleIcon";
+import {useScribble} from "@/components/useScribble";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -149,13 +152,19 @@ interface ShareButtonProps {
   title: string;
 }
 
+const SCRIBBLES_INCLUDED = 'Every button below shares your scribbles too';
+const SCRIBBLES_LEFT_OUT = 'Every button below shares the list without your scribbles';
+
 const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const {shareLink, tiers} = useTierContext();
+  const {ink} = useScribble();
+  const [includeScribbles, setIncludeScribbles] = useState(true);
+  const scribblesLabelId = useId();
+  const scribblesSwitchId = useId();
+  const scribblesHintId = useId();
   const {isPackageItem} = useCustomImages();
   const imageCounts = linkImageCounts(tiers, isPackageItem);
   const pathname = usePathname();
-  // The picture and the list it shows, taken together: Download embeds that list, even when the
-  // list on screen has changed since.
   const [capture, setCapture] = useState<(Capture & {previewUrl: string}) | null>(null);
   const imageBlob = capture?.picture ?? null;
   const previewUrl = capture?.previewUrl ?? null;
@@ -168,17 +177,13 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const isCapturing = phase !== 'idle';
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
-  // The "link is the save" tip: a ring on this button while its toast shows, and the toast's
-  // Share button opens this panel (components/EditorTips.tsx).
   const [panelOpen, setPanelOpen] = useState(false);
   useEffect(() => onOpenSharePanel(() => setPanelOpen(true)), []);
   const tipRing = useTips().current === 'link-save';
   const listCard = useListCardData();
-  // The list card that Freeze Frame draws: rendered hidden while a capture runs.
   const [card, setCard] = useState<ListCardData | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  /** Downloads the picture with the list inside (a snapshot file that OpenTierBoy can open again). */
   const downloadImage = async () => {
     if (!capture) return;
     setIsSaving(true);
@@ -276,11 +281,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
     }
   };
 
-  /**
-   * The link to share: the list and layout on screen, from the store (A46). The address can lag
-   * behind (the editor writes one link at a time) or hold older label settings after Back.
-   */
-  const shareUrl = () => `${window.location.origin}${window.location.pathname}?state=${shareLink}`;
+  const shareUrl = () => {
+    const link = `${window.location.origin}${window.location.pathname}?state=${shareLink}`;
+    return ink !== null && includeScribbles ? `${link}&ink=${ink}` : link;
+  };
 
   const shareToSocial = (platform: SocialPlatform) => {
     const shareText = `I've just ranked "${title}" on OpenTierBoy. What do you think? 🤔`;
@@ -288,12 +292,10 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
       ? `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl())}&quote=${encodeURIComponent(shareText)}`
       : `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl())}`;
 
-    // noopener: the share page gets no handle to this tab (it could redirect it otherwise).
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const copyAsMarkdown = () => {
-    // The title comes from the link: escaped, so it cannot add links or @mentions (markdownText).
     const shareText = `I've just ranked **${markdownText(title)}** on OpenTierBoy.
 What do you think? 🤔
 [Check it out on OpenTierBoy!](${shareUrl()})
@@ -308,6 +310,45 @@ What do you think? 🤔
       toast.error('Failed to copy markdown');
     });
   }
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(shareUrl()).then(() => {
+      toast.success('Link copied to clipboard', {
+        description: includeScribbles ? 'It shares your scribbles too.' : 'It shares the list without your scribbles.',
+      });
+    }).catch(err => {
+      console.error('Error copying link: ', err);
+      toast.error('Failed to copy link');
+    });
+  };
+
+  const shareButtons = (
+    <>
+      <div className={ink !== null ? 'flex flex-wrap justify-center gap-2' : 'flex justify-center'}>
+        {ink !== null && (
+          <Button variant="outline" onClick={copyLink}>
+            <Link2Icon className="mr-2"/> Copy link
+          </Button>
+        )}
+        <Button variant="outline" onClick={copyAsMarkdown}>
+          <FaMarkdown className="mr-2"/> Copy Markdown
+        </Button>
+      </div>
+      <div className="flex justify-center text-sm text-muted-foreground">
+        OR
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-row space-x-2">
+          <Button variant="outline" size="icon" aria-label="Share on Facebook" onClick={() => shareToSocial('facebook')}>
+            <FaFacebookF aria-hidden="true" className="h-4 w-4"/>
+          </Button>
+          <Button variant="outline" size="icon" aria-label="Share on X" onClick={() => shareToSocial('twitter')}>
+            <FaXTwitter aria-hidden="true" className="h-4 w-4"/>
+          </Button>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -360,30 +401,38 @@ What do you think? 🤔
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-center">
-                  <Button variant="outline" onClick={copyAsMarkdown}>
-                    <FaMarkdown className="mr-2"/> Copy Markdown
-                  </Button>
-                </div>
-                <div className="flex justify-center text-sm text-muted-foreground">
-                  OR
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="flex flex-row space-x-2">
-                    <Button variant="outline" size="icon" aria-label="Share on Facebook" onClick={() => shareToSocial('facebook')}>
-                      <FaFacebookF aria-hidden="true" className="h-4 w-4"/>
-                    </Button>
-                    <Button variant="outline" size="icon" aria-label="Share on X" onClick={() => shareToSocial('twitter')}>
-                      <FaXTwitter aria-hidden="true" className="h-4 w-4"/>
-                    </Button>
+                {ink === null ? shareButtons : (
+                  <div role="group" aria-labelledby={scribblesLabelId} className="rounded-lg border">
+                    <div className="flex items-center gap-3 border-b p-3">
+                      <ScribbleIcon className="h-5 w-5 shrink-0"/>
+                      <div className="grow">
+                        <Label id={scribblesLabelId} htmlFor={scribblesSwitchId}>Include scribbles</Label>
+                        <p id={scribblesHintId} className="mt-1 text-[13px] text-muted-foreground">
+                          {includeScribbles ? SCRIBBLES_INCLUDED : SCRIBBLES_LEFT_OUT}
+                        </p>
+                      </div>
+                      <Switch
+                        id={scribblesSwitchId}
+                        checked={includeScribbles}
+                        onCheckedChange={setIncludeScribbles}
+                        aria-describedby={scribblesHintId}
+                      />
+                    </div>
+                    <div className="space-y-4 p-3">{shareButtons}</div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
           <TabsContent value="image">
             <Card className="flex flex-col gap-3 p-4">
               <CardTitle className="text-lg">As Image</CardTitle>
+              {ink !== null && (
+                <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <ScribbleIcon className="h-4 w-4 shrink-0"/>
+                  Scribbles are not in the picture.
+                </p>
+              )}
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex flex-col gap-1.5 grow min-w-[180px]">
                   <Label htmlFor="freeze-frame-frame">Frame</Label>
