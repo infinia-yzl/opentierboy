@@ -17,6 +17,11 @@ The app writes v3 links and reads every format (see "How the app uses v3").
 Old links keep working. v0, v1 and v2 links decode exactly as before, and their decoder
 (`lib/state/decoders/legacy.ts`) is unchanged.
 
+Scribbles are not part of this format. An address can hold them in a second value, `ink=`,
+beside `state=`: its own format, with its own version, limits and fixtures
+(`docs/reference/scribble.md`, "The ink value in the address"). Nothing in `lib/state/` reads
+or writes it.
+
 ## The format
 
 A v3 value is `3.` followed by lz-string `compressToEncodedURIComponent` of compact JSON:
