@@ -21,6 +21,7 @@ import {zenStepsModel} from './zen-steps';
 import {leavingModel} from './leaving';
 import {linkDialogModel} from './link-dialog';
 import {scribbleModel} from './scribble';
+import {shareScribblesModel} from './share-scribbles';
 
 export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenLayoutModel,
@@ -45,4 +46,5 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   leavingModel,
   linkDialogModel,
   scribbleModel,
+  shareScribblesModel,
 ] as MachineModel[]);

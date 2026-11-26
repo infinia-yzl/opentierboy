@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 120 |
+| RED: the walk failed on the changed value | 126 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -265,12 +265,25 @@ The two rows on capturing were recorded on 2026-11-25, when the machine got its 
 
 ## scribble
 
+Recorded on 2026-11-26, and again the same day once the notes were saved in the address.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| NOTE_COUNTS.blank | scribble.ts:10 `blank: 0` -> `1` | RED | address expected to match `/[?&]ink=1\./`, got the address without an ink value |
+| NOTE_COUNTS.oneNote | :10 `oneNote: 1` -> `2` | RED | ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
+| NOTE_COUNTS.twoNotes | :10 `twoNotes: 2` -> `1` | RED | ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
+| penOf | :20 'penOn' reported as 'penOff' | RED | button "Scribble" pressed expected "false", got "true" |
+| penOf (Zen off) | :20 'zenOff' reported as 'penOff' | RED | 0 steps: button "Scribble" not found |
+
+## share-scribbles
+
 Recorded on 2026-11-26, against the commit that adds the model.
 
 | Field | Edit | Result | First failing message, or note |
 |---|---|---|---|
-| NOTE_COUNTS.blank | scribble.ts:10 `blank: 0` -> `1` | RED | 1 step: ink layer expected "Scribbles: 1 note", not found |
-| NOTE_COUNTS.oneNote | :10 `oneNote: 1` -> `2` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
-| NOTE_COUNTS.twoNotes | :10 `twoNotes: 2` -> `1` | RED | 8 steps: ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
-| penOf | :20 'penOn' reported as 'penOff' | RED | 2 steps: button "Scribble" pressed expected "false", got "true" |
-| penOf (Zen off) | :20 'zenOff' reported as 'penOff' | RED | 0 steps: button "Scribble" not found |
+| SCRIBBLES_LINES.included | share-scribbles.ts:20 `'… shares your scribbles too'` -> `'… shares your scribbles'` | RED | switch description expected "Every button below shares your scribbles", got "… scribbles too" |
+| SCRIBBLES_LINES.leftOut | :21 the line of `leftOut` -> the line of `included` | RED | switch description expected "… shares your scribbles too", got "… shares the list without your scribbles" |
+| scribbles | :29 'included' and 'leftOut' swapped | RED | switch `aria-checked` expected "false", got "true" |
+| scribbles (none) | :29 'none' reported as 'included' | RED | ink layer "Scribbles: 1 note" not found |
+| clipboardScribbles | :30 `=== 'clipboardWith'` -> `=== 'clipboardWithout'` | RED | "the ink value in the copied link" expected null, got the ink value |
+| open | :28 `=== 'open'` -> `=== 'closed'` | RED | the Share panel expected visible |

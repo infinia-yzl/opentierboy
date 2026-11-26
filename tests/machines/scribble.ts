@@ -2,15 +2,15 @@ import {createMachine} from 'xstate';
 
 export const scribbleMachine = createMachine({
   id: 'scribble',
-  description: 'Scribble, the pen of Zen: the button “Scribble” and the key D turn the pen on and off, Escape turns the pen off before it exits Zen, and the pen draws notes. Ink is view state: it writes no link and no history entry, it hides when Zen goes off, and it is there again when Zen comes back. Leaving Zen turns the pen off.',
+  description: 'Scribble, the pen of Zen: the button “Scribble” and the key D turn the pen on and off, Escape turns the pen off before it exits Zen, and the pen draws notes. The notes live in the ink value of the address, beside the list: the notes that the model draws, removes and clears share one history entry, since the list does not change between them. With Zen off the notes still show, read only. Leaving Zen turns the pen off.',
   initial: 'blank',
   states: {
     blank: {
-      description: 'No note was drawn, or every note was removed.',
+      description: 'No note was drawn, or every note was removed: the address has no ink value.',
       initial: 'zenOff',
       states: {
         zenOff: {
-          description: 'Zen is off: no Zen bar and no ink layer.',
+          description: 'Zen is off: no Zen bar, no ink layer and no ink value in the address.',
           on: {TOGGLE_ZEN: {target: 'penOff'}},
         },
         penOff: {
@@ -35,11 +35,11 @@ export const scribbleMachine = createMachine({
       },
     },
     oneNote: {
-      description: 'One note is on the list.',
+      description: 'One note is on the list, and the address has an ink value.',
       initial: 'penOn',
       states: {
         zenOff: {
-          description: 'Zen is off: the note is hidden, with no ink layer on the page.',
+          description: 'Zen is off: the ink layer says “1 note”, read only, with no Zen bar and no pen controls.',
           on: {TOGGLE_ZEN: {target: 'penOff'}},
         },
         penOff: {
@@ -70,7 +70,7 @@ export const scribbleMachine = createMachine({
       initial: 'penOn',
       states: {
         zenOff: {
-          description: 'Zen is off: the notes are hidden, with no ink layer on the page.',
+          description: 'Zen is off: the ink layer says “2 notes”, read only, with no Zen bar and no pen controls.',
           on: {TOGGLE_ZEN: {target: 'penOff'}},
         },
         penOff: {

@@ -44,6 +44,51 @@ export class Scribble {
     return this.controls.getByRole('status');
   }
 
+  get inkNotice(): Locator {
+    return this.page.getByRole('status').filter({hasText: 'The scribbles in this link could not be shown.'});
+  }
+
+  inkInAddress(): string | null {
+    const value = new URL(this.page.url()).searchParams.get('ink');
+    return value === null ? null : value.replace(/ /g, '+');
+  }
+
+  stateInAddress(): string | null {
+    const value = new URL(this.page.url()).searchParams.get('state');
+    return value === null ? null : value.replace(/ /g, '+');
+  }
+
+  async gotoWithInk(path: string, state: string | undefined, ink: string) {
+    await this.tierList.goto(state ? `${path}?state=${state}&ink=${ink}` : `${path}?ink=${ink}`);
+  }
+
+  async drawNoteAndWaitForInk(target: Locator, notes: number) {
+    const before = this.page.url();
+    await this.drawCircleOn(target);
+    await this.expectNotes(notes);
+    await expect(this.page, 'the address should hold the new ink').not.toHaveURL(before);
+  }
+
+  async refuseNextHistoryWrite() {
+    await this.page.evaluate(() => {
+      const {pushState, replaceState} = window.history;
+      let refused = false;
+      const once = <Args extends unknown[]>(write: (...args: Args) => void) => function (this: History, ...args: Args) {
+        if (!refused) {
+          refused = true;
+          throw new DOMException('Too many calls to the history', 'SecurityError');
+        }
+        write.apply(this, args);
+      };
+      window.history.pushState = once(pushState);
+      window.history.replaceState = once(replaceState);
+    });
+  }
+
+  get urlLengthWarning(): Locator {
+    return this.page.getByRole('heading', {name: /SIDE-QUEST UNLOCKED/});
+  }
+
   get layer(): Locator {
     return this.page.getByRole('group', {name: /^Scribbles: /});
   }

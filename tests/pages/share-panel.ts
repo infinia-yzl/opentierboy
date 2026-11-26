@@ -344,6 +344,58 @@ export class SharePanel {
     await expect(this.shareTab(name)).toHaveAttribute('aria-selected', 'true');
   }
 
+  get scribblesGroup(): Locator {
+    return this.sharePanel.getByRole('group', {name: 'Include scribbles', exact: true});
+  }
+
+  get includeScribblesSwitch(): Locator {
+    return this.sharePanel.getByRole('switch', {name: 'Include scribbles', exact: true});
+  }
+
+  get copyLinkButton(): Locator {
+    return this.sharePanel.getByRole('button', {name: 'Copy link', exact: true});
+  }
+
+  get scribblesPictureNote(): Locator {
+    return this.sharePanel.getByText('Scribbles are not in the picture.', {exact: true});
+  }
+
+  async setIncludeScribbles(on: boolean) {
+    await expect(this.includeScribblesSwitch).toHaveAttribute('aria-checked', String(!on));
+    await this.includeScribblesSwitch.click();
+    await expect(this.includeScribblesSwitch).toHaveAttribute('aria-checked', String(on));
+  }
+
+  async copyLinkInOpenPanel() {
+    await expectOneNewToast(this.page, () => this.copyLinkButton.click(), 'Link copied to clipboard');
+  }
+
+  async copiedLink(): Promise<string> {
+    const text = await this.clipboardText();
+    return text.match(/\]\((\S+)\)/)?.[1] ?? text;
+  }
+
+  async recordShareWindows() {
+    await this.page.addInitScript(() => {
+      const opened: string[] = [];
+      (window as unknown as {__otbShareWindows: string[]}).__otbShareWindows = opened;
+      window.open = (url?: string | URL) => {
+        opened.push(String(url));
+        return null;
+      };
+    });
+  }
+
+  async addressSharedOn(site: 'Facebook' | 'X'): Promise<string> {
+    const count = () => this.page.evaluate(() => (window as unknown as {__otbShareWindows: string[]}).__otbShareWindows.length);
+    const before = await count();
+    await this.socialShareButton(`Share on ${site}`).click();
+    await expect.poll(count).toBe(before + 1);
+    const opened = await this.page.evaluate(() => (window as unknown as {__otbShareWindows: string[]}).__otbShareWindows.at(-1) ?? '');
+    const share = new URL(opened);
+    return share.searchParams.get(site === 'Facebook' ? 'u' : 'url') ?? '';
+  }
+
   async copyMarkdownInOpenPanel() {
     await expectOneNewToast(this.page, () => this.copyMarkdownButton.click(), 'Markdown copied to clipboard');
   }

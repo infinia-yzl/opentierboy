@@ -33,6 +33,28 @@ test.describe('routes', () => {
       }
     });
 
+    test('returns 308 to the hyphenated path with the same state and ink parameters when the request has an old tag path', async ({request}) => {
+      const response = await request.get('/rank/overwatch/h_all?state=this-state-must-survive&ink=1.this-ink-too', {maxRedirects: 0});
+      expect(response.status()).toBe(308);
+      expect(response.headers()['location']).toMatch(/\/rank\/overwatch\/h-all\?state=this-state-must-survive&ink=1\.this-ink-too$/);
+    });
+
+    test('returns 200 with a preview image address without the ink parameter when the request has state and ink parameters', async ({request}) => {
+      const state = rankingState('image-overwatch', {S: ['Mauga']}, 'Tanks with notes');
+      const response = await request.get(`/rank/overwatch/tank?state=${state}&ink=1.H4SwggIghgdlB0AnGMBuriLAYXgIwH0BzMIkseAYwDNUDqBaUsMYAFyWuuGv2IFEA7iQCaQA`, {maxRedirects: 0});
+      expect(response.status()).toBe(200);
+      const page = await response.text();
+      const previews = Array.from(page.matchAll(/\/api\/og\?state=[^"\\]*/g), (match) => match[0]);
+      expect(previews.length).toBeGreaterThanOrEqual(1);
+      for (const preview of previews) expect(preview).not.toMatch(/ink|H4SwggIghgdlB0AnGMBuri/);
+      expect(page).toContain('<title>Tanks with notes');
+    });
+
+    test('returns 200 for a template path and 404 for an unknown path when the request has an ink parameter and no state parameter', async ({request}) => {
+      expect((await request.get('/rank/overwatch/tank?ink=1.abc', {maxRedirects: 0})).status()).toBe(200);
+      expect((await request.get('/rank/nope/nope?ink=1.abc', {maxRedirects: 0})).status()).toBe(404);
+    });
+
     test('returns 404 with "This page could not be found" when the request has a template path that does not exist', async ({request}) => {
       for (const path of ['/rank/nope/nope', '/rank/nope', '/rank/overwatch', '/rank/overwatch/nope', '/rank/constructor/all']) {
         const response = await request.get(path, {maxRedirects: 0});

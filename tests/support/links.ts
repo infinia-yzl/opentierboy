@@ -1,4 +1,6 @@
 import LZString from 'lz-string';
+import {encodeInk} from '@/lib/scribble/format';
+import type {Note} from '@/lib/scribble/notes';
 import imagesetConfig from '../../imageset.config.json';
 import legacyConfig from '../../imageset.legacy.json';
 import {lzWithRun} from '../unit/support/lz-stream';
@@ -128,4 +130,19 @@ export function v3LinkJson(link: string): unknown {
  */
 export function hugeTierNameState(): string {
   return lzWithRun('{"tiers":[{"i":"tier-s","n":"{run}","t":[]},{"i":"uncategorized","n":"","t":[]}]}', 'x', 1_000_001).input;
+}
+
+export function inkValue(notes: readonly Note[]): string {
+  const value = encodeInk(notes);
+  if (value === null) throw new Error('An ink value needs one note or more');
+  return value;
+}
+
+export function rawInk(text: string, version = '1'): string {
+  return `${version}.${LZString.compressToEncodedURIComponent(text)}`;
+}
+
+export function circleNoteOn(packageName: string, label: string, colour: Note['strokes'][number]['colour'] = 'red'): Note {
+  const points = [[0.90625, 0.5], [0.78125, 0.78125], [0.5, 0.90625], [0.21875, 0.78125], [0.09375, 0.5], [0.21875, 0.21875], [0.5, 0.09375], [0.78125, 0.21875], [0.90625, 0.46875]];
+  return {anchor: {kind: 'item', id: packageItemId(packageName, label)}, strokes: [{colour, points: points.map(([x, y]) => ({x, y}))}]};
 }
