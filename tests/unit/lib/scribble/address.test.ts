@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {addressWithoutInk, inkAddressLength, inkInSearch, inkParam, searchWithInk} from '@/lib/scribble/address';
+import {inkAddressLength, inkInSearch, inkParam, searchWithInk} from '@/lib/scribble/address';
 
 describe('inkParam', () => {
   it.each([null, undefined, ''])('returns null when the value is %j', (value) => {
@@ -49,21 +49,6 @@ describe('searchWithInk', () => {
 
   it('returns a value named like ink as it is when its name only starts with ink', () => {
     expect(searchWithInk('?inks=1&linking=2&ink=1.a', null)).toBe('?inks=1&linking=2');
-  });
-});
-
-describe('addressWithoutInk', () => {
-  it('returns the address without its ink value when it has state and ink', () => {
-    expect(addressWithoutInk('https://opentierboy.com/rank/overwatch/tank?state=3.a+b&ink=1.c')).toBe('https://opentierboy.com/rank/overwatch/tank?state=3.a+b');
-  });
-
-  it('returns the address without a question mark when ink was its only value', () => {
-    expect(addressWithoutInk('https://opentierboy.com/rank?ink=1.c#top')).toBe('https://opentierboy.com/rank#top');
-  });
-
-  it('returns the address as it is when it has no ink value', () => {
-    expect(addressWithoutInk('https://opentierboy.com/rank?state=3.a')).toBe('https://opentierboy.com/rank?state=3.a');
-    expect(addressWithoutInk('https://opentierboy.com/rank')).toBe('https://opentierboy.com/rank');
   });
 });
 

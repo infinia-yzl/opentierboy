@@ -6,7 +6,7 @@ import {useTierContext} from '@/contexts/TierContext';
 import {useZenMode} from '@/components/usePageState';
 import {useActiveStage} from '@/components/useZenLayout';
 import {useRankingOrder} from '@/components/useRankingOrder';
-import {getScribble, setInkBeingDrawn, setScribbleNotes, useScribble} from '@/components/useScribble';
+import {getInkNotes, setInkBeingDrawn, useScribble, writeScribbleNotes} from '@/components/useScribble';
 import {measureSurface, sameSurface} from '@/components/scribbleSurface';
 import {EMPTY_SURFACE, originOf, type Surface} from '@/lib/scribble/anchors';
 import type {InkColour} from '@/lib/scribble/colours';
@@ -35,11 +35,13 @@ interface LiveStroke {
 export function ScribbleLayer() {
   const isZenMode = useZenMode();
   const {on, notes} = useScribble();
-  return isZenMode && (on || notes.length > 0) ? <ScribbleInk/> : null;
+  return notes.length > 0 || (isZenMode && on) ? <ScribbleInk/> : null;
 }
 
 function ScribbleInk() {
-  const {on, colour, notes} = useScribble();
+  const isZenMode = useZenMode();
+  const {on: penOn, colour, notes, spent} = useScribble();
+  const on = penOn && isZenMode;
   const {tiers, labelPosition, showLabels} = useTierContext();
   const stage = useActiveStage();
   const rankingOrder = useRankingOrder();
@@ -67,10 +69,19 @@ function ScribbleInk() {
     const remeasure = () => flushSync(() => {
       measure();
     });
-    const resizes = new ResizeObserver(remeasure);
+    let dragging = area.querySelector('[data-dragging]') !== null;
+    const remeasureAtRest = () => {
+      if (!dragging) remeasure();
+    };
+    const resizes = new ResizeObserver(remeasureAtRest);
     resizes.observe(area);
+    const drags = new MutationObserver(() => {
+      dragging = area.querySelector('[data-dragging]') !== null;
+      remeasureAtRest();
+    });
+    drags.observe(area, {attributes: true, attributeFilter: ['data-dragging'], subtree: true});
     const changes = new MutationObserver((records) => {
-      if (records.every((record) => layer.contains(record.target)) || area.querySelector('[data-dragging]')) return;
+      if (dragging || records.every((record) => layer.contains(record.target))) return;
       remeasure();
     });
     changes.observe(area, {attributes: true, childList: true, characterData: true, subtree: true});
@@ -78,22 +89,23 @@ function ScribbleInk() {
     pageChanges.observe(document.documentElement, {attributes: true});
     let frame = 0;
     const remeasureOnNextFrame = () => {
-      if (frame) return;
+      if (frame || dragging) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (!area.querySelector('[data-dragging]')) remeasure();
+        remeasureAtRest();
       });
     };
-    area.addEventListener('scroll', remeasure, {capture: true, passive: true});
+    area.addEventListener('scroll', remeasureAtRest, {capture: true, passive: true});
     area.addEventListener('transitionend', remeasureOnNextFrame);
     window.addEventListener('resize', remeasure);
     document.fonts?.addEventListener('loadingdone', remeasure);
     return () => {
       resizes.disconnect();
+      drags.disconnect();
       changes.disconnect();
       pageChanges.disconnect();
       cancelAnimationFrame(frame);
-      area.removeEventListener('scroll', remeasure, {capture: true});
+      area.removeEventListener('scroll', remeasureAtRest, {capture: true});
       area.removeEventListener('transitionend', remeasureOnNextFrame);
       window.removeEventListener('resize', remeasure);
       document.fonts?.removeEventListener('loadingdone', remeasure);
@@ -107,7 +119,7 @@ function ScribbleInk() {
     const layer = layerRef.current;
     const pen = last ? liftPen(live.pen, last) : live.pen;
     const points = pen.kept.map((point) => ({x: point.x * live.unit, y: point.y * live.unit}));
-    setScribbleNotes(addStroke(getScribble().notes, layer ? measureSurface(layer) : live.surface, live.colour, points));
+    writeScribbleNotes(addStroke(getInkNotes(), layer ? measureSurface(layer) : live.surface, live.colour, points));
     livePathRef.current?.setAttribute('d', '');
     if (layer?.hasPointerCapture(live.pointerId)) layer.releasePointerCapture(live.pointerId);
   }, []);
@@ -124,7 +136,7 @@ function ScribbleInk() {
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!on || liveRef.current || (event.pointerType === 'mouse' && event.button !== 0)) return;
-    const {left} = inkLevel(getScribble().spent);
+    const {left} = inkLevel(spent);
     if (left === 0) return;
     event.preventDefault();
     const measured = measure();

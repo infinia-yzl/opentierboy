@@ -9,6 +9,7 @@ import {createTierCortex, type TierCortex} from "@/lib/TierCortex";
 import type {ListLayout} from "@/lib/listLink";
 import {recordRecentLink} from "@/components/useRecentLinks";
 import {listAddressWritten} from "@/components/useListSteps";
+import {listAddressWithInk} from "@/components/useScribble";
 import {rankPageTitle} from "@/lib/rankRoute";
 import type {ItemPosition} from "@/lib/dnd/model";
 import {
@@ -106,7 +107,7 @@ export function TierListProvider({initialItemSet, pageTitle, children}: TierList
 
   const write = useCallback((written: ListWrite | null) => {
     if (!written) return;
-    const href = `${pathname}?state=${written.link}`;
+    const href = listAddressWithInk(`${pathname}?state=${written.link}`, pathname, written.mode);
     if (written.mode === 'replace') window.history.replaceState(null, '', href);
     else window.history.pushState(null, '', href);
     listAddressWritten(written.mode);

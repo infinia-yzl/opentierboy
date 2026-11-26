@@ -18,7 +18,10 @@ import {useStepLog} from "@/components/useListSteps";
 import {useActiveStage, useStageAttributes} from "@/components/useZenLayout";
 import {ZenStage} from "@/components/ZenStage";
 import {ScribbleLayer} from "@/components/ScribbleLayer";
-import {resetScribble} from "@/components/useScribble";
+import {resetScribble, useScribble} from "@/components/useScribble";
+import {InkNotice} from "@/components/InkNotice";
+import {inkAddressLength} from "@/lib/scribble/address";
+import {usePathname} from "next/navigation";
 import {cn} from "@/lib/utils";
 import {ListTitle} from "@/components/ListTitle";
 import ItemManager, {AddImagesProvider, EmptyListDropArea} from "@/components/ItemManager";
@@ -59,6 +62,9 @@ const TierListEditor: React.FC = () => {
   }, []);
   useStageAttributes();
   const stage = useActiveStage();
+  const pathname = usePathname();
+  const inkLength = inkAddressLength(useScribble().addressInk);
+  const addressLength = urlLength > 0 ? urlLength + inkLength : inkLength > 0 ? pathname.length + inkLength : 0;
 
   return (
     <AddImagesProvider onOpenFiles={openFiles} fallbackFocusRef={openFileButtonRef}>
@@ -90,6 +96,7 @@ const TierListEditor: React.FC = () => {
         />
       </div>
       <LinkImageNotice/>
+      <InkNotice/>
       <div className={stage ? cn('w-full min-h-0 flex flex-col', stage !== 'overlay' && 'grow') : 'w-full mt-3'}>
         <DragDropTierList
           belowRows={<RowControls/>}
@@ -98,7 +105,7 @@ const TierListEditor: React.FC = () => {
         />
       </div>
       <div className="w-full hide-in-zen" data-html2canvas-ignore>
-        <UrlLengthWarning urlLength={urlLength}/>
+        <UrlLengthWarning urlLength={addressLength}/>
       </div>
       {openListDialog}
       <DropOverlay visible={dragging && !isZenMode}/>

@@ -25,14 +25,6 @@ export function searchWithInk(search: string, ink: string | null): string {
   return pairs.length === 0 ? '' : `?${pairs.join('&')}`;
 }
 
-export function addressWithoutInk(address: string): string {
-  const hashAt = address.indexOf('#');
-  const hash = hashAt === -1 ? '' : address.slice(hashAt);
-  const rest = hashAt === -1 ? address : address.slice(0, hashAt);
-  const queryAt = rest.indexOf('?');
-  return queryAt === -1 ? address : rest.slice(0, queryAt) + searchWithInk(rest.slice(queryAt), null) + hash;
-}
-
 export function inkAddressLength(ink: string | null): number {
   return ink === null ? 0 : INK_PARAM.length + 2 + ink.length;
 }

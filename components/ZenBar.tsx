@@ -34,7 +34,7 @@ import {ZEN_LAYOUT_NAMES, ZEN_LAYOUTS, type ZenLayout} from '@/lib/zen/layouts';
 import {BAR_BOX, BAR_CHEVRON_SIZE, BAR_ICON_SIZE, BAR_MENU_BUTTON, BAR_SEPARATOR, BarButton} from '@/components/ZenBarButton';
 import {ScribbleControls} from '@/components/ScribbleControls';
 import {ScribbleIcon} from '@/components/ScribbleIcon';
-import {getScribble, setScribble, toggleScribble, useScribble} from '@/components/useScribble';
+import {getPen, setScribble, toggleScribble, useScribble} from '@/components/useScribble';
 import {cn} from '@/lib/utils';
 
 const ORDER_ICONS: Record<RankingOrder, React.ComponentType<{className?: string; 'aria-hidden'?: boolean}>> = {
@@ -111,7 +111,7 @@ function ZenBarContent() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || isTextField(event.target)) return;
       if (event.key === 'Escape') {
-        if (getScribble().on) setScribble(false);
+        if (getPen().on) setScribble(false);
         else setZenMode(false);
         return;
       }
