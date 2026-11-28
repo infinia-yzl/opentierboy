@@ -40,8 +40,10 @@ const rgbOf = (colour: string): Rgb => {
 };
 const isReversedWithHueOf = (colour: string) => (was: Rgb, now: Rgb) => {
   const hue = hueOf(now);
+  const lum = lumOf(now);
   const turn = hue === null ? 0 : Math.abs(hue - hueOf(rgbOf(colour))!);
-  return Math.abs(lumOf(now) - (255 - lumOf(was))) <= NEAR && Math.min(turn, 360 - turn) <= HUE_NEAR;
+  const hueFits = hue === null ? lum < 16 || lum > 239 : Math.min(turn, 360 - turn) <= HUE_NEAR;
+  return Math.abs(lum - (255 - lumOf(was))) <= NEAR && hueFits;
 };
 const isReversedRed = isReversedWithHueOf(LIGHT_INK.Red);
 const isColour = (colour: string) => (_: Rgb, now: Rgb) => `rgb(${now.join(', ')})` === colour;
@@ -512,13 +514,13 @@ test.describe('scribble', () => {
         await scribble.expectPictureLoaded(tierList.item('Mauga'));
         const line = await scribble.lineAcross(tierList.item('Mauga'));
         const samples = SAMPLES.map((index) => line[index]);
-        const before = await scribble.pixelColumnsAt(samples);
+        const before = await scribble.settledPixelColumnsAt(samples);
 
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
         const after = await scribble.pixelColumnsAt(samples);
-        expect(columnsWhere(before, after, isNegative), seen(before, after)).toBe(SAMPLES.length);
+        expect(columnsWhere(before, after, isNegative), `${seen(before, after)}; ${await scribble.paintLayerFacts()}`).toBe(SAMPLES.length);
       });
 
       test('renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item', async ({tierList}) => {
@@ -527,13 +529,13 @@ test.describe('scribble', () => {
         await scribble.expectPictureLoaded(tierList.item('Mauga'));
         const line = await scribble.lineAcross(tierList.item('Mauga'));
         const samples = SAMPLES.map((index) => line[index]);
-        const before = await scribble.pixelColumnsAt(samples);
+        const before = await scribble.settledPixelColumnsAt(samples);
 
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
         const after = await scribble.pixelColumnsAt(samples);
-        expect(columnsWhere(before, after, isReversedRed), seen(before, after)).toBe(SAMPLES.length);
+        expect(columnsWhere(before, after, isReversedRed), `${seen(before, after)}; ${await scribble.paintLayerFacts()}`).toBe(SAMPLES.length);
       });
 
       test('renders solid red ink over the picture when the user draws across an item with the pen still pressed', async ({tierList}) => {
@@ -542,7 +544,7 @@ test.describe('scribble', () => {
         await scribble.expectPictureLoaded(tierList.item('Mauga'));
         const line = await scribble.lineAcross(tierList.item('Mauga'));
         const samples = SAMPLES.map((index) => line[index]);
-        const before = await scribble.pixelColumnsAt(samples);
+        const before = await scribble.settledPixelColumnsAt(samples);
 
         await scribble.press(line);
 
@@ -558,14 +560,16 @@ test.describe('scribble', () => {
         await scribble.expectPictureLoaded(tierList.item('Mauga'));
         const line = await scribble.lineAcross(tierList.item('Mauga'));
         const samples = SAMPLES.map((index) => line[index]);
-        const before = await scribble.pixelColumnsAt(samples);
+        const before = await scribble.settledPixelColumnsAt(samples);
         await scribble.draw(line);
         await scribble.expectNotes(1);
+        await expect.poll(async () => columnsWhere(before, await scribble.pixelColumnsAt(samples), isReversedRed),
+          {message: 'the sample points where the picture shows ink before the note goes'}).toBe(SAMPLES.length);
 
         await scribble.removeLastNote();
         await scribble.expectNotes(0);
 
-        expect(await scribble.pixelColumnsAt(samples)).toEqual(before);
+        await expect.poll(() => scribble.pixelColumnsAt(samples), {message: 'the picture should show as it loaded'}).toEqual(before);
       });
 
       test('renders solid red ink when the stroke crosses an empty row', async ({tierList}) => {
@@ -573,13 +577,13 @@ test.describe('scribble', () => {
         await scribble.gotoWithScribble(TANKS, LIST);
         const line = await scribble.lineAcross(tierList.tier('B'), 0.6);
         const samples = SAMPLES.map((index) => line[index]);
-        const before = await scribble.pixelColumnsAt(samples);
+        const before = await scribble.settledPixelColumnsAt(samples);
 
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
         const after = await scribble.pixelColumnsAt(samples);
-        expect(columnsWhere(before, after, isColour(LIGHT_INK.Red)), seen(before, after)).toBe(SAMPLES.length);
+        expect(columnsWhere(before, after, isColour(LIGHT_INK.Red)), `${seen(before, after)}; ${await scribble.paintLayerFacts()}`).toBe(SAMPLES.length);
       });
     });
 
@@ -1493,8 +1497,8 @@ test.describe('scribble', () => {
           await scribble.gotoWithScribble(TANKS, LIST);
           await scribble.expectPictureLoaded(tierList.item('Mauga'));
           ({line, onPicture, onRow} = await scribble.lineAcrossAndBeyond(tierList.item('Mauga')));
-          pictureBefore = await scribble.pixelColumnsAt(onPicture);
-          rowBefore = await scribble.pixelColumnsAt(onRow);
+          pictureBefore = await scribble.settledPixelColumnsAt(onPicture);
+          rowBefore = await scribble.settledPixelColumnsAt(onRow);
         },
         events: {
           CHOOSE_RED: () => scribble.chooseInkColour('Red'),

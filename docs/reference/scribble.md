@@ -308,18 +308,29 @@ video frame can undo it and get the picture back.
   3. Red and Blue strokes, cut to the pictures, with `mix-blend-mode: color`. The result takes
      the hue and the saturation of the ink and keeps the brightness of layer 2. Contrast strokes
      are left out of this layer.
-- The shapes are CSS shapes on HTML elements on purpose. An SVG `mask` or `clipPath` reached by
-  `url(#id)` hid every stroke in WebKit on CI (a stroke that is a straight horizontal line has
-  a bounding box without height).
+- **WebKit.** On CI, WebKit showed the stroke under a pressed pen and showed no ink for a
+  finished note, in a first design with an SVG `mask` and `clipPath` and again with these CSS
+  shapes while the `svg` of a paint layer was sized by `height: 100%` alone. The cause is not
+  proven. The `svg` of a paint layer now has the classes of the top layer, which WebKit paints.
 - The layer that takes the pen and holds the notes for screen readers and tests is a fourth one,
   on top. Its notes are transparent. The stroke under the pen is drawn there, solid, while the
-  pen is down; when the pen lifts, the note shows in the paint layers. Drawing therefore costs
-  the same as before negative ink.
+  pen is down; when the pen lifts, the note shows in the paint layers. The paint layers do not
+  render again while the pen is down (`memo`).
+- Blending costs time in every frame in which something in the area changes. The two blend
+  layers therefore exist only while a note touches a picture (`notesOverPictures`), and they
+  hold only those notes. A list whose notes are all on rows draws as fast as before negative
+  ink. With a note over a picture, a test that drew 500 points took about a third longer when
+  four such tests ran at once on two processors.
+- A tile without a picture (a label tile) counts as a picture, so ink over it is negative ink
+  too. So does the name strip over a tile.
+- While a tile is dragged, the picture areas are not measured again. Ink near the dragged tile
+  can show solid and negative ink at once until the drop.
 - The paint layers are `aria-hidden`, take no pointer events and stay out of a Freeze Frame.
 - **Undoing it.** With brightness as `0.3 R + 0.59 G + 0.11 B`, the brightness of the picture is
   255 minus the brightness on screen. The colour under Red or Blue ink is gone and is filled in
   from the pixels beside the stroke. Under Contrast ink every channel is 255 minus its value.
-- A browser that does not blend with `color` shows solid Red and Blue ink over pictures.
+- A browser that does not blend with `color` shows solid Red and Blue ink over pictures. Real
+  Safari has not been tried.
 
 ## Places that never get ink
 
@@ -348,7 +359,7 @@ tray `data-scribble-tray`. Rows are found by `data-tier-row`.
 Four machines in `tests/machines/` describe Scribble (`tests/README.md`, "Model-based tests"):
 `scribble.ts` (Zen, the pen and the count of notes), `ink-history.ts` (runs, a change to the
 list, Back, Forward and a reload, a write the browser refuses and a note that waits past the
-pen's limit: the notes, the Zen bar's step count and the ink value of the address) `share-scribbles.ts` (the Share panel's switch and what a copied link has) and
+pen's limit: the notes, the Zen bar's step count and the ink value of the address), `share-scribbles.ts` (the Share panel's switch and what a copied link has) and
 `ink-over-pictures.ts` (each ink colour over a picture and on a row: its walk reads the screen's pixels under a stroke).
 
 ## Limits

@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
+import React, {memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {flushSync} from 'react-dom';
 import {useTierContext} from '@/contexts/TierContext';
 import {useZenMode} from '@/components/usePageState';
@@ -13,7 +13,7 @@ import type {InkColour} from '@/lib/scribble/colours';
 import type {Note} from '@/lib/scribble/notes';
 import {anchorPhrase, notesText} from '@/lib/scribble/names';
 import {addStroke} from '@/lib/scribble/notes';
-import {outsidePicturesClip, picturesClip} from '@/lib/scribble/pictures';
+import {notesOverPictures, outsidePicturesClip, picturesClip} from '@/lib/scribble/pictures';
 import {liftPen, movePen, penIsDry, startPen, strokePath, type Pen, type Point} from '@/lib/scribble/points';
 import {inkLevel} from '@/lib/scribble/supply';
 import {cn} from '@/lib/utils';
@@ -43,7 +43,7 @@ interface InkPaintProps {
   readonly surface: Surface;
 }
 
-function InkPaint({clip, blend, strokeClass, notes, surface}: InkPaintProps) {
+const InkPaint = memo(function InkPaint({clip, blend, strokeClass, notes, surface}: InkPaintProps) {
   return (
     <div
       aria-hidden="true"
@@ -52,7 +52,7 @@ function InkPaint({clip, blend, strokeClass, notes, surface}: InkPaintProps) {
       className={cn('pointer-events-none absolute inset-0 z-30', blend)}
       style={{clipPath: clip}}
     >
-      <svg className="h-full w-full fill-none [stroke-linecap:round] [stroke-linejoin:round]" strokeWidth={INK_WIDTH}>
+      <svg className="absolute inset-0 h-full w-full fill-none [stroke-linecap:round] [stroke-linejoin:round]" strokeWidth={INK_WIDTH}>
         {notes.map((note, index) => {
           const origin = originOf(surface, note.anchor);
           if (!origin) return null;
@@ -67,7 +67,7 @@ function InkPaint({clip, blend, strokeClass, notes, surface}: InkPaintProps) {
       </svg>
     </div>
   );
-}
+});
 
 const solidStroke = (colour: InkColour) => INK_STROKE_CLASSES[colour];
 const negativeStroke = () => 'stroke-white';
@@ -236,12 +236,18 @@ function ScribbleInk() {
   };
 
   const pictures = surface.pictures ?? NO_PICTURES;
-  const overPictures = picturesClip(pictures);
+  const overPictures = useMemo(() => picturesClip(pictures), [pictures]);
+  const outsidePictures = useMemo(() => outsidePicturesClip(pictures), [pictures]);
+  const notesOnPictures = useMemo(() => notesOverPictures(notes, surface, pictures, INK_WIDTH), [notes, surface, pictures]);
   return (
     <>
-      <InkPaint clip={outsidePicturesClip(pictures)} strokeClass={solidStroke} notes={notes} surface={surface}/>
-      <InkPaint clip={overPictures} blend="mix-blend-difference" strokeClass={negativeStroke} notes={notes} surface={surface}/>
-      <InkPaint clip={overPictures} blend="mix-blend-color" strokeClass={tintStroke} notes={notes} surface={surface}/>
+      <InkPaint clip={outsidePictures} strokeClass={solidStroke} notes={notes} surface={surface}/>
+      {notesOnPictures.length > 0 && (
+        <>
+          <InkPaint clip={overPictures} blend="mix-blend-difference" strokeClass={negativeStroke} notes={notesOnPictures} surface={surface}/>
+          <InkPaint clip={overPictures} blend="mix-blend-color" strokeClass={tintStroke} notes={notesOnPictures} surface={surface}/>
+        </>
+      )}
       <svg
         ref={layerRef}
         role="group"

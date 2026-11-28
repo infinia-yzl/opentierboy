@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 155 |
+| RED: the walk failed on the changed value | 154 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -324,7 +324,7 @@ Recorded on 2026-11-28, against the commit that adds the model. Each edit change
 
 ## ink-over-pictures
 
-Recorded on 2026-11-28. The walk reads the screen's pixels at 5 points on a picture and at 4 points on its row.
+Recorded on 2026-11-28, in Chromium. The walk reads the screen's pixels at 5 points on a picture and at 4 points on its row. The rows of `STROKES` and `INK_NAMES` ran against commit `7d97bf9`, before the hue check changed; they do not read a hue. The three rows of `PICTURE_LOOKS` ran again against the hue check of commit `fcdcd9a`. The two breaks of the app in the table above ran against commit `4c438b8`.
 
 | Field | Edit | Result | First failing message, or note |
 |---|---|---|---|

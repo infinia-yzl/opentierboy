@@ -289,6 +289,32 @@ export class Scribble {
     return columns;
   }
 
+  async settledPixelColumnsAt(points: readonly Point[]): Promise<Rgb[][]> {
+    let last = await this.pixelColumnsAt(points);
+    await expect.poll(async () => {
+      const next = await this.pixelColumnsAt(points);
+      const same = JSON.stringify(next) === JSON.stringify(last);
+      last = next;
+      return same;
+    }, {message: 'two readings of the pixels in a row should be the same'}).toBe(true);
+    return last;
+  }
+
+  async paintLayerFacts(): Promise<string> {
+    return this.layer.evaluate((layer) => {
+      const size = (element: Element) => {
+        const {x, y, width, height} = element.getBoundingClientRect();
+        return [x, y, width, height].map((value) => Math.round(value)).join(' ');
+      };
+      const paints = Array.from(layer.parentElement?.children ?? []).filter((element) => element !== layer && element.getAttribute('aria-hidden') === 'true');
+      return [`top layer ${size(layer)}`, ...paints.map((paint) => {
+        const style = getComputedStyle(paint);
+        const inner = paint.firstElementChild;
+        return `paint layer ${size(paint)}, its svg ${inner ? size(inner) : 'missing'}, blend ${style.mixBlendMode}, clip ${style.clipPath.slice(0, 60)}`;
+      })].join('; ');
+    });
+  }
+
   async dotAt(point: Point) {
     await this.draw([point]);
   }
