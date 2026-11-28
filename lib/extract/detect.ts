@@ -163,10 +163,6 @@ export function mainGroup(groups: readonly Group[]): Group | null {
   return [...picks].sort((a, b) => weight(b) - weight(a))[0] ?? null;
 }
 
-export interface WorkingBox extends Box {
-  readonly score: number;
-}
-
 function inPicture(prepared: Prepared, boxes: readonly Candidate[], size: Size): ScoredBox[] {
   const {scale} = prepared.working;
   return boxes.map((box) => ({
@@ -194,10 +190,13 @@ export function findItemsInWorking(prepared: Prepared): Group | null {
   return mainGroup(itemGroups(prepared));
 }
 
-export function findItems(picture: Picture): ScoredBox[] {
-  const prepared = prepare(picture);
+export function findItemsInPrepared(prepared: Prepared): ScoredBox[] {
   const group = findItemsInWorking(prepared);
   return group ? readingOrder(inPicture(prepared, group.boxes, group)) : [];
+}
+
+export function findItems(picture: Picture): ScoredBox[] {
+  return findItemsInPrepared(prepare(picture));
 }
 
 export function snapBox(sums: SideSums, box: Box): Candidate & Size {
@@ -249,7 +248,11 @@ export function findItemsOfSizeInWorking(prepared: Prepared, given: Box): {boxes
   return {boxes: completeGrid(chosen, prepared.sums, size), size};
 }
 
-export function findItemsOfSize(picture: Picture, given: Box, prepared: Prepared = prepare(picture)): ScoredBox[] {
+export function findItemsOfSizeInPrepared(prepared: Prepared, given: Box): ScoredBox[] {
   const {boxes, size} = findItemsOfSizeInWorking(prepared, given);
   return readingOrder(inPicture(prepared, boxes, size));
+}
+
+export function findItemsOfSize(picture: Picture, given: Box): ScoredBox[] {
+  return findItemsOfSizeInPrepared(prepare(picture), given);
 }
