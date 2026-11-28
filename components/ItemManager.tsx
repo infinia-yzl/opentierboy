@@ -1,4 +1,5 @@
 import React, {useCallback, useContext, useMemo, useRef, useState} from 'react';
+import dynamic from 'next/dynamic';
 import {Button, buttonVariants} from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,9 +34,13 @@ import {visibleImageSets} from "@/lib/imageSets";
 import {ItemSet} from "@/models/ItemSet";
 import {useTierContext} from "@/contexts/TierContext";
 import {useAddItemsWithUndo} from "@/components/useAddItems";
+import {useDesktop} from "@/components/useDesktop";
+import type {NewListOutcome} from "@/components/useSnapshotFiles";
+
+const ItemExtractor = dynamic(() => import("@/components/ItemExtractor"), {ssr: false});
 
 /** The dialogs that adding images opens. Each is rendered once, by AddImagesProvider. */
-type AddImagesDialog = 'template' | 'device' | 'link' | 'removeAll';
+type AddImagesDialog = 'template' | 'device' | 'link' | 'extract' | 'removeAll';
 
 interface AddImagesContextValue {
   /** Opens a dialog. Focus goes back to `from` when it closes (or to the Add images button). */
@@ -61,6 +66,7 @@ interface AddImagesProviderProps {
    * opened it is gone (the empty list's drop area, once images are added).
    */
   fallbackFocusRef: React.RefObject<HTMLButtonElement | null>;
+  onOpenNewList: (items: Item[]) => NewListOutcome;
   children: React.ReactNode;
 }
 
@@ -73,21 +79,21 @@ const ACCEPTED_FILES = 'image/*';
  * template", "From your device", "From a link", Remove All) and the file chooser of "Open a
  * Freeze Frame…" exist once, so a dialog stays open when the control that opened it goes away.
  */
-export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles, fallbackFocusRef, children}) => {
+export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles, fallbackFocusRef, onOpenNewList, children}) => {
   const {tiers, tierCortex, resetRankings, removeAllItems, restoreTiers} = useTierContext();
   const addItemsWithUndo = useAddItemsWithUndo();
 
   const [isItemCreatorOpen, setIsItemCreatorOpen] = useState(false);
   const [isLinkCreatorOpen, setIsLinkCreatorOpen] = useState(false);
   const [isItemSetSelectorOpen, setIsItemSetSelectorOpen] = useState(false);
-  // The Remove All confirmation sits outside the menu, so the menu closes when it opens.
+  const [isExtractorOpen, setIsExtractorOpen] = useState(false);
+  const [isExtractorLoaded, setIsExtractorLoaded] = useState(false);
   const [isRemoveAllOpen, setIsRemoveAllOpen] = useState(false);
   const returnFocusTo = useRef<HTMLElement | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const itemSets = useMemo(() => {
     const sets: ItemSet[] = [];
-    // Legacy sets are not offered as templates (lib/imageSets.ts).
     visibleImageSets().forEach(([packageName, packageData]) => {
       const packageDisplayName = packageData.displayName;
       sets.push({
@@ -113,7 +119,6 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
     return sets;
   }, []);
 
-  // Each Undo below is a new change to the list, so it adds a history entry (A6).
   const handleCreateItems = (newItems: Item[]) => {
     addItemsWithUndo(newItems);
     setIsItemCreatorOpen(false);
@@ -145,8 +150,6 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
     });
   };
 
-  // The dialogs have no trigger of their own (they open from a menu or a button), so give focus
-  // back to the control that opened them when they close.
   const returnFocus = (event: Event) => {
     event.preventDefault();
     const target = returnFocusTo.current;
@@ -162,6 +165,10 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
     if (dialog === 'template') setIsItemSetSelectorOpen(true);
     else if (dialog === 'device') setIsItemCreatorOpen(true);
     else if (dialog === 'link') setIsLinkCreatorOpen(true);
+    else if (dialog === 'extract') {
+      setIsExtractorLoaded(true);
+      setIsExtractorOpen(true);
+    }
     else setIsRemoveAllOpen(true);
   }, []);
 
@@ -179,7 +186,6 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
         hidden
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
-          // Clear the input, so choosing the same file again opens it again.
           event.target.value = '';
           if (files.length > 0) onOpenFiles(files);
         }}
@@ -227,6 +233,15 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
         </DialogContent>
       </Dialog>
 
+      {isExtractorLoaded && (
+        <ItemExtractor
+          open={isExtractorOpen}
+          onOpenChange={setIsExtractorOpen}
+          onCreate={onOpenNewList}
+          onCloseAutoFocus={returnFocus}
+        />
+      )}
+
       <ItemSetSelector
         itemSets={itemSets}
         onSelectItemSet={handleItemSetSelect}
@@ -256,6 +271,7 @@ const MenuHint: React.FC<{children: React.ReactNode}> = ({children}) => (
 const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'button'}) => {
   const {tiers} = useTierContext();
   const {open, chooseFile, reset} = useAddImages();
+  const desktop = useDesktop();
   const showGradientBorder = tiers.every(tier => tier.items.length === 0);
   const manageItemsButton = useRef<HTMLButtonElement>(null);
   const setTriggerRef = (element: HTMLButtonElement | null) => {
@@ -274,8 +290,6 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
             <PlusIcon aria-hidden="true" className="h-4 w-4"/>
             <span className="compact:sr-only">Add images</span>
             {' '}
-            {/* Dropping and pasting need a mouse and a keyboard: hidden on touch screens, and in
-                Compact tiles, which keep only the icon. */}
             <span className="tooltip-mouse compact:hidden text-[9px] font-normal leading-tight">drop or paste</span>
           </Button>
         ) : (
@@ -293,8 +307,6 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
           <DropdownMenuItem onSelect={() => openFromMenu('template')}>
             From template
           </DropdownMenuItem>
-          {/* The hints say what else works (owner decision, 2026-10-31): files can be dropped,
-              image addresses pasted. */}
           <DropdownMenuItem onSelect={() => openFromMenu('device')}>
             From your device{' '}
             <MenuHint>or drop</MenuHint>
@@ -303,10 +315,13 @@ const ItemManager: React.FC<ItemManagerProps> = ({openFocusRef, trigger = 'butto
             From a link{' '}
             <MenuHint>or paste</MenuHint>
           </DropdownMenuItem>
+          {desktop && (
+            <DropdownMenuItem onSelect={() => openFromMenu('extract')}>
+              Extract items from a picture…
+            </DropdownMenuItem>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator/>
-        {/* Opening a saved Freeze Frame picture brings a list in, so it sits with the list
-            actions (owner decision, 2026-10-29). Pictures without a list become items. */}
         <DropdownMenuItem onSelect={chooseFile}>
           Open a Freeze Frame…{' '}
           <MenuHint>or drop</MenuHint>

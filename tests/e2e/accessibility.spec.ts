@@ -7,6 +7,7 @@ import {serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import type {SitePage, ThemeMode} from '../pages/site-page';
 import type {TierListPage} from '../pages/tier-list-page';
+import {gridPng, picturePng} from '../support/extractor-pictures';
 
 const TANKS = '/rank/overwatch/tank';
 const SHARED_LIST = rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'], '': ['Sigma', 'Orisa']}, 'Shared tanks');
@@ -51,6 +52,17 @@ const SCANS: readonly Scan[] = [
   {name: 'the template picker', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.items.openTemplatePicker())},
   {name: 'the upload dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.deviceImages.openUploadDialog())},
   {name: 'the link dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.linkImages.openLinkImageDialog())},
+  {name: 'the item extractor', by: 'user', phone: false, open: onSharedList(({tierList}) => tierList.extractor.open())},
+  {name: 'the item extractor with 8 items found', by: 'user', phone: false, open: onSharedList(async ({tierList}) => {
+    await tierList.extractor.open();
+    await tierList.extractor.choosePicture(picturePng('heroes.png', gridPng()));
+    await expect(tierList.extractor.borders).toHaveCount(8);
+  })},
+  {name: 'step "2 Names" of the item extractor', by: 'user', phone: false, open: onSharedList(async ({tierList}) => {
+    await tierList.extractor.open();
+    await tierList.extractor.choosePicture(picturePng('heroes.png', gridPng()));
+    await tierList.extractor.openNames();
+  })},
   {name: 'the share panel', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.share.openSharePanel())},
   {name: 'the Remove All dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.items.openRemoveAll())},
   {name: 'the Row options menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.rows.openRowOptions())},
