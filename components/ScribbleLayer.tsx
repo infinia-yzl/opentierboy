@@ -32,6 +32,14 @@ interface LiveStroke {
   readonly surface: Surface;
 }
 
+function capturePointer(layer: Element, pointerId: number) {
+  try {
+    layer.setPointerCapture(pointerId);
+  } catch {
+    return;
+  }
+}
+
 export function ScribbleLayer() {
   const isZenMode = useZenMode();
   const {on, notes} = useScribble();
@@ -142,7 +150,7 @@ function ScribbleInk() {
     const measured = measure();
     const pen = startPen(pointOf(event, measured.unit), left);
     liveRef.current = {pointerId: event.pointerId, pen, unit: measured.unit, colour, surface: measured};
-    event.currentTarget.setPointerCapture(event.pointerId);
+    capturePointer(event.currentTarget, event.pointerId);
     setInkBeingDrawn(pen.kept.length);
     livePathRef.current?.setAttribute('d', strokePath(pen.kept));
   };

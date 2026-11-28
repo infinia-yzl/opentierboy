@@ -77,7 +77,7 @@ export function ZenBar() {
 }
 
 function isScribbleKey(event: KeyboardEvent): boolean {
-  if (event.key.toLowerCase() !== 'd' || event.ctrlKey || event.metaKey || event.altKey) return false;
+  if (event.repeat || event.key.toLowerCase() !== 'd' || event.ctrlKey || event.metaKey || event.altKey) return false;
   const element = event.target as {closest?: (selector: string) => unknown} | null;
   return !element?.closest?.('[role="menu"], [role="dialog"]');
 }

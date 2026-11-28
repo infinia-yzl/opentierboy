@@ -43,10 +43,13 @@ export function measureSurface(layer: Element): Surface {
   const unit = rowUnits.find((size) => size > 0) || trayUnit || FALLBACK_UNIT;
   return {
     unit,
-    items: Array.from(surface.querySelectorAll(`[${SCRIBBLE_ITEM_ATTRIBUTE}]`)).map((element) => ({
-      id: element.getAttribute(SCRIBBLE_ITEM_ATTRIBUTE) ?? '',
-      ...placeOf(element, element, element.getBoundingClientRect().height),
-    })),
+    items: Array.from(surface.querySelectorAll(`[${SCRIBBLE_ITEM_ATTRIBUTE}]`)).map((element) => {
+      const tile = element.querySelector('img') ?? element;
+      return {
+        id: element.getAttribute(SCRIBBLE_ITEM_ATTRIBUTE) ?? '',
+        ...placeOf(element, tile, tile.getBoundingClientRect().height),
+      };
+    }),
     rows: rowElements.map((row, index) => placeOf(row, rowAreas[index] ?? row, rowUnits[index] || unit)),
     tray: trayElement ? placeOf(trayElement, trayElement, trayUnit || unit) : null,
   };
