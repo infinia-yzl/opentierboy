@@ -327,6 +327,20 @@ An edit takes the list of the current address, changes it, encodes the result on
 with `history.pushState`; the store keeps the written list under its link, so the render after the
 write decodes nothing either.
 
+**A write that the browser refuses.** A browser limits how often a page may call the History
+API. Safari allows 100 calls in 30 seconds and then throws a `SecurityError`, Firefox throws
+past its own limit, and Chromium ignores the calls past its limit. Every write of the list goes through `writeHistory`
+(`components/historyWrite.ts`): one call, in the handler, never queued and never tried again
+later. When the call throws, or the address does not hold the written link afterwards, the
+change did not happen: the editor shows the list of the address, as on every render, a toast
+says "Your browser paused saving. Try again in a moment.", and no success toast with Undo shows.
+A refused label setting follows the same rule and stays as the address has it. Next.js learns
+the new address before the browser takes the call, so `writeHistory` then hands it the address
+of the window again; without that, Next.js would write the refused link itself a moment later.
+Next.js also makes one History API call of its own after each write, which the editor cannot
+guard: in a browser that throws at its limit, that call can still end on the "This page couldn't
+load" screen, and a reload shows the last list that was written.
+
 Uploads load in an effect, after the page has started, so the server and the browser render
 the same list and an upload shows its image right after a page load.
 
