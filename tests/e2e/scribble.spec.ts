@@ -9,6 +9,8 @@ import {pngFile, snapshotTextOf} from '../support/snapshot-files';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {notesIn, penOf, scribbleModel, type ScribbleEvent, type ScribbleSnapshot} from '../models/scribble';
 import {inkHistoryModel, inkHistoryViewOf, type InkHistoryEvent, type InkHistorySnapshot} from '../models/ink-history';
+import {INK_NAMES, inkOf, inkOverPicturesModel, PICTURE_LOOKS, strokesIn, type InkOverPicturesEvent, type InkOverPicturesSnapshot, type PictureLook} from '../models/ink-over-pictures';
+import type {Point} from '../pages/helpers';
 
 const TANKS = '/rank/overwatch/tank';
 const LIST = rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], '': ['Sigma', 'Orisa']});
@@ -24,9 +26,33 @@ const lumOf = ([r, g, b]: Rgb) => 0.3 * r + 0.59 * g + 0.11 * b;
 const columnsWhere = (before: Rgb[][], after: Rgb[][], holds: (was: Rgb, now: Rgb) => boolean) =>
   before.filter((column, index) => column.some((was, row) => holds(was, after[index][row]))).length;
 const isNegative = (was: Rgb, now: Rgb) => was.every((value, channel) => Math.abs(now[channel] - (255 - value)) <= NEAR);
-const isReversedRed = (was: Rgb, now: Rgb) =>
-  Math.abs(lumOf(now) - (255 - lumOf(was))) <= NEAR && now[0] >= now[1] - 2 && now[0] >= now[2] - 2;
+const HUE_NEAR = 15;
+const hueOf = ([r, g, b]: Rgb): number | null => {
+  const max = Math.max(r, g, b);
+  const spread = max - Math.min(r, g, b);
+  if (spread < 8) return null;
+  const sixth = max === r ? ((g - b) / spread) % 6 : max === g ? (b - r) / spread + 2 : (r - g) / spread + 4;
+  return (sixth * 60 + 360) % 360;
+};
+const rgbOf = (colour: string): Rgb => {
+  const [r, g, b] = colour.match(/\d+/g)!.map(Number);
+  return [r, g, b];
+};
+const isReversedWithHueOf = (colour: string) => (was: Rgb, now: Rgb) => {
+  const hue = hueOf(now);
+  const turn = hue === null ? 0 : Math.abs(hue - hueOf(rgbOf(colour))!);
+  return Math.abs(lumOf(now) - (255 - lumOf(was))) <= NEAR && Math.min(turn, 360 - turn) <= HUE_NEAR;
+};
+const isReversedRed = isReversedWithHueOf(LIGHT_INK.Red);
 const isColour = (colour: string) => (_: Rgb, now: Rgb) => `rgb(${now.join(', ')})` === colour;
+const isReversedBlue = isReversedWithHueOf(LIGHT_INK.Blue);
+const seen = (before: Rgb[][], after: Rgb[][]) =>
+  `pixels at the stroke's centre line, before the stroke ${JSON.stringify(before.map((column) => column[1]))}, with it ${JSON.stringify(after.map((column) => column[1]))}`;
+const PICTURE_CHECKS: Readonly<Record<PictureLook, (was: Rgb, now: Rgb) => boolean>> = {
+  'reversed with a red hue': isReversedRed,
+  'reversed with a blue hue': isReversedBlue,
+  'the plain negative': isNegative,
+};
 
 test.describe('scribble', () => {
   test.describe('pen', () => {
@@ -491,7 +517,8 @@ test.describe('scribble', () => {
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
-        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isNegative)).toBe(SAMPLES.length);
+        const after = await scribble.pixelColumnsAt(samples);
+        expect(columnsWhere(before, after, isNegative), seen(before, after)).toBe(SAMPLES.length);
       });
 
       test('renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item', async ({tierList}) => {
@@ -505,7 +532,8 @@ test.describe('scribble', () => {
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
-        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isReversedRed)).toBe(SAMPLES.length);
+        const after = await scribble.pixelColumnsAt(samples);
+        expect(columnsWhere(before, after, isReversedRed), seen(before, after)).toBe(SAMPLES.length);
       });
 
       test('renders the picture as before when the user removes the note that crossed it', async ({tierList}) => {
@@ -534,7 +562,8 @@ test.describe('scribble', () => {
         await scribble.draw(line);
         await scribble.expectNotes(1);
 
-        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isColour(LIGHT_INK.Red))).toBe(SAMPLES.length);
+        const after = await scribble.pixelColumnsAt(samples);
+        expect(columnsWhere(before, after, isColour(LIGHT_INK.Red)), seen(before, after)).toBe(SAMPLES.length);
       });
     });
 
@@ -1431,6 +1460,63 @@ test.describe('scribble', () => {
         await tierList.scribble.prepareInkWriteRefusals();
         const coverage = await walkModel(inkHistoryModel, inkHistorySut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, inkHistoryModel, coverage, part);
+      });
+    }
+  });
+
+  test.describe('model: ink over pictures', () => {
+    const inkOverPicturesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      const {scribble} = tierList;
+      let line: Point[] = [];
+      let onPicture: Point[] = [];
+      let onRow: Point[] = [];
+      let pictureBefore: Rgb[][] = [];
+      let rowBefore: Rgb[][] = [];
+      return modelSut<InkOverPicturesSnapshot, InkOverPicturesEvent>(page, {
+        reset: async () => {
+          await scribble.gotoWithScribble(TANKS, LIST);
+          await scribble.expectPictureLoaded(tierList.item('Mauga'));
+          ({line, onPicture, onRow} = await scribble.lineAcrossAndBeyond(tierList.item('Mauga')));
+          pictureBefore = await scribble.pixelColumnsAt(onPicture);
+          rowBefore = await scribble.pixelColumnsAt(onRow);
+        },
+        events: {
+          CHOOSE_RED: () => scribble.chooseInkColour('Red'),
+          CHOOSE_BLUE: () => scribble.chooseInkColour('Blue'),
+          CHOOSE_CONTRAST: () => scribble.chooseInkColour('Contrast'),
+          DRAW_ACROSS: () => scribble.draw(line),
+          REMOVE_LAST_NOTE: () => scribble.removeLastNote(),
+          CLEAR: () => scribble.clear(),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const ink = inkOf(snapshot);
+            const strokes = strokesIn(snapshot);
+            await expect(scribble.inkColourButton).toHaveAccessibleName(`Ink colour: ${INK_NAMES[ink]}`);
+            await scribble.expectNotes(strokes);
+            if (strokes === 0) {
+              await expect.poll(() => scribble.pixelColumnsAt(onPicture), {message: 'the picture should show as it loaded'}).toEqual(pictureBefore);
+              await expect.poll(() => scribble.pixelColumnsAt(onRow), {message: 'the row should have no ink'}).toEqual(rowBefore);
+              return;
+            }
+            const look = PICTURE_LOOKS[ink];
+            await expect.poll(async () => columnsWhere(pictureBefore, await scribble.pixelColumnsAt(onPicture), PICTURE_CHECKS[look]),
+              {message: `the sample points where the picture under the stroke shows ${look}`}).toBe(onPicture.length);
+            await expect.poll(async () => columnsWhere(rowBefore, await scribble.pixelColumnsAt(onRow), isColour(LIGHT_INK[INK_NAMES[ink]])),
+              {message: `the sample points where the row shows solid ${INK_NAMES[ink]} ink`}).toBe(onRow.length);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(inkOverPicturesModel)) {
+      test(`renders each state of the ink over pictures machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(inkOverPicturesModel, inkOverPicturesSut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, inkOverPicturesModel, coverage, part);
       });
     }
   });

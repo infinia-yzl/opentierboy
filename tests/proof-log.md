@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 146 |
+| RED: the walk failed on the changed value | 155 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -36,6 +36,8 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | App: a hidden page writes nothing (`components/useScribble.ts`, 2026-11-28) | "writes the waiting note to the address when the page becomes hidden after a note past the limit" |
 | App: opening the Share panel writes nothing (`components/ShareButton.tsx`, 2026-11-28) | "writes the unsaved note to the address and the copied link when the user opens Share after a refused pen-off write" |
 | App: a refused ink write does not hand Next.js the address again (`components/useScribble.ts`, 2026-11-28) | 2 of the 5 tests of "refused history write" in `scribble.spec.ts`: the address held the refused ink, and with two refusals the page ended on the Next.js error screen. |
+| App: the note layer is not cut out over pictures, so solid ink covers them (`components/ScribbleLayer.tsx`, 2026-11-28) | The ink-over-pictures walk at step 5, and 2 of the 4 tests of "over pictures" in `scribble.spec.ts` (Contrast and Red over an item). |
+| App: no tint layer over pictures (`components/ScribbleLayer.tsx`, 2026-11-28) | The ink-over-pictures walk at step 5, and "renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item". |
 | Test: "position 2 of 3" changed to "1 of 3" | "writes no history entry and no new URL when the user moves an item right and back with the keyboard and drops it" |
 | Test: toast title changed | "renders the toast "Item restored" when the user clicks Undo in the toast "Item deleted"" |
 | Test: "Show Labels" changed to "Hide Labels" | "renders row labels on top when the page opens a v3 link with lp top" |
@@ -319,3 +321,18 @@ Recorded on 2026-11-28, against the commit that adds the model. Each edit change
 | forwardWithoutWaitingNote | :30 `view(1, 2, 2)` -> `view(2, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
 | DRAW_NOTE_PAST_LIMIT (app) | App break: the pen ignores its write limit in `components/useScribble.ts` | RED | "a held note should not be in the address yet" |
 | PEN_OFF_AND_ON (app) | App break: pen off writes only when the limit allows it | RED | "pen off should write the waiting note" |
+
+## ink-over-pictures
+
+Recorded on 2026-11-28. The walk reads the screen's pixels at 5 points on a picture and at 4 points on its row.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| STROKES.clean | ink-over-pictures.ts:11 `clean: 0` -> `1` | RED | ink layer expected "Scribbles: 1 note", got "Scribbles: no notes" |
+| STROKES.crossed | :11 `crossed: 1` -> `0` | RED | 5 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 1 note" |
+| INK_NAMES.red | :14 `red: 'Red'` -> `'Blue'` | RED | ink colour button expected "Ink colour: Blue", got "Ink colour: Red" |
+| INK_NAMES.blue | :14 `blue: 'Blue'` -> `'Contrast'` | RED | ink colour button expected "Ink colour: Contrast", got "Ink colour: Blue" |
+| INK_NAMES.contrast | :14 `contrast: 'Contrast'` -> `'Red'` | RED | ink colour button expected "Ink colour: Red", got "Ink colour: Contrast" |
+| PICTURE_LOOKS.red | :17 `'reversed with a red hue'` -> `'the plain negative'` (also -> `'reversed with a blue hue'`: RED, 0 of 5) | RED | 5 steps: "the sample points where the picture under the stroke shows the plain negative" expected 5, got 0 |
+| PICTURE_LOOKS.blue | :18 `'reversed with a blue hue'` -> `'reversed with a red hue'` | RED | "the sample points where the picture under the stroke shows reversed with a red hue" expected 5, got 0 |
+| PICTURE_LOOKS.contrast | :19 `'the plain negative'` -> `'reversed with a blue hue'` (also -> `'reversed with a red hue'`: RED, 0 of 5) | RED | expected 5, got 0. The first check of a hue only asked for the strongest channel, and this break stayed GREEN against it: the plain negative of this picture is bluish. The check now compares the hue itself with the hue of the ink (fixed the same day) |

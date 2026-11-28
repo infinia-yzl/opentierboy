@@ -263,6 +263,14 @@ export class Scribble {
     return Array.from({length: 15}, (_, index) => ({x: Math.floor(box.x + box.width * (0.15 + index * 0.05)) + 0.5, y: row}));
   }
 
+  async lineAcrossAndBeyond(target: Locator): Promise<{line: Point[]; onPicture: Point[]; onRow: Point[]}> {
+    const box = await boxOf(target);
+    const line = await this.lineAcross(target);
+    const {y} = line[0];
+    const beyond = Array.from({length: 13}, (_, index) => ({x: Math.floor(box.x + box.width * (1 + index * 0.1)) + 0.5, y}));
+    return {line: [...line, ...beyond], onPicture: [2, 5, 7, 9, 12].map((index) => line[index]), onRow: [5, 7, 9, 11].map((index) => beyond[index])};
+  }
+
   async expectPictureLoaded(item: Locator) {
     await expect.poll(() => item.getByRole('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
       {message: 'the picture of the item has loaded'}).toBe(true);

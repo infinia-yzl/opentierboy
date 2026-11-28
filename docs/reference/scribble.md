@@ -338,10 +338,11 @@ tray `data-scribble-tray`. Rows are found by `data-tier-row`.
 
 ## Model-based tests
 
-Three machines in `tests/machines/` describe Scribble (`tests/README.md`, "Model-based tests"):
+Four machines in `tests/machines/` describe Scribble (`tests/README.md`, "Model-based tests"):
 `scribble.ts` (Zen, the pen and the count of notes), `ink-history.ts` (runs, a change to the
 list, Back, Forward and a reload, a write the browser refuses and a note that waits past the
-pen's limit: the notes, the Zen bar's step count and the ink value of the address) and `share-scribbles.ts` (the Share panel's switch and what a copied link has).
+pen's limit: the notes, the Zen bar's step count and the ink value of the address) `share-scribbles.ts` (the Share panel's switch and what a copied link has) and
+`ink-over-pictures.ts` (each ink colour over a picture and on a row: its walk reads the screen's pixels under a stroke).
 
 ## Limits
 
