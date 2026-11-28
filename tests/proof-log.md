@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 115 |
+| RED: the walk failed on the changed value | 154 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -31,6 +31,13 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | App: every label forced to the left (`components/DragDropTierList.tsx`) | The history walk, once its check read the label position (fixed later). Three hand-written tests in `history.spec.ts` and `share-panel.spec.ts`. |
 | App: Undo puts a deleted item at the end of its row (`lib/tierList.ts`) | One unit test in `tierList.test.ts`. Part 1 of the remove-and-undo walk, at step 2. |
 | App: a row stack shows on an empty row (`components/RowHandle.tsx`) | All 4 parts of the mouse-drag walk. |
+| App: the pen ignores its write limit (`components/useScribble.ts`, 2026-11-28) | All 7 tests of "fast drawing" in `scribble.spec.ts`, and the ink-history walk. |
+| App: pen off writes only when the limit allows it (`components/useScribble.ts`, 2026-11-28) | "writes every note to the entry of the run when the user turns Scribble off after notes past the limit", and the ink-history walk. |
+| App: a hidden page writes nothing (`components/useScribble.ts`, 2026-11-28) | "writes the waiting note to the address when the page becomes hidden after a note past the limit" |
+| App: opening the Share panel writes nothing (`components/ShareButton.tsx`, 2026-11-28) | "writes the unsaved note to the address and the copied link when the user opens Share after a refused pen-off write" |
+| App: a refused ink write does not hand Next.js the address again (`components/useScribble.ts`, 2026-11-28) | 2 of the 5 tests of "refused history write" in `scribble.spec.ts`: the address held the refused ink, and with two refusals the page ended on the Next.js error screen. |
+| App: the solid paint layer is not cut to the area outside the pictures, so solid ink covers them (`components/ScribbleLayer.tsx`, 2026-11-28) | The ink-over-pictures walk at step 5, and 2 of the 5 tests of "over pictures" in `scribble.spec.ts` (Contrast and Red over an item). |
+| App: no tint layer over pictures (`components/ScribbleLayer.tsx`, 2026-11-28) | The ink-over-pictures walk at step 5, and "renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item". |
 | Test: "position 2 of 3" changed to "1 of 3" | "writes no history entry and no new URL when the user moves an item right and back with the keyboard and drops it" |
 | Test: toast title changed | "renders the toast "Item restored" when the user clicks Undo in the toast "Item deleted"" |
 | Test: "Show Labels" changed to "Hide Labels" | "renders row labels on top when the page opens a v3 link with lp top" |
@@ -262,3 +269,70 @@ The two rows on capturing were recorded on 2026-11-25, when the machine got its 
 |---|---|---|---|
 | items | :26 `'winstonInS.maugaFirst'` rows([M,W]..) -> rows([W,M]..) (also `winstonInA.maugaInS` W moved to Unranked: RED at 22 steps, items in tier "A") | RED | 10 steps: items in tier "S" |
 | order | :36 `aFirst` ['A','S','Unranked'] -> ['A','Unranked','S'] | RED | 14 steps: "tier 2 name" expected Unranked, got S |
+
+## scribble
+
+Recorded on 2026-11-26, and again the same day once the notes were saved in the address.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| NOTE_COUNTS.blank | scribble.ts:10 `blank: 0` -> `1` | RED | address expected to match `/[?&]ink=1\./`, got the address without an ink value |
+| NOTE_COUNTS.oneNote | :10 `oneNote: 1` -> `2` | RED | ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
+| NOTE_COUNTS.twoNotes | :10 `twoNotes: 2` -> `1` | RED | ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
+| penOf | :20 'penOn' reported as 'penOff' | RED | button "Scribble" pressed expected "false", got "true" |
+| penOf (Zen off) | :20 'zenOff' reported as 'penOff' | RED | 0 steps: button "Scribble" not found |
+
+## share-scribbles
+
+Recorded on 2026-11-26, against the commit that adds the model.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| SCRIBBLES_LINES.included | share-scribbles.ts:20 `'… shares your scribbles too'` -> `'… shares your scribbles'` | RED | switch description expected "Every button below shares your scribbles", got "… scribbles too" |
+| SCRIBBLES_LINES.leftOut | :21 the line of `leftOut` -> the line of `included` | RED | switch description expected "… shares your scribbles too", got "… shares the list without your scribbles" |
+| scribbles | :29 'included' and 'leftOut' swapped | RED | switch `aria-checked` expected "false", got "true" |
+| scribbles (none) | :29 'none' reported as 'included' | RED | ink layer "Scribbles: 1 note" not found |
+| clipboardScribbles | :30 `=== 'clipboardWith'` -> `=== 'clipboardWithout'` | RED | "the ink value in the copied link" expected null, got the ink value |
+| open | :28 `=== 'open'` -> `=== 'closed'` | RED | the Share panel expected visible |
+
+## ink-history
+
+Recorded on 2026-11-28, against the commit that adds the model. Each edit changes one state of `INK_HISTORY_VIEWS` (notes, step, total, list changed).
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| runOfTwoNotes | ink-history.ts:24 `view(2, 2, 2)` -> `view(2, 3, 3)` | RED | step count expected "3 / 3", got "2 / 2" |
+| runWithoutNotes | :25 `view(0, 2, 2)` -> `view(0, 1, 1)` | RED | step count expected "1 / 1", got "2 / 2" |
+| backFromRun | :26 `view(0, 1, 2)` -> `view(2, 1, 2)` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: no notes" |
+| forwardOnRun | :27 `view(2, 2, 2)` -> `view(0, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 2 notes" |
+| runAfterForward | :28 `view(3, 3, 3)` -> `view(3, 2, 2)` | RED | 5 steps: step count expected "2 / 2", got "3 / 3" |
+| listChanged | :29 `view(2, 3, 3, true)` -> `view(2, 2, 2, true)` | RED | 6 steps: step count expected "2 / 2", got "3 / 3" |
+| listChanged (the list) | :29 `view(2, 3, 3, true)` -> `view(2, 3, 3)` | RED | 6 steps: Winston expected in row C, not found |
+| runAfterListChange | :30 `view(3, 4, 4, true)` -> `view(3, 3, 3, true)` | RED | 7 steps: step count expected "3 / 3", got "4 / 4" |
+| backFromListChange | :31 `view(2, 2, 3)` -> `view(0, 2, 3)` | RED | 4 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 2 notes" |
+| reloaded | :32 `view(1, 2, 2)` -> `view(1, 1, 1)` | RED | step count expected "1 / 1", got "2 / 2" |
+| runAfterReload | :33 `view(2, 3, 3)` -> `view(2, 2, 2)` | RED | step count expected "2 / 2", got "3 / 3" |
+| noteNotWritten (the address) | :22 `inkInAddress: false` -> `true` | RED | address expected to match `/[?&]ink=1\./`, got the address without an ink value |
+| noteNotWritten | :22 `view(1, 1, 1)` -> `view(1, 2, 2)` | RED | step count expected "2 / 2", got "1 / 1" |
+| noteWaiting (the address, later the same day) | ink-history.ts:25 `notesInAddress: 1` removed, so 2 | RED | 4 steps: "the notes in the ink value of the address" expected 2, got 1 |
+| noteWaiting | :25 `view(2, 2, 2)` -> `view(1, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
+| runOfTwoNotes (the address) | :26 `view(2, 2, 2)` with `notesInAddress: 1` | RED | 2 steps: "the notes in the ink value of the address" expected 1, got 2 |
+| backFromWaitingNote | :29 `view(0, 1, 2)` -> `view(2, 1, 2)` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: no notes" |
+| forwardWithoutWaitingNote | :30 `view(1, 2, 2)` -> `view(2, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
+| DRAW_NOTE_PAST_LIMIT (app) | App break: the pen ignores its write limit in `components/useScribble.ts` | RED | "a held note should not be in the address yet" |
+| PEN_OFF_AND_ON (app) | App break: pen off writes only when the limit allows it | RED | "pen off should write the waiting note" |
+
+## ink-over-pictures
+
+Recorded on 2026-11-28, in Chromium. The walk reads the screen's pixels at 5 points on a picture and at 4 points on its row. The rows of `STROKES` and `INK_NAMES` ran against commit `7d97bf9`, before the hue check changed; they do not read a hue. The three rows of `PICTURE_LOOKS` ran again against the hue check of commit `fcdcd9a`. The two breaks of the app in the table above ran against commit `4c438b8`.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| STROKES.clean | ink-over-pictures.ts:11 `clean: 0` -> `1` | RED | ink layer expected "Scribbles: 1 note", got "Scribbles: no notes" |
+| STROKES.crossed | :11 `crossed: 1` -> `0` | RED | 5 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 1 note" |
+| INK_NAMES.red | :14 `red: 'Red'` -> `'Blue'` | RED | ink colour button expected "Ink colour: Blue", got "Ink colour: Red" |
+| INK_NAMES.blue | :14 `blue: 'Blue'` -> `'Contrast'` | RED | ink colour button expected "Ink colour: Contrast", got "Ink colour: Blue" |
+| INK_NAMES.contrast | :14 `contrast: 'Contrast'` -> `'Red'` | RED | ink colour button expected "Ink colour: Red", got "Ink colour: Contrast" |
+| PICTURE_LOOKS.red | :17 `'reversed with a red hue'` -> `'the plain negative'` (also -> `'reversed with a blue hue'`: RED, 0 of 5) | RED | 5 steps: "the sample points where the picture under the stroke shows the plain negative" expected 5, got 0 |
+| PICTURE_LOOKS.blue | :18 `'reversed with a blue hue'` -> `'reversed with a red hue'` | RED | "the sample points where the picture under the stroke shows reversed with a red hue" expected 5, got 0 |
+| PICTURE_LOOKS.contrast | :19 `'the plain negative'` -> `'reversed with a blue hue'` (also -> `'reversed with a red hue'`: RED, 0 of 5) | RED | expected 5, got 0. The first check of a hue only asked for the strongest channel, and this break stayed GREEN against it: the plain negative of this picture is bluish. The check now compares the hue itself with the hue of the ink (fixed the same day) |

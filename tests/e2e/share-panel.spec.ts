@@ -1,13 +1,16 @@
 import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
-import {packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
+import {circleNoteOn, inkValue, packageItemId, rankingState, v3LinkJson, v3State} from '../support/links';
 import {escapeRegExp} from '../support/regexp';
 import {imageFile, serveImageSite} from '../support/image-sites';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {snapshotTextOf} from '../support/snapshot-files';
 import type {TierListPage} from '../pages/tier-list-page';
 import {sharePanelModel, sharePanelViewOf, type SharePanelEvent, type SharePanelSnapshot, type SharePanelView} from '../models/share-panel';
+import {
+  SCRIBBLES_LINES, shareScribblesModel, shareScribblesViewOf, type ShareScribblesEvent, type ShareScribblesSnapshot,
+} from '../models/share-scribbles';
 
 const TANKS = '/rank/overwatch/tank';
 
@@ -186,6 +189,147 @@ test.describe('share panel', () => {
     await expect(tierList.share.socialShareButton('Share on X')).toBeVisible();
   });
 
+  test.describe('scribbles', () => {
+    const LIST = rankingState('image-overwatch', {S: ['Mauga'], '': ['Sigma']});
+    const INK = inkValue([circleNoteOn('image-overwatch', 'Mauga')]);
+    const LINK_WITH_INK = `${TANKS}?state=${LIST}&ink=${INK}`;
+    const INCLUDED = 'Every button below shares your scribbles too';
+    const LEFT_OUT = 'Every button below shares the list without your scribbles';
+    const inkOf = (link: string) => new URL(link).searchParams.get('ink')?.replace(/ /g, '+') ?? null;
+
+    test('renders the URL tab without a group, a switch or button "Copy link" when the list has no scribbles', async ({tierList}) => {
+      await tierList.goto(TANKS, LIST);
+
+      await tierList.share.openSharePanel();
+
+      await expect(tierList.share.copyMarkdownButton).toBeVisible();
+      await expect(tierList.share.scribblesGroup).toHaveCount(0);
+      await expect(tierList.share.includeScribblesSwitch).toHaveCount(0);
+      await expect(tierList.share.copyLinkButton).toHaveCount(0);
+      await tierList.share.chooseShareTab('Image');
+      await expect(tierList.share.scribblesPictureNote).toHaveCount(0);
+    });
+
+    test('renders the group "Include scribbles" with its switch on and every share button inside when the list has scribbles', async ({tierList}) => {
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+
+      await tierList.share.openSharePanel();
+
+      const group = tierList.share.scribblesGroup;
+      await expect(tierList.share.includeScribblesSwitch).toHaveAttribute('aria-checked', 'true');
+      await expect(tierList.share.includeScribblesSwitch).toHaveAccessibleDescription(INCLUDED);
+      await expect(group.getByRole('button')).toHaveText(['Copy link', 'Copy Markdown', '', '']);
+      await expect(group.getByRole('button', {name: 'Share on Facebook'})).toBeVisible();
+      await expect(group.getByRole('button', {name: 'Share on X'})).toBeVisible();
+      await expect(group.getByText('OR', {exact: true})).toBeVisible();
+    });
+
+    test('writes the link with the ink value to the clipboard, with a toast, when the user clicks Copy link with the switch on', async ({tierList, openAsVisitor}) => {
+      await tierList.share.readCopiedText();
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+      await tierList.share.openSharePanel();
+
+      await tierList.share.copyLinkInOpenPanel();
+
+      await expect(tierList.toast('Link copied to clipboard')).toContainText('It shares your scribbles too.');
+      const link = await tierList.share.clipboardText();
+      expect(link).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, tierList.page.url()).href)}\\?state=3\\.[^&]+&ink=1\\.[^&]+$`));
+      expect(inkOf(link)).toBe(INK);
+      const friend = await openAsVisitor(link);
+      await expect(friend.itemsIn('S')).toHaveText(['Mauga']);
+      await friend.scribble.expectNotes(1);
+    });
+
+    test('writes the Facebook, X, Markdown and Copy link addresses with the ink value when the switch is on', async ({tierList}) => {
+      await tierList.share.readCopiedText();
+      await tierList.share.recordShareWindows();
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+      await tierList.share.openSharePanel();
+
+      expect(inkOf(await tierList.share.addressSharedOn('Facebook'))).toBe(INK);
+      expect(inkOf(await tierList.share.addressSharedOn('X'))).toBe(INK);
+      await tierList.share.copyMarkdownInOpenPanel();
+      expect(inkOf(await tierList.share.copiedLink())).toBe(INK);
+      await tierList.share.copyLinkInOpenPanel();
+      expect(inkOf(await tierList.share.copiedLink())).toBe(INK);
+    });
+
+    test('writes the Facebook, X, Markdown and Copy link addresses without the ink value when the user turns the switch off', async ({tierList, openAsVisitor}) => {
+      await tierList.share.readCopiedText();
+      await tierList.share.recordShareWindows();
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+      await tierList.share.openSharePanel();
+
+      await tierList.share.setIncludeScribbles(false);
+
+      await expect(tierList.share.includeScribblesSwitch).toHaveAccessibleDescription(LEFT_OUT);
+      const shared = [await tierList.share.addressSharedOn('Facebook'), await tierList.share.addressSharedOn('X')];
+      await tierList.share.copyMarkdownInOpenPanel();
+      shared.push(await tierList.share.copiedLink());
+      await tierList.share.copyLinkInOpenPanel();
+      await expect(tierList.toast('Link copied to clipboard')).toContainText('It shares the list without your scribbles.');
+      shared.push(await tierList.share.copiedLink());
+      for (const link of shared) {
+        expect(link).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, tierList.page.url()).href)}\\?state=3\\.[^&]+$`));
+      }
+      expect(new Set(shared).size).toBe(1);
+      expect(tierList.scribble.inkInAddress()).toBe(INK);
+      const friend = await openAsVisitor(shared[0]);
+      await expect(friend.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(friend.scribble.layer).toHaveCount(0);
+    });
+
+    test('writes the canonical ink value alone to Copy link, Copy Markdown, Facebook and X when the link has text after its ink', async ({tierList, page}) => {
+      const tail = encodeURIComponent(') [x](https://evil.example) @everyone\n# hi&foo=bar#frag');
+      await tierList.share.readCopiedText();
+      await tierList.share.recordShareWindows();
+      await tierList.goto(`${LINK_WITH_INK}${tail}`);
+      await tierList.scribble.expectNotes(1);
+      const clean = new RegExp(`^${escapeRegExp(new URL(TANKS, page.url()).href)}\\?state=3\\.[A-Za-z0-9+$-]+&ink=${escapeRegExp(INK)}$`);
+      await tierList.share.openSharePanel();
+
+      expect(await tierList.share.addressSharedOn('Facebook')).toMatch(clean);
+      expect(await tierList.share.addressSharedOn('X')).toMatch(clean);
+      await tierList.share.copyLinkInOpenPanel();
+      expect(await tierList.share.clipboardText()).toMatch(clean);
+      await tierList.share.copyMarkdownInOpenPanel();
+      const markdown = await tierList.share.clipboardText();
+      expect(await tierList.share.copiedLink()).toMatch(clean);
+      expect(markdown.match(/\]\(/g)).toHaveLength(1);
+      expect(markdown).not.toMatch(/evil|@everyone|# hi|foo=bar|#frag/);
+    });
+
+    test('renders the switch off after the panel closes and opens, and on again when the user turns it on', async ({tierList}) => {
+      await tierList.share.readCopiedText();
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+      await tierList.share.openSharePanel();
+      await tierList.share.setIncludeScribbles(false);
+      await tierList.share.closeSharePanelWithShareButton();
+
+      await tierList.share.openSharePanel();
+
+      await expect(tierList.share.includeScribblesSwitch).toHaveAttribute('aria-checked', 'false');
+      await tierList.share.setIncludeScribbles(true);
+      await expect(tierList.share.includeScribblesSwitch).toHaveAccessibleDescription(INCLUDED);
+      await tierList.share.copyLinkInOpenPanel();
+      expect(inkOf(await tierList.share.copiedLink())).toBe(INK);
+    });
+
+    test('renders "Scribbles are not in the picture." in the Image tab when the list has scribbles', async ({tierList}) => {
+      await tierList.goto(LINK_WITH_INK);
+      await tierList.scribble.expectNotes(1);
+
+      await tierList.share.openImageTab();
+
+      await expect(tierList.share.scribblesPictureNote).toBeVisible();
+    });
+  });
+
   test.describe('model', () => {
     const ONE_DEVICE_IMAGE_NOTE = '1 device image shows as a placeholder.';
     const STEPS_WHILE_ENCODING = ['Loading images Done', 'Drawing the image Done', 'Saving the image Step 3 of 3'];
@@ -212,6 +356,12 @@ test.describe('share panel', () => {
         } else {
           await expect(tierList.share.shareTab(view.tab)).toHaveAttribute('aria-selected', 'true');
           if (view.tab === 'URL') await expect(tierList.share.copyMarkdownButton).toBeVisible();
+          if (view.tab === 'URL') {
+            await expect(tierList.share.scribblesGroup).toHaveCount(0);
+            await expect(tierList.share.includeScribblesSwitch).toHaveCount(0);
+            await expect(tierList.share.copyLinkButton).toHaveCount(0);
+          }
+          if (view.tab === 'Image') await expect(tierList.share.scribblesPictureNote).toHaveCount(0);
           if (view.tab === 'Image' && view.capturing) {
             await expect(tierList.share.captureStepRows).toHaveText(STEPS_WHILE_ENCODING);
             await expect(tierList.share.captureStep('Saving the image')).toHaveAttribute('aria-current', 'step');
@@ -300,6 +450,85 @@ test.describe('share panel', () => {
         await tierList.share.holdPictureEncoder();
         const coverage = await walkModel(sharePanelModel, sharePanelSut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, sharePanelModel, coverage, part);
+      });
+    }
+  });
+
+  test.describe('model: scribbles', () => {
+    const LIST = rankingState('image-overwatch', {S: ['Mauga'], '': ['Sigma']});
+
+    const shareScribblesSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      let copied = false;
+      return modelSut<ShareScribblesSnapshot, ShareScribblesEvent>(page, {
+        reset: async () => {
+          copied = false;
+          await tierList.goto(TANKS, LIST);
+          await tierList.share.emptyClipboard();
+        },
+        events: {
+          OPEN_SHARE_PANEL: () => tierList.share.openSharePanel(),
+          CLOSE_WITH_SHARE_BUTTON: () => tierList.share.closeSharePanelWithShareButton(),
+          DRAW_SCRIBBLE: async () => {
+            await tierList.zen.setZenMode(true);
+            await tierList.scribble.setScribble(true);
+            await tierList.scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+            await tierList.zen.setZenMode(false);
+          },
+          COPY_MARKDOWN: async () => {
+            await tierList.share.copyMarkdownInOpenPanel();
+            copied = true;
+          },
+          COPY_LINK: async () => {
+            await tierList.share.copyLinkInOpenPanel();
+            copied = true;
+          },
+          SWITCH_SCRIBBLES_OFF: () => tierList.share.setIncludeScribbles(false),
+          SWITCH_SCRIBBLES_ON: () => tierList.share.setIncludeScribbles(true),
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            const view = shareScribblesViewOf(snapshot);
+            const ink = tierList.scribble.inkInAddress();
+            if (view.scribbles === 'none') {
+              await expect(tierList.scribble.layer).toHaveCount(0);
+              expect(ink).toBeNull();
+            } else {
+              await tierList.scribble.expectNotes(1);
+              expect(ink).toMatch(/^1\./);
+            }
+            if (!view.open) {
+              await expect(tierList.share.sharePanel).toBeHidden();
+            } else if (view.scribbles === 'none') {
+              await expect(tierList.share.copyMarkdownButton).toBeVisible();
+              await expect(tierList.share.scribblesGroup).toHaveCount(0);
+              await expect(tierList.share.includeScribblesSwitch).toHaveCount(0);
+              await expect(tierList.share.copyLinkButton).toHaveCount(0);
+            } else {
+              await expect(tierList.share.includeScribblesSwitch).toHaveAttribute('aria-checked', String(view.scribbles === 'included'));
+              await expect(tierList.share.includeScribblesSwitch).toHaveAccessibleDescription(SCRIBBLES_LINES[view.scribbles]);
+              await expect(tierList.share.scribblesGroup.getByRole('button')).toHaveText(['Copy link', 'Copy Markdown', '', '']);
+            }
+            if (!copied) {
+              await expect.poll(() => tierList.share.clipboardText()).toBe('');
+              return;
+            }
+            const link = await tierList.share.copiedLink();
+            expect(link).toMatch(new RegExp(`^${escapeRegExp(new URL(TANKS, page.url()).href)}\\?state=3\\.`));
+            expect(new URL(link).searchParams.get('ink')?.replace(/ /g, '+') ?? null, 'the ink value in the copied link').toBe(view.clipboardScribbles ? ink : null);
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(shareScribblesModel)) {
+      test(`renders each state of the share scribbles machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        await tierList.share.readCopiedText();
+        const coverage = await walkModel(shareScribblesModel, shareScribblesSut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, shareScribblesModel, coverage, part);
       });
     }
   });

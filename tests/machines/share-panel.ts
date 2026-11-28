@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const sharePanelMachine = createMachine({
   id: 'sharePanel',
-  description: 'The Share panel of the editor, the clipboard that Copy Markdown fills, the Freeze Frame picture that Capture Preview takes, and the device image that the panel’s note counts. The panel opens on the URL tab each time. A capture runs in three steps, and the Image tab lists them while it runs: the browser holds its answer for the encoded picture until the test lets it answer (ENCODER_ANSWERS). The copied link and the picture hold the list as it was when they were made: a device image added later is in neither. A picture stays until the page reloads, so the Image tab shows it again after the panel closes and opens.',
+  description: 'The Share panel of the editor, the clipboard that Copy Markdown fills, the Freeze Frame picture that Capture Preview takes, and the device image that the panel’s note counts. The panel opens on the URL tab each time. A capture runs in three steps, and the Image tab lists them while it runs: the browser holds its answer for the encoded picture until the test lets it answer (ENCODER_ANSWERS). The copied link and the picture hold the list as it was when they were made: a device image added later is in neither. A picture stays until the page reloads, so the Image tab shows it again after the panel closes and opens. The list of this machine has no scribbles, so the URL tab has no group “Include scribbles” and no Copy link: the machine shareScribbles describes the panel of a list with scribbles.',
   type: 'parallel',
   states: {
     panel: {

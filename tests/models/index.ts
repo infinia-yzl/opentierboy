@@ -20,6 +20,10 @@ import {editorRowsModel} from './editor-rows';
 import {zenStepsModel} from './zen-steps';
 import {leavingModel} from './leaving';
 import {linkDialogModel} from './link-dialog';
+import {inkOverPicturesModel} from './ink-over-pictures';
+import {scribbleModel} from './scribble';
+import {shareScribblesModel} from './share-scribbles';
+import {inkHistoryModel} from './ink-history';
 
 export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenLayoutModel,
@@ -43,4 +47,8 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenStepsModel,
   leavingModel,
   linkDialogModel,
+  scribbleModel,
+  shareScribblesModel,
+  inkHistoryModel,
+  inkOverPicturesModel,
 ] as MachineModel[]);

@@ -62,7 +62,7 @@ tests/
   machines/       XState v6 machines of UI areas, one per file, ready to paste into Stately
   models/         what the model-based tests send and check for each machine (see "Model-based tests")
   support/        Playwright fixtures and helpers: links, image sites, snapshot files
-  fixtures/       golden links and link states, golden snapshot files, images to upload (append-only)
+  fixtures/       golden links and link states, golden ink values, golden snapshot files, images to upload (append-only)
   unit/           Vitest unit tests, at the same paths as the code they test
     lib/, app/, models/, scripts/   one test file per source file
     rules/        project rules: ESLint, imports, plain modules, the dnd-kit fork wiring,
@@ -95,13 +95,14 @@ tests/
   | `editor-items` | adding, removing and resetting items; unknown items |
   | `drag-and-drop` | moving items and rows by mouse, keyboard and touch; announcements |
   | `history` | Back and Forward, and the history entries each change adds |
-  | `share-panel` | the link and the Markdown text Share hands out |
+  | `share-panel` | the link and the Markdown text Share hands out; with scribbles, the switch "Include scribbles" and "Copy link" |
   | `snapshot-files` | Freeze Frame: capture, Download, and opening files |
   | `link-images` | images from web addresses, and consent for other sites |
   | `device-images` | uploaded and pasted pictures kept in this browser |
   | `appearance` | Mode, Game colours, Font, and the toasts in each mode |
   | `zen` | Zen mode |
   | `zen-layouts` | Zen's creator layouts: 16:9, 9:16 and the stream overlay (green key) |
+| `scribble` | Scribble, the pen of Zen: the toggle, the pen controls, notes and their anchors, the ink supply, ink in the address, history runs, ink that cannot be read |
   | `tips` | the one-time tips for first-time visitors, and About's "Show the tips again" |
   | `home` | the home page and Recently viewed |
   | `site-pages` | About, Blog and the links between pages |
@@ -146,6 +147,7 @@ own page object, reached through a property of `TierListPage`, also on a visitor
 | `tierList.files` | `snapshot-files.ts` | opening snapshot files, the dialog "Open the list in this file?" |
 | `tierList.share` | `share-panel.ts` | the share panel and Freeze Frame |
 | `tierList.zen` | `zen.ts` | the Zen bar, the ranking order, the item up next and the queue, the creator layouts |
+| `tierList.scribble` | `scribble.ts` | the button "Scribble", the pen controls, drawing with the mouse, the ink layer and its notes, the ink value of the address, a refused ink write (`prepareInkWriteRefusals`, `refuseNextInkWrite`), a lower write limit (`setInkWriteLimit`) |
 
 An area object gets the `TierListPage` it belongs to (`this.tierList`) and its `page`, and uses
 the core for rows and items. What several page objects need lives in `helpers.ts` (boxes on
@@ -555,6 +557,9 @@ v2). A script made them once from git history; it was removed in 2.0.0, and git 
 it (`scripts/generate-legacy-fixtures.mjs`). `v3.json` holds links in the v3 format, and each of its entries must also encode back
 to its `state` (see `docs/reference/link-format.md`). The unit tests in `tests/unit/lib/state/` decode
 every entry of these files and of `shared-links.json`.
+`tests/fixtures/scribble/ink-v1.json` holds ink values (the `ink=` value of an address with
+scribbles) with the notes each one decodes to; `tests/unit/fixtures/ink-v1.test.ts` decodes every
+entry and encodes it back (see `docs/reference/scribble.md`).
 The same rule applies: append, never edit. `npm run check:fixtures` fails when an existing
 entry of a fixture file, `image-registry.lock.json` or `image-aliases.json` changed or
 disappeared compared with the base branch (pass `-- --base <ref>` to choose the branch).
@@ -564,6 +569,9 @@ disappeared compared with the base branch (pass `-- --base <ref>` to choose the 
 - **The browser history is the undo feature.** Every change to the list adds a history
   entry, and the Back button steps back to the previous version of the list, one change at a
   time (`history.spec.ts`). This is intended behaviour, not a bug.
+- **A run of scribbles is one history entry.** Notes drawn, removed or cleared between two
+  changes to the list share one entry (owner decision, 2026-11-25); Back removes the whole run
+  (`scribble.spec.ts`, "history"). Changes to the list keep one entry each.
 - **Moving a row's items keeps the labels in place.** Dropping the stack of row S on A's
   position moves the contents; the labels stay S, A, B... from top to bottom. The grip moves the
   whole row, its name included (owner decision, 2026-11-14); the colours stay with the positions.

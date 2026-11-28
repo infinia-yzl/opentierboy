@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {expect, test} from '../support/test';
 import {scanForViolations} from '../support/accessibility';
-import {packageItemId, rankingState, v3State} from '../support/links';
+import {circleNoteOn, inkValue, packageItemId, rankingState, rawInk, v3State} from '../support/links';
 import {serveImageSite} from '../support/image-sites';
 import {pngFile} from '../support/snapshot-files';
 import type {SitePage, ThemeMode} from '../pages/site-page';
@@ -13,6 +13,8 @@ const SHARED_LIST = rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston'
 const UNNAMED_ROW_LIST = v3State({r: [
   ['tier-s', 'S', [packageItemId('image-overwatch', 'Mauga')]], ['tier-1', '', [packageItemId('image-overwatch', 'Winston')]], ['tier-b', 'B', []], ['uncategorized', '', []],
 ]});
+const INK = inkValue([circleNoteOn('image-overwatch', 'Mauga'), circleNoteOn('image-overwatch', 'Sigma', 'blue')]);
+const LOW_INK = rawInk(`~f.c${'gf'.repeat(410)}`);
 const SNAPSHOT = path.resolve(__dirname, '../fixtures/snapshots/chromium-2026-10-31.png');
 
 interface Scan {
@@ -52,6 +54,22 @@ const SCANS: readonly Scan[] = [
   {name: 'the upload dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.deviceImages.openUploadDialog())},
   {name: 'the link dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.linkImages.openLinkImageDialog())},
   {name: 'the share panel', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.share.openSharePanel())},
+  {name: 'the editor with the scribbles of a link', by: 'page', phone: true, open: ({tierList}) => tierList.scribble.gotoWithInk(TANKS, SHARED_LIST, INK)},
+  {name: 'the editor with scribbles that cannot be read', by: 'page', phone: true, open: async ({tierList}) => {
+    await tierList.scribble.gotoWithInk(TANKS, SHARED_LIST, '1.this-is-not-ink');
+    await expect(tierList.scribble.inkNotice).toBeVisible();
+  }},
+  {name: 'the share panel of a list with scribbles', by: 'user', phone: true, open: async ({tierList}) => {
+    await tierList.scribble.gotoWithInk(TANKS, SHARED_LIST, INK);
+    await tierList.share.openSharePanel();
+    await tierList.share.setIncludeScribbles(false);
+  }},
+  {name: 'the pen controls of Scribble with little ink', by: 'user', phone: true, open: async ({tierList}) => {
+    await tierList.scribble.gotoWithInk(TANKS, SHARED_LIST, LOW_INK);
+    await tierList.zen.setZenMode(true);
+    await tierList.scribble.setScribble(true);
+    await expect(tierList.scribble.inkStatus).toContainText('Ink 18% left');
+  }},
   {name: 'the Remove All dialog', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.items.openRemoveAll())},
   {name: 'the Row options menu', by: 'user', phone: true, open: onSharedList(({tierList}) => tierList.rows.openRowOptions())},
   {name: 'the dialog "Open the list in this file?"', by: 'user', phone: false, open: async ({site}) => {
