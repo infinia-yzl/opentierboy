@@ -30,6 +30,7 @@ export interface Surface {
   readonly items: readonly (Place & {readonly id: string})[];
   readonly rows: readonly Place[];
   readonly tray: Place | null;
+  readonly pictures?: readonly Box[];
 }
 
 export const FALLBACK_UNIT = 64;

@@ -16,6 +16,21 @@ function shownIn(surface: Element, element: Element, rect: Rect): boolean {
   return true;
 }
 
+function shownPart(surface: Element, element: Element, rect: Rect): Rect | null {
+  let part = rect;
+  for (let box = element.parentElement; box && box !== surface; box = box.parentElement) {
+    if (box.scrollHeight <= box.clientHeight + 1 && box.scrollWidth <= box.clientWidth + 1) continue;
+    const clip = box.getBoundingClientRect();
+    const left = Math.max(part.left, clip.left);
+    const top = Math.max(part.top, clip.top);
+    const right = Math.min(part.right, clip.right);
+    const bottom = Math.min(part.bottom, clip.bottom);
+    if (right <= left || bottom <= top) return null;
+    part = {left, top, right, bottom, width: right - left, height: bottom - top};
+  }
+  return part;
+}
+
 function tileUnitOf(area: Element | null): number {
   const unit = area ? parseFloat(getComputedStyle(area).minHeight) : NaN;
   return unit > 0 ? unit : 0;
@@ -41,9 +56,16 @@ export function measureSurface(layer: Element): Surface {
   const trayElement = surface.querySelector(`[${SCRIBBLE_TRAY_ATTRIBUTE}]`);
   const trayUnit = tileUnitOf(trayElement?.querySelector(`[${SCRIBBLE_AREA_ATTRIBUTE}]`) ?? null);
   const unit = rowUnits.find((size) => size > 0) || trayUnit || FALLBACK_UNIT;
+  const itemElements = Array.from(surface.querySelectorAll(`[${SCRIBBLE_ITEM_ATTRIBUTE}]`));
   return {
     unit,
-    items: Array.from(surface.querySelectorAll(`[${SCRIBBLE_ITEM_ATTRIBUTE}]`)).map((element) => {
+    pictures: itemElements.flatMap((element) => {
+      const tile = element.querySelector('img') ?? element;
+      const rect = tile.getBoundingClientRect();
+      const part = rect.width > 0 && rect.height > 0 ? shownPart(surface, tile, rect) : null;
+      return part ? [boxOf(part)] : [];
+    }),
+    items: itemElements.map((element) => {
       const tile = element.querySelector('img') ?? element;
       return {
         id: element.getAttribute(SCRIBBLE_ITEM_ATTRIBUTE) ?? '',

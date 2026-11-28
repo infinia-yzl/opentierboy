@@ -47,6 +47,10 @@ reload, Back and Forward read it. Link previews and Freeze Frame files hold no i
   frame in 16:9, 9:16 and the overlay, and the editor's column in the plain layout. Tiles and
   rows take no press, so nothing moves under the pen. With Scribble off the ink stays on screen
   and takes no pointer events: everything works as without Scribble.
+- **Ink over pictures.** Where a stroke crosses the picture of an item, the ink is negative ink:
+  the brightness of the picture is reversed under the stroke, and Red and Blue add their hue.
+  Contrast ink shows the plain negative. On rows, labels, the tray and the background the ink is
+  solid, as before. See "Ink over pictures" below.
 - **Leaving Zen** turns the pen off. The ink stays on screen.
 - **In the editor, outside Zen,** the ink of the address shows too, read only (owner decision,
   2026-11-26): same anchors, no pen controls, and the pointer passes through it. The pen stays
@@ -288,6 +292,27 @@ changes to the list is **one** history entry.
 - Without scribbles the panel is as before: no group, no switch, no "Copy link".
 - The switch is `components/ui/switch.tsx`: shadcn's Switch, on `@radix-ui/react-switch` (a
   dependency added for it, owner decision F5.3a).
+
+## Ink over pictures
+
+Solid ink hides the pixels under it. Negative ink keeps them: a reader of a screenshot or of a
+video frame can undo it and get the picture back.
+
+- `measureSurface` returns the shown part of every tile picture (`Surface.pictures`): the `img`
+  of a tile, or the tile itself when it has none, cut to the scrolling boxes around it.
+- `ScribbleLayer` draws the strokes three times, each cut to its own area:
+  1. white strokes over the pictures, in a layer with `mix-blend-mode: difference`. Each colour
+     channel becomes 255 minus its value;
+  2. Red and Blue strokes over the pictures, in a layer with `mix-blend-mode: color`. The result
+     takes the hue and the saturation of the ink and keeps the brightness of step 1. Contrast
+     strokes are left out of this layer;
+  3. solid strokes everywhere else, in the layer that holds the notes and takes the pen.
+- The two picture layers are `aria-hidden`, take no pointer events and stay out of a Freeze
+  Frame, like the note layer.
+- **Undoing it.** With brightness as `0.3 R + 0.59 G + 0.11 B`, the brightness of the picture is
+  255 minus the brightness on screen. The colour under Red or Blue ink is gone and is filled in
+  from the pixels beside the stroke. Under Contrast ink every channel is 255 minus its value.
+- A browser that does not blend with `color` shows solid Red and Blue ink over pictures.
 
 ## Places that never get ink
 

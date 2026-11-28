@@ -1,8 +1,10 @@
 import {expect, type Locator, type Page} from '@playwright/test';
+import {PNG} from 'pngjs';
 import {boxOf, centerOfBox, menuClosedOnto, type Box, type Point} from './helpers';
 import type {TierListPage} from './tier-list-page';
 
 export type InkColourName = 'Red' | 'Blue' | 'Contrast';
+export type Rgb = readonly [number, number, number];
 
 export const INK_SUPPLY = 500;
 const ZIGZAG_SPAN = 60;
@@ -253,6 +255,30 @@ export class Scribble {
   async pointIn(target: Locator, x: number, y: number): Promise<Point> {
     const box = await boxOf(target);
     return {x: box.x + box.width * x, y: box.y + box.height * y};
+  }
+
+  async lineAcross(target: Locator, y = 0.5): Promise<Point[]> {
+    const box = await boxOf(target);
+    const row = Math.floor(box.y + box.height * y) + 0.5;
+    return Array.from({length: 15}, (_, index) => ({x: Math.floor(box.x + box.width * (0.15 + index * 0.05)) + 0.5, y: row}));
+  }
+
+  async expectPictureLoaded(item: Locator) {
+    await expect.poll(() => item.getByRole('img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      {message: 'the picture of the item has loaded'}).toBe(true);
+  }
+
+  async pixelColumnsAt(points: readonly Point[]): Promise<Rgb[][]> {
+    const columns: Rgb[][] = [];
+    for (const point of points) {
+      const shot = await this.page.screenshot({
+        clip: {x: Math.floor(point.x), y: Math.floor(point.y) - 1, width: 1, height: 3},
+        scale: 'css',
+      });
+      const {data} = PNG.sync.read(shot);
+      columns.push([0, 1, 2].map((row): Rgb => [data[row * 4], data[row * 4 + 1], data[row * 4 + 2]]));
+    }
+    return columns;
   }
 
   async dotAt(point: Point) {

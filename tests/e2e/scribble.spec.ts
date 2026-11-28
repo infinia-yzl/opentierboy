@@ -2,7 +2,7 @@ import type {Page, TestInfo} from '@playwright/test';
 import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import type {TierListPage} from '../pages/tier-list-page';
-import {INK_SUPPLY} from '../pages/scribble';
+import {INK_SUPPLY, type Rgb} from '../pages/scribble';
 import INK_FIXTURES from '../fixtures/scribble/ink-v1.json';
 import {circleNoteOn, inkNoteCount, inkValue, rankingState, rawInk} from '../support/links';
 import {pngFile, snapshotTextOf} from '../support/snapshot-files';
@@ -17,6 +17,16 @@ const MAUGA_AND_SIGMA = inkValue([circleNoteOn('image-overwatch', 'Mauga'), circ
 const OUT_OF_INK = 'Out of ink. Remove a note to get ink back.';
 const LIGHT_INK = {Red: 'rgb(220, 38, 38)', Blue: 'rgb(37, 99, 235)', Contrast: 'rgb(12, 17, 67)'};
 const DARK_INK = {Red: 'rgb(248, 113, 113)', Blue: 'rgb(96, 165, 250)', Contrast: 'rgb(255, 255, 255)'};
+
+const SAMPLES = [2, 5, 7, 9, 12];
+const NEAR = 10;
+const lumOf = ([r, g, b]: Rgb) => 0.3 * r + 0.59 * g + 0.11 * b;
+const columnsWhere = (before: Rgb[][], after: Rgb[][], holds: (was: Rgb, now: Rgb) => boolean) =>
+  before.filter((column, index) => column.some((was, row) => holds(was, after[index][row]))).length;
+const isNegative = (was: Rgb, now: Rgb) => was.every((value, channel) => Math.abs(now[channel] - (255 - value)) <= NEAR);
+const isReversedRed = (was: Rgb, now: Rgb) =>
+  Math.abs(lumOf(now) - (255 - lumOf(was))) <= NEAR && now[0] >= now[1] - 2 && now[0] >= now[2] - 2;
+const isColour = (colour: string) => (_: Rgb, now: Rgb) => `rgb(${now.join(', ')})` === colour;
 
 test.describe('scribble', () => {
   test.describe('pen', () => {
@@ -466,6 +476,66 @@ test.describe('scribble', () => {
       expect(await scribble.inkColoursOf(scribble.note('Note 1 on Mauga'))).toEqual([LIGHT_INK.Red]);
       expect(await scribble.inkColoursOf(scribble.note('Note 2 on Winston'))).toEqual([LIGHT_INK.Blue]);
       expect(await scribble.inkColoursOf(scribble.note('Note 3 on Sigma'))).toEqual([LIGHT_INK.Contrast]);
+    });
+
+    test.describe('over pictures', () => {
+      test('renders the negative of the picture under the stroke when Contrast ink crosses an item', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        await scribble.chooseInkColour('Contrast');
+        await scribble.expectPictureLoaded(tierList.item('Mauga'));
+        const line = await scribble.lineAcross(tierList.item('Mauga'));
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.pixelColumnsAt(samples);
+
+        await scribble.draw(line);
+        await scribble.expectNotes(1);
+
+        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isNegative)).toBe(SAMPLES.length);
+      });
+
+      test('renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        await scribble.expectPictureLoaded(tierList.item('Mauga'));
+        const line = await scribble.lineAcross(tierList.item('Mauga'));
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.pixelColumnsAt(samples);
+
+        await scribble.draw(line);
+        await scribble.expectNotes(1);
+
+        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isReversedRed)).toBe(SAMPLES.length);
+      });
+
+      test('renders the picture as before when the user removes the note that crossed it', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        await scribble.expectPictureLoaded(tierList.item('Mauga'));
+        const line = await scribble.lineAcross(tierList.item('Mauga'));
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.pixelColumnsAt(samples);
+        await scribble.draw(line);
+        await scribble.expectNotes(1);
+
+        await scribble.removeLastNote();
+        await scribble.expectNotes(0);
+
+        expect(await scribble.pixelColumnsAt(samples)).toEqual(before);
+      });
+
+      test('renders solid red ink when the stroke crosses an empty row', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        const line = await scribble.lineAcross(tierList.tier('B'), 0.6);
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.pixelColumnsAt(samples);
+
+        await scribble.draw(line);
+        await scribble.expectNotes(1);
+
+        expect(columnsWhere(before, await scribble.pixelColumnsAt(samples), isColour(LIGHT_INK.Red))).toBe(SAMPLES.length);
+      });
     });
 
     test.describe('dark mode', () => {
