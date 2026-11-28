@@ -33,7 +33,7 @@ import {framePainted} from "@/lib/framePainted";
 import {type CapturePhase, CaptureSteps} from "@/components/CaptureSteps";
 import {Switch} from "@/components/ui/switch";
 import {ScribbleIcon} from "@/components/ScribbleIcon";
-import {useScribble} from "@/components/useScribble";
+import {saveScribbleNotes, useScribble} from "@/components/useScribble";
 
 /**
  * Link images come from other sites, and a canvas that draws them without the site's consent
@@ -178,7 +178,11 @@ const ShareButton: React.FC<ShareButtonProps> = ({title}) => {
   const [isSaving, setIsSaving] = useState(false);
   const downloadSnapshot = useSnapshotDownload();
   const [panelOpen, setPanelOpen] = useState(false);
-  useEffect(() => onOpenSharePanel(() => setPanelOpen(true)), []);
+  const showPanel = useCallback((open: boolean) => {
+    if (open) saveScribbleNotes();
+    setPanelOpen(open);
+  }, []);
+  useEffect(() => onOpenSharePanel(() => showPanel(true)), [showPanel]);
   const tipRing = useTips().current === 'link-save';
   const listCard = useListCardData();
   const [card, setCard] = useState<ListCardData | null>(null);
@@ -360,7 +364,7 @@ What do you think? 🤔
       </div>,
       document.body,
     )}
-    <Popover open={panelOpen} onOpenChange={setPanelOpen}>
+    <Popover open={panelOpen} onOpenChange={showPanel}>
       <PopoverTrigger asChild>
         <Button className={cn('gap-2', tipRing && 'ring-2 ring-ring ring-offset-2 ring-offset-background')} disabled={isCapturing}>
           <Share1Icon className="h-4 w-4"/>

@@ -8,6 +8,7 @@ import {DEFAULT_INK_COLOUR, type InkColour} from '@/lib/scribble/colours';
 import type {InkProblem} from '@/lib/scribble/format';
 import {inkOfAddress, inkOfNotes, NO_INK, type Ink} from '@/lib/scribble/ink';
 import {pointsIn, removeLastNote as withoutLastNote, type Note} from '@/lib/scribble/notes';
+import {INK_WRITE_LIMIT, INK_WRITE_LIMIT_STORAGE_KEY, inkWriteDecision, inkWriteLimitFrom, type InkWriteLimit} from '@/lib/scribble/writeLimit';
 
 interface Unsaved {
   readonly ink: Ink;
@@ -38,6 +39,14 @@ const KEPT_INKS = 16;
 const pathInWindow = () => decodeURI(window.location.pathname);
 const addressInWindow = () => window.location.pathname + window.location.search;
 
+function storedInkWriteLimit(): InkWriteLimit {
+  try {
+    return inkWriteLimitFrom(window.localStorage.getItem(INK_WRITE_LIMIT_STORAGE_KEY));
+  } catch {
+    return INK_WRITE_LIMIT;
+  }
+}
+
 function tellRouterTheAddress() {
   try {
     window.history.replaceState(null, '', window.location.href);
@@ -46,10 +55,11 @@ function tellRouterTheAddress() {
   }
 }
 
-function createScribbleStore() {
+function createScribbleStore(now: () => number = () => performance.now(), limitNow: () => InkWriteLimit = storedInkWriteLimit) {
   let pen = INITIAL_PEN;
   let run: string | null = null;
   let listening = false;
+  let writtenAt: readonly number[] = [];
   const inks = new Map<string, Ink>();
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach(listener => listener());
@@ -71,6 +81,7 @@ function createScribbleStore() {
     if (pen.unsaved) setPen({...pen, unsaved: null});
     else notify();
   };
+  const mayWrite = (): boolean => inkWriteDecision(writtenAt, now(), limitNow()) === 'write';
   const landed = (href: string, value: string | null, continues: boolean): boolean => {
     try {
       if (continues) window.history.replaceState(null, '', href);
@@ -82,6 +93,7 @@ function createScribbleStore() {
   };
   const writeAddress = (href: string, value: string | null): boolean => {
     const continues = run !== null && run === addressInWindow();
+    writtenAt = [...writtenAt, now()].slice(-INK_WRITE_LIMIT.writes);
     if (!landed(href, value, continues)) {
       tellRouterTheAddress();
       return false;
@@ -90,17 +102,20 @@ function createScribbleStore() {
     listAddressWritten(continues ? 'replace' : 'push');
     return true;
   };
-  const write = (notes: readonly Note[]) => {
+  const write = (notes: readonly Note[], forced: boolean) => {
     const ink = inkOfNotes(notes);
     if (ink.raw !== null) keep(ink.raw, ink);
     const at = addressInWindow();
     const saved = ink.value === read(inkInSearch(window.location.search)).value
-      || writeAddress(window.location.pathname + searchWithInk(window.location.search, ink.value), ink.value);
+      || ((forced || mayWrite()) && writeAddress(window.location.pathname + searchWithInk(window.location.search, ink.value), ink.value));
     setPen({...pen, drawing: 0, unsaved: saved ? null : {ink, at}});
   };
   const save = () => {
     const unsaved = unsavedAt(addressInWindow());
-    if (unsaved) write(unsaved.notes);
+    if (unsaved) write(unsaved.notes, true);
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') save();
   };
   return Object.freeze({
     subscribe(listener: () => void): () => void {
@@ -108,12 +123,16 @@ function createScribbleStore() {
       if (!listening) {
         listening = true;
         window.addEventListener('popstate', onPopState);
+        window.addEventListener('pagehide', save);
+        document.addEventListener('visibilitychange', onVisibilityChange);
       }
       return () => {
         listeners.delete(listener);
         if (listeners.size === 0 && listening) {
           listening = false;
           window.removeEventListener('popstate', onPopState);
+          window.removeEventListener('pagehide', save);
+          document.removeEventListener('visibilitychange', onVisibilityChange);
         }
       };
     },
@@ -121,7 +140,8 @@ function createScribbleStore() {
     read,
     unsavedAt,
     notesNow: (): readonly Note[] => inkNow().notes,
-    write,
+    write: (notes: readonly Note[]) => write(notes, false),
+    save,
     setOn(on: boolean) {
       if (on === pen.on) return;
       if (!on) save();
@@ -139,10 +159,10 @@ function createScribbleStore() {
     },
     removeLastNote() {
       const {notes} = inkNow();
-      if (notes.length > 0) write(withoutLastNote(notes));
+      if (notes.length > 0) write(withoutLastNote(notes), false);
     },
     clear() {
-      if (inkNow().notes.length > 0) write(NO_NOTES);
+      if (inkNow().notes.length > 0) write(NO_NOTES, false);
     },
     listAddress(href: string, pathname: string, mode: 'push' | 'replace'): string {
       const here = pathInWindow() === pathname;
@@ -202,6 +222,7 @@ export const toggleScribble = store.toggle;
 export const setInkColour = store.setColour;
 export const setInkBeingDrawn = store.setDrawing;
 export const writeScribbleNotes = store.write;
+export const saveScribbleNotes = store.save;
 export const removeLastNote = store.removeLastNote;
 export const clearScribbles = store.clear;
 export const listAddressWithInk = store.listAddress;
