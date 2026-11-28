@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 139 |
+| RED: the walk failed on the changed value | 146 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -31,6 +31,11 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | App: every label forced to the left (`components/DragDropTierList.tsx`) | The history walk, once its check read the label position (fixed later). Three hand-written tests in `history.spec.ts` and `share-panel.spec.ts`. |
 | App: Undo puts a deleted item at the end of its row (`lib/tierList.ts`) | One unit test in `tierList.test.ts`. Part 1 of the remove-and-undo walk, at step 2. |
 | App: a row stack shows on an empty row (`components/RowHandle.tsx`) | All 4 parts of the mouse-drag walk. |
+| App: the pen ignores its write limit (`components/useScribble.ts`, 2026-11-28) | All 7 tests of "fast drawing" in `scribble.spec.ts`, and the ink-history walk. |
+| App: pen off writes only when the limit allows it (`components/useScribble.ts`, 2026-11-28) | "writes every note to the entry of the run when the user turns Scribble off after notes past the limit", and the ink-history walk. |
+| App: a hidden page writes nothing (`components/useScribble.ts`, 2026-11-28) | "writes the waiting note to the address when the page becomes hidden after a note past the limit" |
+| App: opening the Share panel writes nothing (`components/ShareButton.tsx`, 2026-11-28) | "writes the unsaved note to the address and the copied link when the user opens Share after a refused pen-off write" |
+| App: a refused ink write does not hand Next.js the address again (`components/useScribble.ts`, 2026-11-28) | 2 of the 5 tests of "refused history write" in `scribble.spec.ts`: the address held the refused ink, and with two refusals the page ended on the Next.js error screen. |
 | Test: "position 2 of 3" changed to "1 of 3" | "writes no history entry and no new URL when the user moves an item right and back with the keyboard and drops it" |
 | Test: toast title changed | "renders the toast "Item restored" when the user clicks Undo in the toast "Item deleted"" |
 | Test: "Show Labels" changed to "Hide Labels" | "renders row labels on top when the page opens a v3 link with lp top" |
@@ -307,3 +312,10 @@ Recorded on 2026-11-28, against the commit that adds the model. Each edit change
 | runAfterReload | :33 `view(2, 3, 3)` -> `view(2, 2, 2)` | RED | step count expected "2 / 2", got "3 / 3" |
 | noteNotWritten (the address) | :22 `inkInAddress: false` -> `true` | RED | address expected to match `/[?&]ink=1\./`, got the address without an ink value |
 | noteNotWritten | :22 `view(1, 1, 1)` -> `view(1, 2, 2)` | RED | step count expected "2 / 2", got "1 / 1" |
+| noteWaiting (the address, later the same day) | ink-history.ts:25 `notesInAddress: 1` removed, so 2 | RED | 4 steps: "the notes in the ink value of the address" expected 2, got 1 |
+| noteWaiting | :25 `view(2, 2, 2)` -> `view(1, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: 1 note", got "Scribbles: 2 notes" |
+| runOfTwoNotes (the address) | :26 `view(2, 2, 2)` with `notesInAddress: 1` | RED | 2 steps: "the notes in the ink value of the address" expected 1, got 2 |
+| backFromWaitingNote | :29 `view(0, 1, 2)` -> `view(2, 1, 2)` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: no notes" |
+| forwardWithoutWaitingNote | :30 `view(1, 2, 2)` -> `view(2, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: 1 note" |
+| DRAW_NOTE_PAST_LIMIT (app) | App break: the pen ignores its write limit in `components/useScribble.ts` | RED | "a held note should not be in the address yet" |
+| PEN_OFF_AND_ON (app) | App break: pen off writes only when the limit allows it | RED | "pen off should write the waiting note" |

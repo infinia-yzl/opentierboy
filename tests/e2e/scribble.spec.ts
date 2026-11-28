@@ -4,7 +4,7 @@ import {expect, test} from '../support/test';
 import type {TierListPage} from '../pages/tier-list-page';
 import {INK_SUPPLY} from '../pages/scribble';
 import INK_FIXTURES from '../fixtures/scribble/ink-v1.json';
-import {circleNoteOn, inkValue, rankingState, rawInk} from '../support/links';
+import {circleNoteOn, inkNoteCount, inkValue, rankingState, rawInk} from '../support/links';
 import {pngFile, snapshotTextOf} from '../support/snapshot-files';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {notesIn, penOf, scribbleModel, type ScribbleEvent, type ScribbleSnapshot} from '../models/scribble';
@@ -995,6 +995,10 @@ test.describe('scribble', () => {
   });
 
   test.describe('refused history write', () => {
+    test.beforeEach(async ({tierList}) => {
+      await tierList.scribble.prepareInkWriteRefusals();
+    });
+
     test('renders the note and writes it with the next note when the browser refuses one history write', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
@@ -1085,6 +1089,141 @@ test.describe('scribble', () => {
     });
   });
 
+  test.describe('fast drawing', () => {
+    const TWO_WRITES = {writes: 2, windowMs: 86_400_000};
+    const NO_WRITES = {writes: 0, windowMs: 30_000};
+
+    test('renders the third note, and writes 2 notes to the address, when the limit is 2 ink writes', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(TWO_WRITES);
+      const newEntries = await tierList.countNewHistoryEntries();
+      await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Winston'), 2);
+      const written = scribble.inkInAddress();
+
+      await scribble.drawNoteHeld(tierList.item('Sigma'), 3);
+      await scribble.drawNoteHeld(tierList.tierLabel('F'), 4);
+
+      expect(scribble.inkInAddress()).toBe(written);
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
+      await expect.poll(async () => (await scribble.noteNames()).slice(0, 3)).toEqual(['Note 1 on Mauga', 'Note 2 on Winston', 'Note 3 on Sigma']);
+    });
+
+    test('writes every note to the entry of the run when the user turns Scribble off after notes past the limit', async ({tierList, page}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(TWO_WRITES);
+      const newEntries = await tierList.countNewHistoryEntries();
+      await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Winston'), 2);
+      await scribble.drawNoteHeld(tierList.item('Sigma'), 3);
+      const before = page.url();
+
+      await scribble.setScribble(false);
+
+      await expect(page, 'pen off should write the notes').not.toHaveURL(before);
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
+      await scribble.setScribble(true);
+      await tierList.zen.stepInZenBar('Back');
+      await scribble.expectNotes(0);
+      expect(scribble.inkInAddress()).toBeNull();
+      await tierList.zen.stepInZenBar('Forward');
+      await scribble.expectNotes(3);
+      await tierList.reload();
+      await scribble.expectNotes(3);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on Winston', 'Note 3 on Sigma']);
+    });
+
+    test('writes the waiting note and the next note with 1 new history entry when the limit allows a write again', async ({tierList, page}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(NO_WRITES);
+      const newEntries = await tierList.countNewHistoryEntries();
+      await scribble.drawNoteHeld(tierList.item('Mauga'), 1);
+      expect(scribble.inkInAddress()).toBeNull();
+      expect(await newEntries()).toBe(0);
+      await scribble.setInkWriteLimit(null);
+
+      await scribble.drawNoteAndWaitForInk(tierList.item('Sigma'), 2);
+
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
+      await tierList.reload();
+      await scribble.expectNotes(2);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on Sigma']);
+      await expect(page).toHaveURL(/[?&]ink=1\./);
+    });
+
+    test('writes the waiting note with the list change when the user moves an item by keyboard after a note past the limit', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(NO_WRITES);
+      await scribble.drawNoteHeld(tierList.item('Mauga'), 1);
+
+      await tierList.drag.moveItemWithKeyboard('Winston', ['ArrowUp']);
+      await tierList.reload();
+
+      await scribble.expectNotes(1);
+      await expect(tierList.itemIn('B', 'Winston')).toBeVisible();
+    });
+
+    test('writes the waiting note to the address when the page becomes hidden after a note past the limit', async ({tierList, page}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(NO_WRITES);
+      await scribble.drawNoteHeld(tierList.item('Mauga'), 1);
+
+      await scribble.hidePage();
+
+      await expect(page).toHaveURL(/[?&]ink=1\./);
+      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
+      await tierList.reload();
+      await scribble.expectNotes(1);
+    });
+
+    test('renders no note after Back, and the 2 written notes after Forward, when a third note waited past the limit', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(TWO_WRITES);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Winston'), 2);
+      await scribble.drawNoteHeld(tierList.item('Sigma'), 3);
+
+      await tierList.zen.stepInZenBar('Back');
+
+      await scribble.expectNotes(0);
+      expect(scribble.inkInAddress()).toBeNull();
+      await tierList.zen.stepInZenBar('Forward');
+      await scribble.expectNotes(2);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on Winston']);
+    });
+
+    test('writes the unsaved note to the address and the copied link when the user opens Share after a refused pen-off write', async ({tierList, page, openAsVisitor}) => {
+      const {scribble} = tierList;
+      await scribble.prepareInkWriteRefusals();
+      await tierList.share.readCopiedText();
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.setInkWriteLimit(NO_WRITES);
+      await scribble.drawNoteHeld(tierList.item('Mauga'), 1);
+      await scribble.refuseNextInkWrite();
+      await tierList.zen.setZenMode(false);
+      await scribble.expectNotes(1);
+      expect(scribble.inkInAddress()).toBeNull();
+
+      await tierList.share.openSharePanel();
+
+      await expect(page).toHaveURL(/[?&]ink=1\./);
+      await tierList.share.copyLinkInOpenPanel();
+      const copied = await tierList.share.copiedLink();
+      expect(new URL(copied).searchParams.get('ink')?.replace(/ /g, '+')).toBe(scribble.inkInAddress());
+      const friend = await openAsVisitor(copied);
+      await friend.scribble.expectNotes(1);
+    });
+  });
+
   test.describe('model', () => {
     const scribbleSut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
       const {scribble} = tierList;
@@ -1158,6 +1297,7 @@ test.describe('scribble', () => {
         reset: async () => {
           onScreen = null;
           await tierList.openAfterBlankPage(TANKS, LIST);
+          await scribble.setInkWriteLimit(null);
           await tierList.zen.setZenMode(true);
           await scribble.setScribble(true);
         },
@@ -1170,6 +1310,17 @@ test.describe('scribble', () => {
           DRAW_NOTE_REFUSED: async () => {
             await scribble.refuseNextInkWrite();
             await scribble.drawCircleOn(tierList.item('Mauga'));
+          },
+          DRAW_NOTE_PAST_LIMIT: async () => {
+            await scribble.setInkWriteLimit({writes: 0, windowMs: 30_000});
+            await scribble.drawNoteHeld(tierList.item('Orisa'), 2);
+          },
+          PEN_OFF_AND_ON: async () => {
+            const before = page.url();
+            await scribble.setScribble(false);
+            await expect(page, 'pen off should write the waiting note').not.toHaveURL(before);
+            await scribble.setInkWriteLimit(null);
+            await scribble.setScribble(true);
           },
           REMOVE_LAST_NOTE: () => scribble.removeLastNote(),
           CLEAR: () => scribble.clear(),
@@ -1189,11 +1340,12 @@ test.describe('scribble', () => {
         states: {
           '*': async (_page, snapshot) => {
             onScreen = snapshot;
-            const {notes, step, total, listChanged, inkInAddress} = inkHistoryViewOf(snapshot);
+            const {notes, step, total, listChanged, inkInAddress, notesInAddress} = inkHistoryViewOf(snapshot);
             await scribble.expectNotes(notes);
             await expect(tierList.zen.zenStepCount).toHaveText(`${step} / ${total}`);
             if (inkInAddress) await expect(page).toHaveURL(/[?&]ink=1\./);
             else await expect(page).not.toHaveURL(/[?&]ink=/);
+            await expect.poll(() => inkNoteCount(page.url()), {message: 'the notes in the ink value of the address'}).toBe(notesInAddress);
             await expect(tierList.itemIn(listChanged ? 'A' : 'C', 'Winston')).toBeVisible();
           },
         },
@@ -1206,6 +1358,7 @@ test.describe('scribble', () => {
     for (const part of walkParts(inkHistoryModel)) {
       test(`renders each state of the ink history machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
         test.setTimeout(MODEL_PART_TIMEOUT);
+        await tierList.scribble.prepareInkWriteRefusals();
         const coverage = await walkModel(inkHistoryModel, inkHistorySut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, inkHistoryModel, coverage, part);
       });

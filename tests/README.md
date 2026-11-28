@@ -147,7 +147,7 @@ own page object, reached through a property of `TierListPage`, also on a visitor
 | `tierList.files` | `snapshot-files.ts` | opening snapshot files, the dialog "Open the list in this file?" |
 | `tierList.share` | `share-panel.ts` | the share panel and Freeze Frame |
 | `tierList.zen` | `zen.ts` | the Zen bar, the ranking order, the item up next and the queue, the creator layouts |
-| `tierList.scribble` | `scribble.ts` | the button "Scribble", the pen controls, drawing with the mouse, the ink layer and its notes, the ink value of the address |
+| `tierList.scribble` | `scribble.ts` | the button "Scribble", the pen controls, drawing with the mouse, the ink layer and its notes, the ink value of the address, a refused ink write (`prepareInkWriteRefusals`, `refuseNextInkWrite`), a lower write limit (`setInkWriteLimit`) |
 
 An area object gets the `TierListPage` it belongs to (`this.tierList`) and its `page`, and uses
 the core for rows and items. What several page objects need lives in `helpers.ts` (boxes on

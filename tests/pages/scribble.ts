@@ -112,22 +112,52 @@ export class Scribble {
     }, {message: `${message}: the note should be where it was on its tile, and as large`}).toBeLessThanOrEqual(0.02);
   }
 
-  async refuseNextInkWrite(writes = 1) {
-    await this.page.evaluate((count) => {
-      const {pushState, replaceState} = window.history;
+  async prepareInkWriteRefusals() {
+    await this.page.addInitScript(() => {
+      const refusals = {left: 0};
       const inkOf = (address: string) => new URL(address, window.location.href).searchParams.get('ink');
-      let left = count;
-      const refusing = (write: History['pushState']) => function (this: History, data: unknown, unused: string, url?: string | URL | null) {
-        const writesInk = url !== undefined && url !== null && inkOf(String(url)) !== inkOf(window.location.href);
-        if (writesInk && left > 0) {
-          left--;
-          throw new DOMException('Too many calls to the history', 'SecurityError');
-        }
-        write.call(this, data, unused, url);
-      };
-      window.history.pushState = refusing(pushState);
-      window.history.replaceState = refusing(replaceState);
+      for (const name of ['pushState', 'replaceState'] as const) {
+        const write = History.prototype[name];
+        History.prototype[name] = function (this: History, data: unknown, unused: string, url?: string | URL | null) {
+          const writesInk = url !== undefined && url !== null && inkOf(String(url)) !== inkOf(window.location.href);
+          if (writesInk && refusals.left > 0) {
+            refusals.left--;
+            throw new DOMException('Too many calls to the history', 'SecurityError');
+          }
+          write.call(this, data, unused, url);
+        };
+      }
+      Object.defineProperty(window, 'inkWriteRefusals', {value: refusals});
+    });
+  }
+
+  async refuseNextInkWrite(writes = 1) {
+    await this.page.evaluate((left) => {
+      const refusals = (window as unknown as {inkWriteRefusals?: {left: number}}).inkWriteRefusals;
+      if (!refusals) throw new Error('Call prepareInkWriteRefusals before the page opens.');
+      refusals.left = left;
     }, writes);
+  }
+
+  async setInkWriteLimit(limit: {writes: number; windowMs: number} | null) {
+    await this.page.evaluate(([key, value]) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }, ['otb-ink-write-limit', limit === null ? null : JSON.stringify(limit)] as const);
+  }
+
+  async drawNoteHeld(target: Locator, notes: number) {
+    const before = this.page.url();
+    await this.drawCircleOn(target);
+    await this.expectNotes(notes);
+    expect(this.page.url(), 'a held note should not be in the address yet').toBe(before);
+  }
+
+  async hidePage() {
+    await this.page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', {configurable: true, get: () => 'hidden'});
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
   }
 
   async expectCaptionUnder(itemName: string) {

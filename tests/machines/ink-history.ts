@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const inkHistoryMachine = createMachine({
   id: 'inkHistory',
-  description: 'The browser history of scribbles, in Zen with the pen on. A run of drawing between two changes to the list is one history entry: its first ink change adds the entry and each later one updates it. A change to the list, Back, Forward and a reload end the run. A browser can refuse a history write: the note then stays on screen, and the next ink change writes it. Each state says how many notes the ink layer has, what the Zen bar’s step count reads, and whether the address has an ink value.',
+  description: 'The browser history of scribbles, in Zen with the pen on. A run of drawing between two changes to the list is one history entry: its first ink change adds the entry and each later one updates it. A change to the list, Back, Forward and a reload end the run. A browser can refuse a history write: the note then stays on screen, and the next ink change writes it. The pen also limits how often it writes: a note past the limit waits on screen, and turning the pen off writes it. Each state says how many notes the ink layer has, what the Zen bar’s step count reads, and whether the address has an ink value.',
   initial: 'opened',
   states: {
     opened: {
@@ -20,13 +20,28 @@ export const inkHistoryMachine = createMachine({
       description: 'A run is open with 1 note: step 2 / 2, with an ink value.',
       on: {
         DRAW_NOTE: {target: 'runOfTwoNotes'},
+        DRAW_NOTE_PAST_LIMIT: {target: 'noteWaiting'},
         REMOVE_LAST_NOTE: {target: 'runWithoutNotes'},
         CLEAR: {target: 'runWithoutNotes'},
         RELOAD: {target: 'reloaded'},
       },
     },
+    noteWaiting: {
+      description: 'The pen wrote as often as its limit allows, so the second note waits: 2 notes on screen, step 2 / 2, and the address still has the ink value of 1 note.',
+      on: {
+        PEN_OFF_AND_ON: {target: 'runOfTwoNotes'},
+        BACK: {target: 'backFromWaitingNote'},
+      },
+    },
+    backFromWaitingNote: {
+      description: 'Back from the run while a note waited: the whole run is gone, and the waiting note with it. No note, step 1 / 2, no ink value.',
+      on: {FORWARD: {target: 'forwardWithoutWaitingNote'}},
+    },
+    forwardWithoutWaitingNote: {
+      description: 'Forward onto the run: the 1 note that was written is there again, step 2 / 2. The note that waited is gone.',
+    },
     runOfTwoNotes: {
-      description: 'A run with 2 notes: step 2 / 2, with an ink value. It is the same run as with 1 note, or the run that a second note opens after a refused write.',
+      description: 'A run with 2 notes: step 2 / 2, with an ink value. It is the same run as with 1 note, also after the pen was turned off to write a waiting note, or the run that a second note opens after a refused write.',
       on: {
         REMOVE_LAST_NOTE: {target: 'runOfOneNote'},
         CLEAR: {target: 'runWithoutNotes'},

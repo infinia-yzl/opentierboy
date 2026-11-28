@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import {encodeInk} from '@/lib/scribble/format';
+import {decodeInk, encodeInk} from '@/lib/scribble/format';
 import type {Note} from '@/lib/scribble/notes';
 import imagesetConfig from '../../imageset.config.json';
 import legacyConfig from '../../imageset.legacy.json';
@@ -136,6 +136,14 @@ export function inkValue(notes: readonly Note[]): string {
   const value = encodeInk(notes);
   if (value === null) throw new Error('An ink value needs one note or more');
   return value;
+}
+
+export function inkNoteCount(link: string): number {
+  const value = new URL(link).searchParams.get('ink');
+  if (value === null) return 0;
+  const read = decodeInk(value.replace(/ /g, '+'));
+  if (!read.ok) throw new Error(`The ink value of the link cannot be read: ${read.reason}`);
+  return read.notes.length;
 }
 
 export function rawInk(text: string, version = '1'): string {

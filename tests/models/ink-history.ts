@@ -12,18 +12,22 @@ export interface InkHistoryView {
   readonly total: number;
   readonly listChanged: boolean;
   readonly inkInAddress: boolean;
+  readonly notesInAddress: number;
 }
 
 const view = (notes: number, step: number, total: number, listChanged = false): InkHistoryView =>
-  ({notes, step, total, listChanged, inkInAddress: notes > 0});
+  ({notes, step, total, listChanged, inkInAddress: notes > 0, notesInAddress: notes});
 
 export const INK_HISTORY_VIEWS = {
   opened: view(0, 1, 1),
-  noteNotWritten: {...view(1, 1, 1), inkInAddress: false},
+  noteNotWritten: {...view(1, 1, 1), inkInAddress: false, notesInAddress: 0},
   runOfOneNote: view(1, 2, 2),
+  noteWaiting: {...view(2, 2, 2), notesInAddress: 1},
   runOfTwoNotes: view(2, 2, 2),
   runWithoutNotes: view(0, 2, 2),
   backFromRun: view(0, 1, 2),
+  backFromWaitingNote: view(0, 1, 2),
+  forwardWithoutWaitingNote: view(1, 2, 2),
   forwardOnRun: view(2, 2, 2),
   runAfterForward: view(3, 3, 3),
   listChanged: view(2, 3, 3, true),
@@ -45,6 +49,8 @@ export const inkHistoryModel = defineModel({
   events: {
     DRAW_NOTE: {generate: constant, when: offered('DRAW_NOTE')},
     DRAW_NOTE_REFUSED: {generate: constant, when: offered('DRAW_NOTE_REFUSED')},
+    DRAW_NOTE_PAST_LIMIT: {generate: constant, when: offered('DRAW_NOTE_PAST_LIMIT')},
+    PEN_OFF_AND_ON: {generate: constant, when: offered('PEN_OFF_AND_ON')},
     REMOVE_LAST_NOTE: {generate: constant, when: offered('REMOVE_LAST_NOTE')},
     CLEAR: {generate: constant, when: offered('CLEAR')},
     CHANGE_LIST: {generate: constant, when: offered('CHANGE_LIST')},
