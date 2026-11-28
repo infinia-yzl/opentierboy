@@ -231,8 +231,8 @@ changes to the list is **one** history entry.
   in this group (owner decision F5.6).
 - The Image tab says "Scribbles are not in the picture." when the list has scribbles.
 - Without scribbles the panel is as before: no group, no switch, no "Copy link".
-- The switch is `components/ui/switch.tsx`: shadcn's Switch as a plain button with
-  `role="switch"`, because the Radix switch package is not a dependency of the app.
+- The switch is `components/ui/switch.tsx`: shadcn's Switch, on `@radix-ui/react-switch` (a
+  dependency added for it, owner decision F5.3a).
 
 ## Places that never get ink
 

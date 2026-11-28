@@ -65,6 +65,18 @@ test.describe('security', () => {
       expect(await cspViolations()).toEqual([]);
     });
 
+    test('writes no CSP violation report when the user draws a note and turns the switch "Include scribbles" off and on', async ({tierList, cspViolations}) => {
+      await tierList.scribble.gotoWithScribble('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}));
+      await tierList.scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await tierList.zen.setZenMode(false);
+      await tierList.share.openSharePanel();
+
+      await tierList.share.setIncludeScribbles(false);
+      await tierList.share.setIncludeScribbles(true);
+
+      expect(await cspViolations()).toEqual([]);
+    });
+
     test('writes no CSP violation report when the user saves and opens a Freeze Frame and drops a picture', async ({tierList, site, page, cspViolations}) => {
       await tierList.goto('/rank/overwatch/tank', rankingState('image-overwatch', {S: ['Mauga']}, 'CSP snapshot'));
       await tierList.deviceImages.addItemsFromDevice([imageFile('red-square.png')]);
