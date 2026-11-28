@@ -78,6 +78,18 @@ export class EditorItems {
     });
   }
 
+  async deleteItemNow(itemName: string) {
+    await this.tierList.item(itemName).click({button: 'right'});
+    await this.page.getByRole('menuitem', {name: 'Delete'}).click();
+    await expect(this.tierList.openMenus).toHaveCount(0);
+  }
+
+  async resetRankingsNow() {
+    await this.openItemsMenu();
+    await this.page.getByRole('menuitem', {name: 'Reset'}).click();
+    await expect(this.tierList.openMenus).toHaveCount(0);
+  }
+
   async resetRankings() {
     await changeAndWaitForLink(this.page, async () => {
       await this.openItemsMenu();

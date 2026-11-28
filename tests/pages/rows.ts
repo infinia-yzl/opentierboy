@@ -85,6 +85,12 @@ export class Rows {
     });
   }
 
+  async chooseLabelPositionNow(position: LabelPosition) {
+    await this.tierList.rowOptionsButton.click();
+    await this.page.getByRole('menuitemradio', {name: position, exact: true}).click();
+    await expect(this.tierList.openMenus).toHaveCount(0);
+  }
+
   async setItemLabelsVisible(visible: boolean) {
     await changeAndWaitForLink(this.page, async () => {
       await this.tierList.rowOptionsButton.click();
@@ -117,6 +123,16 @@ export class Rows {
 
   async chooseLabelPositionWithKeyboard(position: LabelPosition) {
     await this.chooseRowOptionWithKeyboard(this.page.getByRole('menuitemradio', {name: position, exact: true}));
+  }
+
+  async chooseLabelPositionWithKeyboardNow(position: LabelPosition) {
+    await this.openRowOptions();
+    await this.chooseOpenRowOption(this.page.getByRole('menuitemradio', {name: position, exact: true}));
+  }
+
+  async setItemLabelsVisibleWithKeyboardNow(visible: boolean) {
+    await this.openRowOptions();
+    await this.chooseOpenRowOption(this.page.getByRole('menuitemradio', {name: visible ? 'Show Labels' : 'Hide Labels'}));
   }
 
   async setItemLabelsVisibleWithKeyboard(visible: boolean) {

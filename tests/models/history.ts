@@ -23,6 +23,7 @@ export const historyModel = defineModel({
   machine: historyMachine,
   events: {
     CHANGE_LIST: {generate: constant, weight: 3, when: offered('CHANGE_LIST')},
+    CHANGE_REFUSED: {generate: constant, when: offered('CHANGE_REFUSED')},
     BROWSER_BACK: {generate: constant, weight: 3, when: offered('BROWSER_BACK')},
     BROWSER_FORWARD: {generate: constant, weight: 2, when: always},
     CHOOSE_TOP: {generate: constant, when: offered('CHOOSE_TOP')},

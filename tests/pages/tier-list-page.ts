@@ -2,7 +2,7 @@ import {expect, type Locator, type Page, type Route} from '@playwright/test';
 import {expectHydrated} from '../support/hydrated';
 import {escapeRegExp} from '../support/regexp';
 import {boxOf, changeAndWaitForLink, rowPhrase, UNTIL_STARTED} from './helpers';
-import {toasts} from './toasts';
+import {expectOneNewToast, toasts} from './toasts';
 import {Rows} from './rows';
 import {EditorItems} from './editor-items';
 import {DragAndDrop} from './drag-and-drop';
@@ -160,6 +160,57 @@ export class TierListPage {
 
   async goBackNow() {
     await this.page.goBack({waitUntil: 'commit'});
+  }
+
+  async prepareListWriteRefusals() {
+    await this.page.addInitScript(() => {
+      const refusals = {left: 0, silent: false};
+      const listOf = (address: string) => new URL(address, window.location.href).searchParams.get('state');
+      for (const name of ['pushState', 'replaceState'] as const) {
+        const write = History.prototype[name];
+        History.prototype[name] = function (this: History, data: unknown, unused: string, url?: string | URL | null) {
+          const writesList = url !== undefined && url !== null && listOf(String(url)) !== listOf(window.location.href);
+          if (writesList && refusals.left > 0) {
+            refusals.left--;
+            if (refusals.silent) return;
+            throw new DOMException('Too many calls to the history', 'SecurityError');
+          }
+          write.call(this, data, unused, url);
+        };
+      }
+      Object.defineProperty(window, 'listWriteRefusals', {value: refusals});
+    });
+  }
+
+  async refuseNextListWrite({writes = 1, silently = false}: {writes?: number; silently?: boolean} = {}) {
+    await this.page.evaluate(({left, silent}) => {
+      const refusals = (window as unknown as {listWriteRefusals?: {left: number; silent: boolean}}).listWriteRefusals;
+      if (!refusals) throw new Error('Call prepareListWriteRefusals before the page opens.');
+      refusals.left = left;
+      refusals.silent = silent;
+    }, {left: writes, silent: silently});
+  }
+
+  async refuseListWriteOf(change: () => Promise<void>) {
+    await expectOneNewToast(this.page, async () => {
+      await this.refuseNextListWrite();
+      await change();
+    }, 'Your browser paused saving');
+  }
+
+  get savePausedToast(): Locator {
+    return this.toast('Your browser paused saving');
+  }
+
+  async expectSavePaused() {
+    await expect(this.savePausedToast).toHaveCount(1);
+    await expect(this.savePausedToast).toContainText('Try again in a moment.');
+  }
+
+  async expectSavePausedAlone() {
+    await this.expectSavePaused();
+    await this.savePausedToast.hover({force: true});
+    await expect(toasts(this.page), 'a refused change should leave no toast of a change that happened').toHaveText([/^Your browser paused saving/]);
   }
 
   async historyLength(): Promise<number> {
@@ -356,6 +407,11 @@ export class TierListPage {
       await input.press('Enter');
       await expect(this.title).toHaveText(newTitle);
     });
+  }
+
+  async typeTitleAndPressEnter(newTitle: string) {
+    const input = await this.typeTitle(newTitle);
+    await input.press('Enter');
   }
 
   async typeTitle(newTitle: string): Promise<Locator> {

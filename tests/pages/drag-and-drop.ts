@@ -212,6 +212,35 @@ export class DragAndDrop {
     return heard;
   }
 
+  async dragItemToTierRefused(itemName: string, tierName: string) {
+    await this.dragWithMouse(this.tierList.item(itemName), () => this.freeSpaceIn(tierName, itemName), {over: this.overRow(itemName, tierName)});
+    await expect(this.dragAnnouncer, 'a refused drop should be announced as a move that did not happen').toHaveText(/^Move cancelled\. /);
+  }
+
+  async dragFirstUnrankedItemToTierRefused(tierName: string) {
+    const first = this.tierList.itemsIn('Unranked').first();
+    await expect(first, 'the Unranked tray should show an item to rank').toBeVisible();
+    await this.dragItemToTierRefused(await first.getAttribute('aria-label') ?? '', tierName);
+  }
+
+  async moveItemWithKeyboardRefused(itemName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.moveWithKeyboard(this.tierList.item(itemName), keys, itemName, heard, 'Move cancelled.');
+    return heard;
+  }
+
+  async moveRowWithKeyboardRefused(tierName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.moveWithKeyboard(this.tierList.rowGrip(tierName), keys, /^Move (?:row |Row \d+$)/, heard, 'Move cancelled.');
+    return heard;
+  }
+
+  async moveRowItemsWithKeyboardRefused(tierName: string, keys: string[]): Promise<string[]> {
+    const heard: string[] = [];
+    await this.moveWithKeyboard(this.tierList.rowStack(tierName), keys, /^Move the \d+ items? of /, heard, 'Move cancelled.');
+    return heard;
+  }
+
   async moveRowWithKeyboard(tierName: string, keys: string[]): Promise<string[]> {
     const heard: string[] = [];
     await this.dropAndWaitForLink(() => this.moveWithKeyboard(this.tierList.rowGrip(tierName), keys, /^Move (?:row |Row \d+$)/, heard));
@@ -241,7 +270,7 @@ export class DragAndDrop {
     await this.expectEveryItemDraggable();
   }
 
-  private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = []) {
+  private async moveWithKeyboard(handle: Locator, keys: string[], focusAfter: string | RegExp, heard: string[] = [], ending: 'Dropped' | 'Move cancelled.' = 'Dropped') {
     const keyboard = this.page.keyboard;
     await this.dropEnded();
     await handle.focus();
@@ -254,7 +283,7 @@ export class DragAndDrop {
       heard.push(await this.dragAnnouncer.textContent() ?? '');
     }
     await keyboard.press('Space');
-    await expect(this.dragAnnouncer).toContainText('Dropped');
+    await expect(this.dragAnnouncer).toContainText(ending);
     heard.push(await this.dragAnnouncer.textContent() ?? '');
     await expect.poll(() => this.page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), {
       message: 'focus should come back to what was moved',

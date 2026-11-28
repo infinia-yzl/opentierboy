@@ -153,6 +153,15 @@ screen, scroll positions, `changeAndWaitForLink`, `menuClosedOnto`) and `toasts.
 `expectOneNewToast`, `untilToastGone`). The model campaigns call the same methods: a step
 that only a model needs goes in the object of its area too.
 
+**A history write that the browser refuses.** `tierList.prepareListWriteRefusals()`, called
+before the page opens, wraps the browser's History API below Next.js. `refuseNextListWrite()`
+then refuses the next call that would change the `state` value: it throws a `SecurityError`, or
+ignores the call with `{silently: true}`. A call that leaves the list as it is passes, so the
+call Next.js makes after each write is never refused. The step after it ends on what a person
+sees: the announcer (`dragItemToTierRefused`, `moveItemWithKeyboardRefused`) and the toast
+(`expectSavePaused`). `expectSavePausedAlone` first puts the pointer on the toast, which stops
+Sonner's timers: a success toast shown by mistake then stays, and the check reads it.
+
 ## What the tests check
 
 The tests check the code of this repository. The libraries it uses (Sonner, dnd-kit, Radix,
