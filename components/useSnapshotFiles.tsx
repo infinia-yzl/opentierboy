@@ -20,6 +20,7 @@ import {useAddItemsWithUndo, useLinkImageItems} from '@/components/useAddItems';
 import {zenModeIsOn} from '@/components/usePageState';
 import {recordRecentLink} from '@/components/useRecentLinks';
 import {listAddressWritten} from '@/components/useListSteps';
+import {writeHistory} from '@/components/historyWrite';
 import {isIsoMediaFile, sniffImageType} from '@/lib/images/imageType';
 import {linkImageLabels, pastedImageLabel} from '@/lib/images/listImages';
 import {checkImage, type ImageCheckFailure, labelFallback} from '@/lib/images/imageCheck';
@@ -357,7 +358,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     setOpening(true);
     const moves = historyMoves.current;
-    /** True when the opening must stop: the visitor left, or went Back or Forward meanwhile. */
     const abandoned = () => {
       if (!alive.current) return true;
       if (!leaving.current && historyMoves.current === moves) return false;
@@ -366,7 +366,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     };
     try {
       const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
-      // Never pull a visitor who left back into the editor, or over a version they went to.
       if (abandoned()) return;
       const state = snapshotLinkAfterImport(snapshot, ids);
       if (snapshotLinkTooLong(state)) {
@@ -376,22 +375,26 @@ export function useSnapshotFiles(): UseSnapshotFiles {
       }
       if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
       const {pathname: here} = latest.current;
-      const address = stateParam(new URLSearchParams(window.location.search).get('state'));
+      const addressNow = () => stateParam(new URLSearchParams(window.location.search).get('state'));
+      const address = addressNow();
       const title = snapshot.list.title ?? '';
       if (here === snapshot.path && address === state) {
-        // The address shows this list already: opening it again changes nothing.
         recordRecentLink({path: snapshot.path, state, title});
         finishOpening();
         return;
       }
-      target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
       const href = `${snapshot.path}?state=${state}`;
-      if (snapshot.path === here) {
-        window.history.pushState(null, '', href);
-        listAddressWritten('push');
-      } else {
+      if (snapshot.path !== here) {
+        target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
         router.push(href);
+        return;
       }
+      if (!writeHistory('push', href, () => addressNow() === state)) {
+        finishOpening();
+        return;
+      }
+      target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
+      listAddressWritten('push');
     } catch {
       if (!alive.current) return;
       toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.damaged});

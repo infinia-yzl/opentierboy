@@ -154,6 +154,7 @@ type AnnouncedEvent = Parameters<Announcements['dragstart']>[0] | Parameters<Non
 export interface AnnouncedDrag {
   tiers: readonly TierLike[];
   preview: readonly TierLike[];
+  refused?: boolean;
 }
 
 /** The dnd-kit events that get an announcement. */
@@ -189,7 +190,7 @@ export function endedWithoutDrop(event: Pick<DragEndEvent, 'canceled' | 'operati
 export function createAnnouncements(read: AnnouncedDragReader): Announcements {
   const announce = (phase: DragPhase, event: AnnouncedEvent, manager: DragDropManager, type: AnnouncedEventType) => {
     const drag = read(phase, event, manager, type);
-    return drag && previewAnnouncement(phase, drag.tiers, drag.preview, event.operation.source?.id);
+    return drag && previewAnnouncement(drag.refused ? 'cancel' : phase, drag.tiers, drag.preview, event.operation.source?.id);
   };
   return {
     dragstart: (event, manager) => announce('start', event, manager, 'dragstart'),

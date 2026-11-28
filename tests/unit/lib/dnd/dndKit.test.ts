@@ -177,6 +177,13 @@ describe('createAnnouncements', () => {
     expect(announcements.dragend({operation: {source, target: null}, canceled: false} as never, keyboard)).toBe('Dropped Winston in row S, position 2 of 2.');
   });
 
+  it('returns Move cancelled for pointer and keyboard drags when the reader reports a refused drop', () => {
+    const announcements = createAnnouncements(() => ({tiers, preview, refused: true}));
+    const dropped = {operation: {source, target: {id: 'item:w'}}, canceled: false} as never;
+    expect(announcements.dragend(dropped, pointer)).toBe('Move cancelled. Winston is back in Unranked, position 1 of 1.');
+    expect(announcements.dragend(dropped, keyboard)).toBe('Move cancelled. Winston is back in Unranked, position 1 of 1.');
+  });
+
   it('returns undefined when the reader returns undefined or the source id is unknown', () => {
     const announcements = createAnnouncements(() => undefined);
     expect(announcements.dragover!({operation: {source}} as never, pointer)).toBeUndefined();

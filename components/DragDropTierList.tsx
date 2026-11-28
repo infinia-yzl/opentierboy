@@ -422,7 +422,7 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImages
   const handleDeleteItem = useCallback((itemId: string) => {
     const deleted = findItemToDelete(tiersRef.current, itemId);
     if (!deleted) return;
-    deleteItem(itemId);
+    if (!deleteItem(itemId)) return;
 
     let restored = false;
     toast('Item deleted', {
@@ -431,9 +431,8 @@ const DragDropTierList: React.FC<DragDropTierListProps> = ({belowRows, addImages
         label: 'Undo',
         onClick: () => {
           if (restored) return;
-          restored = true;
-          // Undo is a new change to the list, so it adds a history entry (A6).
-          restoreItem(deleted.item, deleted.tierId, deleted.index);
+          restored = restoreItem(deleted.item, deleted.tierId, deleted.index);
+          if (!restored) return;
           toast('Item restored', {
             description: `${itemDisplayLabel(deleted.item)} has been restored.`,
           });

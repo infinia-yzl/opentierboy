@@ -9,6 +9,7 @@ import {createTierCortex, type TierCortex} from "@/lib/TierCortex";
 import type {ListLayout} from "@/lib/listLink";
 import {recordRecentLink} from "@/components/useRecentLinks";
 import {listAddressWritten} from "@/components/useListSteps";
+import {writeHistory} from "@/components/historyWrite";
 import {rankPageTitle} from "@/lib/rankRoute";
 import type {ItemPosition} from "@/lib/dnd/model";
 import {
@@ -31,23 +32,23 @@ export interface TierContext {
   shareLink: string;
   linkWrites: number;
 
-  setTitle: (title: string) => void;
-  moveItem: (from: ItemPosition, to: ItemPosition) => void;
-  moveTier: (from: number, to: number) => void;
-  moveRow: (from: number, to: number) => void;
-  addTier: () => void;
-  removeTier: (tierId: string) => void;
-  renameTier: (index: number, name: string) => void;
-  deleteItem: (itemId: string) => void;
-  restoreItem: (item: Item, tierId: string, index: number) => void;
-  addItems: (items: Item[]) => void;
-  removeItems: (itemIds: string[]) => void;
-  resetRankings: () => void;
-  removeAllItems: () => void;
-  restoreTiers: (tiers: Tier[]) => void;
-  onTemplateChange: (template: readonly Tier[]) => void;
-  setLabelPosition: (position: LabelPosition) => void;
-  toggleLabels: () => void;
+  setTitle: (title: string) => boolean;
+  moveItem: (from: ItemPosition, to: ItemPosition) => boolean;
+  moveTier: (from: number, to: number) => boolean;
+  moveRow: (from: number, to: number) => boolean;
+  addTier: () => boolean;
+  removeTier: (tierId: string) => boolean;
+  renameTier: (index: number, name: string) => boolean;
+  deleteItem: (itemId: string) => boolean;
+  restoreItem: (item: Item, tierId: string, index: number) => boolean;
+  addItems: (items: Item[]) => boolean;
+  removeItems: (itemIds: string[]) => boolean;
+  resetRankings: () => boolean;
+  removeAllItems: () => boolean;
+  restoreTiers: (tiers: Tier[]) => boolean;
+  onTemplateChange: (template: readonly Tier[]) => boolean;
+  setLabelPosition: (position: LabelPosition) => boolean;
+  toggleLabels: () => boolean;
 }
 
 export const TierContext = React.createContext<TierContext | undefined>(undefined);
@@ -104,24 +105,25 @@ export function TierListProvider({initialItemSet, pageTitle, children}: TierList
     if (openedLink) recordRecentLink(openedLink);
   }, [openedLink]);
 
-  const write = useCallback((written: ListWrite | null) => {
-    if (!written) return;
+  const write = useCallback((written: ListWrite | null): boolean => {
+    if (!written) return true;
     const href = `${pathname}?state=${written.link}`;
-    if (written.mode === 'replace') window.history.replaceState(null, '', href);
-    else window.history.pushState(null, '', href);
+    if (!writeHistory(written.mode, href, () => addressInWindow() === written.link)) return false;
     listAddressWritten(written.mode);
     setLinkWrites((count) => count + 1);
+    return true;
   }, [pathname]);
 
-  const change = useCallback((apply: ListChange) => {
-    write(lists.edit(addressNow(), apply, layout));
+  const change = useCallback((apply: ListChange): boolean => {
+    return write(lists.edit(addressNow(), apply, layout));
   }, [lists, write, layout, addressNow]);
 
-  const changeLayout = useCallback((changes: Partial<ListLayout>) => {
+  const changeLayout = useCallback((changes: Partial<ListLayout>): boolean => {
     const next = {...layout, ...changes};
-    if (next.labelPosition === layout.labelPosition && next.showLabels === layout.showLabels) return;
+    if (next.labelPosition === layout.labelPosition && next.showLabels === layout.showLabels) return true;
+    if (!write(lists.relayout(addressNow(), next))) return false;
     setLayout(next);
-    write(lists.relayout(addressNow(), next));
+    return true;
   }, [layout, lists, write, addressNow]);
 
   const actions = useMemo(() => ({
