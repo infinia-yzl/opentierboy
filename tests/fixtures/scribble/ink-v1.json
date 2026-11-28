@@ -3401,5 +3401,196 @@
         ]
       }
     ]
+  },
+  {
+    "id": "ink-v1-overwatch-tank-items",
+    "description": "Notes on two items of the OVERWATCH tank template by their real ids (Mauga and Winston), on row 3 (index 2), on the Unranked tray and on the frame. The end-to-end tests open this value in the editor.",
+    "ink": "1.H4SwggmiC2CGDmBTAtAewG6IE4HdYBcBjAC2TgFcA6HRAIwAdKsAOdW1AdQCsPbbuOqdly4A7UJBgIUGbHiKkcIUdTqNardgL4ChqEeKxgAwkwD68AELx4YAJKj0ogAqVCAM3ePg+NxYAiYLYAilhYAB4AUsDulLQBNvYA1rBJSUA",
+    "notes": [
+      {
+        "anchor": {
+          "kind": "item",
+          "id": "image-overwatch-mau.webp"
+        },
+        "strokes": [
+          {
+            "colour": "red",
+            "points": [
+              {
+                "x": 0.90625,
+                "y": 0.5
+              },
+              {
+                "x": 0.78125,
+                "y": 0.78125
+              },
+              {
+                "x": 0.5,
+                "y": 0.90625
+              },
+              {
+                "x": 0.21875,
+                "y": 0.78125
+              },
+              {
+                "x": 0.09375,
+                "y": 0.5
+              },
+              {
+                "x": 0.21875,
+                "y": 0.21875
+              },
+              {
+                "x": 0.5,
+                "y": 0.09375
+              },
+              {
+                "x": 0.78125,
+                "y": 0.21875
+              },
+              {
+                "x": 0.90625,
+                "y": 0.46875
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": {
+          "kind": "item",
+          "id": "image-overwatch-win.webp"
+        },
+        "strokes": [
+          {
+            "colour": "blue",
+            "points": [
+              {
+                "x": 0.90625,
+                "y": 0.5
+              },
+              {
+                "x": 0.78125,
+                "y": 0.78125
+              },
+              {
+                "x": 0.5,
+                "y": 0.90625
+              },
+              {
+                "x": 0.21875,
+                "y": 0.78125
+              },
+              {
+                "x": 0.09375,
+                "y": 0.5
+              },
+              {
+                "x": 0.21875,
+                "y": 0.21875
+              },
+              {
+                "x": 0.5,
+                "y": 0.09375
+              },
+              {
+                "x": 0.78125,
+                "y": 0.21875
+              },
+              {
+                "x": 0.90625,
+                "y": 0.46875
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": {
+          "kind": "row",
+          "index": 2
+        },
+        "strokes": [
+          {
+            "colour": "red",
+            "points": [
+              {
+                "x": 3,
+                "y": 0.25
+              },
+              {
+                "x": 3.25,
+                "y": 0.75
+              },
+              {
+                "x": 3.5,
+                "y": 0.25
+              }
+            ]
+          },
+          {
+            "colour": "contrast",
+            "points": [
+              {
+                "x": 3.5,
+                "y": 0.25
+              },
+              {
+                "x": 3.75,
+                "y": 0.75
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": {
+          "kind": "tray"
+        },
+        "strokes": [
+          {
+            "colour": "contrast",
+            "points": [
+              {
+                "x": 6,
+                "y": 0.5
+              },
+              {
+                "x": 6.375,
+                "y": 0.875
+              },
+              {
+                "x": 6.9375,
+                "y": 0.1875
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "anchor": {
+          "kind": "frame"
+        },
+        "strokes": [
+          {
+            "colour": "blue",
+            "points": [
+              {
+                "x": 7,
+                "y": 0.25
+              },
+              {
+                "x": 7.15625,
+                "y": 0.09375
+              },
+              {
+                "x": 7.3125,
+                "y": 0.25
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]

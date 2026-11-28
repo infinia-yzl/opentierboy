@@ -3,14 +3,17 @@ import {modelSut} from '../support/model-sut';
 import {expect, test} from '../support/test';
 import type {TierListPage} from '../pages/tier-list-page';
 import {INK_SUPPLY} from '../pages/scribble';
+import INK_FIXTURES from '../fixtures/scribble/ink-v1.json';
 import {circleNoteOn, inkValue, rankingState, rawInk} from '../support/links';
 import {pngFile, snapshotTextOf} from '../support/snapshot-files';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {notesIn, penOf, scribbleModel, type ScribbleEvent, type ScribbleSnapshot} from '../models/scribble';
+import {inkHistoryModel, inkHistoryViewOf, type InkHistoryEvent, type InkHistorySnapshot} from '../models/ink-history';
 
 const TANKS = '/rank/overwatch/tank';
 const LIST = rankingState('image-overwatch', {S: ['Mauga'], C: ['Winston'], '': ['Sigma', 'Orisa']});
 const INK_SUPPLY_TEXT = (points: number) => `~f.r${'gf'.repeat(points)}`;
+const MAUGA_AND_SIGMA = inkValue([circleNoteOn('image-overwatch', 'Mauga'), circleNoteOn('image-overwatch', 'Sigma', 'blue')]);
 const OUT_OF_INK = 'Out of ink. Remove a note to get ink back.';
 const LIGHT_INK = {Red: 'rgb(220, 38, 38)', Blue: 'rgb(37, 99, 235)', Contrast: 'rgb(12, 17, 67)'};
 const DARK_INK = {Red: 'rgb(248, 113, 113)', Blue: 'rgb(96, 165, 250)', Contrast: 'rgb(255, 255, 255)'};
@@ -52,6 +55,18 @@ test.describe('scribble', () => {
       await scribble.pressScribbleKey();
       await scribble.expectScribble(true);
 
+      await scribble.pressScribbleKey();
+      await scribble.expectScribble(false);
+    });
+
+    test('renders the toolbar "Scribble" when the user presses D down and the key repeats three times', async ({tierList}) => {
+      const {scribble} = tierList;
+      await tierList.goto(TANKS, LIST);
+      await tierList.zen.setZenMode(true);
+
+      await scribble.holdScribbleKey();
+
+      await scribble.expectScribble(true);
       await scribble.pressScribbleKey();
       await scribble.expectScribble(false);
     });
@@ -239,6 +254,102 @@ test.describe('scribble', () => {
 
       await scribble.expectNotes(0);
       await expect(scribble.notes).toHaveCount(0);
+    });
+
+    test('renders the note at the same place and size on its tile when the tiles are Compact with labels on and off, and in 16:9', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithInk(TANKS, LIST, inkValue([circleNoteOn('image-overwatch', 'Mauga')]));
+      const note = scribble.note('Note 1 on Mauga');
+      await expect(note).toBeVisible();
+      const place = await scribble.placeOnTile(note, 'Mauga');
+      expect(place.width).toBeGreaterThan(0.75);
+      expect(place.width).toBeLessThan(0.9);
+
+      await tierList.rows.chooseTileSize('Compact');
+      await scribble.expectPlaceOnTile(note, 'Mauga', place, 'Compact, labels off');
+      await tierList.rows.setItemLabelsVisible(true);
+      await scribble.expectCaptionUnder('Mauga');
+      await scribble.expectPlaceOnTile(note, 'Mauga', place, 'Compact, labels on');
+      await tierList.zen.setZenMode(true);
+      await scribble.expectPlaceOnTile(note, 'Mauga', place, 'Zen, Compact, labels on');
+      await tierList.zen.chooseLayout('16:9');
+      await scribble.expectPlaceOnTile(note, 'Mauga', place, 'Layout: 16:9');
+      await tierList.zen.chooseLayout('Editor');
+      await scribble.expectCaptionUnder('Mauga');
+      await scribble.expectPlaceOnTile(note, 'Mauga', place, 'Layout: Editor again');
+    });
+
+    test('renders no note for a deleted item, with its ink in the address, and the note again when the user presses Undo', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithInk(TANKS, LIST, MAUGA_AND_SIGMA);
+      await scribble.expectNotes(2);
+
+      await tierList.items.deleteItem('Mauga');
+
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 2 on Sigma']);
+      await scribble.expectNotes(2);
+      expect(scribble.inkInAddress()).toBe(MAUGA_AND_SIGMA);
+
+      await tierList.items.undoInToast('Item deleted');
+
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on Sigma']);
+      await expect.poll(() => scribble.overlapOf(scribble.note('Note 1 on Mauga'), tierList.item('Mauga'))).toBeGreaterThan(0.9);
+      expect(scribble.inkInAddress()).toBe(MAUGA_AND_SIGMA);
+    });
+
+    test('renders the other note alone when the user presses "Remove last note" and the newest note is on a deleted item', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithInk(TANKS, LIST, MAUGA_AND_SIGMA);
+      await tierList.items.deleteItem('Sigma');
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga']);
+      await scribble.expectNotes(2);
+      await tierList.zen.setZenMode(true);
+      await scribble.setScribble(true);
+
+      await scribble.removeLastNote();
+
+      await scribble.expectNotes(1);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga']);
+    });
+
+    test('renders a note on its tile and a note on the frame when the user draws in the layout "Overlay · green key"', async ({tierList}) => {
+      const {scribble} = tierList;
+      await tierList.zen.gotoInLayout(TANKS, LIST, 'Overlay · green key');
+      await scribble.setScribble(true);
+
+      await scribble.drawCircleOn(tierList.item('Mauga'));
+      await scribble.expectNotes(1);
+      await scribble.drawTickAt(await scribble.pointIn(tierList.zen.zenFrame, 0.2, 0.5));
+
+      await scribble.expectNotes(2);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on the frame']);
+      await expect.poll(() => scribble.overlapOf(scribble.note('Note 1 on Mauga'), tierList.item('Mauga'))).toBeGreaterThan(0.9);
+    });
+
+    test('renders one note for a stroke of a touch pointer and one more for a stroke of a pen pointer when each draws', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+
+      await scribble.strokeWithPointer('touch', await scribble.tickPointsAt(tierList.tier('B'), 0.3, 0.5));
+      await scribble.expectNotes(1);
+      await scribble.strokeWithPointer('pen', await scribble.tickPointsAt(tierList.tier('F'), 0.7, 0.5));
+
+      await scribble.expectNotes(2);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on row B', 'Note 2 on row F']);
+    });
+
+    test('renders the stroke as a note that grows no more when the pointer is cancelled in the middle of the stroke', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+
+      await scribble.strokeWithPointer('touch', await scribble.tickPointsAt(tierList.tier('B'), 0.3, 0.5), 'pointercancel');
+
+      await scribble.expectNotes(1);
+      const [cancelled] = await scribble.boxes(scribble.note('Note 1 on row B'));
+      await scribble.movePointerAfterStroke('touch', await scribble.pointIn(tierList.tier('B'), 0.6, 0.5));
+      await scribble.drawTickAt(await scribble.pointIn(tierList.tier('F'), 0.7, 0.5));
+      await scribble.expectNotes(2);
+      expect(await scribble.boxes(scribble.note('Note 1 on row B'))).toEqual([cancelled]);
     });
 
     test('renders the note read only when the user exits Zen, and the note with the pen off when the user turns Zen on again', async ({tierList}) => {
@@ -487,6 +598,77 @@ test.describe('scribble', () => {
       await expect.poll(() => scribble.overlapOf(scribble.note('Note 1 on Mauga'), tierList.item('Mauga'))).toBeGreaterThan(0.9);
     });
 
+    test('renders notes on two items, on row B, on Unranked and on the frame when the page opens a golden ink value', async ({tierList}) => {
+      const {scribble} = tierList;
+      const golden = (INK_FIXTURES as {id: string; ink: string}[]).find((entry) => entry.id === 'ink-v1-overwatch-tank-items')!;
+
+      await scribble.gotoWithInk(TANKS, LIST, golden.ink);
+
+      await scribble.expectNotes(5);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga', 'Note 2 on Winston', 'Note 3 on row B', 'Note 4 on Unranked', 'Note 5 on the frame']);
+      expect(await scribble.inkColoursOf(scribble.note('Note 2 on Winston'))).toEqual([LIGHT_INK.Blue]);
+      expect(await scribble.inkColoursOf(scribble.note('Note 3 on row B'))).toEqual([LIGHT_INK.Red, LIGHT_INK.Contrast]);
+      await expect.poll(() => scribble.overlapOf(scribble.note('Note 2 on Winston'), tierList.item('Winston'))).toBeGreaterThan(0.9);
+      await expect.poll(() => scribble.overlapOf(scribble.note('Note 3 on row B'), tierList.tier('B'))).toBeGreaterThan(0.9);
+    });
+
+    test.describe('text after the ink value', () => {
+      const INK = inkValue([circleNoteOn('image-overwatch', 'Mauga')]);
+      const TAIL = encodeURIComponent(') [x](https://evil.example) @everyone\n# hi&foo=bar#frag');
+      const CANONICAL = /^1\.[A-Za-z0-9+$-]+$/;
+      const addressParts = (address: string) => {
+        const url = new URL(address);
+        return {names: [...url.searchParams.keys()], hash: url.hash};
+      };
+
+      test('renders the notes and the address as opened when the link has text after its ink value', async ({tierList, page}) => {
+        const {scribble} = tierList;
+
+        await tierList.goto(`${TANKS}?state=${LIST}&ink=${INK}${TAIL}`);
+        const opened = page.url();
+        const entries = await tierList.historyLength();
+
+        await scribble.expectNotes(1);
+        await expect.poll(() => scribble.overlapOf(scribble.note('Note 1 on Mauga'), tierList.item('Mauga'))).toBeGreaterThan(0.9);
+        expect(opened).toContain('evil.example');
+        expect(page.url()).toBe(opened);
+        expect(await tierList.historyLength()).toBe(entries);
+      });
+
+      test('writes the ink value alone, with no other parameter or fragment, when the user moves an item on such a link', async ({tierList, page}) => {
+        const {scribble} = tierList;
+        await tierList.goto(`${TANKS}?state=${LIST}&ink=${INK}${TAIL}`);
+        await scribble.expectNotes(1);
+
+        await tierList.drag.dragItemToTier('Winston', 'B');
+
+        expect(scribble.inkInAddress()).toBe(INK);
+        expect(addressParts(page.url())).toEqual({names: ['state', 'ink'], hash: ''});
+        expect(page.url()).not.toContain('evil');
+        await scribble.expectNotes(1);
+      });
+
+      test('writes the ink value alone when the user changes the label position, and when the user draws, on such a link', async ({tierList, page}) => {
+        const {scribble} = tierList;
+        await tierList.goto(`${TANKS}?state=${LIST}&ink=${INK}${TAIL}`);
+        await scribble.expectNotes(1);
+
+        await tierList.rows.chooseLabelPosition('Top');
+
+        expect(scribble.inkInAddress()).toBe(INK);
+        expect(addressParts(page.url())).toEqual({names: ['state', 'ink'], hash: ''});
+
+        await scribble.gotoWithInk(TANKS, LIST, `${INK}${TAIL}`);
+        await tierList.zen.setZenMode(true);
+        await scribble.setScribble(true);
+        await scribble.drawNoteAndWaitForInk(tierList.item('Sigma'), 2);
+
+        expect(scribble.inkInAddress()).toMatch(CANONICAL);
+        expect(addressParts(page.url())).toEqual({names: ['state', 'ink'], hash: ''});
+        expect(page.url()).not.toContain('evil');
+      });
+    });
+
     test('renders "Ink 18% left" when the page opens a link with 410 points of ink and the user turns Scribble on', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithInk(TANKS, LIST, rawInk(INK_SUPPLY_TEXT(410)));
@@ -601,6 +783,17 @@ test.describe('scribble', () => {
 
       await expect(scribble.inkNotice).toBeVisible();
       expect(scribble.inkInAddress()).toBe('1.this-is-not-ink');
+    });
+
+    test('writes the address without the ink value when the user changes the label position of a link with unreadable ink', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithInk(TANKS, LIST, '1.this-is-not-ink');
+      await expect(scribble.inkNotice).toBeVisible();
+
+      await tierList.rows.chooseLabelPosition('Top');
+
+      expect(scribble.inkInAddress()).toBeNull();
+      await expect(scribble.inkNotice).toHaveCount(0);
     });
 
     test('writes the new ink in place of the unreadable value, with a full pen, when the user draws', async ({tierList}) => {
@@ -732,6 +925,41 @@ test.describe('scribble', () => {
       await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Mauga']);
     });
 
+    test('writes 1 new history entry when the user draws after a reload', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await tierList.reload();
+      await tierList.zen.setZenMode(true);
+      await scribble.setScribble(true);
+      await expect(tierList.zen.zenStepCount).toHaveText('2 / 2');
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await scribble.drawNoteAndWaitForInk(tierList.item('Sigma'), 2);
+      await scribble.drawNoteAndWaitForInk(tierList.tierLabel('F'), 3);
+
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.zen.zenStepCount).toHaveText('3 / 3');
+    });
+
+    test('writes 1 new history entry when the user draws after Back and Forward over a run', async ({tierList}) => {
+      const {scribble} = tierList;
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
+      await tierList.zen.stepInZenBar('Back');
+      await scribble.expectNotes(0);
+      await tierList.zen.stepInZenBar('Forward');
+      await scribble.expectNotes(1);
+      const newEntries = await tierList.countNewHistoryEntries();
+
+      await scribble.drawNoteAndWaitForInk(tierList.item('Sigma'), 2);
+
+      expect(await newEntries()).toBe(1);
+      await expect(tierList.zen.zenStepCount).toHaveText('3 / 3');
+      await tierList.zen.stepInZenBar('Back');
+      await scribble.expectNotes(1);
+    });
+
     test('writes 1 history entry, with the notes one Back away, when the user presses "Clear scribbles" after a list change', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
@@ -770,7 +998,7 @@ test.describe('scribble', () => {
     test('renders the note and writes it with the next note when the browser refuses one history write', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
-      await scribble.refuseNextHistoryWrite();
+      await scribble.refuseNextInkWrite();
 
       await scribble.drawCircleOn(tierList.item('Mauga'));
 
@@ -787,7 +1015,7 @@ test.describe('scribble', () => {
     test('writes the note to the address when the user turns Scribble off after the browser refused one history write', async ({tierList, page}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
-      await scribble.refuseNextHistoryWrite();
+      await scribble.refuseNextInkWrite();
       await scribble.drawCircleOn(tierList.item('Mauga'));
       await scribble.expectNotes(1);
 
@@ -798,11 +1026,54 @@ test.describe('scribble', () => {
       await scribble.expectNotes(1);
     });
 
+    test('renders the list of a snapshot file without the unsaved note when the user opens the file after a refused history write', async ({tierList}) => {
+      const {scribble} = tierList;
+      await tierList.goto(TANKS, LIST);
+      await tierList.share.capturePreview();
+      const file = await tierList.share.downloadCapturedImage();
+      await tierList.share.closeSharePanelWithShareButton();
+      await tierList.drag.dragItemToTier('Winston', 'B');
+      await tierList.zen.setZenMode(true);
+      await scribble.setScribble(true);
+      await scribble.refuseNextInkWrite();
+      await scribble.drawCircleOn(tierList.item('Mauga'));
+      await scribble.expectNotes(1);
+      expect(scribble.inkInAddress()).toBeNull();
+
+      await tierList.files.dropFile(pngFile(file.name, file.buffer));
+      await tierList.files.confirmOpenList();
+
+      await expect(tierList.itemIn('C', 'Winston')).toBeVisible();
+      await scribble.expectNotes(0);
+      expect(scribble.inkInAddress()).toBeNull();
+      await scribble.drawNoteAndWaitForInk(tierList.item('Sigma'), 1);
+      await expect.poll(() => scribble.noteNames()).toEqual(['Note 1 on Sigma']);
+    });
+
+    test('writes the note on screen to the copied link when the browser refused to write it to the address twice', async ({tierList, openAsVisitor}) => {
+      const {scribble} = tierList;
+      await tierList.share.readCopiedText();
+      await scribble.gotoWithScribble(TANKS, LIST);
+      await scribble.refuseNextInkWrite(2);
+      await scribble.drawCircleOn(tierList.item('Mauga'));
+      await scribble.expectNotes(1);
+      await tierList.zen.setZenMode(false);
+      await scribble.expectNotes(1);
+      expect(scribble.inkInAddress()).toBeNull();
+
+      await tierList.share.openSharePanel();
+      await tierList.share.copyLinkInOpenPanel();
+
+      const friend = await openAsVisitor(await tierList.share.copiedLink());
+      await friend.scribble.expectNotes(1);
+      await expect.poll(() => friend.scribble.noteNames()).toEqual(['Note 1 on Mauga']);
+    });
+
     test('writes the note with the list change when the user moves an item by keyboard after the browser refused a write', async ({tierList}) => {
       const {scribble} = tierList;
       await scribble.gotoWithScribble(TANKS, LIST);
       await scribble.drawNoteAndWaitForInk(tierList.item('Mauga'), 1);
-      await scribble.refuseNextHistoryWrite();
+      await scribble.refuseNextInkWrite();
       await scribble.drawCircleOn(tierList.item('Sigma'));
       await scribble.expectNotes(2);
 
@@ -874,6 +1145,69 @@ test.describe('scribble', () => {
         test.setTimeout(MODEL_PART_TIMEOUT);
         const coverage = await walkModel(scribbleModel, scribbleSut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, scribbleModel, coverage, part);
+      });
+    }
+  });
+
+  test.describe('model: history', () => {
+    const inkHistorySut = (tierList: TierListPage, page: Page, testInfo: TestInfo) => {
+      const {scribble} = tierList;
+      let onScreen: InkHistorySnapshot | null = null;
+      const targets = () => [tierList.item('Mauga'), tierList.item('Orisa'), tierList.tierLabel('F')];
+      return modelSut<InkHistorySnapshot, InkHistoryEvent>(page, {
+        reset: async () => {
+          onScreen = null;
+          await tierList.openAfterBlankPage(TANKS, LIST);
+          await tierList.zen.setZenMode(true);
+          await scribble.setScribble(true);
+        },
+        events: {
+          DRAW_NOTE: async () => {
+            if (!onScreen) throw new Error('No state was checked yet');
+            const {notes} = inkHistoryViewOf(onScreen);
+            await scribble.drawNoteAndWaitForInk(targets()[notes], notes + 1);
+          },
+          DRAW_NOTE_REFUSED: async () => {
+            await scribble.refuseNextInkWrite();
+            await scribble.drawCircleOn(tierList.item('Mauga'));
+          },
+          REMOVE_LAST_NOTE: () => scribble.removeLastNote(),
+          CLEAR: () => scribble.clear(),
+          CHANGE_LIST: async () => {
+            await scribble.setScribble(false);
+            await tierList.drag.dragItemToTier('Winston', 'A');
+            await scribble.setScribble(true);
+          },
+          BACK: () => tierList.zen.stepInZenBar('Back'),
+          FORWARD: () => tierList.zen.stepInZenBar('Forward'),
+          RELOAD: async () => {
+            await tierList.reload();
+            await tierList.zen.setZenMode(true);
+            await scribble.setScribble(true);
+          },
+        },
+        states: {
+          '*': async (_page, snapshot) => {
+            onScreen = snapshot;
+            const {notes, step, total, listChanged, inkInAddress} = inkHistoryViewOf(snapshot);
+            await scribble.expectNotes(notes);
+            await expect(tierList.zen.zenStepCount).toHaveText(`${step} / ${total}`);
+            if (inkInAddress) await expect(page).toHaveURL(/[?&]ink=1\./);
+            else await expect(page).not.toHaveURL(/[?&]ink=/);
+            await expect(tierList.itemIn(listChanged ? 'A' : 'C', 'Winston')).toBeVisible();
+          },
+        },
+        testInfo,
+        step: (name, body) => test.step(name, body),
+      });
+    };
+
+    test.describe.configure({retries: 0});
+    for (const part of walkParts(inkHistoryModel)) {
+      test(`renders each state of the ink history machine when the user walks every transition (${part.name})`, async ({tierList, page}, testInfo) => {
+        test.setTimeout(MODEL_PART_TIMEOUT);
+        const coverage = await walkModel(inkHistoryModel, inkHistorySut(tierList, page, testInfo), part);
+        await attachCoverage(testInfo, inkHistoryModel, coverage, part);
       });
     }
   });

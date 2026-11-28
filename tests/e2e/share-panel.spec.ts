@@ -283,6 +283,26 @@ test.describe('share panel', () => {
       await expect(friend.scribble.layer).toHaveCount(0);
     });
 
+    test('writes the canonical ink value alone to Copy link, Copy Markdown, Facebook and X when the link has text after its ink', async ({tierList, page}) => {
+      const tail = encodeURIComponent(') [x](https://evil.example) @everyone\n# hi&foo=bar#frag');
+      await tierList.share.readCopiedText();
+      await tierList.share.recordShareWindows();
+      await tierList.goto(`${LINK_WITH_INK}${tail}`);
+      await tierList.scribble.expectNotes(1);
+      const clean = new RegExp(`^${escapeRegExp(new URL(TANKS, page.url()).href)}\\?state=3\\.[A-Za-z0-9+$-]+&ink=${escapeRegExp(INK)}$`);
+      await tierList.share.openSharePanel();
+
+      expect(await tierList.share.addressSharedOn('Facebook')).toMatch(clean);
+      expect(await tierList.share.addressSharedOn('X')).toMatch(clean);
+      await tierList.share.copyLinkInOpenPanel();
+      expect(await tierList.share.clipboardText()).toMatch(clean);
+      await tierList.share.copyMarkdownInOpenPanel();
+      const markdown = await tierList.share.clipboardText();
+      expect(await tierList.share.copiedLink()).toMatch(clean);
+      expect(markdown.match(/\]\(/g)).toHaveLength(1);
+      expect(markdown).not.toMatch(/evil|@everyone|# hi|foo=bar|#frag/);
+    });
+
     test('renders the switch off after the panel closes and opens, and on again when the user turns it on', async ({tierList}) => {
       await tierList.share.readCopiedText();
       await tierList.goto(LINK_WITH_INK);

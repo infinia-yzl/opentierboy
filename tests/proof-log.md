@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 126 |
+| RED: the walk failed on the changed value | 139 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -287,3 +287,23 @@ Recorded on 2026-11-26, against the commit that adds the model.
 | scribbles (none) | :29 'none' reported as 'included' | RED | ink layer "Scribbles: 1 note" not found |
 | clipboardScribbles | :30 `=== 'clipboardWith'` -> `=== 'clipboardWithout'` | RED | "the ink value in the copied link" expected null, got the ink value |
 | open | :28 `=== 'open'` -> `=== 'closed'` | RED | the Share panel expected visible |
+
+## ink-history
+
+Recorded on 2026-11-28, against the commit that adds the model. Each edit changes one state of `INK_HISTORY_VIEWS` (notes, step, total, list changed).
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| runOfTwoNotes | ink-history.ts:24 `view(2, 2, 2)` -> `view(2, 3, 3)` | RED | step count expected "3 / 3", got "2 / 2" |
+| runWithoutNotes | :25 `view(0, 2, 2)` -> `view(0, 1, 1)` | RED | step count expected "1 / 1", got "2 / 2" |
+| backFromRun | :26 `view(0, 1, 2)` -> `view(2, 1, 2)` | RED | 3 steps: ink layer expected "Scribbles: 2 notes", got "Scribbles: no notes" |
+| forwardOnRun | :27 `view(2, 2, 2)` -> `view(0, 2, 2)` | RED | 4 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 2 notes" |
+| runAfterForward | :28 `view(3, 3, 3)` -> `view(3, 2, 2)` | RED | 5 steps: step count expected "2 / 2", got "3 / 3" |
+| listChanged | :29 `view(2, 3, 3, true)` -> `view(2, 2, 2, true)` | RED | 6 steps: step count expected "2 / 2", got "3 / 3" |
+| listChanged (the list) | :29 `view(2, 3, 3, true)` -> `view(2, 3, 3)` | RED | 6 steps: Winston expected in row C, not found |
+| runAfterListChange | :30 `view(3, 4, 4, true)` -> `view(3, 3, 3, true)` | RED | 7 steps: step count expected "3 / 3", got "4 / 4" |
+| backFromListChange | :31 `view(2, 2, 3)` -> `view(0, 2, 3)` | RED | 4 steps: ink layer expected "Scribbles: no notes", got "Scribbles: 2 notes" |
+| reloaded | :32 `view(1, 2, 2)` -> `view(1, 1, 1)` | RED | step count expected "1 / 1", got "2 / 2" |
+| runAfterReload | :33 `view(2, 3, 3)` -> `view(2, 2, 2)` | RED | step count expected "2 / 2", got "3 / 3" |
+| noteNotWritten (the address) | :22 `inkInAddress: false` -> `true` | RED | address expected to match `/[?&]ink=1\./`, got the address without an ink value |
+| noteNotWritten | :22 `view(1, 1, 1)` -> `view(1, 2, 2)` | RED | step count expected "2 / 2", got "1 / 1" |

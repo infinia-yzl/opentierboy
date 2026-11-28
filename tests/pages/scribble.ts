@@ -69,20 +69,72 @@ export class Scribble {
     await expect(this.page, 'the address should hold the new ink').not.toHaveURL(before);
   }
 
-  async refuseNextHistoryWrite() {
-    await this.page.evaluate(() => {
+  async holdScribbleKey() {
+    await this.page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    const keyboard = this.page.keyboard;
+    await keyboard.down('d');
+    await keyboard.down('d');
+    await keyboard.down('d');
+    await keyboard.down('d');
+    await keyboard.up('d');
+  }
+
+  async strokeWithPointer(pointerType: 'touch' | 'pen', points: readonly Point[], end: 'pointerup' | 'pointercancel' | 'none' = 'pointerup') {
+    const [first, ...rest] = points;
+    const last = rest[rest.length - 1] ?? first;
+    const event = (point: Point) => ({pointerId: 7, pointerType, isPrimary: true, button: 0, clientX: point.x, clientY: point.y, bubbles: true});
+    await this.layer.dispatchEvent('pointerdown', {...event(first), buttons: 1});
+    for (const point of rest) await this.layer.dispatchEvent('pointermove', {...event(point), buttons: 1});
+    if (end !== 'none') await this.layer.dispatchEvent(end, event(last));
+  }
+
+  async movePointerAfterStroke(pointerType: 'touch' | 'pen', point: Point) {
+    const event = {pointerId: 7, pointerType, isPrimary: true, button: 0, clientX: point.x, clientY: point.y, bubbles: true};
+    await this.layer.dispatchEvent('pointermove', {...event, buttons: 1});
+    await this.layer.dispatchEvent('pointerup', event);
+  }
+
+  async tickPointsAt(target: Locator, x: number, y: number): Promise<Point[]> {
+    const from = await this.pointIn(target, x, y);
+    return [from, {x: from.x + 12, y: from.y + 12}, {x: from.x + 30, y: from.y - 10}];
+  }
+
+  async placeOnTile(note: Locator, itemName: string): Promise<Box> {
+    const [ink, tile] = await this.boxes(note, this.tierList.itemImage(itemName));
+    const part = (value: number) => Math.round((value / tile.height) * 100) / 100;
+    return {x: part(ink.x - tile.x), y: part(ink.y - tile.y), width: part(ink.width), height: part(ink.height)};
+  }
+
+  async expectPlaceOnTile(note: Locator, itemName: string, place: Box, message: string) {
+    await expect.poll(async () => {
+      const now = await this.placeOnTile(note, itemName);
+      return Math.max(Math.abs(now.x - place.x), Math.abs(now.y - place.y), Math.abs(now.width - place.width), Math.abs(now.height - place.height));
+    }, {message: `${message}: the note should be where it was on its tile, and as large`}).toBeLessThanOrEqual(0.02);
+  }
+
+  async refuseNextInkWrite(writes = 1) {
+    await this.page.evaluate((count) => {
       const {pushState, replaceState} = window.history;
-      let refused = false;
-      const once = <Args extends unknown[]>(write: (...args: Args) => void) => function (this: History, ...args: Args) {
-        if (!refused) {
-          refused = true;
+      const inkOf = (address: string) => new URL(address, window.location.href).searchParams.get('ink');
+      let left = count;
+      const refusing = (write: History['pushState']) => function (this: History, data: unknown, unused: string, url?: string | URL | null) {
+        const writesInk = url !== undefined && url !== null && inkOf(String(url)) !== inkOf(window.location.href);
+        if (writesInk && left > 0) {
+          left--;
           throw new DOMException('Too many calls to the history', 'SecurityError');
         }
-        write.apply(this, args);
+        write.call(this, data, unused, url);
       };
-      window.history.pushState = once(pushState);
-      window.history.replaceState = once(replaceState);
-    });
+      window.history.pushState = refusing(pushState);
+      window.history.replaceState = refusing(replaceState);
+    }, writes);
+  }
+
+  async expectCaptionUnder(itemName: string) {
+    await expect.poll(async () => {
+      const [item, picture] = await this.boxes(this.tierList.item(itemName), this.tierList.itemImage(itemName));
+      return item.height - picture.height;
+    }, {message: `the name of ${itemName} should sit under its tile`}).toBeGreaterThan(5);
   }
 
   get urlLengthWarning(): Locator {

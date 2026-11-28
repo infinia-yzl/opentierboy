@@ -6,8 +6,8 @@ import type {Note} from '@/lib/scribble/notes';
 const entries = inkFixtures as unknown as {id: string; description: string; ink: string; notes: Note[]}[];
 
 describe('tests/fixtures/scribble/ink-v1.json', () => {
-  it('returns 6 entries or more, each with its own id, when the file is read', () => {
-    expect(entries.length).toBeGreaterThanOrEqual(6);
+  it('returns 7 entries or more, each with its own id, when the file is read', () => {
+    expect(entries.length).toBeGreaterThanOrEqual(7);
     expect(new Set(entries.map((entry) => entry.id)).size).toBe(entries.length);
   });
 
