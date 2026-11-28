@@ -10,7 +10,8 @@ reload, Back and Forward read it. Link previews and Freeze Frame files hold no i
 "Limits").
 
 - The logic, without React or the browser: `lib/scribble/`. The ink value: `format.ts`
-  (write and read) and `address.ts` (the value in a search string).
+  (write and read), `ink.ts` (the notes of an address, with the one value the app shares and
+  writes) and `address.ts` (the value in a search string).
 - The ink layer: `components/ScribbleLayer.tsx`, with `components/scribbleSurface.ts` (it reads
   where the tiles, rows and tray are).
 - The pen controls: `components/ScribbleControls.tsx`. The toggle is in `components/ZenBar.tsx`.
@@ -24,7 +25,8 @@ reload, Back and Forward read it. Link previews and Freeze Frame files hold no i
 - **The toggle.** The Zen bar has a button "Scribble" after Layout, with the tooltip
   "Scribble (D)". Its icon is a wavy pen stroke (`ScribbleIcon`), never a pencil: the pencil
   means "Edit title". The key D turns Scribble on and off in Zen, except while a text field has
-  focus or a menu or dialog is open. Escape turns Scribble off first; a second Escape exits Zen.
+  focus or a menu or dialog is open; a key held down toggles once. Escape turns Scribble off
+  first; a second Escape exits Zen.
 - **The pen controls.** While Scribble is on, a toolbar "Scribble" shows to the right of the Zen
   bar, in the same row or strip. The Zen bar and the list do not move when it shows or hides.
   It holds the ink colour, "Remove last note", "Clear scribbles" and the ink level.
@@ -90,11 +92,17 @@ Ink runs out; it does not fill up (owner decision, 2026-11-25).
 - **The anchor** comes from the note's first stroke (`anchorAt` in `lib/scribble/anchors.ts`): the
   tile under the centre of the stroke's box (the item's id); else the row under it (the row's
   place, counted from the top); else the Unranked tray; else the frame.
+- **A row note stays with the row's position** (owner decision, 2026-11-28: as it is, for now).
+  When a row moves, or a row above it is removed, the note stays at its place in the list and
+  is then on another row.
 - **Points are stored from the anchor, in tile sizes,** on a grid of 1/32 of a tile (`INK_GRID`).
-  For an item, from the tile's corner in that tile's own size. For a row, from the start of its
-  item area. For the tray and the frame, from their corners. So a note follows its tile to
-  another row, grows and shrinks with the tile, and stays right when the layout, the window,
-  Compact tiles or the labels change.
+  For an item, from the corner of its tile, in the side of that square tile: the box of the
+  tile's picture, not the item with its name. Compact tiles with Show Labels on put the name
+  under the tile, and that name is no part of the size. For a row, from the start of its item
+  area. For the tray and the frame, from their corners. So a note follows its tile to another
+  row, grows and shrinks with the tile, and keeps its place and size on the tile when the
+  layout, the window, Compact tiles or the labels change (`measureSurface` in
+  `components/scribbleSurface.ts`).
 - **What can be an anchor.** An item whose id is longer than 256 characters (a link image with
   a long address) is no anchor: the note takes the row under it. The first 100 rows can be
   anchors; a note on a later row takes the frame. These are the limits of the ink value.
@@ -147,13 +155,23 @@ input. It never throws. It returns the notes, or one reason:
 | --- | --- |
 | `too-long` | has more than 1,000,000 characters |
 | `format` | is no text, has no version before a dot, or its text breaks the grammar above |
-| `version` | has another version than 1 |
+| `version` | has another version than 1: any other whole number without a zero in front, such as `2.` or `1000.` |
 | `data` | is not complete lz-string data, or its text would have more than 150,000 characters (checked before decompressing, `lib/state/lz.ts`) |
 | `anchor` | names an anchor outside the four kinds, a row from 100 on, or an item id of no length or of more than 256 characters |
 | `points` | has more points than the ink supply (500), or a point further than 65,535 grid units from its anchor |
 
-Only numbers (into SVG path data) and one of the three colours reach the page from a value. An
-item id is compared with the ids of the list and never rendered.
+A version has one spelling: `1.`. A zero in front (`01.`, `0.`) is no version, and the reason
+is `format`.
+
+**The text of a link is only read.** lz-string stops at its end code and ignores what follows,
+and a small step may be written in the wide form, so many texts decode to the same notes. That
+is harmless, because the app never passes the text on. From a value, only numbers (into SVG
+path data) and one of the three colours reach the page; an item id is compared with the ids of
+the list and never rendered. The value that the app shares (Copy link, Copy Markdown, Facebook,
+X) and writes to the address and the history is always `encodeInk` of the decoded notes
+(`inkOfAddress` in `lib/scribble/ink.ts`): `1.` and characters from `A-Z a-z 0-9 + - $`. The
+text of the link itself is used for two things: to compare, and to count the length of the
+address. Opening a link never rewrites the address.
 
 The limits (`INK_LIMITS`) never refuse what the pen writes: a pen drawn to its end with one
 point in each note, each on an item with an id of 256 characters, still fits
@@ -163,8 +181,8 @@ supply, can break links people already shared: never lower them.
 **A link whose ink cannot be read** opens its list as usual, without ink, and one line says
 "The scribbles in this link could not be shown." (`InkNotice`, where the notice "Images from
 other sites" shows; hidden in Zen). The address keeps the value until the person changes
-something: a change to the list writes the address without it, and a new stroke replaces it.
-The Share panel treats such a list as a list without scribbles.
+something: a change to the list or a label setting writes the address without it, and a new
+stroke replaces it. The Share panel treats such a list as a list without scribbles.
 
 ### Lengths
 
@@ -177,8 +195,11 @@ Measured with drawn strokes (20 runs each), for `ink=` with its value:
 | a full pen, 500 points of words | about 1,190 (1,150 to 1,220) |
 | a full pen, 500 points, words and circles on 12 tiles | about 1,300 (1,250 to 1,340) |
 
-About 2.4 characters for each point. lz-string makes the point data about 5% longer and the
-item ids shorter, and it turns any id into characters an address takes. The largest value the
+About 2.4 characters for each point. lz-string costs length on point data, and more on a short
+value: measured on the fixtures, its output is 2% longer than the text for a full pen, 15% for
+a usual recording and 52% for one small note (50 characters become 76). It makes repeated item
+ids shorter (the fixture of ids: 41% shorter), and it turns any id into characters an address
+takes. The largest value the
 pen could ever write (500 notes of one point, each on an item with a 256-character id of
 letters outside ASCII) has 488,000 characters; no real list comes near it.
 
@@ -189,6 +210,10 @@ letters outside ASCII) has 488,000 characters; no real list comes near it.
 that the notes encode back to the value. The file is **append-only**, like the link fixtures:
 never edit, reorder or delete an entry (`npm run check:fixtures` checks it). A failing entry
 means the app broke links with scribbles: fix the app.
+
+The entry `ink-v1-overwatch-tank-items` names two items of the OVERWATCH tank template by their
+real ids, and `tests/e2e/scribble.spec.ts` opens it in the editor. The item ids of the earlier
+entries are made up for the format: in the app their item notes have no tile.
 
 ## History
 
@@ -213,9 +238,15 @@ changes to the list is **one** history entry.
   an address without `ink=`: the old list's ink stays behind, one Back step away.
 - **A history write that the browser refuses.** Browsers limit how often a page may write its
   history (WebKit: 100 times in 30 seconds). When a write is refused, or the address does not
-  take the value, the notes stay on screen and in memory. They are written with the next ink
-  change, with the next change to the list, or when the pen turns off. Back or Forward before
-  that drops them.
+  take the value, the notes stay on screen and in memory, for the address they were drawn on.
+  They are written with the next ink change, with the next change to the list, or when the pen
+  turns off. Until then the Share panel shares what the screen shows. Back, Forward, or another
+  list at this page (a Freeze Frame file, another template) drops them.
+- **Two history calls for each write.** After every `pushState` or `replaceState` of the app,
+  the Next.js router writes its own state into the same entry with one `replaceState` (same
+  address). So one stroke, or one change to the list, is two calls against a browser's limit.
+  The pen guards its own write. The router's call is not the app's to guard: if the browser
+  refuses it, the page ends on Next's error screen.
 
 ## Share
 
@@ -256,12 +287,22 @@ when a drag ends. It does not read them during a drag: a note joins its tile aga
 The tiles carry `data-scribble-item` (the item id), the item areas `data-scribble-area`, and the
 tray `data-scribble-tray`. Rows are found by `data-tier-row`.
 
+## Model-based tests
+
+Three machines in `tests/machines/` describe Scribble (`tests/README.md`, "Model-based tests"):
+`scribble.ts` (Zen, the pen and the count of notes), `ink-history.ts` (runs, a change to the
+list, Back, Forward and a reload: the notes, the Zen bar's step count and the ink value of the
+address) and `share-scribbles.ts` (the Share panel's switch and what a copied link has).
+
 ## Limits
 
 - Link previews and Freeze Frame pictures and files hold no ink.
 - A press on the ink layer never reaches the list while the pen is on. The keyboard still moves
   tiles and rows.
 - With the pen on, the mouse wheel does not scroll the tray or the rows of a frame layout.
+- Touch (owner decision, 2026-11-28: as it is, for now): with the pen on, a finger draws and
+  does not scroll the page, also in the plain layout of Zen. There is no palm handling: a
+  second pointer is ignored while a stroke is drawn, and a resting hand can start a stroke.
 - In the ranking orders In order and Shuffle, a note drawn on a tile of the queue belongs to
   that tile, and hides with it under "Hide the queue".
 - A note on the frame keeps its place from the frame's corner in tile sizes. The editor outside
