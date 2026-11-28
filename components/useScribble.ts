@@ -38,6 +38,14 @@ const KEPT_INKS = 16;
 const pathInWindow = () => decodeURI(window.location.pathname);
 const addressInWindow = () => window.location.pathname + window.location.search;
 
+function tellRouterTheAddress() {
+  try {
+    window.history.replaceState(null, '', window.location.href);
+  } catch {
+    return;
+  }
+}
+
 function createScribbleStore() {
   let pen = INITIAL_PEN;
   let run: string | null = null;
@@ -63,15 +71,21 @@ function createScribbleStore() {
     if (pen.unsaved) setPen({...pen, unsaved: null});
     else notify();
   };
-  const writeAddress = (href: string, value: string | null): boolean => {
-    const continues = run !== null && run === addressInWindow();
+  const landed = (href: string, value: string | null, continues: boolean): boolean => {
     try {
       if (continues) window.history.replaceState(null, '', href);
       else window.history.pushState(null, '', href);
     } catch {
       return false;
     }
-    if (inkInSearch(window.location.search) !== value) return false;
+    return inkInSearch(window.location.search) === value;
+  };
+  const writeAddress = (href: string, value: string | null): boolean => {
+    const continues = run !== null && run === addressInWindow();
+    if (!landed(href, value, continues)) {
+      tellRouterTheAddress();
+      return false;
+    }
     run = href;
     listAddressWritten(continues ? 'replace' : 'push');
     return true;
