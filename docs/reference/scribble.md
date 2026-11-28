@@ -236,17 +236,41 @@ changes to the list is **one** history entry.
   before it. Back from it changes nothing on screen.
 - Opening another list (another template, a Freeze Frame file, a link, Recently viewed) writes
   an address without `ink=`: the old list's ink stays behind, one Back step away.
-- **A history write that the browser refuses.** Browsers limit how often a page may write its
-  history (WebKit: 100 times in 30 seconds). When a write is refused, or the address does not
-  take the value, the notes stay on screen and in memory, for the address they were drawn on.
-  They are written with the next ink change, with the next change to the list, or when the pen
-  turns off. Until then the Share panel shares what the screen shows. Back, Forward, or another
-  list at this page (a Freeze Frame file, another template) drops them.
 - **Two history calls for each write.** After every `pushState` or `replaceState` of the app,
   the Next.js router writes its own state into the same entry with one `replaceState` (same
   address). So one stroke, or one change to the list, is two calls against a browser's limit.
   The pen guards its own write. The router's call is not the app's to guard: if the browser
   refuses it, the page ends on Next's error screen.
+- **A fast burst of strokes.** Browsers limit how often a page may write its history (Safari:
+  100 calls in 30 seconds, then a `SecurityError`). The pen writes the address after every
+  stroke, and it counts its own writes: at most 20 in 30 seconds (`INK_WRITE_LIMIT` in
+  `lib/scribble/writeLimit.ts`), which is 40 of those 100 calls and leaves room for changes to
+  the list. `inkWriteDecision` takes the times of the pen's last writes and the time now, and
+  answers `'write'` or `'hold'`. A stroke past the limit waits: it stays on screen and in
+  memory, exactly like a note whose write the browser refused, and the address has the last
+  value that was written. Waiting notes are written by the next thing the person does that may
+  write: the next ink change once fewer than 20 writes are 30 seconds old or younger, the pen
+  turned off, a change to the list, the Share panel opened, or the page hidden (`pagehide`, or
+  `visibilitychange` to hidden). Only the first of these depends on the count; the other four
+  write at once. The pen reads the clock only to count: it sets no timer and writes nothing
+  later by itself. The entry of the run stays one entry, so Back still removes the whole run.
+  Back or Forward while notes wait drops them: Forward then brings back the notes that were
+  written.
+- **A lower limit.** The local storage key `otb-ink-write-limit` can hold a lower limit as JSON,
+  such as `{"writes":2,"windowMs":86400000}`: `writes` from 0 to 20 and `windowMs` from 30,000
+  to 86,400,000. It is read at each write and checked (`inkWriteLimitFrom`); anything else
+  means the default. It can only make the pen write less often, never more. The end-to-end
+  tests use it to reach the limit with three strokes, without drawing 20 and without a clock.
+  No test reached a browser's own limit.
+- **A history write that the browser refuses.** When a write is refused, or the address does
+  not take the value, the notes stay on screen and in memory, for the address they were drawn
+  on. They are written with the next ink change, with the next change to the list, when the pen
+  turns off, when the Share panel opens, or when the page is hidden. Until then the Share panel
+  shares what the screen shows. Back, Forward, or another list at this page (a Freeze Frame
+  file, another template) drops them. Next.js learns a new address before the browser takes
+  the call, so after a refused write the pen hands it the address of the window again; without
+  that, Next.js would write the refused value itself a moment later, in place of the entry
+  before the run.
 
 ## Share
 
@@ -291,8 +315,8 @@ tray `data-scribble-tray`. Rows are found by `data-tier-row`.
 
 Three machines in `tests/machines/` describe Scribble (`tests/README.md`, "Model-based tests"):
 `scribble.ts` (Zen, the pen and the count of notes), `ink-history.ts` (runs, a change to the
-list, Back, Forward and a reload: the notes, the Zen bar's step count and the ink value of the
-address) and `share-scribbles.ts` (the Share panel's switch and what a copied link has).
+list, Back, Forward and a reload, a write the browser refuses and a note that waits past the
+pen's limit: the notes, the Zen bar's step count and the ink value of the address) and `share-scribbles.ts` (the Share panel's switch and what a copied link has).
 
 ## Limits
 
