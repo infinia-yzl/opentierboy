@@ -536,6 +536,22 @@ test.describe('scribble', () => {
         expect(columnsWhere(before, after, isReversedRed), seen(before, after)).toBe(SAMPLES.length);
       });
 
+      test('renders solid red ink over the picture when the user draws across an item with the pen still pressed', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        await scribble.expectPictureLoaded(tierList.item('Mauga'));
+        const line = await scribble.lineAcross(tierList.item('Mauga'));
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.pixelColumnsAt(samples);
+
+        await scribble.press(line);
+
+        const pressed = await scribble.pixelColumnsAt(samples);
+        expect(columnsWhere(before, pressed, isColour(LIGHT_INK.Red)), seen(before, pressed)).toBe(SAMPLES.length);
+        await scribble.lift();
+        await scribble.expectNotes(1);
+      });
+
       test('renders the picture as before when the user removes the note that crossed it', async ({tierList}) => {
         const {scribble} = tierList;
         await scribble.gotoWithScribble(TANKS, LIST);

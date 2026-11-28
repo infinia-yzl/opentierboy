@@ -1,6 +1,6 @@
 'use client';
 
-import React, {useCallback, useEffect, useId, useLayoutEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {flushSync} from 'react-dom';
 import {useTierContext} from '@/contexts/TierContext';
 import {useZenMode} from '@/components/usePageState';
@@ -13,6 +13,7 @@ import type {InkColour} from '@/lib/scribble/colours';
 import type {Note} from '@/lib/scribble/notes';
 import {anchorPhrase, notesText} from '@/lib/scribble/names';
 import {addStroke} from '@/lib/scribble/notes';
+import {outsidePicturesClip, picturesClip} from '@/lib/scribble/pictures';
 import {liftPen, movePen, penIsDry, startPen, strokePath, type Pen, type Point} from '@/lib/scribble/points';
 import {inkLevel} from '@/lib/scribble/supply';
 import {cn} from '@/lib/utils';
@@ -32,50 +33,50 @@ const INK_TINT_CLASSES: Readonly<Record<InkColour, string | undefined>> = Object
 });
 
 const NO_PICTURES: readonly Box[] = Object.freeze([]);
+const PAINT_LAYER_ATTRIBUTE = 'data-scribble-paint';
 
-interface PictureInkProps {
-  readonly blend: 'mix-blend-difference' | 'mix-blend-color';
+interface InkPaintProps {
+  readonly clip: string;
+  readonly blend?: 'mix-blend-difference' | 'mix-blend-color';
   readonly strokeClass: (colour: InkColour) => string | undefined;
   readonly notes: readonly Note[];
   readonly surface: Surface;
-  readonly colour: InkColour;
-  readonly layerRef: React.Ref<HTMLDivElement>;
-  readonly livePathRef: React.Ref<SVGPathElement>;
 }
 
-function PictureInk({blend, strokeClass, notes, surface, colour, layerRef, livePathRef}: PictureInkProps) {
-  const clipId = `ink-pictures-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+function InkPaint({clip, blend, strokeClass, notes, surface}: InkPaintProps) {
   return (
-    <div ref={layerRef} aria-hidden="true" data-html2canvas-ignore className={cn('pointer-events-none absolute inset-0 z-30', blend)}>
+    <div
+      aria-hidden="true"
+      data-html2canvas-ignore
+      {...{[PAINT_LAYER_ATTRIBUTE]: ''}}
+      className={cn('pointer-events-none absolute inset-0 z-30', blend)}
+      style={{clipPath: clip}}
+    >
       <svg className="h-full w-full fill-none [stroke-linecap:round] [stroke-linejoin:round]" strokeWidth={INK_WIDTH}>
-        <defs>
-          <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-            {(surface.pictures ?? NO_PICTURES).map((box, index) => (
-              <rect key={index} x={box.x} y={box.y} width={box.width} height={box.height}/>
-            ))}
-          </clipPath>
-        </defs>
-        <g clipPath={`url(#${clipId})`}>
-          {notes.map((note, index) => {
-            const origin = originOf(surface, note.anchor);
-            if (!origin) return null;
-            return (
-              <g key={index} transform={`translate(${origin.x} ${origin.y}) scale(${origin.unit})`}>
-                {note.strokes.map((stroke, strokeIndex) => (
-                  <path key={strokeIndex} d={strokePath(stroke.points)} className={strokeClass(stroke.colour)}/>
-                ))}
-              </g>
-            );
-          })}
-          <path ref={livePathRef} transform={`scale(${surface.unit})`} className={strokeClass(colour)}/>
-        </g>
+        {notes.map((note, index) => {
+          const origin = originOf(surface, note.anchor);
+          if (!origin) return null;
+          return (
+            <g key={index} transform={`translate(${origin.x} ${origin.y}) scale(${origin.unit})`}>
+              {note.strokes.map((stroke, strokeIndex) => (
+                <path key={strokeIndex} d={strokePath(stroke.points)} className={strokeClass(stroke.colour)}/>
+              ))}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
 }
 
+const solidStroke = (colour: InkColour) => INK_STROKE_CLASSES[colour];
 const negativeStroke = () => 'stroke-white';
 const tintStroke = (colour: InkColour) => INK_TINT_CLASSES[colour];
+
+function inPaintLayer(node: Node): boolean {
+  const element = node instanceof Element ? node : node.parentElement;
+  return element?.closest(`[${PAINT_LAYER_ATTRIBUTE}]`) != null;
+}
 
 interface LiveStroke {
   readonly pointerId: number;
@@ -108,14 +109,9 @@ function ScribbleInk() {
   const rankingOrder = useRankingOrder();
   const layerRef = useRef<SVGSVGElement>(null);
   const livePathRef = useRef<SVGPathElement>(null);
-  const negativeLayerRef = useRef<HTMLDivElement>(null);
-  const negativePathRef = useRef<SVGPathElement>(null);
-  const tintLayerRef = useRef<HTMLDivElement>(null);
-  const tintPathRef = useRef<SVGPathElement>(null);
-  const maskId = `ink-outside-pictures-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const liveRef = useRef<LiveStroke | null>(null);
   const drawLivePath = useCallback((path: string) => {
-    for (const ref of [livePathRef, negativePathRef, tintPathRef]) ref.current?.setAttribute('d', path);
+    livePathRef.current?.setAttribute('d', path);
   }, []);
   const [surface, setSurface] = useState<Surface>(EMPTY_SURFACE);
 
@@ -150,8 +146,7 @@ function ScribbleInk() {
     });
     drags.observe(area, {attributes: true, attributeFilter: ['data-dragging'], subtree: true});
     const changes = new MutationObserver((records) => {
-      const inkLayers = [layer, negativeLayerRef.current, tintLayerRef.current];
-      if (dragging || records.every((record) => inkLayers.some((ink) => ink?.contains(record.target)))) return;
+      if (dragging || records.every((record) => layer.contains(record.target) || inPaintLayer(record.target))) return;
       remeasure();
     });
     changes.observe(area, {attributes: true, childList: true, characterData: true, subtree: true});
@@ -241,10 +236,12 @@ function ScribbleInk() {
   };
 
   const pictures = surface.pictures ?? NO_PICTURES;
+  const overPictures = picturesClip(pictures);
   return (
     <>
-      <PictureInk blend="mix-blend-difference" strokeClass={negativeStroke} notes={notes} surface={surface} colour={colour} layerRef={negativeLayerRef} livePathRef={negativePathRef}/>
-      <PictureInk blend="mix-blend-color" strokeClass={tintStroke} notes={notes} surface={surface} colour={colour} layerRef={tintLayerRef} livePathRef={tintPathRef}/>
+      <InkPaint clip={outsidePicturesClip(pictures)} strokeClass={solidStroke} notes={notes} surface={surface}/>
+      <InkPaint clip={overPictures} blend="mix-blend-difference" strokeClass={negativeStroke} notes={notes} surface={surface}/>
+      <InkPaint clip={overPictures} blend="mix-blend-color" strokeClass={tintStroke} notes={notes} surface={surface}/>
       <svg
         ref={layerRef}
         role="group"
@@ -261,15 +258,7 @@ function ScribbleInk() {
         onPointerCancel={onPointerEnd}
         onLostPointerCapture={onPointerEnd}
       >
-        <defs>
-          <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
-            <rect width="100%" height="100%" fill="white" stroke="none"/>
-            {pictures.map((box, index) => (
-              <rect key={index} x={box.x} y={box.y} width={box.width} height={box.height} fill="black" stroke="none"/>
-            ))}
-          </mask>
-        </defs>
-        <g mask={`url(#${maskId})`}>
+        <g className="opacity-0">
           {notes.map((note, index) => {
             const origin = originOf(surface, note.anchor);
             if (!origin) return null;
@@ -286,8 +275,8 @@ function ScribbleInk() {
               </g>
             );
           })}
-          <path ref={livePathRef} aria-hidden="true" transform={`scale(${surface.unit})`} className={INK_STROKE_CLASSES[colour]}/>
         </g>
+        <path ref={livePathRef} aria-hidden="true" transform={`scale(${surface.unit})`} className={INK_STROKE_CLASSES[colour]}/>
       </svg>
     </>
   );

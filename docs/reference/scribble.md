@@ -300,15 +300,22 @@ video frame can undo it and get the picture back.
 
 - `measureSurface` returns the shown part of every tile picture (`Surface.pictures`): the `img`
   of a tile, or the tile itself when it has none, cut to the scrolling boxes around it.
-- `ScribbleLayer` draws the strokes three times, each cut to its own area:
-  1. white strokes over the pictures, in a layer with `mix-blend-mode: difference`. Each colour
-     channel becomes 255 minus its value;
-  2. Red and Blue strokes over the pictures, in a layer with `mix-blend-mode: color`. The result
-     takes the hue and the saturation of the ink and keeps the brightness of step 1. Contrast
-     strokes are left out of this layer;
-  3. solid strokes everywhere else, in the layer that holds the notes and takes the pen.
-- The two picture layers are `aria-hidden`, take no pointer events and stay out of a Freeze
-  Frame, like the note layer.
+- `ScribbleLayer` paints the notes in three layers. Each is a `div` with an `svg` inside, cut by
+  a CSS shape (`clip-path: polygon(...)`, built in `lib/scribble/pictures.ts`):
+  1. solid strokes, cut to everything outside the pictures;
+  2. white strokes, cut to the pictures, with `mix-blend-mode: difference`. Each colour channel
+     becomes 255 minus its value;
+  3. Red and Blue strokes, cut to the pictures, with `mix-blend-mode: color`. The result takes
+     the hue and the saturation of the ink and keeps the brightness of layer 2. Contrast strokes
+     are left out of this layer.
+- The shapes are CSS shapes on HTML elements on purpose. An SVG `mask` or `clipPath` reached by
+  `url(#id)` hid every stroke in WebKit on CI (a stroke that is a straight horizontal line has
+  a bounding box without height).
+- The layer that takes the pen and holds the notes for screen readers and tests is a fourth one,
+  on top. Its notes are transparent. The stroke under the pen is drawn there, solid, while the
+  pen is down; when the pen lifts, the note shows in the paint layers. Drawing therefore costs
+  the same as before negative ink.
+- The paint layers are `aria-hidden`, take no pointer events and stay out of a Freeze Frame.
 - **Undoing it.** With brightness as `0.3 R + 0.59 G + 0.11 B`, the brightness of the picture is
   255 minus the brightness on screen. The colour under Red or Blue ink is gone and is filled in
   from the pixels beside the stroke. Under Contrast ink every channel is 255 minus its value.
