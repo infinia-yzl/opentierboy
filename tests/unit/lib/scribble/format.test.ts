@@ -69,6 +69,14 @@ describe('encodeInk', () => {
 });
 
 describe('decodeInk', () => {
+  it('returns the notes when text follows complete data, as lz-string reads to its end code and no further', () => {
+    expect(decodeInk(`${encodeInk(NOTES)}) [x](https://evil.example)`)).toEqual({ok: true, notes: NOTES});
+  });
+
+  it('returns the same notes when a small step is written in the wide form', () => {
+    expect(decodeInk(valueOf('~f.r_gAIgAI'))).toEqual(decodeInk(valueOf('~f.rnn')));
+  });
+
   it('returns the notes when the value was written by encodeInk', () => {
     expect(decodeInk(encodeInk(NOTES))).toEqual({ok: true, notes: NOTES});
   });
@@ -96,11 +104,15 @@ describe('decodeInk with values it refuses', () => {
     expect(decodeInk(value)).toEqual({ok: false, reason: 'format'});
   });
 
-  it.each(['', '1', 'ink', '.abc', 'v1.abc', '1234.abc', '-1.abc'])('returns reason format when the value "%s" has no version before a dot', (value) => {
+  it.each(['', '1', 'ink', '.abc', 'v1.abc', '-1.abc', '1 .abc', '1e0.abc', '+1.abc'])('returns reason format when the value "%s" has no version before a dot', (value) => {
     expect(decodeInk(value)).toEqual({ok: false, reason: 'format'});
   });
 
-  it.each(['0.', '2.', '10.'])('returns reason version when the value starts with "%s"', (prefix) => {
+  it.each(['01.', '001.', '0.', '00.'])('returns reason format when the version is written as "%s", with a zero in front', (prefix) => {
+    expect(decodeInk(prefix + LZString.compressToEncodedURIComponent(TEXT))).toEqual({ok: false, reason: 'format'});
+  });
+
+  it.each(['2.', '10.', '11.', '1000.', `${'9'.repeat(400)}.`])('returns reason version when the value starts with "%s"', (prefix) => {
     expect(decodeInk(prefix + LZString.compressToEncodedURIComponent(TEXT))).toEqual({ok: false, reason: 'version'});
   });
 

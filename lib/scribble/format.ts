@@ -30,7 +30,7 @@ const WIDE_MARK = 63;
 const WIDE_OFFSET = 131_072;
 const NOTE_MARK = '~';
 const STROKE_MARK = '.';
-const VERSION_PREFIX = /^(\d{1,3})\./;
+const VERSION_PREFIX = /^([1-9]\d*)\./;
 
 const COLOUR_CODES: Readonly<Record<InkColour, string>> = Object.freeze({red: 'r', blue: 'b', contrast: 'c'});
 const CODE_COLOURS: ReadonlyMap<string, InkColour> = new Map(
@@ -169,7 +169,7 @@ export function decodeInk(value: unknown): InkRead {
   if (value.length > INK_LIMITS.maxValueLength) return refuse('too-long');
   const prefix = VERSION_PREFIX.exec(value);
   if (!prefix) return refuse('format');
-  if (Number(prefix[1]) !== INK_VERSION) return refuse('version');
+  if (prefix[1] !== String(INK_VERSION)) return refuse('version');
   const text = decompressFromEncodedURIComponentCapped(value.slice(prefix[0].length).replace(/ /g, '+'), INK_LIMITS.maxTextLength);
   return text === null ? refuse('data') : readInkText(text);
 }

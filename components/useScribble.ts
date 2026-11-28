@@ -1,24 +1,24 @@
 'use client';
 
-import {useCallback, useMemo, useSyncExternalStore} from 'react';
+import {useCallback, useEffect, useMemo, useSyncExternalStore} from 'react';
 import {usePathname, useSearchParams} from 'next/navigation';
 import {listAddressWritten} from '@/components/useListSteps';
 import {inkInSearch, inkParam, searchWithInk} from '@/lib/scribble/address';
 import {DEFAULT_INK_COLOUR, type InkColour} from '@/lib/scribble/colours';
-import {decodeInk, encodeInk, type InkProblem} from '@/lib/scribble/format';
+import type {InkProblem} from '@/lib/scribble/format';
+import {inkOfAddress, inkOfNotes, NO_INK, type Ink} from '@/lib/scribble/ink';
 import {pointsIn, removeLastNote as withoutLastNote, type Note} from '@/lib/scribble/notes';
 
-export interface Ink {
-  readonly value: string | null;
-  readonly notes: readonly Note[];
-  readonly problem: InkProblem | null;
+interface Unsaved {
+  readonly ink: Ink;
+  readonly at: string;
 }
 
 interface Pen {
   readonly on: boolean;
   readonly colour: InkColour;
   readonly drawing: number;
-  readonly unsaved: readonly Note[] | null;
+  readonly unsaved: Unsaved | null;
 }
 
 export interface ScribbleView {
@@ -32,7 +32,6 @@ export interface ScribbleView {
 }
 
 const NO_NOTES: readonly Note[] = Object.freeze([]);
-const NO_INK: Ink = Object.freeze({value: null, notes: NO_NOTES, problem: null});
 const INITIAL_PEN: Pen = Object.freeze({on: false, colour: DEFAULT_INK_COLOUR, drawing: 0, unsaved: null});
 const KEPT_INKS = 16;
 
@@ -50,21 +49,15 @@ function createScribbleStore() {
     pen = Object.freeze(next);
     notify();
   };
-  const keep = (value: string, ink: Ink): Ink => {
-    inks.delete(value);
-    inks.set(value, ink);
+  const keep = (raw: string, ink: Ink): Ink => {
+    inks.delete(raw);
+    inks.set(raw, ink);
     if (inks.size > KEPT_INKS) inks.delete(inks.keys().next().value as string);
     return ink;
   };
-  const read = (value: string | null): Ink => {
-    if (value === null) return NO_INK;
-    const known = inks.get(value);
-    if (known) return keep(value, known);
-    const decoded = decodeInk(value);
-    return keep(value, Object.freeze(decoded.ok ? {value, notes: decoded.notes, problem: null} : {value, notes: NO_NOTES, problem: decoded.reason}));
-  };
-  const inkNow = () => read(inkInSearch(window.location.search));
-  const notesNow = () => pen.unsaved ?? inkNow().notes;
+  const read = (raw: string | null): Ink => (raw === null ? NO_INK : keep(raw, inks.get(raw) ?? inkOfAddress(raw)));
+  const unsavedAt = (address: string): Ink | null => (pen.unsaved && pen.unsaved.at === address ? pen.unsaved.ink : null);
+  const inkNow = (): Ink => unsavedAt(addressInWindow()) ?? read(inkInSearch(window.location.search));
   const onPopState = () => {
     run = null;
     if (pen.unsaved) setPen({...pen, unsaved: null});
@@ -84,14 +77,16 @@ function createScribbleStore() {
     return true;
   };
   const write = (notes: readonly Note[]) => {
-    const value = encodeInk(notes);
-    if (value !== null) keep(value, Object.freeze({value, notes, problem: null}));
-    const saved = value === inkInSearch(window.location.search)
-      || writeAddress(window.location.pathname + searchWithInk(window.location.search, value), value);
-    setPen({...pen, drawing: 0, unsaved: saved ? null : notes});
+    const ink = inkOfNotes(notes);
+    if (ink.raw !== null) keep(ink.raw, ink);
+    const at = addressInWindow();
+    const saved = ink.value === read(inkInSearch(window.location.search)).value
+      || writeAddress(window.location.pathname + searchWithInk(window.location.search, ink.value), ink.value);
+    setPen({...pen, drawing: 0, unsaved: saved ? null : {ink, at}});
   };
   const save = () => {
-    if (pen.unsaved) write(pen.unsaved);
+    const unsaved = unsavedAt(addressInWindow());
+    if (unsaved) write(unsaved.notes);
   };
   return Object.freeze({
     subscribe(listener: () => void): () => void {
@@ -110,7 +105,8 @@ function createScribbleStore() {
     },
     getPen: (): Pen => pen,
     read,
-    notesNow,
+    unsavedAt,
+    notesNow: (): readonly Note[] => inkNow().notes,
     write,
     setOn(on: boolean) {
       if (on === pen.on) return;
@@ -128,20 +124,21 @@ function createScribbleStore() {
       if (drawing !== pen.drawing) setPen({...pen, drawing});
     },
     removeLastNote() {
-      const notes = notesNow();
+      const {notes} = inkNow();
       if (notes.length > 0) write(withoutLastNote(notes));
     },
     clear() {
-      if (notesNow().length > 0) write(NO_NOTES);
+      if (inkNow().notes.length > 0) write(NO_NOTES);
     },
     listAddress(href: string, pathname: string, mode: 'push' | 'replace'): string {
       const here = pathInWindow() === pathname;
-      const ink = here ? inkNow() : NO_INK;
-      const value = here && pen.unsaved ? encodeInk(pen.unsaved) : ink.problem === null ? ink.value : null;
+      const {value} = here ? inkNow() : NO_INK;
       const next = value === null ? href : `${href}&ink=${value}`;
       run = mode === 'replace' && here && run !== null && run === addressInWindow() ? next : null;
-      if (pen.unsaved) setPen({...pen, unsaved: null});
       return next;
+    },
+    dropUnsavedOfOtherAddress() {
+      if (pen.unsaved && pen.unsaved.at !== addressInWindow()) setPen({...pen, unsaved: null});
     },
     reset() {
       run = null;
@@ -152,30 +149,36 @@ function createScribbleStore() {
 
 const store = createScribbleStore();
 const serverPen = (): Pen => INITIAL_PEN;
-const serverInk = (): string | null => null;
+const serverText = (): string | null => null;
 
 export function useScribble(): ScribbleView {
   const pathname = usePathname();
   const routerInk = inkParam(useSearchParams().get('ink'));
-  const inkValueNow = useCallback(
+  const rawNow = useCallback(
     () => (pathInWindow() === pathname ? inkInSearch(window.location.search) : routerInk),
     [pathname, routerInk],
   );
-  const value = useSyncExternalStore(store.subscribe, inkValueNow, serverInk);
+  const hereNow = useCallback(() => (pathInWindow() === pathname ? addressInWindow() : null), [pathname]);
+  const raw = useSyncExternalStore(store.subscribe, rawNow, serverText);
+  const here = useSyncExternalStore(store.subscribe, hereNow, serverText);
   const pen = useSyncExternalStore(store.subscribe, store.getPen, serverPen);
+  useEffect(() => {
+    if (here !== null) store.dropUnsavedOfOtherAddress();
+  }, [here]);
   return useMemo(() => {
-    const ink = store.read(value);
-    const notes = pen.unsaved ?? ink.notes;
+    const inAddress = store.read(raw);
+    const unsaved = here !== null && pen.unsaved && pen.unsaved.at === here ? pen.unsaved.ink : null;
+    const ink = unsaved ?? inAddress;
     return {
       on: pen.on,
       colour: pen.colour,
-      notes,
-      spent: pointsIn(notes) + pen.drawing,
-      ink: ink.problem === null ? ink.value : null,
-      addressInk: ink.value,
-      problem: ink.problem,
+      notes: ink.notes,
+      spent: pointsIn(ink.notes) + pen.drawing,
+      ink: ink.value,
+      addressInk: inAddress.raw,
+      problem: unsaved ? null : inAddress.problem,
     };
-  }, [value, pen]);
+  }, [raw, here, pen]);
 }
 
 export const getPen = store.getPen;
