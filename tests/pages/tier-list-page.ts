@@ -11,6 +11,7 @@ import {DeviceImages} from './device-images';
 import {SnapshotFiles} from './snapshot-files';
 import {SharePanel} from './share-panel';
 import {Zen} from './zen';
+import {Extractor} from './extractor';
 
 export interface Size {
   width: number;
@@ -48,6 +49,7 @@ export class TierListPage {
   readonly drag: DragAndDrop;
   readonly linkImages: LinkImages;
   readonly deviceImages: DeviceImages;
+  readonly extractor: Extractor;
   readonly files: SnapshotFiles;
   readonly share: SharePanel;
   readonly zen: Zen;
@@ -72,6 +74,7 @@ export class TierListPage {
     this.drag = new DragAndDrop(this);
     this.linkImages = new LinkImages(this);
     this.deviceImages = new DeviceImages(this);
+    this.extractor = new Extractor(this);
     this.files = new SnapshotFiles(this);
     this.share = new SharePanel(this);
     this.zen = new Zen(this);

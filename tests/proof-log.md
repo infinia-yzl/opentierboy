@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 115 |
+| RED: the walk failed on the changed value | 130 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -262,3 +262,25 @@ The two rows on capturing were recorded on 2026-11-25, when the machine got its 
 |---|---|---|---|
 | items | :26 `'winstonInS.maugaFirst'` rows([M,W]..) -> rows([W,M]..) (also `winstonInA.maugaInS` W moved to Unranked: RED at 22 steps, items in tier "A") | RED | 10 steps: items in tier "S" |
 | order | :36 `aFirst` ['A','S','Unranked'] -> ['A','Unranked','S'] | RED | 14 steps: "tier 2 name" expected Unranked, got S |
+
+## item-extractor
+
+Recorded on 2026-11-28 on branch `feat/item-extractor`, against `tests/models/item-extractor.ts` as committed with the walk (3 parts, Chromium). Each row changed one value in `VIEWS`; the file was restored afterwards.
+
+| Field | Edit | Result | First failing message, or note |
+|---|---|---|---|
+| closed.list | :19 `list: 'Tanks'` -> `list: 'Custom Tier List'` | RED | 0 steps: title expected "Custom Tier List", got "Tanks" (3 of 3 parts) |
+| dialog (empty vs items) | :20 `{dialog: 'empty'}` -> `{dialog: 'items', status: '8 items found', borders: 0}` | RED | 3 of 3 parts |
+| items.status | :21 `'8 items found'` -> `'9 items found'` | RED | 4 steps: status line not visible (3 of 3 parts) |
+| items.borders | :21 `borders: 8` -> `borders: 9` | RED | 4 steps: borders expected 9, got 8 (3 of 3 parts) |
+| items.borders (sevenLeft) | :22 `borders: 7` -> `borders: 8` | RED | 13 steps: borders expected 8, got 7 (2 of 3 parts) |
+| items.status (noneFound) | :23 `'No items found. Draw a border around one item.'` -> `'No items found.'` | RED | 7 steps: status line not visible (2 of 3 parts). First GREEN: the page object matched text as a substring; `Extractor.text` now matches the whole text |
+| items.borders (oneDrawn) | :24 `borders: 1` -> `borders: 0` | RED | 25 steps: borders expected 0, got 1 (2 of 3 parts) |
+| names.item | :25 `item: 1` -> `item: 2` | RED | 17 steps: "Item 2 of 8" not visible (3 of 3 parts) |
+| names.named | :26 `['Item 1: Ana']` -> `[]` | RED | 4 steps: named tiles expected 0, got 1 (2 of 3 parts) |
+| items.borders (namedItems) | :27 `borders: 8` -> `borders: 7` | RED | 20 steps: borders expected 7, got 8 (2 of 3 parts) |
+| created.items (eight) | :28 `HEROES` -> `HEROES.slice(1)` | RED | 21 steps: Unranked items (1 of 3 parts) |
+| created.list | :28 `list: 'Custom Tier List', items: HEROES` -> `list: 'Tanks'` | RED | 21 steps: title expected "Tanks", got "Custom Tier List" (1 of 3 parts) |
+| created.items (seven) | :29 `HEROES.slice(0, 7)` -> `HEROES.slice(1)` | RED | 30 steps: Unranked items (2 of 3 parts) |
+| created.items (one) | :30 `['plain 1']` -> `['Item 1']` | RED | 9 steps: Unranked items (1 of 3 parts) |
+| created.items (named) | :31 `['Ana', ...HEROES.slice(1)]` -> `HEROES` | RED | 26 steps: Unranked items (2 of 3 parts) |

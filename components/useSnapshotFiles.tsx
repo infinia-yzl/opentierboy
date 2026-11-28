@@ -41,7 +41,8 @@ import {
   type SnapshotToOpen,
   snapshotToOpen,
 } from '@/lib/snapshot/open';
-import {stateParam} from '@/lib/tierList';
+import {itemsToAdd, stateParam} from '@/lib/tierList';
+import type Item from '@/models/Item';
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 export const NOT_A_PICTURE = 'This file is not a picture.';
@@ -124,44 +125,39 @@ export interface UseSnapshotFiles {
   dialog: React.ReactNode;
   /** The Add images button: focus returns to it when the dialog closes. */
   openFileButtonRef: React.RefObject<HTMLButtonElement | null>;
+  openNewList: (items: Item[]) => NewListOutcome;
 }
+
+export type NewListOutcome = 'opened' | 'busy' | 'too-long' | 'empty';
+
+export const BLANK_LIST_PATH = '/rank';
+export const BLANK_LIST_TITLE = 'Custom Tier List';
 
 export function useSnapshotFiles(): UseSnapshotFiles {
   const router = useRouter();
   const pathname = usePathname();
   const address = stateParam(useSearchParams().get('state'));
-  const {tiers} = useTierContext();
+  const {tiers, tierCortex} = useTierContext();
   const {addDeviceImages, importDeviceImages} = useCustomImages();
   const addItemsWithUndo = useAddItemsWithUndo();
   const linkImageItems = useLinkImageItems();
   const [pending, setPending] = useState<SnapshotToOpen | null>(null);
-  /** True from Open list until the list is in the address (or the opening ends otherwise). */
   const [opening, setOpening] = useState(false);
-  /** Where the opening list goes, and the address it leaves. */
   const target = useRef<{path: string; state: string; from: string; title: string} | null>(null);
   const openFileButtonRef = useRef<HTMLButtonElement | null>(null);
-  /** True while the dialog asks about a list and while that list opens: files are ignored then. */
   const busy = useRef(false);
-  /** Files are handled one call at a time, in the order they arrive. */
   const queue = useRef<Promise<void>>(Promise.resolve());
-  /** False once the editor has closed: waiting files are dropped, quietly. */
   const alive = useRef(true);
-  /** True once a link to another page was clicked: waiting files are dropped, quietly. */
   const leaving = useRef(false);
-  /** Counts Back and Forward: files that waited across one are dropped. */
   const historyMoves = useRef(0);
-  /** The names in each "Files not added" message on screen. */
   const notAddedNames = useRef<Record<NotAddedReason, string[]>>({history: [], list: []});
 
   useEffect(() => {
     alive.current = true;
-    // Next.js moves through history with pushState; only Back and Forward fire popstate.
     const onHistoryMove = () => {
       historyMoves.current += 1;
     };
     window.addEventListener('popstate', onHistoryMove);
-    // A click on a link to another page starts a navigation that the next add would cancel
-    // (Next.js drops a navigation still loading when another starts): stop adding.
     const onLinkClick = (event: MouseEvent) => {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
@@ -177,10 +173,8 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     };
   }, []);
 
-  /** True once the editor closed or is being left: nothing more is added or opened. */
   const gone = useCallback(() => !alive.current || leaving.current, []);
 
-  /** Says which waiting files were not added, and why: one message per reason, growing. */
   const notAdded = useCallback((items: File[] | string[], reason: NotAddedReason) => {
     const names = notAddedNames.current[reason];
     names.push(...items.map((item) => (typeof item === 'string' ? item : item.name)));
@@ -223,40 +217,33 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     });
     const {items, errors} = await add(images);
     if (gone()) return;
-    // Back or Forward while the images were stored: the list on screen is another version now.
     if (historyMoves.current !== moves) {
       notAdded(files, 'history');
       return;
     }
     if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
     if (items.length === 0) return;
-    // The list may have changed while the images were stored: add them to the latest one.
     flushSync(() => latest.current.addItemsWithUndo(items));
     await untilRendered();
   }, [untilRendered, notAdded, gone]);
 
   const openFiles = useCallback((files: File[]) => {
     if (files.length === 0 || !alive.current) return;
-    // New files: the visitor stays (a click on a link that went nowhere).
     leaving.current = false;
     if (busy.current) {
       notAdded(files, 'list');
       return;
     }
-    // In turn: quick pastes and drops each get added, in order, and two lists never open at once.
     const moves = historyMoves.current;
     const run = queue.current.then(() => openNow(files));
     queue.current = run.catch(() => undefined);
 
     async function openNow(files: File[]) {
-      // The editor closed or is being left, or Back or Forward showed another version while
-      // these files waited: they are not added (the version they were meant for is not on screen).
       if (gone()) return;
       if (historyMoves.current !== moves) {
         notAdded(files, 'history');
         return;
       }
-      // A list was found in an earlier file and is being asked about or opened.
       if (busy.current) {
         notAdded(files, 'list');
         return;
@@ -288,15 +275,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     }
   }, [addAsItems, notAdded, gone]);
 
-  /**
-   * Adds dropped or pasted image addresses as link images (#107), through the same checks as "From
-   * a link": the address passed checkLinkImageUrl (lib/images/droppedLinks.ts), its image is
-   * loaded once (checkImage), and only an image that loads becomes an item. The visitor chose it,
-   * so its site may load on this page (useLinkImageItems, as "From a link" does). An address that
-   * is not an image (a page, a video) adds nothing and says nothing, as before addresses could be
-   * dropped or pasted; only an image that is too large or has no size gets a message. All the
-   * images of one drop or paste are one change: one Back step.
-   */
   const openLinks = useCallback((found: FoundLinkImages) => {
     if (!alive.current || found.accepted.length === 0) return;
     const names = found.accepted.map((link) => linkImageLabel(link.url, link.displayDomain));
@@ -346,7 +324,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     }
   }, [untilRendered, notAdded, gone]);
 
-  /** Ends the opening: the dialog closes, and files are handled again. */
   const finishOpening = useCallback(() => {
     target.current = null;
     busy.current = false;
@@ -354,10 +331,27 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     setPending(null);
   }, []);
 
+  const goToList = useCallback((path: string, state: string, title: string) => {
+    const {pathname: here} = latest.current;
+    const address = stateParam(new URLSearchParams(window.location.search).get('state'));
+    if (here === path && address === state) {
+      recordRecentLink({path, state, title});
+      finishOpening();
+      return;
+    }
+    target.current = {path, state, from: `${here}?state=${address}`, title};
+    const href = `${path}?state=${state}`;
+    if (path === here) {
+      window.history.pushState(null, '', href);
+      listAddressWritten('push');
+    } else {
+      router.push(href);
+    }
+  }, [router, finishOpening]);
+
   const openPending = useCallback(async (snapshot: SnapshotToOpen) => {
     setOpening(true);
     const moves = historyMoves.current;
-    /** True when the opening must stop: the visitor left, or went Back or Forward meanwhile. */
     const abandoned = () => {
       if (!alive.current) return true;
       if (!leaving.current && historyMoves.current === moves) return false;
@@ -366,7 +360,6 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     };
     try {
       const {ids, errors} = await importDeviceImages(snapshotImages(snapshot));
-      // Never pull a visitor who left back into the editor, or over a version they went to.
       if (abandoned()) return;
       const state = snapshotLinkAfterImport(snapshot, ids);
       if (snapshotLinkTooLong(state)) {
@@ -375,32 +368,30 @@ export function useSnapshotFiles(): UseSnapshotFiles {
         return;
       }
       if (errors.length > 0) toast.error('Some images could not be added', {description: errors.join(' ')});
-      const {pathname: here} = latest.current;
-      const address = stateParam(new URLSearchParams(window.location.search).get('state'));
-      const title = snapshot.list.title ?? '';
-      if (here === snapshot.path && address === state) {
-        // The address shows this list already: opening it again changes nothing.
-        recordRecentLink({path: snapshot.path, state, title});
-        finishOpening();
-        return;
-      }
-      target.current = {path: snapshot.path, state, from: `${here}?state=${address}`, title};
-      const href = `${snapshot.path}?state=${state}`;
-      if (snapshot.path === here) {
-        window.history.pushState(null, '', href);
-        listAddressWritten('push');
-      } else {
-        router.push(href);
-      }
+      goToList(snapshot.path, state, snapshot.list.title ?? '');
     } catch {
       if (!alive.current) return;
       toast.error('Could not open the file', {description: SNAPSHOT_MESSAGES.damaged});
       finishOpening();
     }
-  }, [importDeviceImages, router, finishOpening]);
+  }, [importDeviceImages, finishOpening, goToList]);
 
-  // The opening ends when the address shows the list: Recently viewed records it then (on
-  // another editor page, the new editor records it as a list opened fresh). It also ends when
+  const openNewList = useCallback((items: Item[]): NewListOutcome => {
+    if (!alive.current || items.length === 0) return 'empty';
+    if (busy.current) return 'busy';
+    const tiers = tierCortex.getInitialTiers(undefined, undefined);
+    const added = itemsToAdd(tiers, items);
+    const last = tiers.length - 1;
+    const state = tierCortex.encodeListForURL(BLANK_LIST_TITLE, tiers.map((tier, index) => (
+      index === last ? {...tier, items: [...tier.items, ...added]} : tier
+    )));
+    if (snapshotLinkTooLong(state)) return 'too-long';
+    busy.current = true;
+    leaving.current = false;
+    goToList(BLANK_LIST_PATH, state, BLANK_LIST_TITLE);
+    return 'opened';
+  }, [tierCortex, goToList]);
+
   useEffect(() => {
     const opened = target.current;
     if (!opened) return;
@@ -414,13 +405,11 @@ export function useSnapshotFiles(): UseSnapshotFiles {
 
   const dialog = (
     <AlertDialog open={pending !== null} onOpenChange={(open) => {
-      // While the list opens, the dialog stays (Escape and Cancel do nothing).
       if (open || opening) return;
       setPending(null);
       busy.current = false;
     }}>
       <AlertDialogContent onCloseAutoFocus={(event) => {
-        // The dialog has no trigger of its own: give focus back to the Add images button.
         event.preventDefault();
         openFileButtonRef.current?.focus();
       }}>
@@ -431,10 +420,8 @@ export function useSnapshotFiles(): UseSnapshotFiles {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          {/* aria-disabled, not disabled: focus stays in the dialog while the list opens. */}
           <AlertDialogCancel aria-disabled={opening}>Cancel</AlertDialogCancel>
           <AlertDialogAction aria-disabled={opening} onClick={(event) => {
-            // The dialog closes once the list is in the address (finishOpening), not now.
             event.preventDefault();
             if (!pending || opening) return;
             void openPending(pending);
@@ -446,7 +433,7 @@ export function useSnapshotFiles(): UseSnapshotFiles {
     </AlertDialog>
   );
 
-  return {openFiles, openLinks, dialog, openFileButtonRef};
+  return {openFiles, openLinks, dialog, openFileButtonRef, openNewList};
 }
 
 /** True for a drag or drop that carries files. */

@@ -20,6 +20,7 @@ import {editorRowsModel} from './editor-rows';
 import {zenStepsModel} from './zen-steps';
 import {leavingModel} from './leaving';
 import {linkDialogModel} from './link-dialog';
+import {itemExtractorModel} from './item-extractor';
 
 export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenLayoutModel,
@@ -43,4 +44,5 @@ export const MACHINE_MODELS: readonly MachineModel[] = Object.freeze([
   zenStepsModel,
   leavingModel,
   linkDialogModel,
+  itemExtractorModel,
 ] as MachineModel[]);
