@@ -123,7 +123,7 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
 
   const reset = useCallback(() => {
     const tiersBefore = tiers;
-    resetRankings();
+    if (!resetRankings()) return;
     toast('Items Reset', {
       description: 'All item rankings have been reset.',
       action: {
@@ -135,7 +135,7 @@ export const AddImagesProvider: React.FC<AddImagesProviderProps> = ({onOpenFiles
 
   const handleDelete = () => {
     const tiersBefore = tiers;
-    removeAllItems();
+    if (!removeAllItems()) return;
     toast('All Items Deleted', {
       description: 'All items have been removed.',
       action: {

@@ -4,7 +4,7 @@ Each row is one deliberate break. A walk or a test must turn red against it, whi
 
 Most breaks are a wrong expected value in a model file under `tests/models/`. The run was the walk of that model in Chromium, and `git checkout` restored the file afterwards.
 
-Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their line numbers belong to that commit. Three rows say "fixed later": at `80d0c1f` their result was GREEN, and a later commit of the same pull request fixed the check.
+Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their line numbers belong to that commit. Three rows say "fixed later": at `80d0c1f` their result was GREEN, and a later commit of the same pull request fixed the check. Rows dated 2026-11-28 ran against the pull request that added them.
 
 "n steps" is the count of events before the state check failed.
 
@@ -12,7 +12,7 @@ Recorded on 2026-11-22. The model rows ran against commit `80d0c1f`, and their l
 
 | Result | Rows |
 |---|---|
-| RED: the walk failed on the changed value | 115 |
+| RED: the walk failed on the changed value | 118 |
 | GREEN: the walk passed, so the check has a gap | 5 |
 
 At `80d0c1f` the totals were 110 RED and 8 GREEN.
@@ -31,6 +31,12 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | App: every label forced to the left (`components/DragDropTierList.tsx`) | The history walk, once its check read the label position (fixed later). Three hand-written tests in `history.spec.ts` and `share-panel.spec.ts`. |
 | App: Undo puts a deleted item at the end of its row (`lib/tierList.ts`) | One unit test in `tierList.test.ts`. Part 1 of the remove-and-undo walk, at step 2. |
 | App: a row stack shows on an empty row (`components/RowHandle.tsx`) | All 4 parts of the mouse-drag walk. |
+| App: a refused write does not hand Next.js the address again (`components/historyWrite.ts`, 2026-11-28) | All 7 tests of "refused history write" in `history.spec.ts`: the address held the refused list. |
+| App: the drop announcement ignores `refused` (`lib/dnd/dndKit.ts`, 2026-11-28) | The 3 drag and keyboard tests of "refused history write": the announcer said "Dropped ...". |
+| App: Delete and Reset show their toast after a refused write (`components/DragDropTierList.tsx`, `components/ItemManager.tsx`, 2026-11-28) | First GREEN: the check waited for the toast to close by itself. Fixed in the same pull request (`expectSavePausedAlone` stops the toast timers first), then RED: 2 toasts, expected 1. |
+| App: a label setting changes the screen before its write (`contexts/TierContext.tsx`, 2026-11-28) | "renders the label position of the address and the save toast when the browser refuses the write of a label setting": Left expected checked. |
+| App: the Open list dialog stays after a refused write (`components/useSnapshotFiles.tsx`, 2026-11-28) | "renders the list of the address and the save toast when the browser refuses the write of an opened snapshot file": dialog expected hidden. |
+| App: no toast after a refused write (`components/historyWrite.ts`, 2026-11-28) | All 7 tests of "refused history write": toast expected count 1, got 0. |
 | Test: "position 2 of 3" changed to "1 of 3" | "writes no history entry and no new URL when the user moves an item right and back with the keyboard and drops it" |
 | Test: toast title changed | "renders the toast "Item restored" when the user clicks Undo in the toast "Item deleted"" |
 | Test: "Show Labels" changed to "Hide Labels" | "renders row labels on top when the page opens a v3 link with lp top" |
@@ -76,6 +82,9 @@ At `80d0c1f` the totals were 110 RED and 8 GREEN.
 | versions | :16 `Number(match[2])` -> `+ 1` | RED | 0 steps: tab history should hold 2 versions, expected 3 got 2 |
 | labelPosition | App break: every label forced to the left in `components/DragDropTierList.tsx` | RED | 7 steps: "the label of row S should sit above its items". Fixed later: at `80d0c1f` the check ignored the position. |
 | itemLabels | :16 `=== 'shown'` -> `=== 'hidden'` | RED | 0 steps: row S items text expected/received differ (toHaveText) |
+| CHANGE_REFUSED (machine, 2026-11-28) | `tests/machines/history.ts` `version1of1`: `CHANGE_REFUSED` target `version1of1` -> `version2of2` | RED | 1 step: "the items of row A" expected Mauga, got none |
+| CHANGE_REFUSED (app, 2026-11-28) | App break: the drop announcement ignores `refused` in `lib/dnd/dndKit.ts` | RED | Parts 1 to 3: "a refused drop should be announced as a move that did not happen", got "Dropped ..." |
+| CHANGE_REFUSED (app, 2026-11-28) | App break: no toast in `components/historyWrite.ts` | RED | Parts 1 to 3: toast "Your browser paused saving" expected count 1, got 0 |
 
 ## leaving
 

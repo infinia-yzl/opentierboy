@@ -54,7 +54,9 @@ For contributors and agents: two ways to keep lists on this device, the snapshot
     (`router.push`). The dialog stays open, saying "Opening the list…", until the list is in the
     address: nothing can change the list meanwhile, so no change cancels a navigation. Back or
     Forward during the opening ends it, and leaving the editor ends it without bringing the
-    visitor back.
+    visitor back. When the browser refuses the new history entry of a list of this page, the
+    dialog closes, the list stays as it was and a toast says "Your browser paused saving. Try
+    again in a moment." (`docs/reference/link-format.md`, "A write that the browser refuses").
     The images go into the device store one call at a time with "From your device", with the
     same protection: nothing the list on screen shows, or that was just added, is removed to
     make room. An image this browser already holds under the file's own id is used as it is,

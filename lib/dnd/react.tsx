@@ -90,9 +90,9 @@ export interface TierDragDropProps<T extends TierLike> {
   /** The list as the store holds it. */
   tiers: T[];
   /** One item moved (on drop, only when it moved). `to.index` counts the target row after the move. */
-  onItemMove: (move: ItemMove) => void;
-  onRowMove: (move: RowMove) => void;
-  onRowItemsMove: (move: RowMove) => void;
+  onItemMove: (move: ItemMove) => boolean | void;
+  onRowMove: (move: RowMove) => boolean | void;
+  onRowItemsMove: (move: RowMove) => boolean | void;
   /** The name screen readers hear for an item. Default: its `content`. */
   itemLabel?: (item: T['items'][number]) => string;
   /** Renders the rows: the list itself, or the preview during a drag. */
@@ -105,6 +105,14 @@ function labelled<T extends TierLike>(tiers: readonly T[], itemLabel?: (item: T[
 }
 
 type SessionProps<T extends TierLike> = Pick<TierDragDropProps<T>, 'tiers' | 'onItemMove' | 'onRowMove' | 'onRowItemsMove' | 'itemLabel'>;
+
+interface Settlement {
+  readonly moved: {kind: TierDragKind; tierId: string} | null;
+  readonly refused: boolean;
+}
+
+const NOTHING_MOVED: Settlement = Object.freeze({moved: null, refused: false});
+const MOVE_REFUSED: Settlement = Object.freeze({moved: null, refused: true});
 
 /**
  * The state of one editor's drags, outside React's rendering: dnd-kit's event handlers and
@@ -152,12 +160,37 @@ function createDragSession<T extends TierLike>(id: string) {
     return projection;
   };
 
+  const settlements = new WeakMap<object, Settlement>();
+
+  const settle = (event: DragEndEvent, manager: DragDropManager): Settlement => {
+    const known = settlements.get(event);
+    if (known) return known;
+    const settlement = dropOf(event, manager);
+    settlements.set(event, settlement);
+    return settlement;
+  };
+
+  const dropOf = (event: DragEndEvent, manager: DragDropManager): Settlement => {
+    if (!drag || !latest || endedWithoutDrop(event, manager)) return NOTHING_MOVED;
+    if (drag.kind === 'item') {
+      const move = itemMoveFromPreview(props.tiers, latest, drag.id);
+      if (!move) return NOTHING_MOVED;
+      return props.onItemMove(move) === false ? MOVE_REFUSED : {moved: {kind: 'item', tierId: move.to.tierId}, refused: false};
+    }
+    const move = rowMoveFromPreview(props.tiers, latest, drag.id);
+    if (!move) return NOTHING_MOVED;
+    const written = drag.kind === 'row' ? props.onRowMove(move) : props.onRowItemsMove(move);
+    return written === false ? MOVE_REFUSED : {moved: {kind: drag.kind, tierId: drag.id}, refused: false};
+  };
+
   const read: AnnouncedDragReader = (phase, event, manager, type) => {
     const {tiers, itemLabel} = props;
     if (phase === 'start') return {tiers: labelled(tiers, itemLabel), preview: labelled(tiers, itemLabel)};
     if (!drag || event.operation.source?.id !== drag.dndId) return undefined;
-    if (phase !== 'over') return {tiers: labelled(drag.tiers, itemLabel), preview: labelled(latest ?? drag.tiers, itemLabel)};
-    // Pointer moves are dragmove events too: they change nothing here, and cost next to nothing.
+    if (phase !== 'over') {
+      const refused = phase === 'drop' && type === 'dragend' && settle(event as DragEndEvent, manager).refused;
+      return {tiers: labelled(drag.tiers, itemLabel), preview: labelled(latest ?? drag.tiers, itemLabel), refused};
+    }
     const projection = project(type === 'dragmove' ? 'move' : 'over', event as DragOverEvent, manager);
     if (!projection || projection.next === projection.before) return undefined;
     return {tiers: labelled(drag.tiers, itemLabel), preview: labelled(projection.next, itemLabel)};
@@ -213,24 +246,7 @@ function createDragSession<T extends TierLike>(id: string) {
       return latest;
     },
     end(event: DragEndEvent, manager: DragDropManager): {kind: TierDragKind; tierId: string} | null {
-      let moved: {kind: TierDragKind; tierId: string} | null = null;
-      if (drag && latest && !endedWithoutDrop(event, manager)) {
-        if (drag.kind === 'item') {
-          const move = itemMoveFromPreview(props.tiers, latest, drag.id);
-          if (move) {
-            props.onItemMove(move);
-            moved = {kind: 'item', tierId: move.to.tierId};
-          }
-        } else {
-          const move = rowMoveFromPreview(props.tiers, latest, drag.id);
-          if (move) {
-            if (drag.kind === 'row') props.onRowMove(move);
-            else props.onRowItemsMove(move);
-            moved = {kind: drag.kind, tierId: drag.id};
-          }
-        }
-      }
-      // `drag` and `latest` stay until the next drag: the drop announcement may read them after this.
+      const {moved} = settle(event, manager);
       active = false;
       keyboardMoveManager = null;
       stopAutoScrollPause();

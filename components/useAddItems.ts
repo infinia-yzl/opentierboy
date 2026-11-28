@@ -15,7 +15,7 @@ export function useAddItemsWithUndo(): (newItems: Item[]) => void {
   const {tiers, addItems, removeItems} = useTierContext();
   return useCallback((newItems: Item[]) => {
     const addedIds = itemsToAdd(tiers, newItems).map((item) => item.id);
-    addItems(newItems);
+    if (!addItems(newItems)) return;
     if (addedIds.length === 0) {
       toast('No New Items', {description: 'Every item is already in the list.'});
       return;

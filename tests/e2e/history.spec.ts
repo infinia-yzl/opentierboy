@@ -199,6 +199,172 @@ test.describe('history', () => {
 
   });
 
+  test.describe('refused history write', () => {
+    const OPENED = {'': ['Mauga', 'Winston']};
+
+    test.beforeEach(async ({tierList}) => {
+      await tierList.prepareListWriteRefusals();
+    });
+
+    async function expectOpenedList(tierList: TierListPage, opened: string, entries: number) {
+      await expect(tierList.page).toHaveURL(opened);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Winston']);
+      await expect(tierList.itemsIn('S')).toHaveCount(0);
+      await expect(tierList.itemsIn('F')).toHaveCount(0);
+      await expect(tierList.drag.heldHandles).toHaveCount(0);
+      expect(await tierList.historyLength()).toBe(entries);
+    }
+
+    async function expectNextDragWritesOneEntry(tierList: TierListPage, opened: string, entries: number) {
+      await tierList.drag.dragItemToTier('Mauga', 'S');
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      const moved = tierList.page.url();
+      expect(await tierList.historyLength()).toBe(entries + 1);
+      await tierList.goBack();
+      await expect(tierList.page).toHaveURL(opened);
+      await expect(tierList.itemsIn('S')).toHaveCount(0);
+      await tierList.goForward();
+      await expect(tierList.page).toHaveURL(moved);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+    }
+
+    test('renders the list of the address and the save toast when the browser refuses the write of a pointer drag', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.drag.dragItemToTierRefused('Mauga', 'S');
+
+      await tierList.expectSavePaused();
+      await expectOpenedList(tierList, opened, entries);
+      await expectNextDragWritesOneEntry(tierList, opened, entries);
+    });
+
+    test('renders the list of the address and the save toast when the browser refuses the write of a keyboard move', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      const heard = await tierList.drag.moveItemWithKeyboardRefused('Mauga', ['ArrowUp']);
+
+      expect(heard.at(-1)).toMatch(/^Move cancelled\. /);
+      await tierList.expectSavePaused();
+      await expectOpenedList(tierList, opened, entries);
+      await expectNextDragWritesOneEntry(tierList, opened, entries);
+    });
+
+    test('renders the list of the address and the save toast when the browser ignores the write of a pointer drag', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite({silently: true});
+
+      await tierList.drag.dragItemToTierRefused('Mauga', 'S');
+
+      await tierList.expectSavePaused();
+      await expectOpenedList(tierList, opened, entries);
+      await expectNextDragWritesOneEntry(tierList, opened, entries);
+    });
+
+    test('renders the rows of the address and the save toast when the browser refuses the write of a row moved by its grip', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      const heard = await tierList.drag.moveRowWithKeyboardRefused('S', ['ArrowDown']);
+
+      expect(heard.at(-1)).toMatch(/^Move cancelled\. /);
+      await tierList.expectSavePaused();
+      await expect(page).toHaveURL(opened);
+      await expectTierNames(tierList, ['S', 'A', 'B', 'C', 'F', 'Unranked']);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+      expect(await tierList.historyLength()).toBe(entries);
+    });
+
+    test('renders the rows of the address and the save toast when the browser refuses the write of items moved by a row stack', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], A: ['Winston']}));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      const heard = await tierList.drag.moveRowItemsWithKeyboardRefused('S', ['ArrowDown']);
+
+      expect(heard.at(-1)).toMatch(/^Move cancelled\. /);
+      await tierList.expectSavePaused();
+      await expect(page).toHaveURL(opened);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn('A')).toHaveText(['Winston']);
+      expect(await tierList.historyLength()).toBe(entries);
+    });
+
+    test('renders the title of the address and the save toast when the browser refuses the write of a new title', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED, 'Tanks'));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.typeTitleAndPressEnter('Best tanks');
+
+      await tierList.expectSavePaused();
+      await expect(tierList.title).toHaveText('Tanks');
+      await expectOpenedList(tierList, opened, entries);
+      await expectNextDragWritesOneEntry(tierList, opened, entries);
+    });
+
+    test('renders the deleted item again, the save toast and no Undo toast when the browser refuses the write of a delete', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.items.deleteItemNow('Winston');
+
+      await tierList.expectSavePausedAlone();
+      await expectOpenedList(tierList, opened, entries);
+      await expectNextDragWritesOneEntry(tierList, opened, entries);
+    });
+
+    test('renders the ranked items again, the save toast and no Undo toast when the browser refuses the write of Reset', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', {S: ['Mauga'], '': ['Winston']}));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.items.resetRankingsNow();
+
+      await tierList.expectSavePausedAlone();
+      await expect(page).toHaveURL(opened);
+      await expect(tierList.itemsIn('S')).toHaveText(['Mauga']);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Winston']);
+      expect(await tierList.historyLength()).toBe(entries);
+    });
+
+    test('renders the label position of the address and the save toast when the browser refuses the write of a label setting', async ({tierList, page}) => {
+      await tierList.goto(TANKS, rankingState('image-overwatch', OPENED));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.rows.chooseLabelPositionNow('Top');
+
+      await tierList.expectSavePaused();
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Left')).toBeChecked();
+      await tierList.closeMenus();
+      await expectOpenedList(tierList, opened, entries);
+
+      await tierList.rows.chooseLabelPosition('Top');
+      await tierList.rows.openRowOptions();
+      await expect(tierList.rows.rowOption('Top')).toBeChecked();
+      await tierList.closeMenus();
+      expect(await tierList.historyLength()).toBe(entries);
+    });
+  });
+
   test.describe('model', () => {
     const TRAY = ['Mauga', 'Winston', 'Sigma'];
     const LIST = rankingState('image-overwatch', {S: ['Reinhardt'], '': TRAY});
@@ -211,6 +377,15 @@ test.describe('history', () => {
       const step = (writes: boolean, act: () => Promise<void>) => async () => {
         wrote = writes;
         await act();
+      };
+      const layoutIn = (link: string): {lp: string; sl: boolean} => {
+        if (link === opened) return {lp: 'left', sl: true};
+        const {lp = 'left', sl = true} = v3LinkJson(link) as {lp?: string; sl?: boolean};
+        return {lp, sl};
+      };
+      const setting = (inAddress: (layout: {lp: string; sl: boolean}) => boolean, choose: () => Promise<void>, chooseAndWaitForLink: () => Promise<void>) => async () => {
+        wrote = !inAddress(layoutIn(page.url()));
+        await (wrote ? chooseAndWaitForLink() : choose());
       };
       const rowAIn = (link: string): unknown => {
         if (link === opened) return [];
@@ -227,12 +402,13 @@ test.describe('history', () => {
         },
         events: {
           CHANGE_LIST: step(true, () => tierList.drag.dragFirstUnrankedItemToTier('A')),
+          CHANGE_REFUSED: step(false, () => tierList.refuseListWriteOf(() => tierList.drag.dragFirstUnrankedItemToTierRefused('A'))),
           BROWSER_BACK: step(false, () => tierList.goBack()),
           BROWSER_FORWARD: step(false, () => tierList.goForward()),
-          CHOOSE_TOP: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Top')),
-          CHOOSE_LEFT: step(true, () => tierList.rows.chooseLabelPositionWithKeyboard('Left')),
-          HIDE_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(false)),
-          SHOW_ITEM_LABELS: step(true, () => tierList.rows.setItemLabelsVisibleWithKeyboard(true)),
+          CHOOSE_TOP: setting(({lp}) => lp === 'top', () => tierList.rows.chooseLabelPositionWithKeyboardNow('Top'), () => tierList.rows.chooseLabelPositionWithKeyboard('Top')),
+          CHOOSE_LEFT: setting(({lp}) => lp === 'left', () => tierList.rows.chooseLabelPositionWithKeyboardNow('Left'), () => tierList.rows.chooseLabelPositionWithKeyboard('Left')),
+          HIDE_ITEM_LABELS: setting(({sl}) => !sl, () => tierList.rows.setItemLabelsVisibleWithKeyboardNow(false), () => tierList.rows.setItemLabelsVisibleWithKeyboard(false)),
+          SHOW_ITEM_LABELS: setting(({sl}) => sl, () => tierList.rows.setItemLabelsVisibleWithKeyboardNow(true), () => tierList.rows.setItemLabelsVisibleWithKeyboard(true)),
         },
         states: {
           '*': async (_page, snapshot) => {
@@ -265,6 +441,7 @@ test.describe('history', () => {
       test(`renders each version of the list when the user walks every transition of changes, Back and Forward (${part.name})`, async ({tierList, page}, testInfo) => {
         expect(TRAY).toHaveLength(MAX_VERSIONS - 1);
         test.setTimeout(MODEL_PART_TIMEOUT);
+        await tierList.prepareListWriteRefusals();
         const coverage = await walkModel(historyModel, historySut(tierList, page, testInfo), part);
         await attachCoverage(testInfo, historyModel, coverage, part);
       });

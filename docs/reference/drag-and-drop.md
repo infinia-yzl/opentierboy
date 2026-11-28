@@ -316,7 +316,9 @@ Decisions in the adapter:
   each item's display label, so a link image without a label is named by its site). They
   count positions in the list from the start of the drag and name the place the preview
   shows after the event, so a move is announced as the screen shows it. A pointer drag
-  released over nothing is announced as cancelled. dnd-kit waits 500 ms before it reads a
+  released over nothing is announced as cancelled, and so is a drop whose history write the
+  browser refuses: the move handlers answer `false`, and the list stays as it was
+  (`docs/reference/link-format.md`, "A write that the browser refuses"). dnd-kit waits 500 ms before it reads a
   move, so quick moves are read once.
 - **Touch.** Hold an item still for 250 ms, then move to drag. Moving earlier scrolls the
   page. Holding still for 700 ms opens the item menu (Radix ContextMenu: Delete) and then no

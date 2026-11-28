@@ -228,6 +228,31 @@ test.describe('snapshot files', () => {
       expect(await tierList.deviceImages.deviceImageCount()).toBe(1);
     });
 
+    test('renders the list of the address and the save toast when the browser refuses the write of an opened snapshot file', async ({tierList, page}) => {
+      await tierList.prepareListWriteRefusals();
+      const snapshot = await downloadSnapshotOf(tierList);
+      await tierList.goto(TANKS, rankingState('image-overwatch', {'': ['Mauga', 'Winston']}));
+      const opened = page.url();
+      const entries = await tierList.historyLength();
+      await tierList.refuseNextListWrite();
+
+      await tierList.files.openFile(pngFile('snapshot.png', snapshot));
+      await tierList.files.confirmOpenList({newAddress: false});
+
+      await tierList.expectSavePaused();
+      await expect(page).toHaveURL(opened);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Winston']);
+      expect(await tierList.historyLength()).toBe(entries);
+
+      await tierList.files.openFile(pngFile('snapshot.png', snapshot));
+      await tierList.files.confirmOpenList();
+      await expectTierList(tierList, SNAPSHOT_LIST);
+      expect(await tierList.historyLength()).toBe(entries + 1);
+      await tierList.goBack();
+      await expect(page).toHaveURL(opened);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Mauga', 'Winston']);
+    });
+
     test('renders the stored copy and no error toast when the user opens a snapshot file with an AVIF under a stored id', async ({tierList}) => {
       const snapshot = await downloadSnapshotOf(tierList);
       const payload = JSON.parse(snapshotTextOf(snapshot) ?? 'null');
