@@ -2,7 +2,7 @@ import {createMachine} from 'xstate';
 
 export const itemExtractorMachine = createMachine({
   id: 'itemExtractor',
-  description: 'The dialog “Extract items from a picture” (Add images › Extract items from a picture…) on the list Tanks, with Mauga in row S. A drawn grid of 8 tiles shows 8 borders; a plain picture shows none, and the user draws one. A picture is chosen with “Choose a picture”, and a later one replaces it when it is dropped on the dialog or pasted. Borders can be removed. Step “2 Names” names items one by one. “Create a list with n items” opens a new list, Custom Tier List, with every item in Unranked, as one Back step. Escape closes the dialog and adds nothing.',
+  description: 'The dialog “Extract items from a picture” (Add images › Extract items from a picture…) on the list Tanks, with Mauga in row S. A drawn grid of 8 tiles shows 8 borders; a plain picture shows none, and the user draws one. A picture is chosen with “Choose a picture”, and a later one dropped on the dialog replaces it. Borders can be removed. Step “2 Names” names items one by one. “Create a list with n items” opens a new list, Custom Tier List, with every item in Unranked, as one Back step. Escape closes the dialog and adds nothing.',
   initial: 'closed',
   states: {
     closed: {
@@ -38,7 +38,7 @@ export const itemExtractorMachine = createMachine({
           description: 'Step “1 Items” with the plain picture: “No items found”, no border, and the button is off.',
           on: {
             DRAW_BORDER: {target: 'oneDrawn'},
-            PASTE_GRID: {target: 'eightFound'},
+            DROP_GRID: {target: 'eightFound'},
           },
         },
         oneDrawn: {

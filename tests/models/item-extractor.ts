@@ -54,7 +54,7 @@ export const itemExtractorModel = defineModel({
     CHOOSE_GRID: {generate: constant, when: offered('CHOOSE_GRID')},
     CHOOSE_PLAIN: {generate: constant, when: offered('CHOOSE_PLAIN')},
     DROP_PLAIN: {generate: constant, when: offered('DROP_PLAIN')},
-    PASTE_GRID: {generate: constant, when: offered('PASTE_GRID')},
+    DROP_GRID: {generate: constant, when: offered('DROP_GRID')},
     REMOVE_BORDER: {generate: constant, when: offered('REMOVE_BORDER')},
     DRAW_BORDER: {generate: constant, when: offered('DRAW_BORDER')},
     OPEN_NAMES: {generate: constant, when: offered('OPEN_NAMES')},

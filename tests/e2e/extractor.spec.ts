@@ -4,7 +4,7 @@ import {modelSut} from '../support/model-sut';
 import {attachCoverage, MODEL_PART_TIMEOUT, walkModel, walkParts} from '../support/machines';
 import {itemExtractorModel, itemExtractorViewOf, type ItemExtractorEvent, type ItemExtractorSnapshot} from '../models/item-extractor';
 import {SitePage} from '../pages/site-page';
-import type {TierListPage} from '../pages/tier-list-page';
+import {SCRIPTED_PASTE_SKIP, type TierListPage} from '../pages/tier-list-page';
 import {EXTRACTOR_MENU_ITEM} from '../pages/extractor';
 import {rankingState} from '../support/links';
 import {CROWDED_PICTURE, EXTRACTOR_GRID, gridPng, picturePng, PLAIN_PICTURE, ROW_OF_THREE} from '../support/extractor-pictures';
@@ -209,7 +209,8 @@ test.describe('extractor', () => {
       await expect(extractor.text('8 items found')).toBeVisible();
     });
 
-    test('renders the picture with its borders when the user pastes a picture in the dialog', async ({tierList}) => {
+    test('renders the picture with its borders when the user pastes a picture in the dialog', async ({tierList, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
       const {extractor} = tierList;
       await extractor.open();
 
@@ -283,7 +284,7 @@ test.describe('extractor', () => {
       expect(Math.abs(size.width - EXTRACTOR_GRID.width)).toBeLessThanOrEqual(2);
     });
 
-    test('writes typed, pasted and automatic names to the items when the user names items in step "2 Names"', async ({tierList}) => {
+    test('writes typed and automatic names to the items when the user names items in step "2 Names"', async ({tierList}) => {
       const {extractor} = tierList;
       await extractor.open();
       await extractor.choosePicture(GRID_PICTURE);
@@ -300,17 +301,31 @@ test.describe('extractor', () => {
       await expect(extractor.text('Item 2 of 8')).toBeVisible();
       await extractor.typeName('');
       await expect(extractor.text('Item 3 of 8')).toBeVisible();
-      await extractor.pasteNames('Mercy\nLucio\n\nKiriko');
-      await expect(extractor.text('Item 6 of 8')).toBeVisible();
-      await expect(extractor.nameStrip.getByRole('button', {name: 'Item 4: Lucio'})).toBeVisible();
-      await extractor.typeName('Moira');
-      await extractor.typeName('');
+      for (const name of ['Mercy', 'Lucio', 'Kiriko', 'Moira', '']) await extractor.typeName(name);
+      await expect(extractor.text('Item 8 of 8')).toBeVisible();
       await extractor.typeName('Zen');
       await expect(extractor.createButton(8)).toBeFocused();
 
       await extractor.create(8);
 
       await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Ana', 'heroes 2', 'Mercy', 'Lucio', 'Kiriko', 'Moira', 'heroes 7', 'Zen']);
+    });
+
+    test('writes one pasted line to each item from the current one when the user pastes several lines in step "2 Names"', async ({tierList, browserName}) => {
+      test.skip(browserName === 'firefox', SCRIPTED_PASTE_SKIP);
+      const {extractor} = tierList;
+      await extractor.open();
+      await extractor.choosePicture(GRID_PICTURE);
+      await extractor.openNames();
+      await extractor.typeName('Ana');
+      await expect(extractor.text('Item 2 of 8')).toBeVisible();
+
+      await extractor.pasteNames('Mercy\nLucio\n\nKiriko');
+
+      await expect(extractor.text('Item 5 of 8')).toBeVisible();
+      await expect(extractor.nameStrip.getByRole('button', {name: 'Item 3: Lucio'})).toBeVisible();
+      await extractor.create(8);
+      await expect(tierList.itemsIn(tierList.unranked)).toHaveText(['Ana', 'Mercy', 'Lucio', 'Kiriko', 'heroes 5', 'heroes 6', 'heroes 7', 'heroes 8']);
     });
 
     test('renders the item and the strip of tiles when the user clicks tile 4 of the strip in step "2 Names"', async ({tierList}) => {
@@ -345,8 +360,8 @@ test.describe('extractor', () => {
           await tierList.extractor.dropPicture(PLAIN_PICTURE);
           await expect(tierList.extractor.text('No items found. Draw a border around one item.')).toBeVisible();
         },
-        PASTE_GRID: async () => {
-          await tierList.extractor.pastePicture(GRID_PICTURE);
+        DROP_GRID: async () => {
+          await tierList.extractor.dropPicture(GRID_PICTURE);
           await expect(tierList.extractor.text('8 items found')).toBeVisible();
         },
         REMOVE_BORDER: () => tierList.extractor.pressOnBorder(tierList.extractor.border(1, 8), 'Delete'),
