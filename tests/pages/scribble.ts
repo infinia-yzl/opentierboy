@@ -263,6 +263,14 @@ export class Scribble {
     return Array.from({length: 15}, (_, index) => ({x: Math.floor(box.x + box.width * (0.15 + index * 0.05)) + 0.5, y: row}));
   }
 
+  async slantedLineAcross(target: Locator, from = 0.35, to = 0.75): Promise<Point[]> {
+    const box = await boxOf(target);
+    return Array.from({length: 15}, (_, index) => ({
+      x: Math.floor(box.x + box.width * (0.15 + index * 0.05)) + 0.5,
+      y: Math.floor(box.y + box.height * (from + (to - from) * (index / 14))) + 0.5,
+    }));
+  }
+
   async lineAcrossAndBeyond(target: Locator): Promise<{line: Point[]; onPicture: Point[]; onRow: Point[]}> {
     const box = await boxOf(target);
     const line = await this.lineAcross(target);
@@ -313,6 +321,42 @@ export class Scribble {
         return `paint layer ${size(paint)}, its svg ${inner ? size(inner) : 'missing'}, blend ${style.mixBlendMode}, clip ${style.clipPath.slice(0, 60)}`;
       })].join('; ');
     });
+  }
+
+  async inkProbe(points: readonly Point[]): Promise<string> {
+    const centre = async () => JSON.stringify((await this.pixelColumnsAt(points)).map((column) => column[1]));
+    const onPaints = (change: 'clip' | 'blend') => this.layer.evaluate((layer, what) => {
+      for (const element of Array.from(layer.parentElement?.children ?? [])) {
+        if (element === layer || element.getAttribute('aria-hidden') !== 'true' || !(element instanceof HTMLElement)) continue;
+        if (what === 'clip') element.style.clipPath = 'none';
+        else element.style.mixBlendMode = 'normal';
+      }
+    }, change);
+    const places = await this.layer.evaluate((layer) => {
+      const box = (element: Element | null | undefined) => {
+        if (!element) return 'missing';
+        const {x, y, width, height} = element.getBoundingClientRect();
+        return [x, y, width, height].map((value) => Math.round(value * 10) / 10).join(' ');
+      };
+      const paint = Array.from(layer.parentElement?.children ?? []).find((element) => element !== layer && element.getAttribute('aria-hidden') === 'true');
+      const painted = paint?.firstElementChild?.firstElementChild;
+      const stroke = painted?.firstElementChild;
+      const style = stroke ? getComputedStyle(stroke) : null;
+      const topNote = layer.firstElementChild?.firstElementChild;
+      return `note in the top layer ${box(topNote)}; note in the first paint layer ${box(painted)}, transform ${painted?.getAttribute('transform')}, `
+        + `its stroke ${box(stroke)}, d ${stroke?.getAttribute('d')?.slice(0, 80)}, stroke ${style?.stroke}, width ${style?.strokeWidth}, opacity ${style?.opacity}, display ${style?.display}, visibility ${style?.visibility}`;
+    });
+    const steps = [`sample points ${JSON.stringify(points)}`, places];
+    await onPaints('clip');
+    steps.push(`without the clip ${await centre()}`);
+    await onPaints('blend');
+    steps.push(`without the clip and the blending ${await centre()}`);
+    await this.layer.evaluate((layer) => {
+      const notes = layer.firstElementChild;
+      if (notes instanceof SVGElement) notes.style.opacity = '1';
+    });
+    steps.push(`with the notes of the top layer shown ${await centre()}`);
+    return steps.join('; ');
   }
 
   async dotAt(point: Point) {

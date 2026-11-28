@@ -520,7 +520,9 @@ test.describe('scribble', () => {
         await scribble.expectNotes(1);
 
         const after = await scribble.pixelColumnsAt(samples);
-        expect(columnsWhere(before, after, isNegative), `${seen(before, after)}; ${await scribble.paintLayerFacts()}`).toBe(SAMPLES.length);
+        const shown = columnsWhere(before, after, isNegative);
+        const facts = shown === SAMPLES.length ? '' : `${seen(before, after)}; ${await scribble.paintLayerFacts()}; ${await scribble.inkProbe(samples)}`;
+        expect(shown, facts).toBe(SAMPLES.length);
       });
 
       test('renders the picture with reversed brightness and a red tint under the stroke when Red ink crosses an item', async ({tierList}) => {
@@ -583,7 +585,25 @@ test.describe('scribble', () => {
         await scribble.expectNotes(1);
 
         const after = await scribble.pixelColumnsAt(samples);
-        expect(columnsWhere(before, after, isColour(LIGHT_INK.Red)), `${seen(before, after)}; ${await scribble.paintLayerFacts()}`).toBe(SAMPLES.length);
+        const shown = columnsWhere(before, after, isColour(LIGHT_INK.Red));
+        const facts = shown === SAMPLES.length ? '' : `${seen(before, after)}; ${await scribble.paintLayerFacts()}; ${await scribble.inkProbe(samples)}`;
+        expect(shown, facts).toBe(SAMPLES.length);
+      });
+
+      test('renders solid red ink when a slanted stroke crosses an empty row', async ({tierList}) => {
+        const {scribble} = tierList;
+        await scribble.gotoWithScribble(TANKS, LIST);
+        const line = await scribble.slantedLineAcross(tierList.tier('B'));
+        const samples = SAMPLES.map((index) => line[index]);
+        const before = await scribble.settledPixelColumnsAt(samples);
+
+        await scribble.draw(line);
+        await scribble.expectNotes(1);
+
+        const after = await scribble.pixelColumnsAt(samples);
+        const shown = columnsWhere(before, after, isColour(LIGHT_INK.Red));
+        const facts = shown === SAMPLES.length ? '' : `${seen(before, after)}; ${await scribble.paintLayerFacts()}; ${await scribble.inkProbe(samples)}`;
+        expect(shown, facts).toBe(SAMPLES.length);
       });
     });
 
